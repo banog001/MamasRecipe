@@ -108,8 +108,6 @@ class _HomePageDietitianState extends State<HomePageDietitian> {
     const Center(
         child: Text("Favorites Page", style: TextStyle(fontSize: 20))),
     UsersListPage(currentUserId: FirebaseAuth.instance.currentUser!.uid),
-    const Center(
-        child: Text("No new notifications", style: TextStyle(fontSize: 20))),
   ];
 
   @override
@@ -202,8 +200,6 @@ class _HomePageDietitianState extends State<HomePageDietitian> {
                 icon: Icon(Icons.favorite), label: 'Favorites'),
             BottomNavigationBarItem(
                 icon: Icon(Icons.message), label: 'Messages'),
-            BottomNavigationBarItem(
-                icon: Icon(Icons.notifications), label: 'Notifications'),
           ],
         ),
       ),
@@ -285,101 +281,126 @@ class UsersListPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance.collection("Users").snapshots(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-          return const Center(child: Text("No users found."));
-        }
-
-        var users = snapshot.data!.docs;
-        return ListView.builder(
-          itemCount: users.length,
-          itemBuilder: (context, index) {
-            var user = users[index];
-            var data = user.data() as Map<String, dynamic>;
-            bool isCurrentUser = user.id == currentUserId;
-            bool isOnline = data["status"] == "online";
-
-            if (isCurrentUser) return const SizedBox();
-
-            return FutureBuilder<Map<String, dynamic>>(
-              future: getLastMessage(context, user.id),
-              builder: (context, snapshotMessage) {
-                String subtitle = "";
-                if (snapshotMessage.connectionState == ConnectionState.done &&
-                    snapshotMessage.hasData) {
-                  final lastMsg = snapshotMessage.data!;
-                  subtitle =
-                  "${lastMsg["isMe"] ? "You" : data["firstName"]}: ${lastMsg["message"]}   ${lastMsg["time"]}";
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        appBar: AppBar(
+          backgroundColor: Colors.white,
+          elevation: 1,
+          automaticallyImplyLeading: false,
+          title: const TabBar(
+            labelColor: Colors.black,
+            indicatorColor: Colors.black,
+            tabs: [
+              Tab(text: "MESSAGES"),
+              Tab(text: "NOTIFICATION"),
+            ],
+          ),
+        ),
+        body: TabBarView(
+          children: [
+            // MESSAGES LIST
+            StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance.collection("Users").snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                  return const Center(child: Text("No users found."));
                 }
 
-                return GestureDetector(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => MessagesPage(
-                          currentUserId: currentUserId,
-                          receiverId: user.id,
-                          receiverName:
-                          "${data["firstName"] ?? ""} ${data["lastName"] ?? ""}",
-                          receiverProfile: data["profile"] ?? "",
-                        ),
-                      ),
-                    );
-                  },
-                  child: Card(
-                    margin:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    child: ListTile(
-                      leading: Stack(
-                        children: [
-                          CircleAvatar(
-                            radius: 25,
-                            backgroundImage: (data["profile"] != null &&
-                                data["profile"].toString().isNotEmpty)
-                                ? NetworkImage(data["profile"])
-                                : const AssetImage("lib/assets/image/user.png")
-                            as ImageProvider,
-                          ),
-                          Positioned(
-                            bottom: 0,
-                            right: 0,
-                            child: Container(
-                              width: 12,
-                              height: 12,
-                              decoration: BoxDecoration(
-                                color: isOnline ? Colors.green : Colors.grey,
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                    color: Colors.white, width: 2),
+                var users = snapshot.data!.docs;
+                return ListView.builder(
+                  itemCount: users.length,
+                  itemBuilder: (context, index) {
+                    var user = users[index];
+                    var data = user.data() as Map<String, dynamic>;
+                    bool isCurrentUser = user.id == currentUserId;
+                    bool isOnline = data["status"] == "online";
+
+                    if (isCurrentUser) return const SizedBox();
+
+                    return FutureBuilder<Map<String, dynamic>>(
+                      future: getLastMessage(context, user.id),
+                      builder: (context, snapshotMessage) {
+                        String subtitle = "";
+                        if (snapshotMessage.connectionState == ConnectionState.done &&
+                            snapshotMessage.hasData) {
+                          final lastMsg = snapshotMessage.data!;
+                          subtitle =
+                          "${lastMsg["isMe"] ? "You" : data["firstName"]}: ${lastMsg["message"]}";
+                        }
+
+                        return GestureDetector(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => MessagesPage(
+                                  currentUserId: currentUserId,
+                                  receiverId: user.id,
+                                  receiverName:
+                                  "${data["firstName"] ?? ""} ${data["lastName"] ?? ""}",
+                                  receiverProfile: data["profile"] ?? "",
+                                ),
+                              ),
+                            );
+                          },
+                          child: Card(
+                            margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            child: ListTile(
+                              leading: Stack(
+                                children: [
+                                  CircleAvatar(
+                                    radius: 25,
+                                    backgroundImage: (data["profile"] != null &&
+                                        data["profile"].toString().isNotEmpty)
+                                        ? NetworkImage(data["profile"])
+                                        : const AssetImage("lib/assets/image/user.png")
+                                    as ImageProvider,
+                                  ),
+                                  Positioned(
+                                    bottom: 0,
+                                    right: 0,
+                                    child: Container(
+                                      width: 12,
+                                      height: 12,
+                                      decoration: BoxDecoration(
+                                        color: isOnline ? Colors.green : Colors.grey,
+                                        shape: BoxShape.circle,
+                                        border: Border.all(color: Colors.white, width: 2),
+                                      ),
+                                    ),
+                                  )
+                                ],
+                              ),
+                              title: Text(
+                                "${data["firstName"] ?? ""} ${data["lastName"] ?? ""}",
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold, fontSize: 16),
+                              ),
+                              subtitle: Text(
+                                subtitle,
+                                style: const TextStyle(
+                                    fontSize: 14, color: Colors.black87),
                               ),
                             ),
-                          )
-                        ],
-                      ),
-                      title: Text(
-                        "${data["firstName"] ?? ""} ${data["lastName"] ?? ""}",
-                        style: const TextStyle(
-                            fontWeight: FontWeight.bold, fontSize: 16),
-                      ),
-                      subtitle: Text(
-                        subtitle,
-                        style: const TextStyle(
-                            fontSize: 14, color: Colors.black87),
-                      ),
-                    ),
-                  ),
+                          ),
+                        );
+                      },
+                    );
+                  },
                 );
               },
-            );
-          },
-        );
-      },
+            ),
+
+            // NOTIFICATIONS TAB
+            const Center(child: Text("No new notifications")),
+          ],
+        ),
+      ),
     );
   }
+
 }
