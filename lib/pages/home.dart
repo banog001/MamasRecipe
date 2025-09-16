@@ -6,6 +6,7 @@ import 'login.dart';
 import 'messages.dart';
 import 'package:intl/intl.dart';
 import 'dart:ui'; // for ImageFilter
+import 'UserProfile.dart';
 
 class home extends StatefulWidget {
   const home({super.key});
@@ -766,7 +767,14 @@ class _HomeState extends State<home> {
           Padding(
             padding: const EdgeInsets.only(right: 12),
             child: GestureDetector(
-              onTap: () {},
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const UserProfile(),
+                  ),
+                );
+              },
               child: CircleAvatar(
                 radius: 20,
                 backgroundImage: (firebaseUser != null &&
@@ -800,7 +808,7 @@ class _HomeState extends State<home> {
             BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
             BottomNavigationBarItem(icon: Icon(Icons.edit_calendar), label: 'Schedule'),
             BottomNavigationBarItem(icon: Icon(Icons.favorite), label: 'Favorites'),
-            BottomNavigationBarItem(icon: Icon(Icons.message), label: 'Messages'),
+            BottomNavigationBarItem(icon: Icon(Icons.mail), label: 'Messages'),
           ],
         ),
       ),

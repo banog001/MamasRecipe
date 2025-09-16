@@ -12,17 +12,55 @@ class HomePageDietitian extends StatefulWidget {
   @override
   State<HomePageDietitian> createState() => _HomePageDietitianState();
 }
+// pang fetch sa firestore ng mga fields
+Future<Map<String, dynamic>?> getCurrentUserData() async {
+  final currentUser = FirebaseAuth.instance.currentUser;
+
+  if (currentUser == null) return null;
+
+  final userDoc = await FirebaseFirestore.instance
+      .collection("Users")
+      .doc(currentUser.uid)
+      .get();
+
+  if (userDoc.exists) {
+    return userDoc.data() as Map<String, dynamic>;
+  } else {
+    return null;
+  }
+}
 
 class _HomePageDietitianState extends State<HomePageDietitian> {
   final User? firebaseUser = FirebaseAuth.instance.currentUser;
   String selectedMenu = '';
   int selectedIndex = 0;
 
+  // eto yung sa pang fetch
+  String firstName = "";
+  String lastName = "";
+
+
   @override
   void initState() {
     super.initState();
     _setUserStatus("online");
     _updateGooglePhotoURL();
+    loadUserName();
+  }
+  void loadUserName() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      final doc = await FirebaseFirestore.instance
+          .collection('Users')
+          .doc(user.uid)
+          .get();
+      if (doc.exists) {
+        setState(() {
+          firstName = doc['firstName'] ?? '';
+          lastName = doc['lastName'] ?? '';
+        });
+      }
+    }
   }
 
   Future<void> _updateGooglePhotoURL() async {
@@ -132,7 +170,7 @@ class _HomePageDietitianState extends State<HomePageDietitian> {
                     color: Color(0xFF4CAF50),
                   ),
                   child: Text(
-                    firebaseUser!.email ?? "MENU",
+                    firstName.isNotEmpty ? "$firstName $lastName" : "MENU",
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 22,
@@ -199,7 +237,7 @@ class _HomePageDietitianState extends State<HomePageDietitian> {
             BottomNavigationBarItem(
                 icon: Icon(Icons.favorite), label: 'Favorites'),
             BottomNavigationBarItem(
-                icon: Icon(Icons.message), label: 'Messages'),
+                icon: Icon(Icons.mail), label: 'mail'),
           ],
         ),
       ),
