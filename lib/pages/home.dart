@@ -14,10 +14,60 @@ class home extends StatefulWidget {
   State<home> createState() => _HomeState();
 }
 
+// pang fetch sa firestore ng mga fields
+Future<Map<String, dynamic>?> getCurrentUserData() async {
+  final currentUser = FirebaseAuth.instance.currentUser;
+
+  if (currentUser == null) return null;
+
+  final userDoc = await FirebaseFirestore.instance
+      .collection("Users")
+      .doc(currentUser.uid)
+      .get();
+
+  if (userDoc.exists) {
+    return userDoc.data() as Map<String, dynamic>;
+  } else {
+    return null;
+  }
+}
+
 class _HomeState extends State<home> {
   final User? firebaseUser = FirebaseAuth.instance.currentUser;
   String selectedMenu = '';
   int selectedIndex = 0;
+
+
+  // eto yung sa pang fetch
+  String firstName = "";
+  String lastName = "";
+
+  @override
+  void initState() {
+    super.initState();
+    _setUserStatus("online");
+    _updateGooglePhotoURL();
+    loadUserName();
+  }
+
+  void loadUserName() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      final doc = await FirebaseFirestore.instance
+          .collection('Users')
+          .doc(user.uid)
+          .get();
+      if (doc.exists) {
+        setState(() {
+          firstName = doc['firstName'] ?? '';
+          lastName = doc['lastName'] ?? '';
+        });
+      }
+    }
+  }
+
+
+
   /// 🔮 Recommendations widget
   /// Recommendations Widget (based on formula)
   Widget recommendationsWidget() {
@@ -30,6 +80,8 @@ class _HomeState extends State<home> {
     // 🔑 weights for recommendation formula
     const double w1 = 1.0;
     const double alpha = 1.0;
+
+
 
     // Fetch user subscription status first
     return FutureBuilder<DocumentSnapshot>(
@@ -538,12 +590,7 @@ class _HomeState extends State<home> {
 
 
 
-  @override
-  void initState() {
-    super.initState();
-    _setUserStatus("online");
-    _updateGooglePhotoURL();
-  }
+
 
   Future<void> _updateGooglePhotoURL() async {
     if (firebaseUser != null) {
@@ -689,13 +736,14 @@ class _HomeState extends State<home> {
                     color: Color(0xFF4CAF50),
                   ),
                   child: Text(
-                    firebaseUser!.email ?? "MENU",
+                    firstName.isNotEmpty ? "$firstName $lastName" : "MENU",
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 22,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
+
                 ),
                 buildMenuTile('Subscription', Icons.subscriptions),
                 buildMenuTile('Settings', Icons.settings),
