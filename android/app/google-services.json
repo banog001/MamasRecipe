@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "366834307473",
+    "project_id": "mamas-e9f1d",
+    "storage_bucket": "mamas-e9f1d.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:366834307473:android:866d1b026948e8d9ba8a30",
+        "android_client_info": {
+          "package_name": "com.example.mamas_recipe"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDRF-drGWt2vJm7K93gI8sSh55cj-sGf4U"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
