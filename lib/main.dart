@@ -90,7 +90,7 @@ class AuthCheck extends StatelessWidget {
               case 2:
                 return MealPlanningScreen3(userId: userId);
               case 3:
-                return MealPlanningScreen4();
+                return MealPlanningScreen4(userId: userId);
               default:
                 return const home();
             }
