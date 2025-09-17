@@ -9,7 +9,9 @@ import 'dart:ui'; // for ImageFilter
 import 'UserProfile.dart';
 
 class home extends StatefulWidget {
-  const home({super.key});
+  final int initialIndex;
+
+  const home({super.key, this.initialIndex = 0});
 
   @override
   State<home> createState() => _HomeState();
@@ -36,7 +38,7 @@ Future<Map<String, dynamic>?> getCurrentUserData() async {
 class _HomeState extends State<home> {
   final User? firebaseUser = FirebaseAuth.instance.currentUser;
   String selectedMenu = '';
-  int selectedIndex = 0;
+  late int selectedIndex;
 
 
   // eto yung sa pang fetch
@@ -46,6 +48,7 @@ class _HomeState extends State<home> {
   @override
   void initState() {
     super.initState();
+    selectedIndex = widget.initialIndex;
     _setUserStatus("online");
     _updateGooglePhotoURL();
     loadUserName();
@@ -711,7 +714,6 @@ class _HomeState extends State<home> {
       ),
     ),
     const Center(child: Text("Schedule Page", style: TextStyle(fontSize: 20))),
-    const Center(child: Text("Favorites Page", style: TextStyle(fontSize: 20))),
     UsersListPage(currentUserId: firebaseUser!.uid),
   ];
 
@@ -807,7 +809,6 @@ class _HomeState extends State<home> {
           items: const [
             BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
             BottomNavigationBarItem(icon: Icon(Icons.edit_calendar), label: 'Schedule'),
-            BottomNavigationBarItem(icon: Icon(Icons.favorite), label: 'Favorites'),
             BottomNavigationBarItem(icon: Icon(Icons.mail), label: 'Messages'),
           ],
         ),
