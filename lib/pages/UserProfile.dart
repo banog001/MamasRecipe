@@ -1,9 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'home.dart'; // ✅ import your home.dart where HomePage, SchedulePage, MessagesPage are
+import 'home.dart'; // ✅ still needed for bottom nav
 
-class UserProfile extends StatelessWidget {
+class UserProfile extends StatefulWidget {
   const UserProfile({super.key});
+
+  @override
+  State<UserProfile> createState() => _UserProfileState();
+}
+
+class _UserProfileState extends State<UserProfile> {
+  String activeTab = "favorites"; // 👈 default active = Favorites
 
   @override
   Widget build(BuildContext context) {
@@ -27,7 +34,7 @@ class UserProfile extends StatelessWidget {
       body: SingleChildScrollView(
         child: Column(
           children: [
-            // Top section with green background and profile pic
+            // --- Profile header ---
             Container(
               width: double.infinity,
               decoration: const BoxDecoration(
@@ -40,7 +47,6 @@ class UserProfile extends StatelessWidget {
               padding: const EdgeInsets.all(16),
               child: Column(
                 children: [
-                  // Profile picture
                   Stack(
                     alignment: Alignment.center,
                     children: [
@@ -76,7 +82,7 @@ class UserProfile extends StatelessWidget {
                   ),
                   const SizedBox(height: 20),
 
-                  // Weight, Height, BMI row
+                  // Weight, Height, BMI
                   Card(
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                     child: Padding(
@@ -106,7 +112,7 @@ class UserProfile extends StatelessWidget {
 
             const SizedBox(height: 20),
 
-            // Favorites section
+            // ✅ Favorites + My Meal Plan Section
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Card(
@@ -116,14 +122,61 @@ class UserProfile extends StatelessWidget {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text("Favorites", style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
-                      ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      // --- Favorites ---
+                      Expanded(
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(12),
+                          onTap: () {
+                            setState(() {
+                              activeTab = "favorites";
+                            });
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            decoration: BoxDecoration(
+                              color: activeTab == "favorites" ? Colors.green : Colors.transparent,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            alignment: Alignment.center,
+                            child: Text(
+                              "Favorites",
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w500,
+                                color: activeTab == "favorites" ? Colors.white : Colors.black,
+                              ),
+                            ),
+                          ),
                         ),
-                        onPressed: () {},
-                        child: const Text("My Meal Plan"),
+                      ),
+                      const SizedBox(width: 12),
+
+                      // --- My Meal Plan ---
+                      Expanded(
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(12),
+                          onTap: () {
+                            setState(() {
+                              activeTab = "mealplan";
+                            });
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            decoration: BoxDecoration(
+                              color: activeTab == "mealplan" ? Colors.green : Colors.transparent,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            alignment: Alignment.center,
+                            child: Text(
+                              "My Meal Plan",
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w500,
+                                color: activeTab == "mealplan" ? Colors.white : Colors.black,
+                              ),
+                            ),
+                          ),
+                        ),
                       ),
                     ],
                   ),
@@ -132,18 +185,23 @@ class UserProfile extends StatelessWidget {
             ),
 
             const SizedBox(height: 20),
+
+            // 👇 Display message based on active tab
+            Text(
+              activeTab == "favorites" ? "Your favorites" : "Your meal plans",
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
+            ),
           ],
         ),
       ),
 
-      // ✅ Bottom nav that navigates to home.dart pages
+      // --- Bottom nav ---
       bottomNavigationBar: ClipRRect(
         borderRadius: const BorderRadius.only(
           topLeft: Radius.circular(24),
           topRight: Radius.circular(24),
         ),
         child: BottomNavigationBar(
-          // currentIndex: 3,
           selectedItemColor: Colors.white30,
           unselectedItemColor: Colors.white30,
           backgroundColor: Colors.green,
@@ -154,7 +212,7 @@ class UserProfile extends StatelessWidget {
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(
-                builder: (_) => home(initialIndex: index), // 👈 go back to home.dart
+                builder: (_) => home(initialIndex: index),
               ),
             );
           },
@@ -165,7 +223,6 @@ class UserProfile extends StatelessWidget {
           ],
         ),
       ),
-
     );
   }
 }
