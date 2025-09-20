@@ -136,7 +136,7 @@ class _MealPlanningScreen3State extends State<MealPlanningScreen3> {
       await FirebaseFirestore.instance
           .collection("Users")
           .doc(widget.userId)
-          .update({
+          .set({
         "nickname": nickname,
         "age": int.tryParse(age) ?? 0,
         "gender": gender,
@@ -145,7 +145,8 @@ class _MealPlanningScreen3State extends State<MealPlanningScreen3> {
         "goals": healthGoal,
         "activityLevel": activityLevel,
         "tutorialStep": 3,
-      });
+      }, SetOptions(merge: true)); // ✅ merge makes sure existing fields are kept
+
 
       if (mounted) {
         Navigator.pushReplacement(

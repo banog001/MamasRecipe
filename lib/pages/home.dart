@@ -347,6 +347,7 @@ class _HomeState extends State<home> {
                         _buildMealRow("Lunch", data["lunch"], isUserSubscribed),
                         _buildMealRow("PM Snack", data["pmSnack"], isUserSubscribed),
                         _buildMealRow("Dinner", data["dinner"], isUserSubscribed),
+                        _buildMealRow("Midnight Snack", data["midnightSnack"], isUserSubscribed),
                       ],
                     ),
                   ),

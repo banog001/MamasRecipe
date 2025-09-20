@@ -1,60 +1,60 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'home.dart'; // ✅ import your home.dart
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'home.dart'; // ✅ your home.dart
 
-class UserProfile extends StatelessWidget {
+class UserProfile extends StatefulWidget {
   const UserProfile({super.key});
 
-  // --- Style Definitions from your "Second UserProfile" ---
-  static const Color _primaryBrandColor = Color(0xFF4CAF50); // Theme green
+  @override
+  State<UserProfile> createState() => _UserProfileState();
+}
+
+// --- State Class ---
+class _UserProfileState extends State<UserProfile> {
+  // --- Style Definitions ---
+  static const Color _primaryBrandColor = Color(0xFF4CAF50);
   static const Color _accentBrandColor = Color(0xFF66BB6A);
   static const Color _textOnPrimaryBrandColor = Colors.white;
   static const String _primaryFontFamily = 'PlusJakartaSans';
 
-  static const TextStyle _appBarTitleBaseStyle = TextStyle(
-    fontFamily: _primaryFontFamily,
-    fontWeight: FontWeight.bold,
-    fontSize: 20,
-  );
-  static const TextStyle _userNameBaseStyle = TextStyle(
-    fontFamily: _primaryFontFamily,
-    fontSize: 22,
-    fontWeight: FontWeight.bold,
-  );
-  static const TextStyle _infoCardLabelBaseStyle = TextStyle(
-    fontFamily: _primaryFontFamily,
-    fontSize: 13, // Adjusted from original 14 for the new card style
-    fontWeight: FontWeight.w500,
-  );
-  static const TextStyle _infoCardValueBaseStyle = TextStyle(
-    fontFamily: _primaryFontFamily,
-    fontSize: 16, // Was 14, making it bolder for the new card style
-    fontWeight: FontWeight.bold,
-  );
-  static const TextStyle _sectionTitleBaseStyle = TextStyle(
-    fontFamily: _primaryFontFamily,
-    fontSize: 18,
-    fontWeight: FontWeight.bold,
-  );
-  static const TextStyle _buttonTextBaseStyle = TextStyle(
-    fontFamily: _primaryFontFamily,
-    fontWeight: FontWeight.bold,
-    fontSize: 14,
-    letterSpacing: 0.5,
-  );
-  static const TextStyle _caloriesTextBaseStyle = TextStyle( // Added from second design
-    fontFamily: _primaryFontFamily,
-    fontSize: 14,
-    fontWeight: FontWeight.w500,
-  );
-  // --- End Base Style Definitions ---
+  static const TextStyle _appBarTitleBaseStyle =
+  TextStyle(fontFamily: _primaryFontFamily, fontWeight: FontWeight.bold, fontSize: 20);
+  static const TextStyle _userNameBaseStyle =
+  TextStyle(fontFamily: _primaryFontFamily, fontSize: 22, fontWeight: FontWeight.bold);
+  static const TextStyle _infoCardLabelBaseStyle =
+  TextStyle(fontFamily: _primaryFontFamily, fontSize: 13, fontWeight: FontWeight.w500);
+  static const TextStyle _infoCardValueBaseStyle =
+  TextStyle(fontFamily: _primaryFontFamily, fontSize: 16, fontWeight: FontWeight.bold);
+  static const TextStyle _sectionTitleBaseStyle =
+  TextStyle(fontFamily: _primaryFontFamily, fontSize: 18, fontWeight: FontWeight.bold);
+  static const TextStyle _buttonTextBaseStyle =
+  TextStyle(fontFamily: _primaryFontFamily, fontWeight: FontWeight.bold, fontSize: 14, letterSpacing: 0.5);
+  static const TextStyle _caloriesTextBaseStyle =
+  TextStyle(fontFamily: _primaryFontFamily, fontSize: 14, fontWeight: FontWeight.w500);
+
+  // --- BMI Formula ---
+  double _calculateBMI(double weightKg, double heightCm) {
+    if (weightKg <= 0 || heightCm <= 0) return 0;
+    final heightM = heightCm / 100;
+    return weightKg / (heightM * heightM);
+  }
+
+  // --- Fetch user data from Firestore ---
+  Future<Map<String, dynamic>?> _getUserData() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return null;
+
+    final snapshot = await FirebaseFirestore.instance.collection("Users").doc(user.uid).get();
+    return snapshot.data();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final User? user = FirebaseAuth.instance.currentUser;
+    final user = FirebaseAuth.instance.currentUser;
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
-    // --- Determine THEMED Colors ---
+    // Theme colors
     final Color currentScaffoldBgColor = isDarkMode ? Colors.grey.shade900 : Colors.grey.shade100;
     final Color currentCardBgColor = isDarkMode ? Colors.grey.shade800 : Colors.white;
     final Color currentTextColorPrimary = isDarkMode ? Colors.white70 : Colors.black87;
@@ -63,7 +63,7 @@ class UserProfile extends StatelessWidget {
     final Color currentAccentColor = _accentBrandColor;
     final Color currentTextColorOnPrimary = _textOnPrimaryBrandColor;
 
-    // --- Create THEMED TextStyles ---
+    // Text styles
     final TextStyle appBarTitleStyle = _appBarTitleBaseStyle.copyWith(color: currentTextColorOnPrimary);
     final TextStyle userNameStyle = _userNameBaseStyle.copyWith(color: currentTextColorOnPrimary);
     final TextStyle infoCardLabelStyle = _infoCardLabelBaseStyle.copyWith(color: currentTextColorSecondary);
@@ -77,7 +77,6 @@ class UserProfile extends StatelessWidget {
     );
     final TextStyle caloriesTextStyle = _caloriesTextBaseStyle.copyWith(color: currentPrimaryColor);
 
-
     if (user == null) {
       return Scaffold(
         backgroundColor: currentScaffoldBgColor,
@@ -85,257 +84,261 @@ class UserProfile extends StatelessWidget {
       );
     }
 
-    // Data from your first UserProfile (or fetch dynamically if needed)
-    final String displayName = user.displayName ?? "Unknown User";
-    final String? photoUrl = user.photoURL;
+    return FutureBuilder<Map<String, dynamic>?>(
+      future: _getUserData(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Scaffold(
+            backgroundColor: currentScaffoldBgColor,
+            body: const Center(child: CircularProgressIndicator()),
+          );
+        }
 
-    // Hardcoded values from your first UserProfile's _InfoCard for simplicity
-    // In a real app, these would come from Firestore or another data source.
-    const String weightValue = "54 kg";
-    const String heightValue = "165 cm";
-    const String bmiValue = "19.8";
-    const String dailyCalories = "1,850 kcal";
+        if (!snapshot.hasData || snapshot.data == null) {
+          return Scaffold(
+            backgroundColor: currentScaffoldBgColor,
+            body: const Center(child: Text("No user data found")),
+          );
+        }
 
-    return Scaffold(
-      backgroundColor: currentScaffoldBgColor,
-      appBar: AppBar(
-        title: Text("My Profile", style: appBarTitleStyle), // Changed title
-        backgroundColor: currentPrimaryColor,
-        elevation: 1, // Added from second design
-        iconTheme: IconThemeData(color: currentTextColorOnPrimary), // Added from second design
-      ),
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            // Top section from "Second UserProfile" design
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 30),
-              decoration: BoxDecoration(
-                color: currentPrimaryColor,
-                borderRadius: const BorderRadius.vertical(
-                  bottom: Radius.elliptical(150, 30), // Elliptical border
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black26,
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  )
-                ],
-              ),
-              child: Column(
-                children: [
-                  Stack( // Profile picture from "Second UserProfile"
+        final data = snapshot.data!;
+        final double weight = (data["currentWeight"] ?? 0).toDouble();
+        final double height = (data["height"] ?? 0).toDouble();
+        final double bmi = _calculateBMI(weight, height);
+
+        final String displayName = user.displayName ?? "Unknown User";
+        final String? photoUrl = user.photoURL;
+        const String dailyCalories = "1,850 kcal"; // can also come from Firestore later
+
+        return Scaffold(
+          backgroundColor: currentScaffoldBgColor,
+          appBar: AppBar(
+            title: Text("My Profile", style: appBarTitleStyle),
+            backgroundColor: currentPrimaryColor,
+            elevation: 1,
+            iconTheme: IconThemeData(color: currentTextColorOnPrimary),
+          ),
+          body: SingleChildScrollView(
+            child: Column(
+              children: [
+                // --- Profile Header ---
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 30),
+                  decoration: BoxDecoration(
+                    color: currentPrimaryColor,
+                    borderRadius: const BorderRadius.vertical(bottom: Radius.elliptical(150, 30)),
+                    boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 10, offset: Offset(0, 4))],
+                  ),
+                  child: Column(
                     children: [
-                      Container(
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white.withOpacity(0.8), width: 3),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.2),
-                              spreadRadius: 2,
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
+                      Stack(
+                        children: [
+                          Container(
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.white.withOpacity(0.8), width: 3),
+                              boxShadow: [
+                                BoxShadow(
+                                    color: Colors.black.withOpacity(0.2),
+                                    spreadRadius: 2,
+                                    blurRadius: 8,
+                                    offset: Offset(0, 2))
+                              ],
                             ),
-                          ],
-                        ),
-                        child: CircleAvatar(
-                          radius: 50, // Increased radius
-                          backgroundColor: Colors.white,
-                          backgroundImage: (photoUrl != null && photoUrl.isNotEmpty)
-                              ? NetworkImage(photoUrl)
-                              : null,
-                          child: (photoUrl == null || photoUrl.isEmpty)
-                              ? Icon(Icons.person_outline, size: 55, color: currentPrimaryColor) // Outline icon
-                              : null,
-                        ),
+                            child: CircleAvatar(
+                              radius: 50,
+                              backgroundColor: Colors.white,
+                              backgroundImage: (photoUrl != null && photoUrl.isNotEmpty)
+                                  ? NetworkImage(photoUrl)
+                                  : null,
+                              child: (photoUrl == null || photoUrl.isEmpty)
+                                  ? Icon(Icons.person_outline, size: 55, color: currentPrimaryColor)
+                                  : null,
+                            ),
+                          ),
+                          Positioned(
+                            bottom: 0,
+                            right: 0,
+                            child: Material(
+                              color: Colors.white,
+                              shape: const CircleBorder(),
+                              elevation: 2,
+                              child: InkWell(
+                                onTap: () {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text("Edit profile picture tapped!")));
+                                },
+                                customBorder: const CircleBorder(),
+                                child: Padding(
+                                  padding: const EdgeInsets.all(6.0),
+                                  child: Icon(Icons.edit_outlined, size: 20, color: currentPrimaryColor),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                      Positioned( // Edit button from "Second UserProfile"
-                        bottom: 0,
-                        right: 0,
-                        child: Material(
-                          color: Colors.white,
-                          shape: const CircleBorder(),
-                          elevation: 2,
-                          child: InkWell(
-                            onTap: () {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text("Edit profile picture tapped!"))
-                              );
-                              // TODO: Implement actual edit profile picture logic
-                            },
-                            customBorder: const CircleBorder(),
-                            child: Padding(
-                              padding: const EdgeInsets.all(6.0),
-                              child: Icon(Icons.edit_outlined, size: 20, color: currentPrimaryColor),
-                            ),
+                      const SizedBox(height: 16),
+                      Text(displayName, style: userNameStyle),
+                      if (user.email != null && user.email!.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Text(user.email!, style: userEmailStyle),
+                      ]
+                    ],
+                  ),
+                ),
+
+                // --- Health Overview ---
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text("Health Overview", style: sectionTitleStyle),
+                      const SizedBox(height: 12),
+                      Card(
+                        elevation: 2,
+                        color: currentCardBgColor,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+                          child: Column(
+                            children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                                children: [
+                                  _InfoCard(
+                                    icon: Icons.monitor_weight_outlined,
+                                    label: "Weight",
+                                    value: "${weight.toStringAsFixed(1)} kg",
+                                    labelStyle: infoCardLabelStyle,
+                                    valueStyle: infoCardValueStyle,
+                                    iconColor: currentPrimaryColor,
+                                  ),
+                                  _InfoCard(
+                                    icon: Icons.height_outlined,
+                                    label: "Height",
+                                    value: "${height.toStringAsFixed(1)} cm",
+                                    labelStyle: infoCardLabelStyle,
+                                    valueStyle: infoCardValueStyle,
+                                    iconColor: currentPrimaryColor,
+                                  ),
+                                  _InfoCard(
+                                    icon: Icons.assessment_outlined,
+                                    label: "BMI",
+                                    value: bmi > 0 ? bmi.toStringAsFixed(1) : "--",
+                                    labelStyle: infoCardLabelStyle,
+                                    valueStyle: infoCardValueStyle,
+                                    iconColor: currentPrimaryColor,
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 20),
+                              const Divider(),
+                              const SizedBox(height: 12),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.local_fire_department_outlined,
+                                      color: currentPrimaryColor, size: 20),
+                                  const SizedBox(width: 8),
+                                  Text("Daily Calories Needed:", style: infoCardLabelStyle),
+                                  const SizedBox(width: 6),
+                                  Text(dailyCalories, style: caloriesTextStyle),
+                                ],
+                              ),
+                            ],
                           ),
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 16),
-                  Text(displayName, style: userNameStyle),
-                  if (user.email != null && user.email!.isNotEmpty) ...[ // Display email if available
-                    const SizedBox(height: 4),
-                    Text(user.email!, style: userEmailStyle),
-                  ]
-                ],
-              ),
-            ),
+                ),
 
-            // Health Overview section (Weight, Height, BMI) - styled like "Second UserProfile"
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text("Health Overview", style: sectionTitleStyle),
-                  const SizedBox(height: 12),
-                  Card(
-                    elevation: 2,
-                    color: currentCardBgColor,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
-                      child: Column(
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceAround,
+                // --- Meal Plans Section ---
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text("My Meal Plans", style: sectionTitleStyle),
+                      const SizedBox(height: 12),
+                      Card(
+                        elevation: 2,
+                        color: currentCardBgColor,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              _InfoCard(
-                                icon: Icons.monitor_weight_outlined, // Updated icon
-                                label: "Weight",
-                                value: weightValue, // From first UserProfile data
-                                labelStyle: infoCardLabelStyle,
-                                valueStyle: infoCardValueStyle,
-                                iconColor: currentPrimaryColor,
+                              Text(
+                                "Favorites & Saved",
+                                style: _sectionTitleBaseStyle.copyWith(
+                                    fontSize: 16, fontWeight: FontWeight.w500, color: currentTextColorPrimary),
                               ),
-                              _InfoCard(
-                                icon: Icons.height_outlined, // Updated icon
-                                label: "Height",
-                                value: heightValue, // From first UserProfile data
-                                labelStyle: infoCardLabelStyle,
-                                valueStyle: infoCardValueStyle,
-                                iconColor: currentPrimaryColor,
-                              ),
-                              _InfoCard(
-                                icon: Icons.assessment_outlined, // Updated icon (BMI could use this or fitness_center)
-                                label: "BMI",
-                                value: bmiValue, // From first UserProfile data
-                                labelStyle: infoCardLabelStyle,
-                                valueStyle: infoCardValueStyle,
-                                iconColor: currentPrimaryColor,
+                              ElevatedButton.icon(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: currentAccentColor,
+                                  foregroundColor: currentTextColorOnPrimary,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                                ),
+                                onPressed: () {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text("View My Meal Plan tapped!")));
+                                },
+                                icon: const Icon(Icons.restaurant_menu_outlined, size: 18),
+                                label: Text("View Plans", style: buttonTextStyle),
                               ),
                             ],
                           ),
-                          const SizedBox(height: 20),
-                          const Divider(),
-                          const SizedBox(height: 12),
-                          Row( // Daily Calories from "Second UserProfile"
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.local_fire_department_outlined, color: currentPrimaryColor, size: 20),
-                              const SizedBox(width: 8),
-                              Text("Daily Calories Needed:", style: infoCardLabelStyle), // Use themed label style
-                              const SizedBox(width: 6),
-                              Text(dailyCalories, style: caloriesTextStyle), // Use themed calorie style
-                            ],
-                          ),
-                        ],
+                        ),
                       ),
-                    ),
+                    ],
                   ),
-                ],
-              ),
+                ),
+                const SizedBox(height: 20),
+              ],
             ),
+          ),
 
-            // Favorites section (Button from first, Text from second for consistency)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text("My Meal Plans", style: sectionTitleStyle), // Title from second design
-                  const SizedBox(height: 12),
-                  Card(
-                    elevation: 2,
-                    color: currentCardBgColor,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                              "Favorites & Saved", // Text from second design
-                              style: _sectionTitleBaseStyle.copyWith(fontSize: 16, fontWeight: FontWeight.w500, color: currentTextColorPrimary)
-                          ),
-                          ElevatedButton.icon( // Button from second design, action from first if needed
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: currentAccentColor, // Use accent for button
-                              foregroundColor: currentTextColorOnPrimary,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                            ),
-                            onPressed: () {
-                              // TODO: Implement your "My Meal Plan" navigation or action
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text("View My Meal Plan tapped!"))
-                              );
-                            },
-                            icon: const Icon(Icons.restaurant_menu_outlined, size: 18),
-                            label: Text("View Plans", style: buttonTextStyle),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+          // --- Bottom Navigation ---
+          bottomNavigationBar: ClipRRect(
+            borderRadius: const BorderRadius.only(topLeft: Radius.circular(24), topRight: Radius.circular(24)),
+            child: BottomNavigationBar(
+              selectedItemColor: currentTextColorOnPrimary,
+              unselectedItemColor: currentTextColorOnPrimary.withOpacity(0.7),
+              backgroundColor: currentPrimaryColor,
+              type: BottomNavigationBarType.fixed,
+              showSelectedLabels: false,
+              showUnselectedLabels: false,
+              onTap: (index) {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (_) => home(initialIndex: index)),
+                );
+              },
+              items: const [
+                BottomNavigationBarItem(
+                    icon: Icon(Icons.home_outlined), activeIcon: Icon(Icons.home), label: 'Home'),
+                BottomNavigationBarItem(
+                    icon: Icon(Icons.edit_calendar_outlined),
+                    activeIcon: Icon(Icons.edit_calendar),
+                    label: 'Schedule'),
+                BottomNavigationBarItem(
+                    icon: Icon(Icons.mail_outline), activeIcon: Icon(Icons.mail), label: 'Messages'),
+              ],
             ),
-            const SizedBox(height: 20),
-          ],
-        ),
-      ),
-
-      // ✅ Bottom nav from your first UserProfile (functionality preserved)
-      //    Styled like the second UserProfile
-      bottomNavigationBar: ClipRRect(
-        borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(24),
-          topRight: Radius.circular(24),
-        ),
-        child: BottomNavigationBar(
-          selectedItemColor: currentTextColorOnPrimary, // Themed
-          unselectedItemColor: currentTextColorOnPrimary.withOpacity(0.7), // Themed
-          backgroundColor: currentPrimaryColor, // Themed
-          type: BottomNavigationBarType.fixed,
-          showSelectedLabels: false,
-          showUnselectedLabels: false,
-          onTap: (index) {
-            // Your existing navigation logic from the first UserProfile
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                builder: (_) => home(initialIndex: index),
-              ),
-            );
-          },
-          items: const [ // Using outlined icons for consistency with second design's style
-            BottomNavigationBarItem(icon: Icon(Icons.home_outlined), activeIcon: Icon(Icons.home), label: 'Home'),
-            BottomNavigationBarItem(icon: Icon(Icons.edit_calendar_outlined), activeIcon: Icon(Icons.edit_calendar), label: 'Schedule'),
-            BottomNavigationBarItem(icon: Icon(Icons.mail_outline), activeIcon: Icon(Icons.mail), label: 'Messages'),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 }
 
-// _InfoCard from your "Second UserProfile" - it takes styles as parameters
+// --- InfoCard Widget ---
 class _InfoCard extends StatelessWidget {
   final IconData icon;
   final String label;
@@ -355,15 +358,12 @@ class _InfoCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Expanded( // Added Expanded to ensure cards take equal space if in a Row
+    return Expanded(
       child: Column(
         children: [
           Container(
             padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: iconColor.withOpacity(0.1),
-              shape: BoxShape.circle,
-            ),
+            decoration: BoxDecoration(color: iconColor.withOpacity(0.1), shape: BoxShape.circle),
             child: Icon(icon, color: iconColor, size: 26),
           ),
           const SizedBox(height: 8),
@@ -375,4 +375,3 @@ class _InfoCard extends StatelessWidget {
     );
   }
 }
-

@@ -138,11 +138,11 @@ class MealPlanningScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 40),
 
-                      if (userId.isNotEmpty)
-                        Text(
-                          "UID: $userId", // For debugging
-                          style: _smallDebugTextStyle,
-                        ),
+                      // if (userId.isNotEmpty)
+                      //   Text(
+                      //     // "UID: $userId", // For debugging
+                      //     style: _smallDebugTextStyle,
+                      //   ),
                       const SizedBox(height: 20), // Space before button area conceptually
                     ],
                   ),
