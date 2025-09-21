@@ -1,50 +1,42 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'homePageDietitian.dart'; // ✅ your home.dart
+import 'createMealPlan.dart'; // Ensure this path is correct
 
-class UserProfile extends StatefulWidget {
-  const UserProfile({super.key});
+// Note: No need to import HomePageDietitian here anymore if it's just content for a tab
+
+class DietitianProfile extends StatefulWidget {
+  const DietitianProfile({super.key});
 
   @override
   State<DietitianProfile> createState() => _DietitianProfileState();
 }
 
-// --- State Class ---
 class _DietitianProfileState extends State<DietitianProfile> {
-  // --- Style Definitions ---
+  // --- Style Definitions (Can be shared or defined locally if specific adjustments are needed) ---
   static const Color _primaryBrandColor = Color(0xFF4CAF50);
   static const Color _accentBrandColor = Color(0xFF66BB6A);
-  static const Color _textOnPrimaryBrandColor = Colors.white;
+  static const Color _textOnPrimaryBrandColor = Colors.white; // Used for text on primary color elements
   static const String _primaryFontFamily = 'PlusJakartaSans';
 
-  static const TextStyle _appBarTitleBaseStyle =
-  TextStyle(fontFamily: _primaryFontFamily, fontWeight: FontWeight.bold, fontSize: 20);
-  static const TextStyle _userNameBaseStyle =
-  TextStyle(fontFamily: _primaryFontFamily, fontSize: 22, fontWeight: FontWeight.bold);
-  static const TextStyle _infoCardLabelBaseStyle =
-  TextStyle(fontFamily: _primaryFontFamily, fontSize: 13, fontWeight: FontWeight.w500);
-  static const TextStyle _infoCardValueBaseStyle =
-  TextStyle(fontFamily: _primaryFontFamily, fontSize: 16, fontWeight: FontWeight.bold);
-  static const TextStyle _sectionTitleBaseStyle =
-  TextStyle(fontFamily: _primaryFontFamily, fontSize: 18, fontWeight: FontWeight.bold);
-  static const TextStyle _buttonTextBaseStyle =
-  TextStyle(fontFamily: _primaryFontFamily, fontWeight: FontWeight.bold, fontSize: 14, letterSpacing: 0.5);
-  static const TextStyle _caloriesTextBaseStyle =
-  TextStyle(fontFamily: _primaryFontFamily, fontSize: 14, fontWeight: FontWeight.w500);
+  // Base text styles (can be part of a shared theme)
+  // static const TextStyle _appBarTitleBaseStyle = TextStyle(fontFamily: _primaryFontFamily, fontWeight: FontWeight.bold, fontSize: 20); // No longer needed here
+  static const TextStyle _userNameBaseStyle = TextStyle(fontFamily: _primaryFontFamily, fontSize: 22, fontWeight: FontWeight.bold);
+  static const TextStyle _infoCardLabelBaseStyle = TextStyle(fontFamily: _primaryFontFamily, fontSize: 13, fontWeight: FontWeight.w500);
+  static const TextStyle _infoCardValueBaseStyle = TextStyle(fontFamily: _primaryFontFamily, fontSize: 16, fontWeight: FontWeight.bold);
+  static const TextStyle _sectionTitleBaseStyle = TextStyle(fontFamily: _primaryFontFamily, fontSize: 18, fontWeight: FontWeight.bold);
+  static const TextStyle _buttonTextBaseStyle = TextStyle(fontFamily: _primaryFontFamily, fontWeight: FontWeight.bold, fontSize: 14, letterSpacing: 0.5);
+  // static const TextStyle _caloriesTextBaseStyle = TextStyle(fontFamily: _primaryFontFamily, fontSize: 14, fontWeight: FontWeight.w500);
 
-  // --- BMI Formula ---
   double _calculateBMI(double weightKg, double heightCm) {
     if (weightKg <= 0 || heightCm <= 0) return 0;
     final heightM = heightCm / 100;
     return weightKg / (heightM * heightM);
   }
 
-  // --- Fetch user data from Firestore ---
   Future<Map<String, dynamic>?> _getUserData() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return null;
-
     final snapshot = await FirebaseFirestore.instance.collection("Users").doc(user.uid).get();
     return snapshot.data();
   }
@@ -64,7 +56,6 @@ class _DietitianProfileState extends State<DietitianProfile> {
     final Color currentTextColorOnPrimary = _textOnPrimaryBrandColor;
 
     // Text styles
-    final TextStyle appBarTitleStyle = _appBarTitleBaseStyle.copyWith(color: currentTextColorOnPrimary);
     final TextStyle userNameStyle = _userNameBaseStyle.copyWith(color: currentTextColorOnPrimary);
     final TextStyle infoCardLabelStyle = _infoCardLabelBaseStyle.copyWith(color: currentTextColorSecondary);
     final TextStyle infoCardValueStyle = _infoCardValueBaseStyle.copyWith(color: currentTextColorPrimary);
@@ -75,12 +66,11 @@ class _DietitianProfileState extends State<DietitianProfile> {
       fontSize: 14,
       color: currentTextColorOnPrimary.withOpacity(0.8),
     );
-    final TextStyle caloriesTextStyle = _caloriesTextBaseStyle.copyWith(color: currentPrimaryColor);
 
     if (user == null) {
-      return Scaffold(
-        backgroundColor: currentScaffoldBgColor,
-        body: const Center(child: Text("No user logged in")),
+      return Container(
+        color: currentScaffoldBgColor,
+        child: Center(child: Text("No user logged in", style: TextStyle(fontFamily: _primaryFontFamily, color: currentTextColorPrimary))),
       );
     }
 
@@ -88,43 +78,46 @@ class _DietitianProfileState extends State<DietitianProfile> {
       future: _getUserData(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return Scaffold(
-            backgroundColor: currentScaffoldBgColor,
-            body: const Center(child: CircularProgressIndicator()),
+          return Container(
+            color: currentScaffoldBgColor,
+            child: const Center(child: CircularProgressIndicator(color: _primaryBrandColor)),
+          );
+        }
+
+        if (snapshot.hasError) {
+          return Container(
+            color: currentScaffoldBgColor,
+            child: Center(child: Text("Error: ${snapshot.error}", style: TextStyle(fontFamily: _primaryFontFamily, color: currentTextColorPrimary))),
           );
         }
 
         if (!snapshot.hasData || snapshot.data == null) {
-          return Scaffold(
-            backgroundColor: currentScaffoldBgColor,
-            body: const Center(child: Text("No user data found")),
+          return Container(
+            color: currentScaffoldBgColor,
+            child: Center(child: Text("No user data found", style: TextStyle(fontFamily: _primaryFontFamily, color: currentTextColorPrimary))),
           );
         }
 
         final data = snapshot.data!;
-        final double weight = (data["currentWeight"] ?? 0).toDouble();
-        final double height = (data["height"] ?? 0).toDouble();
-        final double bmi = _calculateBMI(weight, height);
+        final String firestoreFirstName = data['firstName'] ?? '';
+        final String firestoreLastName = data['lastName'] ?? '';
+        final String displayName = (firestoreFirstName.isNotEmpty || firestoreLastName.isNotEmpty)
+            ? '$firestoreFirstName $firestoreLastName'.trim()
+            : user.displayName ?? "Dietitian User";
+        final String? photoUrl = data['profile'] ?? user.photoURL;
 
-        final String displayName = user.displayName ?? "Unknown User";
-        final String? photoUrl = user.photoURL;
-        const String dailyCalories = "1,850 kcal"; // can also come from Firestore later
-
-        return Scaffold(
-          backgroundColor: currentScaffoldBgColor,
-          appBar: AppBar(
-            title: Text("My Profile", style: appBarTitleStyle),
-            backgroundColor: currentPrimaryColor,
-            elevation: 1,
-            iconTheme: IconThemeData(color: currentTextColorOnPrimary),
-          ),
-          body: SingleChildScrollView(
+        // The main content of the profile page, now without its own Scaffold or AppBar.
+        // It will be displayed as the body of the HomePageDietitian's Scaffold.
+        return Container(
+          color: currentScaffoldBgColor, // Background for the tab's content area
+          child: SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
             child: Column(
               children: [
                 // --- Profile Header ---
                 Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 30),
+                  padding: const EdgeInsets.fromLTRB(20, 30, 20, 30), // Added some top padding
                   decoration: BoxDecoration(
                     color: currentPrimaryColor,
                     borderRadius: const BorderRadius.vertical(bottom: Radius.elliptical(150, 30)),
@@ -147,55 +140,56 @@ class _DietitianProfileState extends State<DietitianProfile> {
                               ],
                             ),
                             child: CircleAvatar(
-                              radius: 50,
+                              radius: 55,
                               backgroundColor: Colors.white,
                               backgroundImage: (photoUrl != null && photoUrl.isNotEmpty)
                                   ? NetworkImage(photoUrl)
                                   : null,
                               child: (photoUrl == null || photoUrl.isEmpty)
-                                  ? Icon(Icons.person_outline, size: 55, color: currentPrimaryColor)
+                                  ? Icon(Icons.health_and_safety_outlined, size: 60, color: currentPrimaryColor)
                                   : null,
                             ),
                           ),
                           Positioned(
-                            bottom: 0,
-                            right: 0,
+                            bottom: 2,
+                            right: 2,
                             child: Material(
                               color: Colors.white,
                               shape: const CircleBorder(),
-                              elevation: 2,
+                              elevation: 3,
                               child: InkWell(
                                 onTap: () {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                       const SnackBar(content: Text("Edit profile picture tapped!")));
+                                  // TODO: Implement profile picture editing logic
                                 },
                                 customBorder: const CircleBorder(),
                                 child: Padding(
-                                  padding: const EdgeInsets.all(6.0),
-                                  child: Icon(Icons.edit_outlined, size: 20, color: currentPrimaryColor),
+                                  padding: const EdgeInsets.all(7.0),
+                                  child: Icon(Icons.edit_outlined, size: 22, color: currentPrimaryColor),
                                 ),
                               ),
                             ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 16),
-                      Text(displayName, style: userNameStyle),
+                      const SizedBox(height: 18),
+                      Text(displayName, style: userNameStyle.copyWith(fontSize: 24)),
                       if (user.email != null && user.email!.isNotEmpty) ...[
-                        const SizedBox(height: 4),
+                        const SizedBox(height: 6),
                         Text(user.email!, style: userEmailStyle),
-                      ]
+                      ],
                     ],
                   ),
                 ),
 
-                // --- Health Overview ---
+                // --- Professional Summary ---
                 Padding(
                   padding: const EdgeInsets.all(16.0),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text("Health Overview", style: sectionTitleStyle),
+                      Text("Professional Summary", style: sectionTitleStyle),
                       const SizedBox(height: 12),
                       Card(
                         elevation: 2,
@@ -209,43 +203,29 @@ class _DietitianProfileState extends State<DietitianProfile> {
                                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                                 children: [
                                   _InfoCard(
-                                    icon: Icons.monitor_weight_outlined,
-                                    label: "Weight",
-                                    value: "${weight.toStringAsFixed(1)} kg",
+                                    icon: Icons.group_outlined,
+                                    label: "Clients",
+                                    value: (data["clientCount"] ?? 0).toString(),
                                     labelStyle: infoCardLabelStyle,
                                     valueStyle: infoCardValueStyle,
                                     iconColor: currentPrimaryColor,
                                   ),
                                   _InfoCard(
-                                    icon: Icons.height_outlined,
-                                    label: "Height",
-                                    value: "${height.toStringAsFixed(1)} cm",
+                                    icon: Icons.article_outlined,
+                                    label: "Plans Created",
+                                    value: (data["plansCreatedCount"] ?? 0).toString(),
                                     labelStyle: infoCardLabelStyle,
                                     valueStyle: infoCardValueStyle,
                                     iconColor: currentPrimaryColor,
                                   ),
                                   _InfoCard(
-                                    icon: Icons.assessment_outlined,
-                                    label: "BMI",
-                                    value: bmi > 0 ? bmi.toStringAsFixed(1) : "--",
+                                    icon: Icons.star_border_outlined,
+                                    label: "Rating",
+                                    value: (data["averageRating"] ?? "N/A").toString(),
                                     labelStyle: infoCardLabelStyle,
                                     valueStyle: infoCardValueStyle,
                                     iconColor: currentPrimaryColor,
                                   ),
-                                ],
-                              ),
-                              const SizedBox(height: 20),
-                              const Divider(),
-                              const SizedBox(height: 12),
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(Icons.local_fire_department_outlined,
-                                      color: currentPrimaryColor, size: 20),
-                                  const SizedBox(width: 8),
-                                  Text("Daily Calories Needed:", style: infoCardLabelStyle),
-                                  const SizedBox(width: 6),
-                                  Text(dailyCalories, style: caloriesTextStyle),
                                 ],
                               ),
                             ],
@@ -256,79 +236,38 @@ class _DietitianProfileState extends State<DietitianProfile> {
                   ),
                 ),
 
-                // --- Meal Plans Section ---
+                // --- Dietitian Tools ---
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                  padding: const EdgeInsets.fromLTRB(16.0, 8.0, 16.0, 16.0),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text("My Meal Plans", style: sectionTitleStyle),
+                      Text("Dietitian Tools", style: sectionTitleStyle),
                       const SizedBox(height: 12),
                       Card(
-                        elevation: 2,
-                        color: currentCardBgColor,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                        child: Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                "Favorites & Saved",
-                                style: _sectionTitleBaseStyle.copyWith(
-                                    fontSize: 16, fontWeight: FontWeight.w500, color: currentTextColorPrimary),
-                              ),
-                              ElevatedButton.icon(
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: currentAccentColor,
-                                  foregroundColor: currentTextColorOnPrimary,
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                                ),
-                                onPressed: () {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(content: Text("View My Meal Plan tapped!")));
-                                },
-                                icon: const Icon(Icons.restaurant_menu_outlined, size: 18),
-                                label: Text("View Plans", style: buttonTextStyle),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
+                          elevation: 2,
+                          color: currentCardBgColor,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                          child: ListTile(
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                            leading: Icon(Icons.edit_note_outlined, color: currentPrimaryColor, size: 28),
+                            title: Text(
+                              "Create & Manage Plans",
+                              style: _sectionTitleBaseStyle.copyWith(
+                                  fontSize: 16, fontWeight: FontWeight.w500, color: currentTextColorPrimary),
+                            ),
+                            trailing: Icon(Icons.arrow_forward_ios_rounded, color: currentTextColorSecondary, size: 18),
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (context) => const CreateMealPlanPage()),
+                              );
+                            },
+                          )),
                     ],
                   ),
                 ),
-                const SizedBox(height: 20),
-              ],
-            ),
-          ),
-
-          // --- Bottom Navigation ---
-          bottomNavigationBar: ClipRRect(
-            borderRadius: const BorderRadius.only(topLeft: Radius.circular(24), topRight: Radius.circular(24)),
-            child: BottomNavigationBar(
-              selectedItemColor: currentTextColorOnPrimary,
-              unselectedItemColor: currentTextColorOnPrimary.withOpacity(0.7),
-              backgroundColor: currentPrimaryColor,
-              type: BottomNavigationBarType.fixed,
-              showSelectedLabels: false,
-              showUnselectedLabels: false,
-              onTap: (index) {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: (_) => home(initialIndex: index)),
-                );
-              },
-              items: const [
-                BottomNavigationBarItem(
-                    icon: Icon(Icons.home_outlined), activeIcon: Icon(Icons.home), label: 'Home'),
-                BottomNavigationBarItem(
-                    icon: Icon(Icons.edit_calendar_outlined),
-                    activeIcon: Icon(Icons.edit_calendar),
-                    label: 'Schedule'),
-                BottomNavigationBarItem(
-                    icon: Icon(Icons.mail_outline), activeIcon: Icon(Icons.mail), label: 'Messages'),
+                const SizedBox(height: 20), // Bottom padding for scroll view
               ],
             ),
           ),
@@ -360,16 +299,17 @@ class _InfoCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Expanded(
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            padding: const EdgeInsets.all(10),
+            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(color: iconColor.withOpacity(0.1), shape: BoxShape.circle),
-            child: Icon(icon, color: iconColor, size: 26),
+            child: Icon(icon, color: iconColor, size: 28),
           ),
           const SizedBox(height: 8),
-          Text(label, style: labelStyle, textAlign: TextAlign.center),
-          const SizedBox(height: 2),
-          Text(value, style: valueStyle, textAlign: TextAlign.center),
+          Text(label, style: labelStyle, textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis),
+          const SizedBox(height: 4),
+          Text(value, style: valueStyle, textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis),
         ],
       ),
     );
