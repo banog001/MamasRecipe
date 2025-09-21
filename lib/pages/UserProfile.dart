@@ -13,6 +13,7 @@ class UserProfile extends StatefulWidget {
 // --- State Class ---
 class _UserProfileState extends State<UserProfile> {
   // --- Style Definitions ---
+  bool _isFavoritesActive = true; // default active
   static const Color _primaryBrandColor = Color(0xFF4CAF50);
   static const Color _accentBrandColor = Color(0xFF66BB6A);
   static const Color _textOnPrimaryBrandColor = Colors.white;
@@ -257,6 +258,7 @@ class _UserProfileState extends State<UserProfile> {
                 ),
 
                 // --- Meal Plans Section ---
+                // --- Meal Plans Section ---
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
                   child: Column(
@@ -270,27 +272,85 @@ class _UserProfileState extends State<UserProfile> {
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                         child: Padding(
                           padding: const EdgeInsets.all(16),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
+                              // --- Dynamic Section Title ---
                               Text(
-                                "Favorites & Saved",
+                                _isFavoritesActive ? "Your Favorites" : "Your Meal Plans",
                                 style: _sectionTitleBaseStyle.copyWith(
-                                    fontSize: 16, fontWeight: FontWeight.w500, color: currentTextColorPrimary),
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                    color: currentTextColorPrimary),
                               ),
-                              ElevatedButton.icon(
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: currentAccentColor,
-                                  foregroundColor: currentTextColorOnPrimary,
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                                ),
-                                onPressed: () {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(content: Text("View My Meal Plan tapped!")));
-                                },
-                                icon: const Icon(Icons.restaurant_menu_outlined, size: 18),
-                                label: Text("View Plans", style: buttonTextStyle),
+                              const SizedBox(height: 12),
+
+                              // --- Toggle Buttons Section ---
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  // 🔹 Toggle Buttons Row
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: ElevatedButton(
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: _isFavoritesActive
+                                                ? currentPrimaryColor
+                                                : Colors.grey.shade300,
+                                            foregroundColor: _isFavoritesActive
+                                                ? currentTextColorOnPrimary
+                                                : Colors.black87,
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius: BorderRadius.circular(12),
+                                            ),
+                                            padding: const EdgeInsets.symmetric(vertical: 12),
+                                          ),
+                                          onPressed: () {
+                                            setState(() {
+                                              _isFavoritesActive = true;
+                                            });
+                                          },
+                                          child: const Text("Favorites & Saved"),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: ElevatedButton(
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: !_isFavoritesActive
+                                                ? currentPrimaryColor
+                                                : Colors.grey.shade300,
+                                            foregroundColor: !_isFavoritesActive
+                                                ? currentTextColorOnPrimary
+                                                : Colors.black87,
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius: BorderRadius.circular(12),
+                                            ),
+                                            padding: const EdgeInsets.symmetric(vertical: 12),
+                                          ),
+                                          onPressed: () {
+                                            setState(() {
+                                              _isFavoritesActive = false;
+                                            });
+                                          },
+                                          child: const Text("View Plans"),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+
+                                  const SizedBox(height: 12),
+
+                                  // 🔹 Dynamic text BELOW the buttons
+                                  Text(
+                                    _isFavoritesActive ? "Your Favorites" : "Your Meal Plans",
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ],
                           ),
@@ -308,7 +368,7 @@ class _UserProfileState extends State<UserProfile> {
           bottomNavigationBar: ClipRRect(
             borderRadius: const BorderRadius.only(topLeft: Radius.circular(24), topRight: Radius.circular(24)),
             child: BottomNavigationBar(
-              selectedItemColor: currentTextColorOnPrimary,
+              selectedItemColor: currentTextColorOnPrimary.withOpacity(0.7),
               unselectedItemColor: currentTextColorOnPrimary.withOpacity(0.7),
               backgroundColor: currentPrimaryColor,
               type: BottomNavigationBarType.fixed,

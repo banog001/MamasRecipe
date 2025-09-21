@@ -11,6 +11,7 @@ import 'package:shimmer/shimmer.dart'; // Import for Shimmer effect
 
 // --- Style Definitions (Ideally in a separate file or Theme) ---
 const String _primaryFontFamily = 'PlusJakartaSans';
+
 const Color _primaryColor = Color(0xFF4CAF50);
 Color _scaffoldBgColor(BuildContext context) => Theme.of(context).brightness == Brightness.dark ? Colors.grey.shade900 : Colors.grey.shade100;
 Color _cardBgColor(BuildContext context) => Theme.of(context).brightness == Brightness.dark ? Colors.grey.shade800 : Colors.white;
@@ -906,20 +907,28 @@ class _HomeState extends State<home> {
 }
 
 class UsersListPage extends StatelessWidget {
+  String getChatRoomId(String userA, String userB) {
+    // Ensure consistent ordering to have the same chatRoomID for both users
+    return userA.hashCode <= userB.hashCode ? "${userA}_$userB" : "${userB}_$userA";
+  }
+
   final String currentUserId;
   const UsersListPage({super.key, required this.currentUserId});
-
-  Future<Map<String, dynamic>> getLastMessage(BuildContext context, String otherUserId) async {
+  Future<Map<String, dynamic>> getLastMessage(
+      BuildContext context,
+      String otherUserId,
+      String otherUserName, // Pass the receiver's display name
+      ) async {
+    // Query messages between currentUserId and otherUserId
     final query = await FirebaseFirestore.instance
         .collection("messages")
-        .where("senderId", whereIn: [currentUserId, otherUserId])
-        .where("receiverId", whereIn: [currentUserId, otherUserId])
+        .where("chatRoomID", isEqualTo: getChatRoomId(currentUserId, otherUserId))
         .orderBy("timestamp", descending: true)
         .limit(1)
         .get();
 
     if (query.docs.isEmpty) {
-      return {"message": "", "isMe": false, "time": ""};
+      return {"message": "", "senderName": "", "time": ""};
     }
 
     final data = query.docs.first.data();
@@ -938,14 +947,16 @@ class UsersListPage extends StatelessWidget {
       }
     }
 
+    bool isMe = data["senderId"] == currentUserId;
+    String senderName = isMe ? "You" : otherUserName;
 
     return {
       "message": data["message"] ?? "",
-      "isMe": data["senderId"] == currentUserId,
+      "senderName": senderName,
       "time": formattedTime,
-      // "isRead": data["isReadBy_${widget.currentUserId}"] ?? false // Example for read receipts
     };
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -979,7 +990,8 @@ class UsersListPage extends StatelessWidget {
         body: TabBarView(
           children: [
             StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance.collection("Users").where("role", isEqualTo: "dietitian").snapshots(),
+        // where("role", isEqualTo: "dietitian")
+              stream: FirebaseFirestore.instance.collection("Users").snapshots(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator(color: _primaryColor));
@@ -998,73 +1010,31 @@ class UsersListPage extends StatelessWidget {
                       if (userDoc.id == currentUserId) return const SizedBox.shrink();
 
                       return FutureBuilder<Map<String, dynamic>>(
-                        future: getLastMessage(context, userDoc.id),
+                        future: getLastMessage(context, userDoc.id, "${data["firstName"]} ${data["lastName"]}".trim()),
                         builder: (context, snapshotMessage) {
-                          String subtitleText = "Loading...";
+                          String subtitleText = "No messages yet";
                           String timeText = "";
-                          FontWeight subtitleFontWeight = FontWeight.normal;
-                          Color subtitleColor = _textColorSecondary(context);
 
-                          if (snapshotMessage.connectionState == ConnectionState.done) {
-                            if (snapshotMessage.hasData && snapshotMessage.data != null) {
-                              final lastMsg = snapshotMessage.data!;
-                              subtitleText = lastMsg["message"].toString().isNotEmpty
-                                  ? "${lastMsg["isMe"] ? "You: " : ""}${lastMsg["message"]}"
-                                  : "No messages yet";
+                          if (snapshotMessage.connectionState == ConnectionState.done && snapshotMessage.hasData) {
+                            final lastMsg = snapshotMessage.data!;
+                            if ((lastMsg["message"] ?? "").isNotEmpty) {
+                              subtitleText = "${lastMsg["senderName"]}: ${lastMsg["message"]}";
                               timeText = lastMsg["time"] ?? "";
-                              // Example: Make unread messages bold
-                              // bool isUnread = !(lastMsg["isMe"] as bool) && (lastMsg["isRead"] as bool? ?? false) == false;
-                              // if (isUnread) {
-                              //   subtitleFontWeight = FontWeight.bold;
-                              //   subtitleColor = _textColorPrimary(context);
-                              // }
-                            } else {
-                              subtitleText = "No messages yet";
                             }
-                          } else if (snapshotMessage.hasError) {
-                            subtitleText = "Error loading chat";
-                            debugPrint("Error getLastMessage: ${snapshotMessage.error}");
                           }
 
                           return ListTile(
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8), // Increased vertical padding
-                            leading: Stack(
-                              alignment: Alignment.bottomRight,
-                              children: [
-                                CircleAvatar(
-                                  radius: 28,
-                                  backgroundColor: _primaryColor.withOpacity(0.1),
-                                  backgroundImage: (data["profile"] != null && data["profile"].toString().isNotEmpty)
-                                      ? NetworkImage(data["profile"])
-                                      : null,
-                                  child: (data["profile"] == null || data["profile"].toString().isEmpty)
-                                      ? Icon(Icons.person_outline, size: 28, color: _primaryColor.withOpacity(0.8))
-                                      : null,
-                                ),
-                                if (data["status"] == "online")
-                                  Container(
-                                    width: 12, height: 12,
-                                    decoration: BoxDecoration(
-                                      color: Colors.greenAccent,
-                                      shape: BoxShape.circle,
-                                      border: Border.all(color: _cardBgColor(context), width: 2),
-                                    ),
-                                  ),
-                              ],
+                            leading: CircleAvatar(
+                              backgroundImage: (data["profile"] != null && data["profile"].toString().isNotEmpty)
+                                  ? NetworkImage(data["profile"])
+                                  : null,
+                              child: (data["profile"] == null || data["profile"].toString().isEmpty)
+                                  ? Icon(Icons.person_outline, color: _primaryColor)
+                                  : null,
                             ),
-                            title: Text(
-                              "${data["firstName"] ?? ""} ${data["lastName"] ?? ""}".trim(),
-                              style: _cardBodyTextStyle(context).copyWith(fontWeight: FontWeight.bold, fontSize: 16),
-                            ),
-                            subtitle: Text(
-                              subtitleText,
-                              style: _cardSubtitleStyle(context).copyWith(fontSize: 14, fontWeight: subtitleFontWeight, color: subtitleColor),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            trailing: timeText.isNotEmpty
-                                ? Text(timeText, style: _cardSubtitleStyle(context).copyWith(fontSize: 12))
-                                : null,
+                            title: Text("${data["firstName"] ?? ""} ${data["lastName"] ?? ""}".trim()),
+                            subtitle: Text(subtitleText, maxLines: 1, overflow: TextOverflow.ellipsis),
+                            trailing: timeText.isNotEmpty ? Text(timeText, style: TextStyle(fontSize: 12)) : null,
                             onTap: () {
                               Navigator.push(
                                 context,
@@ -1091,7 +1061,11 @@ class UsersListPage extends StatelessWidget {
                 );
               },
             ),
-            Center(child: Text("No new notifications.", style: _cardBodyTextStyle(context))),
+            Center(
+                child:
+                Text("No new notifications.", style: _cardBodyTextStyle(context)
+                )
+            ),
           ],
         ),
       ),
