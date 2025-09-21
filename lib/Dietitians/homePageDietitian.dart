@@ -4,9 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:intl/intl.dart';
 import 'package:shimmer/shimmer.dart';
-
+import 'package:table_calendar/table_calendar.dart';
 import '../pages/login.dart';
-import '../pages/messages.dart';    // Assuming this is UsersListPage
+import 'messagesDietitian.dart';    // Assuming this is UsersListPage
 import 'createMealPlan.dart';
 import 'dietitianProfile.dart';  // <--- IMPORT DietitianProfile
 
@@ -163,21 +163,9 @@ class _HomePageDietitianState extends State<HomePageDietitian> {
         ],
       ),
     ),
-    // Page 1: Schedule/Clients Placeholder
-    Scaffold( // This can remain a Scaffold if it needs its own AppBar for a specific title when active
-        appBar: AppBar(
-          title: Text("Schedule / Clients", style: _getTextStyle(context, fontSize: 20, fontWeight: FontWeight.bold, color: _textColorOnPrimary)),
-          backgroundColor: _primaryColor,
-          iconTheme: const IconThemeData(color: _textColorOnPrimary),
-          automaticallyImplyLeading: false, // No back button if it's a main tab
-        ),
-        backgroundColor: _scaffoldBgColor(context),
-        body: Center(child: Text("Dietitian Schedule/Clients Page", style: _getTextStyle(context, fontSize: 18, color: _textColorPrimary(context))))
-    ),
-    // Page 2: Messages
-    if (firebaseUser != null) UsersListPage(currentUserId: firebaseUser!.uid), // Ensure UsersListPage does not have its own Scaffold if it's a full tab page
-    // Page 3: Dietitian Profile
-    const DietitianProfile(), // DietitianProfile widget itself
+    const ScheduleCalendarPage(), // Page 1: My Schedule (Calendar)
+    if (firebaseUser != null) UsersListPage(currentUserId: firebaseUser!.uid), // Page 2: Messages
+    const DietitianProfile(), // Page 3: Profile// DietitianProfile widget itself
   ];
 
   String _getAppBarTitle(int index) {
@@ -185,7 +173,7 @@ class _HomePageDietitianState extends State<HomePageDietitian> {
       case 0:
         return "Dietitian Dashboard";
       case 1:
-        return "Schedule/Clients";
+        return "My Schedule";
       case 2:
         return "Messages";
       case 3:
@@ -382,12 +370,24 @@ class UsersListPage extends StatelessWidget {
   final String currentUserId;
   const UsersListPage({super.key, required this.currentUserId});
 
-  Future<Map<String, dynamic>> getLastMessage(BuildContext context, String otherUserId) async {
-    // ... (your existing getLastMessage logic)
-    final query = await FirebaseFirestore.instance.collection("messages")
-        .where("senderId", whereIn: [currentUserId, otherUserId])
-        .where("receiverId", whereIn: [currentUserId, otherUserId])
-        .orderBy("timestamp", descending: true).limit(1).get();
+  String getChatRoomId(String userA, String userB) {
+    // Sort the IDs so the order doesn't matter
+    if (userA.compareTo(userB) > 0) {
+      return "$userB\_$userA";
+    } else {
+      return "$userA\_$userB";
+    }
+  }
+
+  // Get last message using chatRoomID
+  Future<Map<String, dynamic>> getLastMessage(BuildContext context, String chatRoomId, String otherUserName) async {
+    final query = await FirebaseFirestore.instance
+        .collection("messages")
+        .where("chatRoomID", isEqualTo: chatRoomId)
+        .orderBy("timestamp", descending: true)
+        .limit(1)
+        .get();
+
     if (query.docs.isEmpty) return {"message": "", "isMe": false, "time": ""};
 
     final data = query.docs.first.data();
@@ -396,132 +396,243 @@ class UsersListPage extends StatelessWidget {
     if (timestamp is Timestamp) {
       DateTime messageDate = timestamp.toDate();
       DateTime nowDate = DateTime.now();
-      if (messageDate.year == nowDate.year && messageDate.month == nowDate.month && messageDate.day == nowDate.day) {
+      if (messageDate.year == nowDate.year &&
+          messageDate.month == nowDate.month &&
+          messageDate.day == nowDate.day) {
         formattedTime = TimeOfDay.fromDateTime(messageDate).format(context);
       } else {
         formattedTime = DateFormat('MMM d').format(messageDate);
       }
     }
-    return {"message": data["message"] ?? "", "isMe": data["senderId"] == currentUserId, "time": formattedTime};
+
+    return {
+      "message": data["message"] ?? "",
+      "isMe": data["senderId"] == FirebaseAuth.instance.currentUser!.uid,
+      "time": formattedTime,
+      "senderName": data["senderName"] ?? "Unknown",
+    };
+
   }
 
   @override
   Widget build(BuildContext context) {
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    final Color currentScaffoldBg = _scaffoldBgColor(context);
-    final Color currentAppBarBg = _cardBgColor(context);
-    final Color currentTabLabel = _textColorPrimary(context);
-    final Color currentIndicator = _primaryColor;
-
-    // UsersListPage content is now the body of a tab, so it doesn't need its own Scaffold or top AppBar.
-    // The TabBar for "CLIENT CHATS" and "NOTIFICATIONS" will be part of its own content.
-    return DefaultTabController(
-      length: 2,
-      child: Column( // Use Column if it needs its own TabBar at the top of its content area
-        children: [
-          Container( // Container for the TabBar
-            color: currentAppBarBg, // Background for the TabBar area
-            child: TabBar(
-              labelColor: currentTabLabel,
-              unselectedLabelColor: currentTabLabel.withOpacity(0.6),
-              indicatorColor: currentIndicator,
-              indicatorWeight: 2.5,
-              labelStyle: _getTextStyle(context, fontWeight: FontWeight.bold, fontSize: 14, color: currentTabLabel),
-              unselectedLabelStyle: _getTextStyle(context, fontWeight: FontWeight.w500, fontSize: 14, color: currentTabLabel.withOpacity(0.6)),
-              tabs: const [
-                Tab(text: "CLIENT CHATS"),
-                Tab(text: "NOTIFICATIONS"),
-              ],
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance.collection("Users").snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator(color: _primaryColor));
+        }
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          return Center(
+            child: Text(
+              "No dietitians to chat with yet.",
+              style: _getTextStyle(context, fontSize: 16, color: _textColorPrimary(context)),
             ),
-          ),
-          Expanded( // TabBarView needs to be Expanded if inside a Column
-            child: TabBarView(
-              children: [
-                // MESSAGES LIST
-                StreamBuilder<QuerySnapshot>(
-                  stream: FirebaseFirestore.instance.collection("Users").where("role", isEqualTo: "user").snapshots(),
-                  builder: (context, snapshot) {
-                    // ... (your existing StreamBuilder logic for messages)
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const Center(child: CircularProgressIndicator(color: _primaryColor));
-                    }
-                    if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                      return Center(child: Text("No clients to chat with yet.", style: _getTextStyle(context, color: _textColorPrimary(context))));
-                    }
-                    var users = snapshot.data!.docs;
-                    return ListView.separated(
-                        padding: const EdgeInsets.symmetric(vertical: 8.0),
-                        itemCount: users.length,
-                        itemBuilder: (context, index) {
-                          var userDoc = users[index];
-                          var data = userDoc.data() as Map<String, dynamic>;
-                          return FutureBuilder<Map<String, dynamic>>(
-                            future: getLastMessage(context, userDoc.id),
-                            builder: (context, snapshotMessage) {
-                              String subtitleText = "Loading chat...";
-                              String timeText = "";
-                              FontWeight subtitleFontWeight = FontWeight.normal;
-                              Color subtitleColor = _textColorSecondary(context);
+          );
+        }
 
-                              if (snapshotMessage.connectionState == ConnectionState.done) {
-                                if (snapshotMessage.hasData && snapshotMessage.data != null) {
-                                  final lastMsg = snapshotMessage.data!;
-                                  subtitleText = lastMsg["message"].toString().isNotEmpty
-                                      ? "${lastMsg["isMe"] ? "You: " : ""}${lastMsg["message"]}"
-                                      : "Start a conversation";
-                                  timeText = lastMsg["time"] ?? "";
-                                } else { subtitleText = "Start a conversation"; }
-                              } else if (snapshotMessage.hasError) { subtitleText = "Error loading chat"; }
+        final users = snapshot.data!.docs;
+        return ListView.separated(
+          padding: const EdgeInsets.symmetric(vertical: 8.0),
+          itemCount: users.length,
+          separatorBuilder: (context, index) => const Divider(height: 0.5, indent: 88, endIndent: 16),
+          itemBuilder: (context, index) {
+            final userDoc = users[index];
+            if (userDoc.id == currentUserId) return const SizedBox.shrink();
 
-                              return ListTile(
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                                leading: Stack(
-                                  alignment: Alignment.bottomRight,
-                                  children: [
-                                    CircleAvatar(
-                                      radius: 28, backgroundColor: _primaryColor.withOpacity(0.1),
-                                      backgroundImage: (data["profile"] != null && data["profile"].toString().isNotEmpty) ? NetworkImage(data["profile"]) : null,
-                                      child: (data["profile"] == null || data["profile"].toString().isEmpty) ? Icon(Icons.person_outline, size: 28, color: _primaryColor.withOpacity(0.8)) : null,
-                                    ),
-                                    if (data["status"] == "online")
-                                      Container(
-                                        width: 12, height: 12,
-                                        decoration: BoxDecoration(color: Colors.greenAccent, shape: BoxShape.circle, border: Border.all(color: _cardBgColor(context), width: 2)),
-                                      ),
-                                  ],
-                                ),
-                                title: Text(
-                                  "${data["firstName"] ?? "Client"} ${data["lastName"] ?? ""}".trim(),
-                                  style: _getTextStyle(context, fontWeight: FontWeight.bold, fontSize: 16, color: _textColorPrimary(context)),
-                                ),
-                                subtitle: Text(
-                                  subtitleText,
-                                  style: _getTextStyle(context, fontSize: 14, fontWeight: subtitleFontWeight, color: subtitleColor),
-                                  maxLines: 1, overflow: TextOverflow.ellipsis,
-                                ),
-                                trailing: timeText.isNotEmpty ? Text(timeText, style: _getTextStyle(context, fontSize: 12, color: _textColorSecondary(context))) : null,
-                                onTap: () {
-                                  Navigator.push(context, MaterialPageRoute(builder: (context) => MessagesPage(
-                                    currentUserId: currentUserId, receiverId: userDoc.id,
-                                    receiverName: "${data["firstName"] ?? "Client"} ${data["lastName"] ?? ""}".trim(),
-                                    receiverProfile: data["profile"] ?? "",
-                                  ),),);
-                                },
-                              );
-                            },
-                          );
-                        },
-                        separatorBuilder: (context, index) => const Divider(height: 0.5, indent: 88, endIndent: 16, thickness: 0.5)
+            final data = userDoc.data() as Map<String, dynamic>;
+            final senderName = "${data["firstName"] ?? ""} ${data["lastName"] ?? ""}".trim(); // Make sure this field exists
+            final chatRoomId = getChatRoomId(currentUserId, userDoc.id);
+
+
+            return FutureBuilder<Map<String, dynamic>>(
+              future: getLastMessage(context, chatRoomId, senderName),
+              builder: (context, snapshotMessage) {
+                String subtitleText = "No messages yet";
+                String timeText = "";
+
+                if (snapshotMessage.connectionState == ConnectionState.done && snapshotMessage.hasData) {
+                  final lastMsg = snapshotMessage.data!;
+                  final lastMessage = lastMsg["message"] ?? "";
+                  final lastSenderName = lastMsg["senderName"] ?? "";
+                  timeText = lastMsg["time"] ?? "";
+
+                  if (lastMessage.isNotEmpty) {
+                    if (lastMsg["isMe"] ?? false) {
+                      subtitleText = "Me: $lastMessage";
+                    } else {
+                      subtitleText = "$lastSenderName: $lastMessage";
+                    }
+                  }
+                }
+
+                return ListTile(
+                  leading: CircleAvatar(
+                    backgroundImage: (data["profile"] != null && data["profile"].toString().isNotEmpty)
+                        ? NetworkImage(data["profile"])
+                        : null,
+                    child: (data["profile"] == null || data["profile"].toString().isEmpty)
+                        ? Icon(Icons.person_outline, color: _primaryColor)
+                        : null,
+                  ),
+                  title: Text(senderName),
+                  subtitle: Text(subtitleText, maxLines: 1, overflow: TextOverflow.ellipsis),
+                  trailing: timeText.isNotEmpty ? Text(timeText, style: const TextStyle(fontSize: 12)) : null,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => MessagesPageDietitian(
+                          currentUserId: currentUserId,
+                          receiverId: userDoc.id,
+                          receiverName: senderName,
+                          receiverProfile: data["profile"] ?? "",
+                        ),
+                      ),
                     );
                   },
+                );
+              },
+            );
+
+
+
+
+          },
+        );
+      },
+    );
+  }
+}
+class ScheduleCalendarPage extends StatefulWidget {
+  const ScheduleCalendarPage({super.key});
+
+  @override
+  State<ScheduleCalendarPage> createState() => _ScheduleCalendarPageState();
+}
+
+class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
+  CalendarFormat _calendarFormat = CalendarFormat.month;
+  DateTime _focusedDay = DateTime.now();
+  DateTime? _selectedDay;
+  // Map<DateTime, List<String>> _events = {}; // To store events/appointments later
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedDay = _focusedDay;
+    // _loadAppointmentsForMonth(_focusedDay); // Implement this later
+  }
+
+  void _onDaySelected(DateTime selectedDay, DateTime focusedDay) {
+    if (!isSameDay(_selectedDay, selectedDay)) {
+      setState(() {
+        _selectedDay = selectedDay;
+        _focusedDay = focusedDay;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: _scaffoldBgColor(context),
+      body: Column(
+        children: [
+          Card(
+            margin: const EdgeInsets.all(12.0),
+            elevation: 2.0,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            color: _cardBgColor(context),
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 8.0),
+              child: TableCalendar(
+                locale: 'en_US',
+                firstDay: DateTime.utc(2020, 1, 1),
+                lastDay: DateTime.utc(2030, 12, 31),
+                focusedDay: _focusedDay,
+                selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
+                calendarFormat: _calendarFormat,
+                startingDayOfWeek: StartingDayOfWeek.monday,
+                calendarStyle: CalendarStyle(
+                    outsideDaysVisible: false,
+                    selectedDecoration: BoxDecoration(color: _primaryColor, shape: BoxShape.circle),
+                    selectedTextStyle: _getTextStyle(context, color: _textColorOnPrimary, fontWeight: FontWeight.bold),
+                    todayDecoration: BoxDecoration(color: _primaryColor.withOpacity(0.5), shape: BoxShape.circle),
+                    todayTextStyle: _getTextStyle(context, color: _textColorOnPrimary, fontWeight: FontWeight.bold),
+                    weekendTextStyle: _getTextStyle(context, color: _primaryColor.withOpacity(0.8)),
+                    defaultTextStyle: _getTextStyle(context, color: _textColorPrimary(context)),
+                    markerDecoration: BoxDecoration(color: Colors.redAccent, shape: BoxShape.circle)
                 ),
-                // NOTIFICATIONS TAB
-                Center(child: Text("No new notifications.", style: _getTextStyle(context, color: _textColorPrimary(context)))),
-              ],
+                headerStyle: HeaderStyle(
+                  formatButtonVisible: true,
+                  titleCentered: true,
+                  titleTextStyle: _getTextStyle(context, fontSize: 18, fontWeight: FontWeight.bold, color: _textColorPrimary(context)),
+                  formatButtonTextStyle: _getTextStyle(context, color: _textColorOnPrimary),
+                  formatButtonDecoration: BoxDecoration(color: _primaryColor, borderRadius: BorderRadius.circular(20.0)),
+                  leftChevronIcon: Icon(Icons.chevron_left, color: _textColorPrimary(context)),
+                  rightChevronIcon: Icon(Icons.chevron_right, color: _textColorPrimary(context)),
+                ),
+                onDaySelected: _onDaySelected,
+                onFormatChanged: (format) {
+                  if (_calendarFormat != format) {
+                    setState(() { _calendarFormat = format; });
+                  }
+                },
+                onPageChanged: (focusedDay) {
+                  _focusedDay = focusedDay;
+                },
+              ),
             ),
           ),
+          const SizedBox(height: 8.0),
+          if (_selectedDay != null)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    "Details for ${DateFormat.yMMMMd().format(_selectedDay!)}:",
+                    style: _getTextStyle(context, fontSize: 18, fontWeight: FontWeight.bold, color: _textColorPrimary(context)),
+                  ),
+                  const SizedBox(height: 10),
+                  Card(
+                    color: _cardBgColor(context),
+                    elevation: 1,
+                    child: Padding(
+                      padding: const EdgeInsets.all(12.0),
+                      child: Text(
+                        "No appointments scheduled for this day yet.",
+                        style: _getTextStyle(context, color: _textColorSecondary(context)),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Center(
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                          backgroundColor: _primaryColor,
+                          foregroundColor: _textColorOnPrimary,
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                          textStyle: _getTextStyle(context, fontSize: 16, fontWeight: FontWeight.w600, color: _textColorOnPrimary)
+                      ),
+                      icon: const Icon(Icons.add_circle_outline_rounded),
+                      label: const Text("Schedule New Appointment"),
+                      onPressed: () {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Schedule for ${_selectedDay!.toIso8601String().substring(0,10)} tapped!')),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          Expanded(child: Container()),
         ],
       ),
     );
   }
 }
+
