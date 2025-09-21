@@ -11,7 +11,7 @@ import 'pages/start3.dart';
 import 'pages/start4.dart';
 import 'Dietitians/homePageDietitian.dart';
 
-import 'Admin/firebaseOption.dart'; // <- firebase options file
+import 'Admin/firebaseOption.dart'; // <- firebase options file //
 
 const int TOTAL_TUTORIAL_STEPS = 4;
 
@@ -26,10 +26,8 @@ Future<void> main() async {
       );
     }
   } catch (e) {
-    if (e.toString().contains('[core/duplicate-app]')) {
-      // Firebase already initialized, ignore
-    } else {
-      rethrow; // Other errors should still crash
+    if (!e.toString().contains('[core/duplicate-app]')) {
+      rethrow;
     }
   }
 
