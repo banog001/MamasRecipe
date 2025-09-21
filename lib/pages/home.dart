@@ -493,8 +493,11 @@ class _HomeState extends State<home> {
               Table(
                 children: [
                   _buildMealRow("Breakfast", data["breakfast"], true, isCompact: true),
+                  _buildMealRow("AM Snack", data["amSnack"], isUserSubscribed, isCompact: true),
                   _buildMealRow("Lunch", data["lunch"], isUserSubscribed, isCompact: true),
+                  _buildMealRow("Pm Snack", data["pmSnack"], isUserSubscribed, isCompact: true),
                   _buildMealRow("Dinner", data["dinner"], isUserSubscribed, isCompact: true),
+                  _buildMealRow("Midnight Snack", data["midnightSnack"], isUserSubscribed, isCompact: true),
                 ],
               ),
               const SizedBox(height: 10),
@@ -981,9 +984,39 @@ class UsersListPage extends StatelessWidget {
             indicatorWeight: 2.5,
             labelStyle: const TextStyle(fontFamily: _primaryFontFamily, fontWeight: FontWeight.bold, fontSize: 14),
             unselectedLabelStyle: const TextStyle(fontFamily: _primaryFontFamily, fontWeight: FontWeight.w500, fontSize: 14),
-            tabs: const [
+            tabs:  [
               Tab(text: "CHATS"), // Changed from MESSAGES
-              Tab(text: "NOTIFICATIONS"),
+              Tab(
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    Text("NOTIFICATIONS"),
+                    Positioned(
+                      top: -1,
+                      right: -1,
+                      child: StreamBuilder<QuerySnapshot>(
+                        stream: FirebaseFirestore.instance
+                            .collection('notifications')
+                            .where('userId', isEqualTo: currentUserId)
+                            .where('isRead', isEqualTo: false) // only unread
+                            .snapshots(),
+                        builder: (context, snapshot) {
+                          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) return const SizedBox.shrink();
+                          return Container(
+                            width: 8,
+                            height: 8,
+                            decoration: BoxDecoration(
+                              color: Colors.red,
+                              shape: BoxShape.circle,
+                            ),
+                          );
+                        },
+                      ),
+                    )
+                  ],
+                ),
+              )
+
             ],
           ),
         ),
@@ -1061,10 +1094,46 @@ class UsersListPage extends StatelessWidget {
                 );
               },
             ),
-            Center(
-                child:
-                Text("No new notifications.", style: _cardBodyTextStyle(context)
-                )
+            // Replace your current Center() widget with this StreamBuilder
+            StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('notifications')
+                  .where('userId', isEqualTo: currentUserId)
+                  .orderBy('timestamp', descending: true)
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator(color: _primaryColor));
+                }
+
+                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                  return Center(
+                    child: Text("No new notifications.", style: _cardBodyTextStyle(context)),
+                  );
+                }
+
+                final notifications = snapshot.data!.docs;
+
+                return ListView.separated(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  itemCount: notifications.length,
+                  separatorBuilder: (context, index) => const Divider(height: 0.5, indent: 16, endIndent: 16),
+                  itemBuilder: (context, index) {
+                    final notif = notifications[index];
+                    final isRead = notif['isRead'] as bool? ?? false;
+
+                    return ListTile(
+                      title: Text(notif['title'] ?? "Notification"),
+                      subtitle: Text(notif['message'] ?? ""),
+                      trailing: isRead ? null : const Icon(Icons.circle, color: Colors.red, size: 10),
+                      onTap: () {
+                        // Mark notification as read
+                        notif.reference.update({'isRead': true});
+                      },
+                    );
+                  },
+                );
+              },
             ),
           ],
         ),

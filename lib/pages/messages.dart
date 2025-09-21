@@ -53,6 +53,7 @@ class _MessagesPageState extends State<MessagesPage> {
     _messageController.clear();
     final chatRoomId = getChatRoomId(widget.currentUserId, widget.receiverId);
 
+    // 1️⃣ Add message to messages collection
     await _firestore.collection("messages").add({
       "senderID": widget.currentUserId,
       "receiverID": widget.receiverId,
@@ -62,6 +63,16 @@ class _MessagesPageState extends State<MessagesPage> {
       "read": "false",
     });
 
+    // 2️⃣ Add notification for receiver
+    await _firestore.collection("notifications").add({
+      "userId": widget.receiverId,                  // the recipient
+      "title": "New Message",                       // notification title
+      "message": text,                              // message content
+      "isRead": false,                              // mark as unread
+      "timestamp": FieldValue.serverTimestamp(),    // server timestamp
+    });
+
+    // 3️⃣ Scroll to top
     if (_scrollController.hasClients) {
       _scrollController.animateTo(
         0.0,
@@ -70,6 +81,7 @@ class _MessagesPageState extends State<MessagesPage> {
       );
     }
   }
+
 
   @override
   Widget build(BuildContext context) {
