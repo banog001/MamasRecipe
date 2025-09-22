@@ -660,15 +660,14 @@ class UsersListPage extends StatelessWidget {
                 );
               },
             )
-
           ],
         ),
       ),
     );
   }
 }
-// At the top of HomePageDietitian.dart, where ScheduleCalendarPage is defined
 
+// At the top of HomePageDietitian.dart, where ScheduleCalendarPage is defined
 class ScheduleCalendarPage extends StatefulWidget {
   final String dietitianFirstName;
   final String dietitianLastName;
@@ -911,31 +910,59 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
     required String status,
     required BuildContext contextForSnackBar,
   }) async {
-    // This method remains the same
     try {
-      await FirebaseFirestore.instance.collection('schedules')
-          .add({
-        'dietitianId': dietitianId,
+      // Format dates as string
+      final String appointmentDateStr = DateFormat('yyyy-MM-dd HH:mm').format(appointmentDateTime);
+      final String createdAtStr = DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now());
+
+      // Save schedule
+      await FirebaseFirestore.instance.collection('schedules').add({
+        'dietitianID': dietitianId,
         'dietitianName': dietitianName,
-        'clientId': clientId,
+        'clientID': clientId,
         'clientName': clientName,
-        'appointmentDate': Timestamp.fromDate(appointmentDateTime),
+        'appointmentDate': appointmentDateStr,
         'notes': notes,
         'status': status,
-        'createdAt': FieldValue.serverTimestamp(),
+        'createdAt': createdAtStr,
       });
-      if (!mounted) return; // Check if widget is still mounted before showing SnackBar
+
+      // --- Save notification for the client ---
+      await FirebaseFirestore.instance
+          .collection("Users")
+          .doc(clientId)
+          .collection("notifications")
+          .add({
+        "isRead": false,
+        "title": "New Appointment",
+        "message": "$dietitianName scheduled an appointment with you on ${DateFormat.yMMMMd().format(appointmentDateTime)} at ${DateFormat.jm().format(appointmentDateTime)}.",
+        "type": "appointment",
+        "receiverId": clientId,
+        "receiverName": clientName,
+        "senderId": dietitianId,
+        "senderName": dietitianName,
+        "timestamp": FieldValue.serverTimestamp(),
+      });
+
+      if (!mounted) return;
       ScaffoldMessenger.of(contextForSnackBar).showSnackBar(
-        SnackBar(content: Text('Schedule proposed to $clientName successfully!'), backgroundColor: _primaryColor),
+        SnackBar(
+          content: Text('Schedule proposed to $clientName successfully!'),
+          backgroundColor: _primaryColor,
+        ),
       );
     } catch (e) {
       print("Error saving schedule: $e");
       if (!mounted) return;
       ScaffoldMessenger.of(contextForSnackBar).showSnackBar(
-        SnackBar(content: Text('Error saving schedule: $e'), backgroundColor: Colors.redAccent),
+        SnackBar(
+          content: Text('Error saving schedule: $e'),
+          backgroundColor: Colors.redAccent,
+        ),
       );
     }
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -1004,16 +1031,86 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
                     style: _getTextStyle(context, fontSize: 18, fontWeight: FontWeight.bold, color: _textColorPrimary(context)),
                   ),
                   const SizedBox(height: 10),
-                  Card( // Placeholder for displaying actual appointments for the day
-                    color: _cardBgColor(context),
-                    elevation: 1,
-                    child: Padding(
-                      padding: const EdgeInsets.all(12.0),
-                      child: Text(
-                        "No appointments scheduled for this day yet.", // This will be replaced by actual appointment list
-                        style: _getTextStyle(context, color: _textColorSecondary(context)),
-                      ),
-                    ),
+                  StreamBuilder<QuerySnapshot>(
+                    stream: FirebaseFirestore.instance
+                        .collection('schedules')
+                        .where('dietitianID', isEqualTo: FirebaseAuth.instance.currentUser?.uid)
+                        .snapshots(),
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
+
+                      if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                        return Card(
+                          color: _cardBgColor(context),
+                          elevation: 1,
+                          child: Padding(
+                            padding: const EdgeInsets.all(12.0),
+                            child: Text(
+                              "No appointments scheduled for this day yet.",
+                              style: _getTextStyle(context, color: _textColorSecondary(context)),
+                            ),
+                          ),
+                        );
+                      }
+
+                      // Filter schedules for the selected day
+                      final schedules = snapshot.data!.docs.where((doc) {
+                        final data = doc.data() as Map<String, dynamic>;
+                        final appointmentDateStr = data['appointmentDate'] as String?;
+                        if (appointmentDateStr == null) return false;
+
+                        try {
+                          final appointmentDate = DateFormat('yyyy-MM-dd HH:mm').parse(appointmentDateStr);
+                          return appointmentDate.year == _selectedDay!.year &&
+                              appointmentDate.month == _selectedDay!.month &&
+                              appointmentDate.day == _selectedDay!.day;
+                        } catch (_) {
+                          return false;
+                        }
+                      }).toList();
+
+                      if (schedules.isEmpty) {
+                        return Card(
+                          color: _cardBgColor(context),
+                          elevation: 1,
+                          child: Padding(
+                            padding: const EdgeInsets.all(12.0),
+                            child: Text(
+                              "No appointments scheduled for this day yet.",
+                              style: _getTextStyle(context, color: _textColorSecondary(context)),
+                            ),
+                          ),
+                        );
+                      }
+
+                      // Show schedules in cards
+                      return Column(
+                        children: schedules.map((doc) {
+                          final data = doc.data() as Map<String, dynamic>;
+                          final appointmentDate = DateFormat('yyyy-MM-dd HH:mm').parse(data['appointmentDate']);
+                          final formattedTime = DateFormat.jm().format(appointmentDate);
+
+                          return Card(
+                            margin: const EdgeInsets.only(bottom: 8),
+                            color: _cardBgColor(context),
+                            child: ListTile(
+                              title: Text("${data['clientName']}", style: _getTextStyle(context, fontWeight: FontWeight.bold)),
+                              subtitle: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text("Time: $formattedTime"),
+                                  Text("Status: ${data['status'] ?? 'pending'}"),
+                                  if ((data['notes'] ?? '').toString().isNotEmpty)
+                                    Text("Notes: ${data['notes']}"),
+                                ],
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      );
+                    },
                   ),
                   const SizedBox(height: 20),
                   Center(

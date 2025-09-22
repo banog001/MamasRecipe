@@ -949,180 +949,216 @@ class UserSchedulePage extends StatefulWidget {
 }
 
 class _UserSchedulePageState extends State<UserSchedulePage> {
+  late Map<DateTime, List<Map<String, dynamic>>> _events;
+  DateTime _focusedDay = DateTime.now();
+  DateTime? _selectedDay;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _events = {};
+    _fetchSchedules();
+  }
+
+  DateTime? _parseAppointmentDate(dynamic value) {
+    if (value == null) return null;
+    try {
+      if (value is Timestamp) return value.toDate();
+      if (value is DateTime) return value;
+      if (value is String) {
+        // try ISO first
+        try {
+          return DateTime.parse(value);
+        } catch (_) {}
+
+        // try common custom formats (expand if needed)
+        final patterns = [
+          'yyyy-MM-dd HH:mm:ss',
+          'yyyy-MM-dd HH:mm',
+          'yyyy/MM/dd HH:mm',
+          'MM/dd/yyyy HH:mm',
+          'MM/dd/yyyy'
+        ];
+        for (final p in patterns) {
+          try {
+            return DateFormat(p).parse(value);
+          } catch (_) {}
+        }
+      }
+    } catch (e) {
+      print("Error parsing appointmentDate: $e — value=$value");
+    }
+    return null;
+  }
+
+  Future<void> _fetchSchedules() async {
+    try {
+      // Try with common field names to handle naming differences in your DB
+      QuerySnapshot snapshot = await FirebaseFirestore.instance
+          .collection('schedules')
+          .where('clientId', isEqualTo: widget.currentUserId)
+          .get();
+
+      if (snapshot.docs.isEmpty) {
+        // fallback to clientID (uppercase D) if original query returned nothing
+        snapshot = await FirebaseFirestore.instance
+            .collection('schedules')
+            .where('clientID', isEqualTo: widget.currentUserId)
+            .get();
+      }
+
+      print('Fetched ${snapshot.docs.length} schedule docs for user ${widget.currentUserId}');
+
+      Map<DateTime, List<Map<String, dynamic>>> events = {};
+
+      for (var doc in snapshot.docs) {
+        final data = doc.data() as Map<String, dynamic>;
+        final parsed = _parseAppointmentDate(data['appointmentDate']);
+        if (parsed == null) {
+          // log to help debugging — these docs will be ignored by the calendar
+          print('Skipping schedule (unparseable appointmentDate) id=${doc.id} appointmentDate=${data['appointmentDate']}');
+          continue;
+        }
+
+        final dayOnly = DateTime(parsed.year, parsed.month, parsed.day);
+        // store parsedDate so UI code can use it
+        final item = {...data, 'parsedDate': parsed, '__docId': doc.id};
+
+        events.putIfAbsent(dayOnly, () => []).add(item);
+      }
+
+      // sort events for each day by time ascending
+      events.forEach((key, list) {
+        list.sort((a, b) {
+          final da = a['parsedDate'] as DateTime;
+          final db = b['parsedDate'] as DateTime;
+          return da.compareTo(db);
+        });
+      });
+
+      setState(() {
+        _events = events;
+        _isLoading = false;
+      });
+
+      print('Mapped events for ${_events.length} days.');
+    } catch (e) {
+      print('Error fetching schedules: $e');
+      setState(() {
+        _events = {};
+        _isLoading = false;
+      });
+    }
+  }
+
+  List<Map<String, dynamic>> _getEventsForDay(DateTime day) {
+    final dayOnly = DateTime(day.year, day.month, day.day);
+    return _events[dayOnly] ?? [];
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
     return Scaffold(
-      backgroundColor: _scaffoldBgColor(context), // Uses the helper from home.dart
-      body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('schedules') //  <--- **** IMPORTANT: CHANGE 'schedules' IF YOUR COLLECTION IS NAMED DIFFERENTLY ****
-            .where('clientId', isEqualTo: widget.currentUserId)
-            .orderBy('appointmentDate', descending: false) // Shows upcoming or earliest first
-            .snapshots(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator(color: _primaryColor));
-          }
-          if (snapshot.hasError) {
-            print("Error fetching user schedules: ${snapshot.error}");
-            return Center(child: Text('Could not load your schedule.', style: _cardBodyTextStyle(context)));
-          }
-          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24.0),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.calendar_month_outlined, size: 70, color: _textColorSecondary(context).withOpacity(0.7)),
-                    const SizedBox(height: 20),
-                    Text(
-                      'No Upcoming Schedules',
-                      style: _sectionTitleStyle(context).copyWith(fontSize: 19),
-                      textAlign: TextAlign.center,
+      appBar: AppBar(title: const Text("My Schedule")),
+      body: Column(
+        children: [
+          TableCalendar(
+            firstDay: DateTime.utc(2020, 1, 1),
+            lastDay: DateTime.utc(2030, 12, 31),
+            focusedDay: _focusedDay,
+            selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
+            eventLoader: _getEventsForDay,
+            onDaySelected: (selectedDay, focusedDay) {
+              setState(() {
+                _selectedDay = selectedDay;
+                _focusedDay = focusedDay;
+              });
+            },
+            calendarStyle: const CalendarStyle(
+              // keep other styles as you wish; markerDecoration is default for markers
+              markerDecoration: BoxDecoration(color: Colors.red, shape: BoxShape.circle),
+            ),
+            calendarBuilders: CalendarBuilders(
+              markerBuilder: (context, date, events) {
+                if (events.isNotEmpty) {
+                  // small red dot at bottom center
+                  return Align(
+                    alignment: Alignment.bottomCenter,
+                    child: Container(
+                      width: 7,
+                      height: 7,
+                      margin: const EdgeInsets.only(bottom: 6),
+                      decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
                     ),
-                    const SizedBox(height: 10),
-                    Text(
-                      'Your dietitian has not scheduled any new appointments for you yet. Check back later!',
-                      style: _getTextStyle(context, color: _textColorSecondary(context), fontSize: 15),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
-                ),
-              ),
-            );
-          }
+                  );
+                }
+                return const SizedBox.shrink();
+              },
+            ),
+          ),
+          const SizedBox(height: 10),
+          Expanded(
+            child: _selectedDay == null
+                ? const Center(child: Text("Select a day to view schedules"))
+                : _getEventsForDay(_selectedDay!).isEmpty
+                ? const Center(child: Text("No schedules on this day"))
+                : ListView(
+              padding: const EdgeInsets.all(12),
+              children: _getEventsForDay(_selectedDay!).map((event) {
+                final dietitianName = (event['dietitianName'] ?? event['dietitian'] ?? 'Dietitian') as String;
+                final status = (event['status'] ?? 'Scheduled') as String;
+                final notes = (event['notes'] ?? '') as String;
+                final DateTime dt = event['parsedDate'] as DateTime;
+                final formattedDate = DateFormat.yMMMMd().format(dt);
+                final formattedTime = DateFormat.jm().format(dt);
 
-          final schedules = snapshot.data!.docs;
-
-          return ListView.builder(
-            padding: const EdgeInsets.all(12.0),
-            itemCount: schedules.length,
-            itemBuilder: (context, index) {
-              final scheduleDoc = schedules[index];
-              final data = scheduleDoc.data() as Map<String, dynamic>;
-
-              // --- Make sure these field names match your Firestore document ---
-              String dietitianName = data['dietitianName'] ?? 'Your Dietitian';
-              Timestamp? appointmentTimestamp = data['appointmentDate'];
-              String notes = data['notes'] ?? 'No specific notes.';
-              String status = data['status'] ?? 'Scheduled'; // Default status
-
-              String formattedDate = "Date N/A";
-              String formattedTime = "Time N/A";
-
-              if (appointmentTimestamp != null) {
-                DateTime appointmentDateTime = appointmentTimestamp.toDate();
-                formattedDate = DateFormat.yMMMMd().format(appointmentDateTime); // e.g., September 30, 2023
-                formattedTime = DateFormat.jm().format(appointmentDateTime);    // e.g., 10:30 AM
-              }
-
-              IconData statusIcon = Icons.check_circle_outline_rounded;
-              Color statusColor = _primaryColor;
-              if (status.toLowerCase().contains('proposed')) {
-                statusIcon = Icons.pending_actions_outlined;
-                statusColor = Colors.orange.shade700;
-              } else if (status.toLowerCase().contains('cancelled')) {
-                statusIcon = Icons.cancel_outlined;
-                statusColor = Colors.red.shade700;
-              } else if (status.toLowerCase().contains('confirmed')) {
-                statusIcon = Icons.check_circle_rounded;
-                statusColor = Colors.green.shade700;
-              }
-
-
-              return Card(
-                elevation: 2,
-                margin: const EdgeInsets.symmetric(vertical: 8.0),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
-                color: _cardBgColor(context),
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(Icons.person_pin_outlined, color: _primaryColor, size: 24),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              dietitianName,
-                              style: _getTextStyle(context, fontWeight: FontWeight.bold, fontSize: 17, color: _textColorPrimary(context)),
-                            ),
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: statusColor.withOpacity(0.15),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(statusIcon, color: statusColor, size: 14),
-                                const SizedBox(width: 4),
-                                Text(
-                                  status,
-                                  style: _getTextStyle(context, color: statusColor, fontSize: 11, fontWeight: FontWeight.w600),
-                                ),
-                              ],
-                            ),
-                          )
-                        ],
-                      ),
-                      const Divider(height: 20, thickness: 0.5),
-                      Row(
-                        children: [
-                          Icon(Icons.calendar_today_rounded, color: _textColorSecondary(context), size: 18),
-                          const SizedBox(width: 8.0),
-                          Text(formattedDate, style: _getTextStyle(context, fontSize: 15, color: _textColorPrimary(context))),
-                        ],
-                      ),
-                      const SizedBox(height: 8.0),
-                      Row(
-                        children: [
-                          Icon(Icons.access_time_filled_rounded, color: _textColorSecondary(context), size: 18),
-                          const SizedBox(width: 8.0),
-                          Text(formattedTime, style: _getTextStyle(context, fontSize: 15, color: _textColorPrimary(context))),
-                        ],
-                      ),
-                      if (notes.isNotEmpty && notes != 'No specific notes.') ...[
-                        const SizedBox(height: 12.0),
+                return Card(
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  elevation: 3,
+                  margin: const EdgeInsets.symmetric(vertical: 8),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
                         Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Icon(Icons.notes_rounded, color: _textColorSecondary(context), size: 18),
-                            const SizedBox(width: 8.0),
-                            Expanded(child: Text(notes, style: _getTextStyle(context, fontSize: 14, color: _textColorSecondary(context)))),
+                            Text(dietitianName, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(color: Colors.blue.withOpacity(0.1), borderRadius: BorderRadius.circular(20)),
+                              child: Text(status, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.blue)),
+                            )
                           ],
                         ),
+                        const SizedBox(height: 8),
+                        Row(children: [const Icon(Icons.calendar_today, size: 16), const SizedBox(width: 6), Text(formattedDate)]),
+                        const SizedBox(height: 6),
+                        Row(children: [const Icon(Icons.access_time, size: 16), const SizedBox(width: 6), Text(formattedTime)]),
+                        if (notes.isNotEmpty) ...[
+                          const SizedBox(height: 10),
+                          Row(crossAxisAlignment: CrossAxisAlignment.start, children: [const Icon(Icons.notes, size: 16), const SizedBox(width: 6), Expanded(child: Text(notes))]),
+                        ]
                       ],
-                      // TODO: Add buttons for user to Confirm/Cancel if status is 'proposed'
-                      // if (status.toLowerCase().contains('proposed'))
-                      //   Padding(
-                      //     padding: const EdgeInsets.only(top: 16.0),
-                      //     child: Row(
-                      //       mainAxisAlignment: MainAxisAlignment.end,
-                      //       children: [
-                      //         TextButton(onPressed: () { /* TODO: Implement cancel logic */ }, child: Text("Decline", style: _getTextStyle(context, color: Colors.redAccent))),
-                      //         const SizedBox(width: 8),
-                      //         ElevatedButton(onPressed: () { /* TODO: Implement confirm logic */ }, child: Text("Confirm"), style: ElevatedButton.styleFrom(backgroundColor: _primaryColor)),
-                      //       ],
-                      //     ),
-                      //   )
-                    ],
+                    ),
                   ),
-                ),
-              );
-            },
-          );
-        },
+                );
+              }).toList(),
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
+//user list chat messages
 class UsersListPage extends StatelessWidget {
   final String currentUserId;
   const UsersListPage({super.key, required this.currentUserId});
@@ -1378,7 +1414,6 @@ class UsersListPage extends StatelessWidget {
                             ? const Icon(Icons.circle, color: Colors.red, size: 10)
                             : null,
                         onTap: () async {
-                          // ✅ 1. Mark notification as read
                           await FirebaseFirestore.instance
                               .collection("Users")
                               .doc(currentUserId)
@@ -1386,7 +1421,6 @@ class UsersListPage extends StatelessWidget {
                               .doc(doc.id)
                               .update({"isRead": true});
 
-                          // ✅ 2. Navigate based on type
                           if (data["type"] == "message") {
                             Navigator.push(
                               context,
@@ -1399,6 +1433,13 @@ class UsersListPage extends StatelessWidget {
                                 ),
                               ),
                             );
+                          } else if (data["type"] == "appointment") {
+                            final homeState = context.findAncestorStateOfType<_HomeState>();
+                            if (homeState != null) {
+                              homeState.setState(() {
+                                homeState.selectedIndex = 1; // go to My Schedule tab
+                              });
+                            }
                           }
                         },
                       );
@@ -1474,7 +1515,7 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
                     markerDecoration: BoxDecoration(color: Colors.redAccent, shape: BoxShape.circle)
                 ),
                 headerStyle: HeaderStyle(
-                  formatButtonVisible: true,
+                  formatButtonVisible: false, // ✅ this hides the button
                   titleCentered: true,
                   titleTextStyle: _getTextStyle(context, fontSize: 18, fontWeight: FontWeight.bold, color: _textColorPrimary(context)),
                   formatButtonTextStyle: _getTextStyle(context, color: _textColorOnPrimary),
@@ -1539,9 +1580,6 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
               ),
             ),
           Expanded(child: Container()),
-
-
-
         ],
       ),
     );
