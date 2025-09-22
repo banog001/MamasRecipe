@@ -5,6 +5,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'login.dart';
 import 'messages.dart';
 import 'package:intl/intl.dart';
+import 'package:table_calendar/table_calendar.dart';
 // import 'dart:ui'; // REMOVED - Assuming ImageFilter or other direct dart:ui members are not used
 import 'UserProfile.dart';
 import 'package:shimmer/shimmer.dart'; // Import for Shimmer effect
@@ -18,6 +19,25 @@ Color _cardBgColor(BuildContext context) => Theme.of(context).brightness == Brig
 Color _textColorPrimary(BuildContext context) => Theme.of(context).brightness == Brightness.dark ? Colors.white70 : Colors.black87;
 Color _textColorSecondary(BuildContext context) => Theme.of(context).brightness == Brightness.dark ? Colors.white54 : Colors.black54;
 const Color _textColorOnPrimary = Colors.white;
+
+TextStyle _getTextStyle(
+    BuildContext context, {
+      double fontSize = 16,
+      FontWeight fontWeight = FontWeight.normal,
+      Color? color,
+      String fontFamily = _primaryFontFamily,
+      double? letterSpacing,
+      FontStyle? fontStyle,
+    }) {
+  return TextStyle(
+    fontSize: fontSize,
+    fontWeight: fontWeight,
+    color: color ?? _textColorPrimary(context),
+    fontFamily: fontFamily,
+    letterSpacing: letterSpacing,
+    fontStyle: fontStyle,
+  );
+}
 
 TextStyle _sectionTitleStyle(BuildContext context) => TextStyle(
     fontFamily: _primaryFontFamily,
@@ -910,33 +930,33 @@ class _HomeState extends State<home> {
 }
 
 class UsersListPage extends StatelessWidget {
-  String getChatRoomId(String userA, String userB) {
-    // Ensure consistent ordering to have the same chatRoomID for both users
-    return userA.hashCode <= userB.hashCode ? "${userA}_$userB" : "${userB}_$userA";
-  }
-
   final String currentUserId;
   const UsersListPage({super.key, required this.currentUserId});
+
+  String getChatRoomId(String userA, String userB) {
+    if (userA.compareTo(userB) > 0) {
+      return "$userB\_$userA";
+    } else {
+      return "$userA\_$userB";
+    }
+  }
+
   Future<Map<String, dynamic>> getLastMessage(
-      BuildContext context,
-      String otherUserId,
-      String otherUserName, // Pass the receiver's display name
-      ) async {
-    // Query messages between currentUserId and otherUserId
+      BuildContext context, String chatRoomId, String otherUserName) async {
     final query = await FirebaseFirestore.instance
         .collection("messages")
-        .where("chatRoomID", isEqualTo: getChatRoomId(currentUserId, otherUserId))
+        .where("chatRoomID", isEqualTo: chatRoomId)
         .orderBy("timestamp", descending: true)
         .limit(1)
         .get();
 
     if (query.docs.isEmpty) {
-      return {"message": "", "senderName": "", "time": ""};
+      return {"message": "", "isMe": false, "time": ""};
     }
 
     final data = query.docs.first.data();
-    final timestamp = data["timestamp"];
     String formattedTime = "";
+    final timestamp = data["timestamp"];
 
     if (timestamp is Timestamp) {
       DateTime messageDate = timestamp.toDate();
@@ -944,29 +964,28 @@ class UsersListPage extends StatelessWidget {
       if (messageDate.year == nowDate.year &&
           messageDate.month == nowDate.month &&
           messageDate.day == nowDate.day) {
-        formattedTime = TimeOfDay.fromDateTime(messageDate).format(context); // HH:mm
+        formattedTime = TimeOfDay.fromDateTime(messageDate).format(context);
       } else {
-        formattedTime = DateFormat('MMM d').format(messageDate); // e.g., Jan 5
+        formattedTime = DateFormat('MMM d').format(messageDate);
       }
     }
 
-    bool isMe = data["senderId"] == currentUserId;
-    String senderName = isMe ? "You" : otherUserName;
-
     return {
       "message": data["message"] ?? "",
-      "senderName": senderName,
+      "isMe": data["senderId"] == FirebaseAuth.instance.currentUser!.uid,
       "time": formattedTime,
+      "senderName": data["senderName"] ?? "Unknown",
     };
   }
-
 
   @override
   Widget build(BuildContext context) {
     final bool isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    final Color currentScaffoldBg = isDarkMode ? Colors.grey.shade900 : Colors.grey.shade50; // Lighter bg for content
-    final Color currentAppBarBg = isDarkMode ? Colors.grey.shade800 : Colors.white;
-    final Color currentTabLabel = _textColorPrimary(context); // Use themed primary text color
+    final Color currentScaffoldBg =
+    isDarkMode ? Colors.grey.shade900 : Colors.grey.shade50;
+    final Color currentAppBarBg =
+    isDarkMode ? Colors.grey.shade800 : Colors.white;
+    final Color currentTabLabel = _textColorPrimary(context);
     final Color currentIndicator = _primaryColor;
 
     return DefaultTabController(
@@ -982,30 +1001,41 @@ class UsersListPage extends StatelessWidget {
             unselectedLabelColor: currentTabLabel.withOpacity(0.6),
             indicatorColor: currentIndicator,
             indicatorWeight: 2.5,
-            labelStyle: const TextStyle(fontFamily: _primaryFontFamily, fontWeight: FontWeight.bold, fontSize: 14),
-            unselectedLabelStyle: const TextStyle(fontFamily: _primaryFontFamily, fontWeight: FontWeight.w500, fontSize: 14),
-            tabs:  [
-              Tab(text: "CHATS"), // Changed from MESSAGES
+            labelStyle: const TextStyle(
+              fontFamily: _primaryFontFamily,
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
+            ),
+            unselectedLabelStyle: const TextStyle(
+              fontFamily: _primaryFontFamily,
+              fontWeight: FontWeight.w500,
+              fontSize: 14,
+            ),
+            tabs: [
+              const Tab(text: "CHATS"),
               Tab(
                 child: Stack(
                   alignment: Alignment.center,
                   children: [
-                    Text("NOTIFICATIONS"),
+                    const Text("NOTIFICATIONS"),
                     Positioned(
                       top: -1,
                       right: -1,
                       child: StreamBuilder<QuerySnapshot>(
                         stream: FirebaseFirestore.instance
+                            .collection('Users')
+                            .doc(currentUserId)
                             .collection('notifications')
-                            .where('userId', isEqualTo: currentUserId)
-                            .where('isRead', isEqualTo: false) // only unread
+                            .where('isRead', isEqualTo: false)
                             .snapshots(),
                         builder: (context, snapshot) {
-                          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) return const SizedBox.shrink();
+                          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                            return const SizedBox.shrink();
+                          }
                           return Container(
                             width: 8,
                             height: 8,
-                            decoration: BoxDecoration(
+                            decoration: const BoxDecoration(
                               color: Colors.red,
                               shape: BoxShape.circle,
                             ),
@@ -1016,127 +1046,306 @@ class UsersListPage extends StatelessWidget {
                   ],
                 ),
               )
-
             ],
           ),
         ),
         body: TabBarView(
           children: [
+            // Chats tab
             StreamBuilder<QuerySnapshot>(
-        // where("role", isEqualTo: "dietitian")
-              stream: FirebaseFirestore.instance.collection("Users").snapshots(),
+              stream:
+              FirebaseFirestore.instance.collection("Users").snapshots(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator(color: _primaryColor));
+                  return const Center(
+                      child: CircularProgressIndicator(color: _primaryColor));
                 }
-                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                  return Center(child: Text("No dietitians to chat with yet.", style: _cardBodyTextStyle(context)));
-                }
-
-                var users = snapshot.data!.docs;
-                return ListView.separated(
-                    padding: const EdgeInsets.symmetric(vertical: 8.0),
-                    itemCount: users.length,
-                    itemBuilder: (context, index) {
-                      var userDoc = users[index]; // Renamed for clarity
-                      var data = userDoc.data() as Map<String, dynamic>;
-                      if (userDoc.id == currentUserId) return const SizedBox.shrink();
-
-                      return FutureBuilder<Map<String, dynamic>>(
-                        future: getLastMessage(context, userDoc.id, "${data["firstName"]} ${data["lastName"]}".trim()),
-                        builder: (context, snapshotMessage) {
-                          String subtitleText = "No messages yet";
-                          String timeText = "";
-
-                          if (snapshotMessage.connectionState == ConnectionState.done && snapshotMessage.hasData) {
-                            final lastMsg = snapshotMessage.data!;
-                            if ((lastMsg["message"] ?? "").isNotEmpty) {
-                              subtitleText = "${lastMsg["senderName"]}: ${lastMsg["message"]}";
-                              timeText = lastMsg["time"] ?? "";
-                            }
-                          }
-
-                          return ListTile(
-                            leading: CircleAvatar(
-                              backgroundImage: (data["profile"] != null && data["profile"].toString().isNotEmpty)
-                                  ? NetworkImage(data["profile"])
-                                  : null,
-                              child: (data["profile"] == null || data["profile"].toString().isEmpty)
-                                  ? Icon(Icons.person_outline, color: _primaryColor)
-                                  : null,
-                            ),
-                            title: Text("${data["firstName"] ?? ""} ${data["lastName"] ?? ""}".trim()),
-                            subtitle: Text(subtitleText, maxLines: 1, overflow: TextOverflow.ellipsis),
-                            trailing: timeText.isNotEmpty ? Text(timeText, style: TextStyle(fontSize: 12)) : null,
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => MessagesPage(
-                                    currentUserId: currentUserId,
-                                    receiverId: userDoc.id,
-                                    receiverName: "${data["firstName"] ?? ""} ${data["lastName"] ?? ""}".trim(),
-                                    receiverProfile: data["profile"] ?? "",
-                                  ),
-                                ),
-                              );
-                            },
-                          );
-                        },
-                      );
-                    },
-                    separatorBuilder: (context, index) {
-                      var userDoc = users[index];
-                      if (userDoc.id == currentUserId && index < users.length -1 && users[index+1].id == currentUserId) return const SizedBox.shrink(); // Avoid double separator if current user is filtered out
-                      if(userDoc.id == currentUserId) return const SizedBox.shrink();
-                      return const Divider(height: 0.5, indent: 88, endIndent: 16, thickness: 0.5); // Thinner divider
-                    }
-                );
-              },
-            ),
-            // Replace your current Center() widget with this StreamBuilder
-            StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection('notifications')
-                  .where('userId', isEqualTo: currentUserId)
-                  .orderBy('timestamp', descending: true)
-                  .snapshots(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator(color: _primaryColor));
-                }
-
                 if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
                   return Center(
-                    child: Text("No new notifications.", style: _cardBodyTextStyle(context)),
+                    child: Text(
+                      "No dietitians to chat with yet.",
+                      style: _getTextStyle(context,
+                          fontSize: 16, color: _textColorPrimary(context)),
+                    ),
                   );
                 }
 
-                final notifications = snapshot.data!.docs;
-
+                final users = snapshot.data!.docs;
                 return ListView.separated(
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  itemCount: notifications.length,
-                  separatorBuilder: (context, index) => const Divider(height: 0.5, indent: 16, endIndent: 16),
+                  padding: const EdgeInsets.symmetric(vertical: 8.0),
+                  itemCount: users.length,
+                  separatorBuilder: (context, index) =>
+                  const Divider(height: 0.5, indent: 88, endIndent: 16),
                   itemBuilder: (context, index) {
-                    final notif = notifications[index];
-                    final isRead = notif['isRead'] as bool? ?? false;
+                    final userDoc = users[index];
+                    if (userDoc.id == currentUserId) {
+                      return const SizedBox.shrink();
+                    }
 
-                    return ListTile(
-                      title: Text(notif['title'] ?? "Notification"),
-                      subtitle: Text(notif['message'] ?? ""),
-                      trailing: isRead ? null : const Icon(Icons.circle, color: Colors.red, size: 10),
-                      onTap: () {
-                        // Mark notification as read
-                        notif.reference.update({'isRead': true});
+                    final data = userDoc.data() as Map<String, dynamic>;
+                    final senderName =
+                    "${data["firstName"] ?? ""} ${data["lastName"] ?? ""}"
+                        .trim();
+                    final chatRoomId =
+                    getChatRoomId(currentUserId, userDoc.id);
+
+                    return FutureBuilder<Map<String, dynamic>>(
+                      future: getLastMessage(context, chatRoomId, senderName),
+                      builder: (context, snapshotMessage) {
+                        String subtitleText = "No messages yet";
+                        String timeText = "";
+
+                        if (snapshotMessage.connectionState ==
+                            ConnectionState.done &&
+                            snapshotMessage.hasData) {
+                          final lastMsg = snapshotMessage.data!;
+                          final lastMessage = lastMsg["message"] ?? "";
+                          final lastSenderName = lastMsg["senderName"] ?? "";
+                          timeText = lastMsg["time"] ?? "";
+
+                          if (lastMessage.isNotEmpty) {
+                            if (lastMsg["isMe"] ?? false) {
+                              subtitleText = "Me: $lastMessage";
+                            } else {
+                              subtitleText = "$lastSenderName: $lastMessage";
+                            }
+                          }
+                        }
+
+                        return ListTile(
+                          leading: CircleAvatar(
+                            backgroundImage: (data["profile"] != null &&
+                                data["profile"].toString().isNotEmpty)
+                                ? NetworkImage(data["profile"])
+                                : null,
+                            child: (data["profile"] == null ||
+                                data["profile"].toString().isEmpty)
+                                ? Icon(Icons.person_outline,
+                                color: _primaryColor)
+                                : null,
+                          ),
+                          title: Text(senderName),
+                          subtitle: Text(subtitleText,
+                              maxLines: 1, overflow: TextOverflow.ellipsis),
+                          trailing: timeText.isNotEmpty
+                              ? Text(timeText,
+                              style: const TextStyle(fontSize: 12))
+                              : null,
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => MessagesPage(
+                                  currentUserId: currentUserId,
+                                  receiverId: userDoc.id,
+                                  receiverName: senderName,
+                                  receiverProfile: data["profile"] ?? "",
+                                ),
+                              ),
+                            );
+                          },
+                        );
                       },
                     );
                   },
                 );
               },
             ),
+
+            // Notifications tab
+            StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection("Users")
+                  .doc(currentUserId) // 👈 notifications inside this user
+                  .collection("notifications")
+                  .orderBy("timestamp", descending: true)
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+
+                final docs = snapshot.data!.docs;
+                if (docs.isEmpty) {
+                  return const Center(child: Text("No notifications"));
+                }
+
+                return MediaQuery.removePadding(
+                  context: context,
+                  removeTop: true, // 🔥 removes the space above
+                  child: ListView.builder(
+                    itemCount: docs.length,
+                    itemBuilder: (context, index) {
+                      final doc = docs[index];
+                      final data = doc.data() as Map<String, dynamic>;
+
+                      return ListTile(
+                        title: Text(data["title"] ?? "Notification"),
+                        subtitle: Text(data["message"] ?? ""),
+                        trailing: data["isRead"] == false
+                            ? const Icon(Icons.circle, color: Colors.red, size: 10)
+                            : null,
+                        onTap: () async {
+                          // ✅ 1. Mark notification as read
+                          await FirebaseFirestore.instance
+                              .collection("Users")
+                              .doc(currentUserId)
+                              .collection("notifications")
+                              .doc(doc.id)
+                              .update({"isRead": true});
+
+                          // ✅ 2. Navigate based on type
+                          if (data["type"] == "message") {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => MessagesPage(
+                                  receiverId: data["senderId"],
+                                  receiverName: data["senderName"],
+                                  currentUserId: currentUserId,
+                                  receiverProfile: data["receiverProfile"] ?? "",
+                                ),
+                              ),
+                            );
+                          }
+                        },
+                      );
+                    },
+                  ),
+                );
+              },
+            )
           ],
         ),
+      ),
+    );
+  }
+}
+class ScheduleCalendarPage extends StatefulWidget {
+  const ScheduleCalendarPage({super.key});
+
+  @override
+  State<ScheduleCalendarPage> createState() => _ScheduleCalendarPageState();
+}
+
+class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
+  CalendarFormat _calendarFormat = CalendarFormat.month;
+  DateTime _focusedDay = DateTime.now();
+  DateTime? _selectedDay;
+  // Map<DateTime, List<String>> _events = {}; // To store events/appointments later
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedDay = _focusedDay;
+    // _loadAppointmentsForMonth(_focusedDay); // Implement this later
+  }
+
+  void _onDaySelected(DateTime selectedDay, DateTime focusedDay) {
+    if (!isSameDay(_selectedDay, selectedDay)) {
+      setState(() {
+        _selectedDay = selectedDay;
+        _focusedDay = focusedDay;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: _scaffoldBgColor(context),
+      body: Column(
+        children: [
+          Card(
+            margin: const EdgeInsets.all(12.0),
+            elevation: 2.0,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            color: _cardBgColor(context),
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 8.0),
+              child: TableCalendar(
+                locale: 'en_US',
+                firstDay: DateTime.utc(2020, 1, 1),
+                lastDay: DateTime.utc(2030, 12, 31),
+                focusedDay: _focusedDay,
+                selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
+                calendarFormat: _calendarFormat,
+                startingDayOfWeek: StartingDayOfWeek.monday,
+                calendarStyle: CalendarStyle(
+                    outsideDaysVisible: false,
+                    selectedDecoration: BoxDecoration(color: _primaryColor, shape: BoxShape.circle),
+                    selectedTextStyle: _getTextStyle(context, color: _textColorOnPrimary, fontWeight: FontWeight.bold),
+                    todayDecoration: BoxDecoration(color: _primaryColor.withOpacity(0.5), shape: BoxShape.circle),
+                    todayTextStyle: _getTextStyle(context, color: _textColorOnPrimary, fontWeight: FontWeight.bold),
+                    weekendTextStyle: _getTextStyle(context, color: _primaryColor.withOpacity(0.8)),
+                    defaultTextStyle: _getTextStyle(context, color: _textColorPrimary(context)),
+                    markerDecoration: BoxDecoration(color: Colors.redAccent, shape: BoxShape.circle)
+                ),
+                headerStyle: HeaderStyle(
+                  formatButtonVisible: true,
+                  titleCentered: true,
+                  titleTextStyle: _getTextStyle(context, fontSize: 18, fontWeight: FontWeight.bold, color: _textColorPrimary(context)),
+                  formatButtonTextStyle: _getTextStyle(context, color: _textColorOnPrimary),
+                  formatButtonDecoration: BoxDecoration(color: _primaryColor, borderRadius: BorderRadius.circular(20.0)),
+                  leftChevronIcon: Icon(Icons.chevron_left, color: _textColorPrimary(context)),
+                  rightChevronIcon: Icon(Icons.chevron_right, color: _textColorPrimary(context)),
+                ),
+                onDaySelected: _onDaySelected,
+                onFormatChanged: (format) {
+                  if (_calendarFormat != format) {
+                    setState(() { _calendarFormat = format; });
+                  }
+                },
+                onPageChanged: (focusedDay) {
+                  _focusedDay = focusedDay;
+                },
+              ),
+            ),
+          ),
+          const SizedBox(height: 8.0),
+          if (_selectedDay != null)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    "Details for ${DateFormat.yMMMMd().format(_selectedDay!)}:",
+                    style: _getTextStyle(context, fontSize: 18, fontWeight: FontWeight.bold, color: _textColorPrimary(context)),
+                  ),
+                  const SizedBox(height: 10),
+                  Card(
+                    color: _cardBgColor(context),
+                    elevation: 1,
+                    child: Padding(
+                      padding: const EdgeInsets.all(12.0),
+                      child: Text(
+                        "No appointments scheduled for this day yet.",
+                        style: _getTextStyle(context, color: _textColorSecondary(context)),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Center(
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                          backgroundColor: _primaryColor,
+                          foregroundColor: _textColorOnPrimary,
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                          textStyle: _getTextStyle(context, fontSize: 16, fontWeight: FontWeight.w600, color: _textColorOnPrimary)
+                      ),
+                      icon: const Icon(Icons.add_circle_outline_rounded),
+                      label: const Text("Schedule New Appointment"),
+                      onPressed: () {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Schedule for ${_selectedDay!.toIso8601String().substring(0,10)} tapped!')),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          Expanded(child: Container()),
+        ],
       ),
     );
   }

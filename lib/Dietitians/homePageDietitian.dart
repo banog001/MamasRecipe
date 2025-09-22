@@ -39,6 +39,10 @@ TextStyle _getTextStyle(BuildContext context, {
     fontStyle: fontStyle,
   );
 }
+TextStyle _cardBodyTextStyle(BuildContext context) => TextStyle(
+    fontFamily: _primaryFontFamily,
+    fontSize: 14,
+    color: _textColorPrimary(context));
 // --- End Style Definitions ---
 
 class HomePageDietitian extends StatefulWidget {
@@ -371,7 +375,6 @@ class UsersListPage extends StatelessWidget {
   const UsersListPage({super.key, required this.currentUserId});
 
   String getChatRoomId(String userA, String userB) {
-    // Sort the IDs so the order doesn't matter
     if (userA.compareTo(userB) > 0) {
       return "$userB\_$userA";
     } else {
@@ -379,8 +382,8 @@ class UsersListPage extends StatelessWidget {
     }
   }
 
-  // Get last message using chatRoomID
-  Future<Map<String, dynamic>> getLastMessage(BuildContext context, String chatRoomId, String otherUserName) async {
+  Future<Map<String, dynamic>> getLastMessage(
+      BuildContext context, String chatRoomId, String otherUserName) async {
     final query = await FirebaseFirestore.instance
         .collection("messages")
         .where("chatRoomID", isEqualTo: chatRoomId)
@@ -388,11 +391,14 @@ class UsersListPage extends StatelessWidget {
         .limit(1)
         .get();
 
-    if (query.docs.isEmpty) return {"message": "", "isMe": false, "time": ""};
+    if (query.docs.isEmpty) {
+      return {"message": "", "isMe": false, "time": ""};
+    }
 
     final data = query.docs.first.data();
     String formattedTime = "";
     final timestamp = data["timestamp"];
+
     if (timestamp is Timestamp) {
       DateTime messageDate = timestamp.toDate();
       DateTime nowDate = DateTime.now();
@@ -411,96 +417,243 @@ class UsersListPage extends StatelessWidget {
       "time": formattedTime,
       "senderName": data["senderName"] ?? "Unknown",
     };
-
   }
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance.collection("Users").snapshots(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator(color: _primaryColor));
-        }
-        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-          return Center(
-            child: Text(
-              "No dietitians to chat with yet.",
-              style: _getTextStyle(context, fontSize: 16, color: _textColorPrimary(context)),
+    final bool isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final Color currentScaffoldBg =
+    isDarkMode ? Colors.grey.shade900 : Colors.grey.shade50;
+    final Color currentAppBarBg =
+    isDarkMode ? Colors.grey.shade800 : Colors.white;
+    final Color currentTabLabel = _textColorPrimary(context);
+    final Color currentIndicator = _primaryColor;
+
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        backgroundColor: currentScaffoldBg,
+        appBar: AppBar(
+          backgroundColor: currentAppBarBg,
+          elevation: 0.5,
+          automaticallyImplyLeading: false,
+          title: TabBar(
+            labelColor: currentTabLabel,
+            unselectedLabelColor: currentTabLabel.withOpacity(0.6),
+            indicatorColor: currentIndicator,
+            indicatorWeight: 2.5,
+            labelStyle: const TextStyle(
+              fontFamily: _primaryFontFamily,
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
             ),
-          );
-        }
-
-        final users = snapshot.data!.docs;
-        return ListView.separated(
-          padding: const EdgeInsets.symmetric(vertical: 8.0),
-          itemCount: users.length,
-          separatorBuilder: (context, index) => const Divider(height: 0.5, indent: 88, endIndent: 16),
-          itemBuilder: (context, index) {
-            final userDoc = users[index];
-            if (userDoc.id == currentUserId) return const SizedBox.shrink();
-
-            final data = userDoc.data() as Map<String, dynamic>;
-            final senderName = "${data["firstName"] ?? ""} ${data["lastName"] ?? ""}".trim(); // Make sure this field exists
-            final chatRoomId = getChatRoomId(currentUserId, userDoc.id);
-
-
-            return FutureBuilder<Map<String, dynamic>>(
-              future: getLastMessage(context, chatRoomId, senderName),
-              builder: (context, snapshotMessage) {
-                String subtitleText = "No messages yet";
-                String timeText = "";
-
-                if (snapshotMessage.connectionState == ConnectionState.done && snapshotMessage.hasData) {
-                  final lastMsg = snapshotMessage.data!;
-                  final lastMessage = lastMsg["message"] ?? "";
-                  final lastSenderName = lastMsg["senderName"] ?? "";
-                  timeText = lastMsg["time"] ?? "";
-
-                  if (lastMessage.isNotEmpty) {
-                    if (lastMsg["isMe"] ?? false) {
-                      subtitleText = "Me: $lastMessage";
-                    } else {
-                      subtitleText = "$lastSenderName: $lastMessage";
-                    }
-                  }
+            unselectedLabelStyle: const TextStyle(
+              fontFamily: _primaryFontFamily,
+              fontWeight: FontWeight.w500,
+              fontSize: 14,
+            ),
+            tabs: [
+              const Tab(text: "CHATS"),
+              Tab(
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    const Text("NOTIFICATIONS"),
+                    Positioned(
+                      top: -1,
+                      right: -1,
+                      child: StreamBuilder<QuerySnapshot>(
+                        stream: FirebaseFirestore.instance
+                            .collection('Users')
+                            .doc(currentUserId)
+                            .collection('notifications')
+                            .where('isRead', isEqualTo: false)
+                            .snapshots(),
+                        builder: (context, snapshot) {
+                          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                            return const SizedBox.shrink();
+                          }
+                          return Container(
+                            width: 8,
+                            height: 8,
+                            decoration: const BoxDecoration(
+                              color: Colors.red,
+                              shape: BoxShape.circle,
+                            ),
+                          );
+                        },
+                      ),
+                    )
+                  ],
+                ),
+              )
+            ],
+          ),
+        ),
+        body: TabBarView(
+          children: [
+            // Chats tab
+            StreamBuilder<QuerySnapshot>(
+              stream:
+              FirebaseFirestore.instance.collection("Users").snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(
+                      child: CircularProgressIndicator(color: _primaryColor));
+                }
+                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                  return Center(
+                    child: Text(
+                      "No dietitians to chat with yet.",
+                      style: _getTextStyle(context,
+                          fontSize: 16, color: _textColorPrimary(context)),
+                    ),
+                  );
                 }
 
-                return ListTile(
-                  leading: CircleAvatar(
-                    backgroundImage: (data["profile"] != null && data["profile"].toString().isNotEmpty)
-                        ? NetworkImage(data["profile"])
-                        : null,
-                    child: (data["profile"] == null || data["profile"].toString().isEmpty)
-                        ? Icon(Icons.person_outline, color: _primaryColor)
-                        : null,
-                  ),
-                  title: Text(senderName),
-                  subtitle: Text(subtitleText, maxLines: 1, overflow: TextOverflow.ellipsis),
-                  trailing: timeText.isNotEmpty ? Text(timeText, style: const TextStyle(fontSize: 12)) : null,
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => MessagesPageDietitian(
-                          currentUserId: currentUserId,
-                          receiverId: userDoc.id,
-                          receiverName: senderName,
-                          receiverProfile: data["profile"] ?? "",
-                        ),
-                      ),
+                final users = snapshot.data!.docs;
+                return ListView.separated(
+                  padding: const EdgeInsets.symmetric(vertical: 8.0),
+                  itemCount: users.length,
+                  separatorBuilder: (context, index) =>
+                  const Divider(height: 0.5, indent: 88, endIndent: 16),
+                  itemBuilder: (context, index) {
+                    final userDoc = users[index];
+                    if (userDoc.id == currentUserId) {
+                      return const SizedBox.shrink();
+                    }
+
+                    final data = userDoc.data() as Map<String, dynamic>;
+                    final senderName =
+                    "${data["firstName"] ?? ""} ${data["lastName"] ?? ""}"
+                        .trim();
+                    final chatRoomId =
+                    getChatRoomId(currentUserId, userDoc.id);
+
+                    return FutureBuilder<Map<String, dynamic>>(
+                      future: getLastMessage(context, chatRoomId, senderName),
+                      builder: (context, snapshotMessage) {
+                        String subtitleText = "No messages yet";
+                        String timeText = "";
+
+                        if (snapshotMessage.connectionState ==
+                            ConnectionState.done &&
+                            snapshotMessage.hasData) {
+                          final lastMsg = snapshotMessage.data!;
+                          final lastMessage = lastMsg["message"] ?? "";
+                          final lastSenderName = lastMsg["senderName"] ?? "";
+                          timeText = lastMsg["time"] ?? "";
+
+                          if (lastMessage.isNotEmpty) {
+                            if (lastMsg["isMe"] ?? false) {
+                              subtitleText = "Me: $lastMessage";
+                            } else {
+                              subtitleText = "$lastSenderName: $lastMessage";
+                            }
+                          }
+                        }
+
+                        return ListTile(
+                          leading: CircleAvatar(
+                            backgroundImage: (data["profile"] != null &&
+                                data["profile"].toString().isNotEmpty)
+                                ? NetworkImage(data["profile"])
+                                : null,
+                            child: (data["profile"] == null ||
+                                data["profile"].toString().isEmpty)
+                                ? Icon(Icons.person_outline,
+                                color: _primaryColor)
+                                : null,
+                          ),
+                          title: Text(senderName),
+                          subtitle: Text(subtitleText,
+                              maxLines: 1, overflow: TextOverflow.ellipsis),
+                          trailing: timeText.isNotEmpty
+                              ? Text(timeText,
+                              style: const TextStyle(fontSize: 12))
+                              : null,
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => MessagesPageDietitian(
+                                  currentUserId: currentUserId,
+                                  receiverId: userDoc.id,
+                                  receiverName: senderName,
+                                  receiverProfile: data["profile"] ?? "",
+                                ),
+                              ),
+                            );
+                          },
+                        );
+                      },
                     );
                   },
                 );
               },
-            );
+            ),
 
+            // Notifications tab
+            StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection("Users")
+                  .doc(currentUserId) // 👈 notifications inside this user
+                  .collection("notifications")
+                  .orderBy("timestamp", descending: true)
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
 
+                final docs = snapshot.data!.docs;
+                if (docs.isEmpty) {
+                  return const Center(child: Text("No notifications"));
+                }
 
+                return ListView.builder(
+                  itemCount: docs.length,
+                  itemBuilder: (context, index) {
+                    final doc = docs[index];
+                    final data = doc.data() as Map<String, dynamic>;
 
-          },
-        );
-      },
+                    return ListTile(
+                      title: Text(data["title"] ?? "Notification"),
+                      subtitle: Text(data["message"] ?? ""),
+                      trailing: data["isRead"] == false
+                          ? const Icon(Icons.circle, color: Colors.red, size: 10)
+                          : null,
+                      onTap: () async {
+                        // ✅ 1. Mark notification as read
+                        await FirebaseFirestore.instance
+                            .collection("Users")
+                            .doc(currentUserId)
+                            .collection("notifications")
+                            .doc(doc.id)
+                            .update({"isRead": true});
+
+                        // ✅ 2. Navigate based on type
+                        if (data["type"] == "message") {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => MessagesPageDietitian(
+                                receiverId: data["senderId"],       // chat with sender
+                                receiverName: data["senderName"],
+                                currentUserId: currentUserId,
+                                receiverProfile: data["receiverProfile"] ?? "",
+                              ),
+                            ),
+                          );
+                        }
+                      },
+                    );
+                  },
+                );
+              },
+            )
+
+          ],
+        ),
+      ),
     );
   }
 }

@@ -84,13 +84,24 @@ class _MessagesPageState extends State<MessagesPageDietitian> {
     });
 
     // Add notification
-    await _firestore.collection("notifications").add({
-      "userId": widget.receiverId,
+    await _firestore
+        .collection("Users")
+        .doc(widget.receiverId) // 👈 parent is receiver
+        .collection("notifications")
+        .add({
       "title": "New Message",
-      "message": text,
+      "message": "$currentUserName: $text",
+      "senderId": widget.currentUserId,
+      "senderName": currentUserName,
+      "receiverId": widget.receiverId,
+      "receiverName": widget.receiverName,
+      "receiverProfile": widget.receiverProfile,
+      "type": "message",
       "isRead": false,
       "timestamp": FieldValue.serverTimestamp(),
     });
+
+
 
     if (_scrollController.hasClients) {
       _scrollController.animateTo(
@@ -168,7 +179,7 @@ class _MessagesPageState extends State<MessagesPageDietitian> {
                     final isMe = data["senderID"] == widget.currentUserId;
                     final messageText = data["message"] ?? "";
                     final senderName = data["senderName"] ?? "";
-                    final displayText = isMe ? "Me: $messageText" : "$senderName: $messageText";
+                    final displayText = messageText;
 
                     return Align(
                       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,

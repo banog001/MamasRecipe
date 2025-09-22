@@ -24,6 +24,8 @@ class _MessagesPageState extends State<MessagesPage> {
   final ScrollController _scrollController = ScrollController();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
+  String currentUserName = "";
+
   static const String _primaryFontFamily = 'PlusJakartaSans';
   static const TextStyle _appBarTitleStyle = TextStyle(
     fontFamily: _primaryFontFamily,
@@ -42,37 +44,64 @@ class _MessagesPageState extends State<MessagesPage> {
     color: Colors.grey,
   );
 
+  @override
+  void initState() {
+    super.initState();
+    fetchCurrentUserName();
+  }
+
+  void fetchCurrentUserName() async {
+    final doc = await _firestore.collection("Users").doc(widget.currentUserId).get();
+    if (doc.exists) {
+      final data = doc.data()!;
+      setState(() {
+        currentUserName = "${data["firstName"] ?? ""} ${data["lastName"] ?? ""}".trim();
+      });
+    }
+  }
+
   String getChatRoomId(String userA, String userB) {
     return userA.compareTo(userB) <= 0 ? '$userA\_$userB' : '$userB\_$userA';
   }
 
   void sendMessage() async {
     final text = _messageController.text.trim();
-    if (text.isEmpty) return;
+    if (text.isEmpty || currentUserName.isEmpty) return;
 
     _messageController.clear();
     final chatRoomId = getChatRoomId(widget.currentUserId, widget.receiverId);
 
-    // 1️⃣ Add message to messages collection
+    // Add message with senderName and receiverName
     await _firestore.collection("messages").add({
       "senderID": widget.currentUserId,
+      "senderName": currentUserName,
       "receiverID": widget.receiverId,
+      "receiverName": widget.receiverName,
       "message": text,
       "timestamp": FieldValue.serverTimestamp(),
       "chatRoomID": chatRoomId,
       "read": "false",
     });
 
-    // 2️⃣ Add notification for receiver
-    await _firestore.collection("notifications").add({
-      "userId": widget.receiverId,                  // the recipient
-      "title": "New Message",                       // notification title
-      "message": text,                              // message content
-      "isRead": false,                              // mark as unread
-      "timestamp": FieldValue.serverTimestamp(),    // server timestamp
+    // Add notification
+    await _firestore
+        .collection("Users")
+        .doc(widget.receiverId) // 👈 parent is receiver
+        .collection("notifications")
+        .add({
+      "title": "New Message",
+      "message": "$currentUserName: $text",
+      "senderId": widget.currentUserId,
+      "senderName": currentUserName,
+      "receiverId": widget.receiverId,
+      "receiverName": widget.receiverName,
+      "receiverProfile": widget.receiverProfile,
+      "type": "message",
+      "isRead": false,
+      "timestamp": FieldValue.serverTimestamp(),
     });
 
-    // 3️⃣ Scroll to top
+
     if (_scrollController.hasClients) {
       _scrollController.animateTo(
         0.0,
@@ -81,7 +110,6 @@ class _MessagesPageState extends State<MessagesPage> {
       );
     }
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -148,6 +176,9 @@ class _MessagesPageState extends State<MessagesPage> {
                   itemBuilder: (context, index) {
                     final data = docs[index].data() as Map<String, dynamic>;
                     final isMe = data["senderID"] == widget.currentUserId;
+                    final messageText = data["message"] ?? "";
+                    final senderName = data["senderName"] ?? "";
+                    final displayText = messageText;
 
                     return Align(
                       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
@@ -165,7 +196,7 @@ class _MessagesPageState extends State<MessagesPage> {
                           ),
                         ),
                         child: Text(
-                          data["message"] ?? "",
+                          displayText,
                           style: _messageTextStyle.copyWith(color: isMe ? Colors.white : Colors.black87),
                         ),
                       ),
