@@ -695,7 +695,7 @@ class _HomeState extends State<home> {
   }
 
   List<Widget> get _pages => [
-    SingleChildScrollView(
+    SingleChildScrollView( // Home Tab Content (Page 0) - From your existing code
       key: const PageStorageKey('homePageScroll'),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -709,12 +709,18 @@ class _HomeState extends State<home> {
         ],
       ),
     ),
-    Scaffold(
-        appBar: AppBar(title: Text("Schedule", style: TextStyle(fontFamily: _primaryFontFamily, fontWeight: FontWeight.bold, color: _textColorOnPrimary, fontSize: 20)), backgroundColor: _primaryColor, iconTheme: const IconThemeData(color: _textColorOnPrimary)),
-        backgroundColor: _scaffoldBgColor(context),
-        body: Center(child: Text("Schedule Page Content", style: _sectionTitleStyle(context)))),
-    UsersListPage(currentUserId: firebaseUser!.uid),
+    // Page 1: User's Schedule (NEW)
+    // Conditional rendering based on firebaseUser ensures currentUserId is not null
+    firebaseUser != null
+        ? UserSchedulePage(currentUserId: firebaseUser!.uid)
+        : const Center(child: Text("Please log in to view your schedule.", style: TextStyle(fontFamily: _primaryFontFamily))), // Fallback
+
+    // Page 2: Messages Tab (UsersListPage from your existing code)
+    firebaseUser != null
+        ? UsersListPage(currentUserId: firebaseUser!.uid)
+        : const Center(child: Text("Please log in to view messages.", style: TextStyle(fontFamily: _primaryFontFamily))), // Fallback
   ];
+
 
   @override
   Widget build(BuildContext context) {
@@ -813,7 +819,8 @@ class _HomeState extends State<home> {
         backgroundColor: _primaryColor,
         iconTheme: const IconThemeData(color: _textColorOnPrimary, size: 28),
         title: Text(
-          selectedIndex == 0 ? "Mama's Recipe" : (selectedIndex == 1 ? "Schedule" : "Messages"),
+          // MODIFIED: AppBar title logic for the new schedule tab
+          selectedIndex == 0 ? "Mama's Recipe" : (selectedIndex == 1 ? "My Schedule" : "Messages"),
           style: const TextStyle(fontFamily: _primaryFontFamily, fontWeight: FontWeight.bold, color: _textColorOnPrimary, fontSize: 20),
         ),
         actions: [
@@ -924,6 +931,193 @@ class _HomeState extends State<home> {
         },
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         dense: true,
+      ),
+    );
+  }
+}
+
+
+// =======================================================================
+// NEW WIDGET: UserSchedulePage to display schedules for the logged-in user
+// =======================================================================
+class UserSchedulePage extends StatefulWidget {
+  final String currentUserId;
+  const UserSchedulePage({super.key, required this.currentUserId});
+
+  @override
+  State<UserSchedulePage> createState() => _UserSchedulePageState();
+}
+
+class _UserSchedulePageState extends State<UserSchedulePage> {
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: _scaffoldBgColor(context), // Uses the helper from home.dart
+      body: StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection('schedules') //  <--- **** IMPORTANT: CHANGE 'schedules' IF YOUR COLLECTION IS NAMED DIFFERENTLY ****
+            .where('clientId', isEqualTo: widget.currentUserId)
+            .orderBy('appointmentDate', descending: false) // Shows upcoming or earliest first
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator(color: _primaryColor));
+          }
+          if (snapshot.hasError) {
+            print("Error fetching user schedules: ${snapshot.error}");
+            return Center(child: Text('Could not load your schedule.', style: _cardBodyTextStyle(context)));
+          }
+          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.calendar_month_outlined, size: 70, color: _textColorSecondary(context).withOpacity(0.7)),
+                    const SizedBox(height: 20),
+                    Text(
+                      'No Upcoming Schedules',
+                      style: _sectionTitleStyle(context).copyWith(fontSize: 19),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      'Your dietitian has not scheduled any new appointments for you yet. Check back later!',
+                      style: _getTextStyle(context, color: _textColorSecondary(context), fontSize: 15),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
+
+          final schedules = snapshot.data!.docs;
+
+          return ListView.builder(
+            padding: const EdgeInsets.all(12.0),
+            itemCount: schedules.length,
+            itemBuilder: (context, index) {
+              final scheduleDoc = schedules[index];
+              final data = scheduleDoc.data() as Map<String, dynamic>;
+
+              // --- Make sure these field names match your Firestore document ---
+              String dietitianName = data['dietitianName'] ?? 'Your Dietitian';
+              Timestamp? appointmentTimestamp = data['appointmentDate'];
+              String notes = data['notes'] ?? 'No specific notes.';
+              String status = data['status'] ?? 'Scheduled'; // Default status
+
+              String formattedDate = "Date N/A";
+              String formattedTime = "Time N/A";
+
+              if (appointmentTimestamp != null) {
+                DateTime appointmentDateTime = appointmentTimestamp.toDate();
+                formattedDate = DateFormat.yMMMMd().format(appointmentDateTime); // e.g., September 30, 2023
+                formattedTime = DateFormat.jm().format(appointmentDateTime);    // e.g., 10:30 AM
+              }
+
+              IconData statusIcon = Icons.check_circle_outline_rounded;
+              Color statusColor = _primaryColor;
+              if (status.toLowerCase().contains('proposed')) {
+                statusIcon = Icons.pending_actions_outlined;
+                statusColor = Colors.orange.shade700;
+              } else if (status.toLowerCase().contains('cancelled')) {
+                statusIcon = Icons.cancel_outlined;
+                statusColor = Colors.red.shade700;
+              } else if (status.toLowerCase().contains('confirmed')) {
+                statusIcon = Icons.check_circle_rounded;
+                statusColor = Colors.green.shade700;
+              }
+
+
+              return Card(
+                elevation: 2,
+                margin: const EdgeInsets.symmetric(vertical: 8.0),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
+                color: _cardBgColor(context),
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.person_pin_outlined, color: _primaryColor, size: 24),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              dietitianName,
+                              style: _getTextStyle(context, fontWeight: FontWeight.bold, fontSize: 17, color: _textColorPrimary(context)),
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: statusColor.withOpacity(0.15),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(statusIcon, color: statusColor, size: 14),
+                                const SizedBox(width: 4),
+                                Text(
+                                  status,
+                                  style: _getTextStyle(context, color: statusColor, fontSize: 11, fontWeight: FontWeight.w600),
+                                ),
+                              ],
+                            ),
+                          )
+                        ],
+                      ),
+                      const Divider(height: 20, thickness: 0.5),
+                      Row(
+                        children: [
+                          Icon(Icons.calendar_today_rounded, color: _textColorSecondary(context), size: 18),
+                          const SizedBox(width: 8.0),
+                          Text(formattedDate, style: _getTextStyle(context, fontSize: 15, color: _textColorPrimary(context))),
+                        ],
+                      ),
+                      const SizedBox(height: 8.0),
+                      Row(
+                        children: [
+                          Icon(Icons.access_time_filled_rounded, color: _textColorSecondary(context), size: 18),
+                          const SizedBox(width: 8.0),
+                          Text(formattedTime, style: _getTextStyle(context, fontSize: 15, color: _textColorPrimary(context))),
+                        ],
+                      ),
+                      if (notes.isNotEmpty && notes != 'No specific notes.') ...[
+                        const SizedBox(height: 12.0),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Icon(Icons.notes_rounded, color: _textColorSecondary(context), size: 18),
+                            const SizedBox(width: 8.0),
+                            Expanded(child: Text(notes, style: _getTextStyle(context, fontSize: 14, color: _textColorSecondary(context)))),
+                          ],
+                        ),
+                      ],
+                      // TODO: Add buttons for user to Confirm/Cancel if status is 'proposed'
+                      // if (status.toLowerCase().contains('proposed'))
+                      //   Padding(
+                      //     padding: const EdgeInsets.only(top: 16.0),
+                      //     child: Row(
+                      //       mainAxisAlignment: MainAxisAlignment.end,
+                      //       children: [
+                      //         TextButton(onPressed: () { /* TODO: Implement cancel logic */ }, child: Text("Decline", style: _getTextStyle(context, color: Colors.redAccent))),
+                      //         const SizedBox(width: 8),
+                      //         ElevatedButton(onPressed: () { /* TODO: Implement confirm logic */ }, child: Text("Confirm"), style: ElevatedButton.styleFrom(backgroundColor: _primaryColor)),
+                      //       ],
+                      //     ),
+                      //   )
+                    ],
+                  ),
+                ),
+              );
+            },
+          );
+        },
       ),
     );
   }
@@ -1345,6 +1539,9 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
               ),
             ),
           Expanded(child: Container()),
+
+
+
         ],
       ),
     );

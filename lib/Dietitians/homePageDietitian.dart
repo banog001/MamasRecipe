@@ -139,8 +139,10 @@ class _HomePageDietitianState extends State<HomePageDietitian> {
   }
 
   // Updated _pages list to include DietitianProfile
+  // Inside _HomePageDietitianState
+
   List<Widget> get _pages => [
-    // Page 0: Dietitian's Dashboard
+    // Page 0: Dietitian's Dashboard (Unchanged)
     Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -167,10 +169,18 @@ class _HomePageDietitianState extends State<HomePageDietitian> {
         ],
       ),
     ),
-    const ScheduleCalendarPage(), // Page 1: My Schedule (Calendar)
-    if (firebaseUser != null) UsersListPage(currentUserId: firebaseUser!.uid), // Page 2: Messages
-    const DietitianProfile(), // Page 3: Profile// DietitianProfile widget itself
+    // Page 1: My Schedule (Calendar) - MODIFIED to pass data
+    ScheduleCalendarPage(
+      dietitianFirstName: firstName,
+      dietitianLastName: lastName,
+      isDietitianNameLoading: _isUserNameLoading,
+    ),
+    // Page 2: Messages (Unchanged)
+    if (firebaseUser != null) UsersListPage(currentUserId: firebaseUser!.uid),
+    // Page 3: Profile (Unchanged)
+    const DietitianProfile(),
   ];
+
 
   String _getAppBarTitle(int index) {
     switch (index) {
@@ -657,8 +667,19 @@ class UsersListPage extends StatelessWidget {
     );
   }
 }
+// At the top of HomePageDietitian.dart, where ScheduleCalendarPage is defined
+
 class ScheduleCalendarPage extends StatefulWidget {
-  const ScheduleCalendarPage({super.key});
+  final String dietitianFirstName;
+  final String dietitianLastName;
+  final bool isDietitianNameLoading; // To handle loading state for dietitian name
+
+  const ScheduleCalendarPage({
+    super.key,
+    required this.dietitianFirstName,
+    required this.dietitianLastName,
+    required this.isDietitianNameLoading,
+  });
 
   @override
   State<ScheduleCalendarPage> createState() => _ScheduleCalendarPageState();
@@ -668,13 +689,16 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
   CalendarFormat _calendarFormat = CalendarFormat.month;
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
-  // Map<DateTime, List<String>> _events = {}; // To store events/appointments later
+
+  // No need to have separate firstName, lastName, _isUserNameLoading here anymore
+  // We will use widget.dietitianFirstName, etc.
+
+  // ... (initState, _onDaySelected remain the same) ...
 
   @override
   void initState() {
     super.initState();
     _selectedDay = _focusedDay;
-    // _loadAppointmentsForMonth(_focusedDay); // Implement this later
   }
 
   void _onDaySelected(DateTime selectedDay, DateTime focusedDay) {
@@ -686,8 +710,237 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
     }
   }
 
+
+  Future<void> _showScheduleAppointmentDialog(DateTime selectedDate) async {
+    final User? currentDietitian = FirebaseAuth.instance.currentUser;
+    if (currentDietitian == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('You need to be logged in.')),
+      );
+      return;
+    }
+
+    TimeOfDay? selectedTime = TimeOfDay.now();
+    String? selectedClientId;
+    String selectedClientName = "Select Client";
+    TextEditingController notesController = TextEditingController();
+    List<DocumentSnapshot> clients = [];
+
+    try {
+      QuerySnapshot clientSnapshot = await FirebaseFirestore.instance
+          .collection('Users')
+          .where('role', isEqualTo: 'user')
+          .get();
+      clients = clientSnapshot.docs;
+    } catch (e) {
+      print("Error fetching clients: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error fetching clients: $e')),
+      );
+      return;
+    }
+
+    if (clients.isEmpty && mounted) { // check mounted before showing SnackBar
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No clients found to schedule an appointment with.')),
+      );
+      return;
+    }
+
+    return showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext dialogContext) {
+        return StatefulBuilder(
+            builder: (BuildContext context, StateSetter setStateDialog) {
+              return AlertDialog(
+                title: Text('Schedule for ${DateFormat.yMMMMd().format(selectedDate)}', style: _getTextStyle(dialogContext, fontWeight: FontWeight.bold, fontSize: 18)), // Use dialogContext
+                backgroundColor: _cardBgColor(dialogContext), // Use dialogContext
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                content: SingleChildScrollView(
+                  child: ListBody(
+                    children: <Widget>[
+                      if (clients.isNotEmpty)
+                        DropdownButtonFormField<String>(
+                          decoration: InputDecoration(
+                            labelText: 'Select Client',
+                            labelStyle: _getTextStyle(dialogContext, color: _textColorSecondary(dialogContext)), // Use dialogContext
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                            filled: true,
+                            fillColor: _scaffoldBgColor(dialogContext), // Use dialogContext
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                          ),
+                          value: selectedClientId,
+                          hint: Text(selectedClientName, style: _getTextStyle(dialogContext, color: selectedClientId == null ? _textColorSecondary(dialogContext) : _textColorPrimary(dialogContext))), // Use dialogContext
+                          dropdownColor: _cardBgColor(dialogContext), // Use dialogContext
+                          items: clients.map((DocumentSnapshot document) {
+                            Map<String, dynamic> data = document.data()! as Map<String, dynamic>;
+                            String name = "${data['firstName'] ?? ''} ${data['lastName'] ?? ''}".trim();
+                            if (name.isEmpty) name = "Client ID: ${document.id.substring(0,5)}";
+                            return DropdownMenuItem<String>(
+                              value: document.id,
+                              child: Text(name, style: _getTextStyle(dialogContext, color: _textColorPrimary(dialogContext))), // Use dialogContext
+                            );
+                          }).toList(),
+                          onChanged: (String? newValue) {
+                            setStateDialog(() {
+                              selectedClientId = newValue;
+                              if (newValue != null) {
+                                final clientDoc = clients.firstWhere((doc) => doc.id == newValue);
+                                final clientData = clientDoc.data() as Map<String, dynamic>;
+                                selectedClientName = "${clientData['firstName'] ?? ''} ${clientData['lastName'] ?? ''}".trim();
+                                if (selectedClientName.isEmpty) selectedClientName = "Client ID: ${newValue.substring(0,5)}";
+                              } else {
+                                selectedClientName = "Select Client";
+                              }
+                            });
+                          },
+                          validator: (value) => value == null ? 'Please select a client' : null,
+                        )
+                      else
+                        Text("No clients available.", style: _getTextStyle(dialogContext)), // Use dialogContext
+                      const SizedBox(height: 15),
+                      ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: Icon(Icons.access_time_filled_rounded, color: _primaryColor),
+                        title: Text('Time: ${selectedTime?.format(dialogContext) ?? 'Tap to select'}', style: _getTextStyle(dialogContext)), // Use dialogContext
+                        onTap: () async {
+                          final TimeOfDay? pickedTime = await showTimePicker(
+                            context: dialogContext, // Use dialogContext
+                            initialTime: selectedTime ?? TimeOfDay.now(),
+                          );
+                          if (pickedTime != null) {
+                            setStateDialog(() {
+                              selectedTime = pickedTime;
+                            });
+                          }
+                        },
+                      ),
+                      const SizedBox(height: 15),
+                      TextFormField(
+                        controller: notesController,
+                        decoration: InputDecoration(
+                          labelText: 'Notes (Optional)',
+                          labelStyle: _getTextStyle(dialogContext, color: _textColorSecondary(dialogContext)), // Use dialogContext
+                          hintText: 'Details for this appointment?',
+                          hintStyle: _getTextStyle(dialogContext, color: _textColorSecondary(dialogContext).withOpacity(0.7)), // Use dialogContext
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                          filled: true,
+                          fillColor: _scaffoldBgColor(dialogContext), // Use dialogContext
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        ),
+                        style: _getTextStyle(dialogContext), // Use dialogContext
+                        maxLines: 3,
+                        textCapitalization: TextCapitalization.sentences,
+                      ),
+                    ],
+                  ),
+                ),
+                actions: <Widget>[
+                  TextButton(
+                    child: Text('Cancel', style: _getTextStyle(dialogContext, color: _textColorSecondary(dialogContext))), // Use dialogContext
+                    onPressed: () {
+                      Navigator.of(dialogContext).pop();
+                    },
+                  ),
+                  ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                        backgroundColor: _primaryColor,
+                        foregroundColor: _textColorOnPrimary,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))
+                    ),
+                    icon: const Icon(Icons.send_rounded, size: 18),
+                    label: Text('Send Schedule', style: _getTextStyle(dialogContext, color: _textColorOnPrimary, fontWeight: FontWeight.bold)), // Use dialogContext
+                    onPressed: () {
+                      if (selectedClientId == null) {
+                        ScaffoldMessenger.of(dialogContext).showSnackBar( // Use dialogContext for SnackBar if it's purely for dialog validation
+                          const SnackBar(content: Text('Please select a client.')),
+                        );
+                        return;
+                      }
+                      if (selectedTime == null) {
+                        ScaffoldMessenger.of(dialogContext).showSnackBar(
+                          const SnackBar(content: Text('Please select an appointment time.')),
+                        );
+                        return;
+                      }
+
+                      final DateTime finalAppointmentDateTime = DateTime(
+                        selectedDate.year, selectedDate.month, selectedDate.day,
+                        selectedTime!.hour, selectedTime!.minute,
+                      );
+
+                      // --- CORRECTED dietitianName access ---
+                      String dietitianDisplayName;
+                      if (widget.isDietitianNameLoading) {
+                        dietitianDisplayName = currentDietitian.displayName ?? "Dietitian";
+                      } else {
+                        dietitianDisplayName = (widget.dietitianFirstName.isNotEmpty || widget.dietitianLastName.isNotEmpty)
+                            ? "${widget.dietitianFirstName} ${widget.dietitianLastName}".trim()
+                            : currentDietitian.displayName ?? "Dietitian";
+                      }
+
+                      _saveScheduleToFirestore(
+                        dietitianId: currentDietitian.uid,
+                        dietitianName: dietitianDisplayName, // Use passed or fallback name
+                        clientId: selectedClientId!,
+                        clientName: selectedClientName,
+                        appointmentDateTime: finalAppointmentDateTime,
+                        notes: notesController.text.trim(),
+                        status: 'proposed_by_dietitian',
+                        contextForSnackBar: this.context, // Use this.context (from _ScheduleCalendarPageState) for SnackBar that shows on main page
+                      );
+                      Navigator.of(dialogContext).pop();
+                    },
+                  ),
+                ],
+              );
+            }
+        );
+      },
+    );
+  }
+
+  Future<void> _saveScheduleToFirestore({
+    required String dietitianId,
+    required String dietitianName,
+    required String clientId,
+    required String clientName,
+    required DateTime appointmentDateTime,
+    required String notes,
+    required String status,
+    required BuildContext contextForSnackBar,
+  }) async {
+    // This method remains the same
+    try {
+      await FirebaseFirestore.instance.collection('schedules')
+          .add({
+        'dietitianId': dietitianId,
+        'dietitianName': dietitianName,
+        'clientId': clientId,
+        'clientName': clientName,
+        'appointmentDate': Timestamp.fromDate(appointmentDateTime),
+        'notes': notes,
+        'status': status,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+      if (!mounted) return; // Check if widget is still mounted before showing SnackBar
+      ScaffoldMessenger.of(contextForSnackBar).showSnackBar(
+        SnackBar(content: Text('Schedule proposed to $clientName successfully!'), backgroundColor: _primaryColor),
+      );
+    } catch (e) {
+      print("Error saving schedule: $e");
+      if (!mounted) return;
+      ScaffoldMessenger.of(contextForSnackBar).showSnackBar(
+        SnackBar(content: Text('Error saving schedule: $e'), backgroundColor: Colors.redAccent),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    // This build method for ScheduleCalendarPage remains the same
+    // (the part that builds the TableCalendar and the "Details for..." section)
     return Scaffold(
       backgroundColor: _scaffoldBgColor(context),
       body: Column(
@@ -700,6 +953,7 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
             child: Padding(
               padding: const EdgeInsets.only(bottom: 8.0),
               child: TableCalendar(
+                // ... (rest of TableCalendar properties are unchanged)
                 locale: 'en_US',
                 firstDay: DateTime.utc(2020, 1, 1),
                 lastDay: DateTime.utc(2030, 12, 31),
@@ -750,13 +1004,13 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
                     style: _getTextStyle(context, fontSize: 18, fontWeight: FontWeight.bold, color: _textColorPrimary(context)),
                   ),
                   const SizedBox(height: 10),
-                  Card(
+                  Card( // Placeholder for displaying actual appointments for the day
                     color: _cardBgColor(context),
                     elevation: 1,
                     child: Padding(
                       padding: const EdgeInsets.all(12.0),
                       child: Text(
-                        "No appointments scheduled for this day yet.",
+                        "No appointments scheduled for this day yet.", // This will be replaced by actual appointment list
                         style: _getTextStyle(context, color: _textColorSecondary(context)),
                       ),
                     ),
@@ -773,9 +1027,13 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
                       icon: const Icon(Icons.add_circle_outline_rounded),
                       label: const Text("Schedule New Appointment"),
                       onPressed: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Schedule for ${_selectedDay!.toIso8601String().substring(0,10)} tapped!')),
-                        );
+                        if (_selectedDay != null) {
+                          _showScheduleAppointmentDialog(_selectedDay!);
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar( // Use context of _ScheduleCalendarPageState
+                            const SnackBar(content: Text('Please select a day on the calendar first!')),
+                          );
+                        }
                       },
                     ),
                   ),
@@ -788,4 +1046,5 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
     );
   }
 }
+
 
