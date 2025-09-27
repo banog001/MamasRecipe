@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'home.dart'; // ✅ your home.dart
+import 'editProfile.dart';
 
 class UserProfile extends StatefulWidget {
   const UserProfile({super.key});
@@ -167,8 +168,10 @@ class _UserProfileState extends State<UserProfile> {
                               elevation: 2,
                               child: InkWell(
                                 onTap: () {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(content: Text("Edit profile picture tapped!")));
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(builder: (context) => const EditProfilePage()),
+                                  );
                                 },
                                 customBorder: const CircleBorder(),
                                 child: Padding(
