@@ -616,12 +616,25 @@ class UsersListPage extends StatelessWidget {
                               snapshot.data!.docs.isEmpty) {
                             return const SizedBox.shrink();
                           }
+                          int unreadCount = snapshot.data!.docs.length;
                           return Container(
-                            width: 8,
-                            height: 8,
-                            decoration: const BoxDecoration(
-                              color: Colors.red,
-                              shape: BoxShape.circle,
+                            padding: const EdgeInsets.all(4.0),
+                            decoration: BoxDecoration(
+                              color: Colors.redAccent,
+                              borderRadius: BorderRadius.circular(10.0),
+                            ),
+                            constraints: const BoxConstraints(
+                              minWidth: 18,
+                              minHeight: 18,
+                            ),
+                            child: Text(
+                              unreadCount > 99 ? '99+' : '$unreadCount',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              textAlign: TextAlign.center,
                             ),
                           );
                         },
@@ -753,10 +766,6 @@ class UsersListPage extends StatelessWidget {
                 return ListView.builder(
                   itemCount: docs.length,
                   itemBuilder: (context, index) {
-// Inside class UsersListPage
-// Find the StreamBuilder for notifications...
-// ...
-// itemBuilder: (context, index) { // <<<< REPLACE THE CONTENT OF THIS itemBuilder
                     final doc = docs[index];
                     final data = doc.data() as Map<String, dynamic>;
                     final Timestamp? timestamp = data["timestamp"] as Timestamp?;
@@ -894,38 +903,6 @@ class UsersListPage extends StatelessWidget {
                           ),
                         ),
                       ),
-                    );
-// }, // <<<< End of itemBuilder
-
-                    return ListTile(
-                      title: Text(data["title"] ?? "Notification"),
-                      subtitle: Text(data["message"] ?? ""),
-                      trailing: data["isRead"] == false
-                          ? const Icon(Icons.circle,
-                          color: Colors.red, size: 10)
-                          : null,
-                      onTap: () async {
-                        await FirebaseFirestore.instance
-                            .collection("Users")
-                            .doc(currentUserId)
-                            .collection("notifications")
-                            .doc(doc.id)
-                            .update({"isRead": true});
-
-                        if (data["type"] == "message") {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => MessagesPageDietitian(
-                                receiverId: data["senderId"],
-                                receiverName: data["senderName"],
-                                currentUserId: currentUserId,
-                                receiverProfile: data["receiverProfile"] ?? "",
-                              ),
-                            ),
-                          );
-                        }
-                      },
                     );
                   },
                 );
@@ -1379,24 +1356,25 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
                 // --- MODIFICATION START: Added eventLoader and updated calendarStyle ---
                 eventLoader: _getEventsForDay,
                 calendarStyle: CalendarStyle(
-                    outsideDaysVisible: false,
-                    selectedDecoration: BoxDecoration(
-                        color: _primaryColor, shape: BoxShape.circle),
-                    selectedTextStyle: _getTextStyle(context,
-                        color: _textColorOnPrimary,
-                        fontWeight: FontWeight.bold),
-                    todayDecoration: BoxDecoration(
-                        color: _primaryColor.withOpacity(0.5),
-                        shape: BoxShape.circle),
-                    todayTextStyle: _getTextStyle(context,
-                        color: _textColorOnPrimary,
-                        fontWeight: FontWeight.bold),
-                    weekendTextStyle: _getTextStyle(context,
-                        color: _primaryColor.withOpacity(0.8)),
-                    defaultTextStyle: _getTextStyle(context,
-                        color: _textColorPrimary(context)),
-                    markerDecoration: BoxDecoration(
-                        color: Colors.redAccent, shape: BoxShape.circle)),
+                  outsideDaysVisible: false,
+                  selectedDecoration: BoxDecoration(
+                      color: _primaryColor, shape: BoxShape.circle),
+                  selectedTextStyle: _getTextStyle(context,
+                      color: _textColorOnPrimary,
+                      fontWeight: FontWeight.bold),
+                  todayDecoration: BoxDecoration(
+                      color: _primaryColor.withOpacity(0.5),
+                      shape: BoxShape.circle),
+                  todayTextStyle: _getTextStyle(context,
+                      color: _textColorOnPrimary,
+                      fontWeight: FontWeight.bold),
+                  weekendTextStyle: _getTextStyle(context,
+                      color: _primaryColor.withOpacity(0.8)),
+                  defaultTextStyle: _getTextStyle(context,
+                      color: _textColorPrimary(context)),
+                  markersMaxCount: 1,
+                  markerSize: 0, // Hide default markers
+                ),
                 // --- MODIFICATION END ---
                 headerStyle: HeaderStyle(
                   formatButtonVisible: true,
@@ -1430,6 +1408,37 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
                   });
                   // --- MODIFICATION END ---
                 },
+                calendarBuilders: CalendarBuilders(
+                  markerBuilder: (context, day, events) {
+                    if (events.isNotEmpty) {
+                      return Positioned(
+                        right: 1,
+                        top: 1,
+                        child: Container(
+                          padding: const EdgeInsets.all(4.0),
+                          decoration: BoxDecoration(
+                            color: Colors.redAccent,
+                            borderRadius: BorderRadius.circular(10.0),
+                          ),
+                          constraints: const BoxConstraints(
+                            minWidth: 18,
+                            minHeight: 18,
+                          ),
+                          child: Text(
+                            '${events.length}',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      );
+                    }
+                    return null;
+                  },
+                ),
               ),
             ),
           ),

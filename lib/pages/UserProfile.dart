@@ -260,13 +260,13 @@ class _UserProfileState extends State<UserProfile> {
                   ),
                 ),
 
-                // --- Meal Plans Section ---
-                // --- Meal Plans Section ---
+// --- Meal Plans Section ---
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // Single Main Title for the Section
                       Text("My Meal Plans", style: sectionTitleStyle),
                       const SizedBox(height: 12),
                       Card(
@@ -278,82 +278,93 @@ class _UserProfileState extends State<UserProfile> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              // --- Dynamic Section Title ---
-                              Text(
-                                _isFavoritesActive ? "Your Favorites" : "Your Meal Plans",
-                                style: _sectionTitleBaseStyle.copyWith(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
-                                    color: currentTextColorPrimary),
-                              ),
-                              const SizedBox(height: 12),
-
-                              // --- Toggle Buttons Section ---
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                              // --- Toggle Buttons Row ---
+                              Row(
                                 children: [
-                                  // 🔹 Toggle Buttons Row
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: ElevatedButton(
-                                          style: ElevatedButton.styleFrom(
-                                            backgroundColor: _isFavoritesActive
-                                                ? currentPrimaryColor
-                                                : Colors.grey.shade300,
-                                            foregroundColor: _isFavoritesActive
-                                                ? currentTextColorOnPrimary
-                                                : Colors.black87,
-                                            shape: RoundedRectangleBorder(
-                                              borderRadius: BorderRadius.circular(12),
-                                            ),
-                                            padding: const EdgeInsets.symmetric(vertical: 12),
-                                          ),
-                                          onPressed: () {
-                                            setState(() {
-                                              _isFavoritesActive = true;
-                                            });
-                                          },
-                                          child: const Text("Favorites & Saved"),
+                                  Expanded(
+                                    child: ElevatedButton(
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: _isFavoritesActive
+                                            ? currentPrimaryColor
+                                            : currentCardBgColor, // Use card background for inactive
+                                        foregroundColor: _isFavoritesActive
+                                            ? currentTextColorOnPrimary
+                                            : currentTextColorPrimary, // Use primary text for inactive
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(10),
+                                          side: _isFavoritesActive
+                                              ? BorderSide.none
+                                              : BorderSide(color: currentPrimaryColor.withOpacity(0.5)), // Border for inactive
                                         ),
+                                        padding: const EdgeInsets.symmetric(vertical: 12),
+                                        elevation: _isFavoritesActive ? 2 : 0,
                                       ),
-                                      const SizedBox(width: 12),
-                                      Expanded(
-                                        child: ElevatedButton(
-                                          style: ElevatedButton.styleFrom(
-                                            backgroundColor: !_isFavoritesActive
-                                                ? currentPrimaryColor
-                                                : Colors.grey.shade300,
-                                            foregroundColor: !_isFavoritesActive
-                                                ? currentTextColorOnPrimary
-                                                : Colors.black87,
-                                            shape: RoundedRectangleBorder(
-                                              borderRadius: BorderRadius.circular(12),
-                                            ),
-                                            padding: const EdgeInsets.symmetric(vertical: 12),
-                                          ),
-                                          onPressed: () {
-                                            setState(() {
-                                              _isFavoritesActive = false;
-                                            });
-                                          },
-                                          child: const Text("View Plans"),
-                                        ),
-                                      ),
-                                    ],
+                                      onPressed: () {
+                                        if (!_isFavoritesActive) { // Only update if not already active
+                                          setState(() {
+                                            _isFavoritesActive = true;
+                                          });
+                                        }
+                                      },
+                                      child: Text("Favorites", style: _buttonTextBaseStyle.copyWith(
+                                          color: _isFavoritesActive ? currentTextColorOnPrimary : currentPrimaryColor,
+                                          fontSize: 13
+                                      )),
+                                    ),
                                   ),
-
-                                  const SizedBox(height: 12),
-
-                                  // 🔹 Dynamic text BELOW the buttons
-                                  Text(
-                                    _isFavoritesActive ? "Your Favorites" : "Your Meal Plans",
-                                    style: const TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w600,
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: ElevatedButton(
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: !_isFavoritesActive
+                                            ? currentPrimaryColor
+                                            : currentCardBgColor,
+                                        foregroundColor: !_isFavoritesActive
+                                            ? currentTextColorOnPrimary
+                                            : currentTextColorPrimary,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(10),
+                                          side: !_isFavoritesActive
+                                              ? BorderSide.none
+                                              : BorderSide(color: currentPrimaryColor.withOpacity(0.5)),
+                                        ),
+                                        padding: const EdgeInsets.symmetric(vertical: 12),
+                                        elevation: !_isFavoritesActive ? 2 : 0,
+                                      ),
+                                      onPressed: () {
+                                        if (_isFavoritesActive) { // Only update if not already active
+                                          setState(() {
+                                            _isFavoritesActive = false;
+                                          });
+                                        }
+                                      },
+                                      child: Text("My Plans", style: _buttonTextBaseStyle.copyWith(
+                                          color: !_isFavoritesActive ? currentTextColorOnPrimary : currentPrimaryColor,
+                                          fontSize: 13
+                                      )),
                                     ),
                                   ),
                                 ],
+                              ),
+                              const SizedBox(height: 16),
+
+                              // --- Dynamic Content Area ---
+                              // This is where you would display the actual list of meal plans
+                              // based on the _isFavoritesActive state.
+                              // For now, it's a placeholder.
+                              Container(
+                                height: 150, // Example height, adjust as needed
+                                alignment: Alignment.center,
+                                child: Text(
+                                  _isFavoritesActive
+                                      ? "Displaying Favorite Meal Plans..."
+                                      : "Displaying Your Created Meal Plans...",
+                                  style: _infoCardLabelBaseStyle.copyWith(color: currentTextColorSecondary),
+                                  textAlign: TextAlign.center,
+                                ),
+                                // TODO: Replace with a FutureBuilder/StreamBuilder to load
+                                // - Favorite meal plans if _isFavoritesActive is true
+                                // - User's created meal plans if _isFavoritesActive is false
                               ),
                             ],
                           ),
@@ -363,6 +374,7 @@ class _UserProfileState extends State<UserProfile> {
                   ),
                 ),
                 const SizedBox(height: 20),
+
               ],
             ),
           ),

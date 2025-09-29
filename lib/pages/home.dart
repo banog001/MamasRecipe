@@ -9,6 +9,9 @@ import 'package:table_calendar/table_calendar.dart';
 // import 'dart:ui'; // REMOVED - Assuming ImageFilter or other direct dart:ui members are not used
 import 'UserProfile.dart';
 import 'package:shimmer/shimmer.dart'; // Import for Shimmer effect
+import 'subscription_model.dart';
+import 'subscription_service.dart';
+import 'subscription_page.dart';
 
 // --- Style Definitions (Ideally in a separate file or Theme) ---
 const String _primaryFontFamily = 'PlusJakartaSans';
@@ -79,6 +82,7 @@ class home extends StatefulWidget {
   @override
   State<home> createState() => _HomeState();
 }
+
 
 Future<Map<String, dynamic>?> getCurrentUserData() async {
   final currentUser = FirebaseAuth.instance.currentUser;
@@ -719,6 +723,11 @@ class _HomeState extends State<home> {
     firebaseUser != null
         ? UsersListPage(currentUserId: firebaseUser!.uid)
         : const Center(child: Text("Please log in to view messages.", style: TextStyle(fontFamily: _primaryFontFamily))), // Fallback
+
+    // Page 3: Profile Tab (NEW)
+    firebaseUser != null
+        ? const UserProfile() // Assuming UserProfile is the correct widget for the profile tab
+        : const Center(child: Text("Please log in to view your profile.", style: TextStyle(fontFamily: _primaryFontFamily))), // Fallback
   ];
 
 
@@ -820,7 +829,7 @@ class _HomeState extends State<home> {
         iconTheme: const IconThemeData(color: _textColorOnPrimary, size: 28),
         title: Text(
           // MODIFIED: AppBar title logic for the new schedule tab
-          selectedIndex == 0 ? "Mama's Recipe" : (selectedIndex == 1 ? "My Schedule" : "Messages"),
+          selectedIndex == 0 ? "Mama's Recipe" : (selectedIndex == 1 ? "My Schedule" : (selectedIndex == 2 ? "Messages" : "Profile")),
           style: const TextStyle(fontFamily: _primaryFontFamily, fontWeight: FontWeight.bold, color: _textColorOnPrimary, fontSize: 20),
         ),
         actions: [
@@ -871,7 +880,15 @@ class _HomeState extends State<home> {
           child: BottomNavigationBar(
             currentIndex: selectedIndex,
             onTap: (index) {
-              setState(() => selectedIndex = index);
+              if (index == 3) {
+                // Profile button tapped
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const UserProfile()), // Assuming EditProfilePage is the correct widget
+                );
+              } else {
+                setState(() => selectedIndex = index);
+              }
             },
             selectedItemColor: _textColorOnPrimary,
             unselectedItemColor: _textColorOnPrimary.withOpacity(0.6),
@@ -879,12 +896,17 @@ class _HomeState extends State<home> {
             type: BottomNavigationBarType.fixed,
             showSelectedLabels: true,
             showUnselectedLabels: false,
-            selectedLabelStyle: const TextStyle(fontFamily: _primaryFontFamily, fontWeight: FontWeight.w600, fontSize: 11),
-            unselectedLabelStyle: const TextStyle(fontFamily: _primaryFontFamily, fontSize: 11),
+            selectedLabelStyle: _getTextStyle(context,
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: _textColorOnPrimary),
+            unselectedLabelStyle: _getTextStyle(context,
+                fontSize: 11, color: _textColorOnPrimary.withOpacity(0.6)),
             items: const [
-              BottomNavigationBarItem(icon: Icon(Icons.home_outlined), activeIcon: Icon(Icons.home), label: 'Home'),
+              BottomNavigationBarItem(icon: Icon(Icons.home_outlined), activeIcon: Icon(Icons.home_rounded), label: 'Home'),
               BottomNavigationBarItem(icon: Icon(Icons.edit_calendar_outlined), activeIcon: Icon(Icons.edit_calendar), label: 'Schedule'),
               BottomNavigationBarItem(icon: Icon(Icons.mail_outline), activeIcon: Icon(Icons.mail), label: 'Messages'),
+              BottomNavigationBarItem(icon: Icon(Icons.person_outline_rounded), activeIcon: Icon(Icons.person_rounded), label: 'Profile'),
             ],
           ),
         ),
@@ -923,7 +945,11 @@ class _HomeState extends State<home> {
                     (Route<dynamic> route) => false,
               );
             }
-          } else {
+          }
+          else if (label == 'Subscription') {
+            _showSubscriptionOptions();
+          }
+          else {
             setState(() {
               selectedMenu = label;
             });
@@ -934,11 +960,173 @@ class _HomeState extends State<home> {
       ),
     );
   }
+
+  void _showSubscriptionOptions() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: _cardBgColor(context),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (BuildContext context) {
+        return Container(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Subscription Options',
+                style: _sectionTitleStyle(context),
+              ),
+              const SizedBox(height: 20),
+
+              // Current subscription status
+              FutureBuilder<DocumentSnapshot>(
+                future: FirebaseFirestore.instance
+                    .collection("Users")
+                    .doc(firebaseUser!.uid)
+                    .get(),
+                builder: (context, snapshot) {
+                  bool isSubscribed = false;
+                  if (snapshot.hasData && snapshot.data!.exists) {
+                    var userData = snapshot.data!.data() as Map<String, dynamic>;
+                    isSubscribed = userData["isSubscribed"] ?? false;
+                  }
+
+                  return Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: isSubscribed
+                          ? _primaryColor.withOpacity(0.1)
+                          : Colors.orange.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: isSubscribed ? _primaryColor : Colors.orange,
+                        width: 1,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          isSubscribed ? Icons.check_circle : Icons.info_outline,
+                          color: isSubscribed ? _primaryColor : Colors.orange,
+                          size: 24,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                isSubscribed ? 'Premium Member' : 'Free Member',
+                                style: _cardTitleStyle(context).copyWith(
+                                  color: isSubscribed ? _primaryColor : Colors.orange,
+                                ),
+                              ),
+                              Text(
+                                isSubscribed
+                                    ? 'You have access to all meal plans'
+                                    : 'Upgrade to unlock all meal plans',
+                                style: _cardSubtitleStyle(context),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+
+              const SizedBox(height: 20),
+
+              // Browse dietitians button
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    _showDietitiansForSubscription();
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _primaryColor,
+                    foregroundColor: _textColorOnPrimary,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  icon: const Icon(Icons.person_search_rounded),
+                  label: const Text(
+                    'Browse Dietitians',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 12),
+
+              // My subscriptions button
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    _showMySubscriptions();
+                  },
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: _primaryColor,
+                    side: BorderSide(color: _primaryColor),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  icon: const Icon(Icons.subscriptions_outlined),
+                  label: const Text(
+                    'My Subscriptions',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 20),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showDietitiansForSubscription() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const DietitiansListPage(),
+      ),
+    );
+  }
+
+  void _showMySubscriptions() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => MySubscriptionsPage(userId: firebaseUser!.uid),
+      ),
+    );
+  }
+
 }
 
-
 // =======================================================================
-// NEW WIDGET: UserSchedulePage to display schedules for the logged-in user
+// ENHANCED UserSchedulePage to match dietitian's schedule design and functionality
 // =======================================================================
 class UserSchedulePage extends StatefulWidget {
   final String currentUserId;
@@ -949,212 +1137,467 @@ class UserSchedulePage extends StatefulWidget {
 }
 
 class _UserSchedulePageState extends State<UserSchedulePage> {
-  late Map<DateTime, List<Map<String, dynamic>>> _events;
+  CalendarFormat _calendarFormat = CalendarFormat.month;
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
-  bool _isLoading = true;
+
+  Map<DateTime, List<dynamic>> _events = {};
+  bool _isLoadingEvents = true;
+  String firstName = "";
+  String lastName = "";
+  bool _isUserNameLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _events = {};
-    _fetchSchedules();
+    _selectedDay = _focusedDay;
+    _loadUserName();
+    _loadAppointmentsForCalendar();
   }
 
-  DateTime? _parseAppointmentDate(dynamic value) {
-    if (value == null) return null;
-    try {
-      if (value is Timestamp) return value.toDate();
-      if (value is DateTime) return value;
-      if (value is String) {
-        // try ISO first
-        try {
-          return DateTime.parse(value);
-        } catch (_) {}
-
-        // try common custom formats (expand if needed)
-        final patterns = [
-          'yyyy-MM-dd HH:mm:ss',
-          'yyyy-MM-dd HH:mm',
-          'yyyy/MM/dd HH:mm',
-          'MM/dd/yyyy HH:mm',
-          'MM/dd/yyyy'
-        ];
-        for (final p in patterns) {
-          try {
-            return DateFormat(p).parse(value);
-          } catch (_) {}
+  void _loadUserName() async {
+    setState(() {
+      _isUserNameLoading = true;
+    });
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      try {
+        final doc = await FirebaseFirestore.instance
+            .collection('Users')
+            .doc(user.uid)
+            .get();
+        if (mounted) {
+          if (doc.exists && doc.data() != null) {
+            final data = doc.data()!;
+            setState(() {
+              firstName = data['firstName'] as String? ?? '';
+              lastName = data['lastName'] as String? ?? '';
+              _isUserNameLoading = false;
+            });
+          } else {
+            setState(() {
+              firstName = "";
+              lastName = "";
+              _isUserNameLoading = false;
+            });
+          }
+        }
+      } catch (e) {
+        debugPrint("Error loading user name: $e");
+        if (mounted) {
+          setState(() {
+            firstName = "";
+            lastName = "";
+            _isUserNameLoading = false;
+          });
         }
       }
-    } catch (e) {
-      print("Error parsing appointmentDate: $e — value=$value");
+    } else {
+      if (mounted) {
+        setState(() {
+          _isUserNameLoading = false;
+        });
+      }
     }
-    return null;
   }
 
-  Future<void> _fetchSchedules() async {
+  Future<void> _loadAppointmentsForCalendar() async {
+    if (mounted) {
+      setState(() => _isLoadingEvents = true);
+    }
+
     try {
-      // Try with common field names to handle naming differences in your DB
+      // Try both clientId and clientID field names for compatibility
       QuerySnapshot snapshot = await FirebaseFirestore.instance
           .collection('schedules')
-          .where('clientId', isEqualTo: widget.currentUserId)
+          .where('clientID', isEqualTo: widget.currentUserId)
           .get();
 
       if (snapshot.docs.isEmpty) {
-        // fallback to clientID (uppercase D) if original query returned nothing
         snapshot = await FirebaseFirestore.instance
             .collection('schedules')
-            .where('clientID', isEqualTo: widget.currentUserId)
+            .where('clientId', isEqualTo: widget.currentUserId)
             .get();
       }
 
-      print('Fetched ${snapshot.docs.length} schedule docs for user ${widget.currentUserId}');
-
-      Map<DateTime, List<Map<String, dynamic>>> events = {};
-
+      final Map<DateTime, List<dynamic>> eventsMap = {};
       for (var doc in snapshot.docs) {
         final data = doc.data() as Map<String, dynamic>;
-        final parsed = _parseAppointmentDate(data['appointmentDate']);
-        if (parsed == null) {
-          // log to help debugging — these docs will be ignored by the calendar
-          print('Skipping schedule (unparseable appointmentDate) id=${doc.id} appointmentDate=${data['appointmentDate']}');
-          continue;
+        data['id'] = doc.id; // Store document ID
+        final appointmentDateStr = data['appointmentDate'] as String?;
+        if (appointmentDateStr != null) {
+          try {
+            final appointmentDateTime =
+            DateFormat('yyyy-MM-dd HH:mm').parse(appointmentDateStr);
+            final dateOnly = DateTime.utc(
+                appointmentDateTime.year,
+                appointmentDateTime.month,
+                appointmentDateTime.day);
+            if (eventsMap[dateOnly] == null) {
+              eventsMap[dateOnly] = [];
+            }
+            eventsMap[dateOnly]!.add(data);
+          } catch (e) {
+            print("Error parsing appointment date: $e");
+          }
         }
-
-        final dayOnly = DateTime(parsed.year, parsed.month, parsed.day);
-        // store parsedDate so UI code can use it
-        final item = {...data, 'parsedDate': parsed, '__docId': doc.id};
-
-        events.putIfAbsent(dayOnly, () => []).add(item);
       }
-
-      // sort events for each day by time ascending
-      events.forEach((key, list) {
-        list.sort((a, b) {
-          final da = a['parsedDate'] as DateTime;
-          final db = b['parsedDate'] as DateTime;
-          return da.compareTo(db);
+      if (mounted) {
+        setState(() {
+          _events = eventsMap;
+          _isLoadingEvents = false;
         });
-      });
-
-      setState(() {
-        _events = events;
-        _isLoading = false;
-      });
-
-      print('Mapped events for ${_events.length} days.');
+      }
     } catch (e) {
-      print('Error fetching schedules: $e');
+      print("Error loading appointments for calendar: $e");
+      if (mounted) {
+        setState(() => _isLoadingEvents = false);
+      }
+    }
+  }
+
+  List<dynamic> _getEventsForDay(DateTime day) {
+    final normalizedDay =
+    DateTime.utc(day.year, day.month, day.day);
+    return _events[normalizedDay] ?? [];
+  }
+
+  void _onDaySelected(DateTime selectedDay, DateTime focusedDay) {
+    if (!isSameDay(_selectedDay, selectedDay)) {
       setState(() {
-        _events = {};
-        _isLoading = false;
+        _selectedDay = selectedDay;
+        _focusedDay = focusedDay;
       });
     }
   }
 
-  List<Map<String, dynamic>> _getEventsForDay(DateTime day) {
-    final dayOnly = DateTime(day.year, day.month, day.day);
-    return _events[dayOnly] ?? [];
+  Future<void> _updateAppointmentStatus(String appointmentId, String newStatus) async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('schedules')
+          .doc(appointmentId)
+          .update({'status': newStatus});
+
+      // Refresh the calendar events
+      _loadAppointmentsForCalendar();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Appointment status updated to $newStatus'),
+            backgroundColor: _primaryColor,
+          ),
+        );
+      }
+    } catch (e) {
+      print("Error updating appointment status: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error updating appointment: $e'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
-    }
-
     return Scaffold(
-      appBar: AppBar(title: const Text("My Schedule")),
+      backgroundColor: _scaffoldBgColor(context),
       body: Column(
         children: [
-          TableCalendar(
-            firstDay: DateTime.utc(2020, 1, 1),
-            lastDay: DateTime.utc(2030, 12, 31),
-            focusedDay: _focusedDay,
-            selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
-            eventLoader: _getEventsForDay,
-            onDaySelected: (selectedDay, focusedDay) {
-              setState(() {
-                _selectedDay = selectedDay;
-                _focusedDay = focusedDay;
-              });
-            },
-            calendarStyle: const CalendarStyle(
-              // keep other styles as you wish; markerDecoration is default for markers
-              markerDecoration: BoxDecoration(color: Colors.red, shape: BoxShape.circle),
-            ),
-            calendarBuilders: CalendarBuilders(
-              markerBuilder: (context, date, events) {
-                if (events.isNotEmpty) {
-                  // small red dot at bottom center
-                  return Align(
-                    alignment: Alignment.bottomCenter,
-                    child: Container(
-                      width: 7,
-                      height: 7,
-                      margin: const EdgeInsets.only(bottom: 6),
-                      decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
-                    ),
-                  );
-                }
-                return const SizedBox.shrink();
-              },
+          Card(
+            margin: const EdgeInsets.all(12.0),
+            elevation: 2.0,
+            shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            color: _cardBgColor(context),
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 8.0),
+              child: TableCalendar(
+                locale: 'en_US',
+                firstDay: DateTime.utc(2020, 1, 1),
+                lastDay: DateTime.utc(2030, 12, 31),
+                focusedDay: _focusedDay,
+                selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
+                calendarFormat: _calendarFormat,
+                startingDayOfWeek: StartingDayOfWeek.monday,
+                eventLoader: _getEventsForDay,
+                calendarStyle: CalendarStyle(
+                  outsideDaysVisible: false,
+                  selectedDecoration: BoxDecoration(
+                      color: _primaryColor, shape: BoxShape.circle),
+                  selectedTextStyle: _getTextStyle(context,
+                      color: _textColorOnPrimary,
+                      fontWeight: FontWeight.bold),
+                  todayDecoration: BoxDecoration(
+                      color: _primaryColor.withOpacity(0.5),
+                      shape: BoxShape.circle),
+                  todayTextStyle: _getTextStyle(context,
+                      color: _textColorOnPrimary,
+                      fontWeight: FontWeight.bold),
+                  weekendTextStyle: _getTextStyle(context,
+                      color: _primaryColor.withOpacity(0.8)),
+                  defaultTextStyle: _getTextStyle(context,
+                      color: _textColorPrimary(context)),
+                ),
+                calendarBuilders: CalendarBuilders(
+                  markerBuilder: (context, day, events) {
+                    if (events.isNotEmpty) {
+                      return Positioned(
+                        right: 1,
+                        top: 1,
+                        child: Container(
+                          padding: const EdgeInsets.all(4.0),
+                          decoration: const BoxDecoration(
+                            color: Colors.redAccent,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Text(
+                            '${events.length}',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      );
+                    }
+                    return null;
+                  },
+                ),
+                headerStyle: HeaderStyle(
+                  formatButtonVisible: true,
+                  titleCentered: true,
+                  titleTextStyle: _getTextStyle(context,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: _textColorPrimary(context)),
+                  formatButtonTextStyle:
+                  _getTextStyle(context, color: _textColorOnPrimary),
+                  formatButtonDecoration: BoxDecoration(
+                      color: _primaryColor,
+                      borderRadius: BorderRadius.circular(20.0)),
+                  leftChevronIcon: Icon(Icons.chevron_left,
+                      color: _textColorPrimary(context)),
+                  rightChevronIcon: Icon(Icons.chevron_right,
+                      color: _textColorPrimary(context)),
+                ),
+                onDaySelected: _onDaySelected,
+                onFormatChanged: (format) {
+                  if (_calendarFormat != format) {
+                    setState(() {
+                      _calendarFormat = format;
+                    });
+                  }
+                },
+                onPageChanged: (focusedDay) {
+                  setState(() {
+                    _focusedDay = focusedDay;
+                  });
+                },
+              ),
             ),
           ),
-          const SizedBox(height: 10),
-          Expanded(
-            child: _selectedDay == null
-                ? const Center(child: Text("Select a day to view schedules"))
-                : _getEventsForDay(_selectedDay!).isEmpty
-                ? const Center(child: Text("No schedules on this day"))
-                : ListView(
-              padding: const EdgeInsets.all(12),
-              children: _getEventsForDay(_selectedDay!).map((event) {
-                final dietitianName = (event['dietitianName'] ?? event['dietitian'] ?? 'Dietitian') as String;
-                final status = (event['status'] ?? 'Scheduled') as String;
-                final notes = (event['notes'] ?? '') as String;
-                final DateTime dt = event['parsedDate'] as DateTime;
-                final formattedDate = DateFormat.yMMMMd().format(dt);
-                final formattedTime = DateFormat.jm().format(dt);
-
-                return Card(
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  elevation: 3,
-                  margin: const EdgeInsets.symmetric(vertical: 8),
+          if (_isLoadingEvents)
+            const Padding(
+              padding: EdgeInsets.all(16.0),
+              child: Center(child: CircularProgressIndicator(color: _primaryColor)),
+            )
+          else if (_selectedDay != null)
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      "My Appointments for ${DateFormat.yMMMMd().format(_selectedDay!)}:",
+                      style: _getTextStyle(context,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: _textColorPrimary(context)),
+                    ),
+                    const SizedBox(height: 10),
+                    _buildScheduledAppointmentsList(_selectedDay!),
+                    const SizedBox(height: 20),
+                  ],
+                ),
+              ),
+            )
+          else if (!_isLoadingEvents)
+              Expanded(
+                child: Center(
                   child: Padding(
                     padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(dietitianName, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                              decoration: BoxDecoration(color: Colors.blue.withOpacity(0.1), borderRadius: BorderRadius.circular(20)),
-                              child: Text(status, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.blue)),
-                            )
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        Row(children: [const Icon(Icons.calendar_today, size: 16), const SizedBox(width: 6), Text(formattedDate)]),
-                        const SizedBox(height: 6),
-                        Row(children: [const Icon(Icons.access_time, size: 16), const SizedBox(width: 6), Text(formattedTime)]),
-                        if (notes.isNotEmpty) ...[
-                          const SizedBox(height: 10),
-                          Row(crossAxisAlignment: CrossAxisAlignment.start, children: [const Icon(Icons.notes, size: 16), const SizedBox(width: 6), Expanded(child: Text(notes))]),
-                        ]
-                      ],
+                    child: Text(
+                      "Select a day to see your appointments.",
+                      style: _getTextStyle(context, color: _textColorSecondary(context)),
+                      textAlign: TextAlign.center,
                     ),
                   ),
-                );
-              }).toList(),
-            ),
-          ),
+                ),
+              ),
         ],
       ),
     );
+  }
+
+  Widget _buildScheduledAppointmentsList(DateTime selectedDate) {
+    final normalizedSelectedDate = DateTime.utc(
+        selectedDate.year, selectedDate.month, selectedDate.day);
+    final dayEvents = _events[normalizedSelectedDate] ?? [];
+
+    if (dayEvents.isEmpty) {
+      return Card(
+        color: _cardBgColor(context),
+        elevation: 1,
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Center(
+            child: Text(
+              "No appointments scheduled for this day yet.",
+              style: _getTextStyle(context, color: _textColorSecondary(context)),
+            ),
+          ),
+        ),
+      );
+    }
+
+    dayEvents.sort((a, b) {
+      try {
+        final dateA = DateFormat('yyyy-MM-dd HH:mm').parse(a['appointmentDate']);
+        final dateB = DateFormat('yyyy-MM-dd HH:mm').parse(b['appointmentDate']);
+        return dateA.compareTo(dateB);
+      } catch (e) {
+        return 0;
+      }
+    });
+
+    return Column(
+      children: dayEvents.map<Widget>((data) {
+        DateTime appointmentDateTime;
+        try {
+          appointmentDateTime = DateFormat('yyyy-MM-dd HH:mm').parse(data['appointmentDate']);
+        } catch (e) {
+          print("Error parsing appointment date: $e");
+          return const SizedBox.shrink();
+        }
+        final formattedTime = DateFormat.jm().format(appointmentDateTime);
+        final status = data['status'] ?? 'scheduled';
+        final appointmentId = data['id'] ?? '';
+
+        return Card(
+          margin: const EdgeInsets.only(bottom: 12),
+          elevation: 3,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          color: _cardBgColor(context),
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header with dietitian name and status
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        data['dietitianName'] ?? 'Unknown Dietitian',
+                        style: _getTextStyle(context,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: _textColorPrimary(context)),
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: _getStatusColor(status),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        _getStatusDisplayText(status),
+                        style: _getTextStyle(context,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                // Time and date info
+                Row(
+                  children: [
+                    Icon(Icons.access_time, size: 16, color: _primaryColor),
+                    const SizedBox(width: 8),
+                    Text(
+                      formattedTime,
+                      style: _getTextStyle(context,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: _textColorPrimary(context)),
+                    ),
+                  ],
+                ),
+                if (data['notes'] != null && data['notes'].toString().isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(Icons.note_alt_outlined, size: 16, color: _primaryColor),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          data['notes'],
+                          style: _getTextStyle(context,
+                              fontSize: 14,
+                              color: _textColorSecondary(context)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  String _getStatusDisplayText(String status) {
+    switch (status.toLowerCase()) {
+      case 'proposed_by_dietitian':
+        return 'Scheduled'; // Changed from 'Pending'
+      case 'confirmed':
+        return 'Confirmed';
+      case 'declined':
+        return 'Declined';
+      case 'completed':
+        return 'Completed';
+      default:
+        return 'Scheduled';
+    }
+  }
+
+  Color _getStatusColor(String status) {
+    switch (status.toLowerCase()) {
+      case 'confirmed':
+        return Colors.green;
+      case 'declined':
+        return Colors.red;
+      case 'proposed_by_dietitian':
+        return Colors.orange;
+      case 'completed':
+        return Colors.blue;
+      default:
+        return _primaryColor;
+    }
   }
 }
 
@@ -1262,12 +1705,20 @@ class UsersListPage extends StatelessWidget {
                           if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
                             return const SizedBox.shrink();
                           }
+                          final unreadCount = snapshot.data!.docs.length;
                           return Container(
-                            width: 8,
-                            height: 8,
+                            padding: const EdgeInsets.all(4.0),
                             decoration: const BoxDecoration(
                               color: Colors.red,
                               shape: BoxShape.circle,
+                            ),
+                            child: Text(
+                              unreadCount > 99 ? '99+' : '$unreadCount',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           );
                         },
@@ -1411,7 +1862,24 @@ class UsersListPage extends StatelessWidget {
                         title: Text(data["title"] ?? "Notification"),
                         subtitle: Text(data["message"] ?? ""),
                         trailing: data["isRead"] == false
-                            ? const Icon(Icons.circle, color: Colors.red, size: 10)
+                            ? Container(
+                          width: 20,
+                          height: 20,
+                          decoration: const BoxDecoration(
+                            color: Colors.red,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Center(
+                            child: Text(
+                              '!',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        )
                             : null,
                         onTap: () async {
                           await FirebaseFirestore.instance
@@ -1454,32 +1922,186 @@ class UsersListPage extends StatelessWidget {
     );
   }
 }
-class ScheduleCalendarPage extends StatefulWidget {
-  const ScheduleCalendarPage({super.key});
+
+class DietitiansListPage extends StatelessWidget {
+  const DietitiansListPage({super.key});
 
   @override
-  State<ScheduleCalendarPage> createState() => _ScheduleCalendarPageState();
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: _scaffoldBgColor(context),
+      appBar: AppBar(
+        title: const Text('Choose Your Dietitian'),
+        backgroundColor: _primaryColor,
+        foregroundColor: _textColorOnPrimary,
+        elevation: 1,
+      ),
+      body: StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection("Users")
+            .where("role", isEqualTo: "dietitian")
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator(color: _primaryColor));
+          }
+
+          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.health_and_safety_outlined,
+                    size: 80,
+                    color: Colors.grey[400],
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'No dietitians available',
+                    style: _sectionTitleStyle(context).copyWith(
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Check back later for available dietitians',
+                    style: _cardSubtitleStyle(context),
+                  ),
+                ],
+              ),
+            );
+          }
+
+          final dietitians = snapshot.data!.docs;
+          return ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: dietitians.length,
+            itemBuilder: (context, index) {
+              final dietitianData = dietitians[index].data() as Map<String, dynamic>;
+              final dietitianId = dietitians[index].id;
+              final name = "${dietitianData["firstName"] ?? ""} ${dietitianData["lastName"] ?? ""}".trim();
+              final profileUrl = dietitianData["profile"] ?? "";
+              final specialization = dietitianData["specialization"] ?? "General Nutrition";
+
+              return Card(
+                margin: const EdgeInsets.only(bottom: 12),
+                elevation: 2,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                color: _cardBgColor(context),
+                child: InkWell(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => SubscriptionPage(
+                          dietitianId: dietitianId,
+                          dietitianName: name.isEmpty ? "Dietitian" : name,
+                        ),
+                      ),
+                    );
+                  },
+                  borderRadius: BorderRadius.circular(16),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 30,
+                          backgroundColor: _primaryColor.withOpacity(0.2),
+                          backgroundImage: profileUrl.isNotEmpty
+                              ? NetworkImage(profileUrl)
+                              : null,
+                          child: profileUrl.isEmpty
+                              ? const Icon(Icons.health_and_safety, size: 30, color: _primaryColor)
+                              : null,
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                name.isEmpty ? "Dietitian" : "Dr. $name",
+                                style: _cardTitleStyle(context).copyWith(fontSize: 16),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                specialization,
+                                style: _cardSubtitleStyle(context),
+                              ),
+                              const SizedBox(height: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: _primaryColor.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  'View Plans',
+                                  style: _cardSubtitleStyle(context).copyWith(
+                                    color: _primaryColor,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Icon(
+                          Icons.arrow_forward_ios,
+                          color: _textColorSecondary(context),
+                          size: 16,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
 }
 
-class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
-  CalendarFormat _calendarFormat = CalendarFormat.month;
-  DateTime _focusedDay = DateTime.now();
-  DateTime? _selectedDay;
-  // Map<DateTime, List<String>> _events = {}; // To store events/appointments later
+class MySubscriptionsPage extends StatefulWidget {
+  final String userId;
+
+  const MySubscriptionsPage({super.key, required this.userId});
+
+  @override
+  State<MySubscriptionsPage> createState() => _MySubscriptionsPageState();
+}
+
+class _MySubscriptionsPageState extends State<MySubscriptionsPage> {
+  final SubscriptionService _subscriptionService = SubscriptionService();
+  List<UserSubscription> _subscriptions = [];
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _selectedDay = _focusedDay;
-    // _loadAppointmentsForMonth(_focusedDay); // Implement this later
+    _loadSubscriptions();
   }
 
-  void _onDaySelected(DateTime selectedDay, DateTime focusedDay) {
-    if (!isSameDay(_selectedDay, selectedDay)) {
+  Future<void> _loadSubscriptions() async {
+    try {
+      final subscriptions = await _subscriptionService.getUserSubscriptions(widget.userId);
       setState(() {
-        _selectedDay = selectedDay;
-        _focusedDay = focusedDay;
+        _subscriptions = subscriptions;
+        _isLoading = false;
       });
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error loading subscriptions: $e')),
+        );
+      }
     }
   }
 
@@ -1487,101 +2109,259 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: _scaffoldBgColor(context),
-      body: Column(
+      appBar: AppBar(
+        title: const Text('My Subscriptions'),
+        backgroundColor: _primaryColor,
+        foregroundColor: _textColorOnPrimary,
+        elevation: 1,
+      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator(color: _primaryColor))
+          : _subscriptions.isEmpty
+          ? _buildEmptyState()
+          : _buildSubscriptionsList(),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Card(
-            margin: const EdgeInsets.all(12.0),
-            elevation: 2.0,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            color: _cardBgColor(context),
-            child: Padding(
-              padding: const EdgeInsets.only(bottom: 8.0),
-              child: TableCalendar(
-                locale: 'en_US',
-                firstDay: DateTime.utc(2020, 1, 1),
-                lastDay: DateTime.utc(2030, 12, 31),
-                focusedDay: _focusedDay,
-                selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
-                calendarFormat: _calendarFormat,
-                startingDayOfWeek: StartingDayOfWeek.monday,
-                calendarStyle: CalendarStyle(
-                    outsideDaysVisible: false,
-                    selectedDecoration: BoxDecoration(color: _primaryColor, shape: BoxShape.circle),
-                    selectedTextStyle: _getTextStyle(context, color: _textColorOnPrimary, fontWeight: FontWeight.bold),
-                    todayDecoration: BoxDecoration(color: _primaryColor.withOpacity(0.5), shape: BoxShape.circle),
-                    todayTextStyle: _getTextStyle(context, color: _textColorOnPrimary, fontWeight: FontWeight.bold),
-                    weekendTextStyle: _getTextStyle(context, color: _primaryColor.withOpacity(0.8)),
-                    defaultTextStyle: _getTextStyle(context, color: _textColorPrimary(context)),
-                    markerDecoration: BoxDecoration(color: Colors.redAccent, shape: BoxShape.circle)
-                ),
-                headerStyle: HeaderStyle(
-                  formatButtonVisible: false, // ✅ this hides the button
-                  titleCentered: true,
-                  titleTextStyle: _getTextStyle(context, fontSize: 18, fontWeight: FontWeight.bold, color: _textColorPrimary(context)),
-                  formatButtonTextStyle: _getTextStyle(context, color: _textColorOnPrimary),
-                  formatButtonDecoration: BoxDecoration(color: _primaryColor, borderRadius: BorderRadius.circular(20.0)),
-                  leftChevronIcon: Icon(Icons.chevron_left, color: _textColorPrimary(context)),
-                  rightChevronIcon: Icon(Icons.chevron_right, color: _textColorPrimary(context)),
-                ),
-                onDaySelected: _onDaySelected,
-                onFormatChanged: (format) {
-                  if (_calendarFormat != format) {
-                    setState(() { _calendarFormat = format; });
-                  }
-                },
-                onPageChanged: (focusedDay) {
-                  _focusedDay = focusedDay;
-                },
-              ),
+          Icon(
+            Icons.subscriptions_outlined,
+            size: 80,
+            color: Colors.grey[400],
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'No Active Subscriptions',
+            style: _sectionTitleStyle(context).copyWith(
+              color: Colors.grey[600],
             ),
           ),
-          const SizedBox(height: 8.0),
-          if (_selectedDay != null)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    "Details for ${DateFormat.yMMMMd().format(_selectedDay!)}:",
-                    style: _getTextStyle(context, fontSize: 18, fontWeight: FontWeight.bold, color: _textColorPrimary(context)),
-                  ),
-                  const SizedBox(height: 10),
-                  Card(
-                    color: _cardBgColor(context),
-                    elevation: 1,
-                    child: Padding(
-                      padding: const EdgeInsets.all(12.0),
-                      child: Text(
-                        "No appointments scheduled for this day yet.",
-                        style: _getTextStyle(context, color: _textColorSecondary(context)),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  Center(
-                    child: ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                          backgroundColor: _primaryColor,
-                          foregroundColor: _textColorOnPrimary,
-                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                          textStyle: _getTextStyle(context, fontSize: 16, fontWeight: FontWeight.w600, color: _textColorOnPrimary)
-                      ),
-                      icon: const Icon(Icons.add_circle_outline_rounded),
-                      label: const Text("Schedule New Appointment"),
-                      onPressed: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Schedule for ${_selectedDay!.toIso8601String().substring(0,10)} tapped!')),
-                        );
-                      },
-                    ),
-                  ),
-                ],
-              ),
+          const SizedBox(height: 8),
+          Text(
+            'Subscribe to a dietitian to get personalized meal plans',
+            style: _cardSubtitleStyle(context),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 24),
+          ElevatedButton.icon(
+            onPressed: () {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (context) => const DietitiansListPage()),
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _primaryColor,
+              foregroundColor: _textColorOnPrimary,
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
-          Expanded(child: Container()),
+            icon: const Icon(Icons.person_search_rounded),
+            label: const Text('Browse Dietitians'),
+          ),
         ],
       ),
     );
   }
+
+  Widget _buildSubscriptionsList() {
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: _subscriptions.length,
+      itemBuilder: (context, index) {
+        final subscription = _subscriptions[index];
+        return _buildSubscriptionCard(subscription);
+      },
+    );
+  }
+
+  Widget _buildSubscriptionCard(UserSubscription subscription) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 16),
+      elevation: 3,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      color: _cardBgColor(context),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: FutureBuilder<DocumentSnapshot>(
+                    future: FirebaseFirestore.instance
+                        .collection("Users")
+                        .doc(subscription.dietitianId)
+                        .get(),
+                    builder: (context, snapshot) {
+                      String dietitianName = "Unknown Dietitian";
+                      if (snapshot.hasData && snapshot.data!.exists) {
+                        var data = snapshot.data!.data() as Map<String, dynamic>;
+                        dietitianName = "${data["firstName"] ?? ""} ${data["lastName"] ?? ""}".trim();
+                        if (dietitianName.isEmpty) dietitianName = "Dietitian";
+                      }
+                      return Text(
+                        "Dr. $dietitianName",
+                        style: _cardTitleStyle(context).copyWith(fontSize: 18),
+                      );
+                    },
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: _getSubscriptionStatusColor(subscription.status).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    subscription.status.toUpperCase(),
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: _getSubscriptionStatusColor(subscription.status),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Icon(Icons.calendar_today, size: 16, color: _textColorSecondary(context)),
+                const SizedBox(width: 8),
+                Text(
+                  'Started: ${DateFormat('MMM dd, yyyy').format(subscription.startDate)}',
+                  style: _cardSubtitleStyle(context),
+                ),
+              ],
+            ),
+            if (subscription.endDate != null) ...[
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  Icon(Icons.event_busy, size: 16, color: _textColorSecondary(context)),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Ends: ${DateFormat('MMM dd, yyyy').format(subscription.endDate!)}',
+                    style: _cardSubtitleStyle(context),
+                  ),
+                ],
+              ),
+            ],
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                TextButton.icon(
+                  onPressed: () {
+                    // Navigate to dietitian's meal plans or profile
+                  },
+                  icon: const Icon(Icons.restaurant_menu, size: 18),
+                  label: const Text('View Meal Plans'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: _primaryColor,
+                  ),
+                ),
+                if (subscription.status == 'active')
+                  TextButton.icon(
+                    onPressed: () => _showCancelDialog(subscription),
+                    icon: const Icon(Icons.cancel_outlined, size: 18),
+                    label: const Text('Cancel'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: Colors.red,
+                    ),
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Color _getSubscriptionStatusColor(String status) {
+    switch (status.toLowerCase()) {
+      case 'active':
+        return Colors.green;
+      case 'cancelled':
+        return Colors.red;
+      case 'past_due':
+        return Colors.orange;
+      default:
+        return _primaryColor;
+    }
+  }
+
+  void _showCancelDialog(UserSubscription subscription) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: _cardBgColor(context),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Text(
+            'Cancel Subscription',
+            style: _sectionTitleStyle(context),
+          ),
+          content: Text(
+            'Are you sure you want to cancel this subscription? You will lose access to premium meal plans.',
+            style: _cardBodyTextStyle(context),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(
+                'Keep Subscription',
+                style: TextStyle(color: _textColorSecondary(context)),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                Navigator.of(context).pop();
+                await _cancelSubscription(subscription);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              child: const Text('Cancel Subscription'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _cancelSubscription(UserSubscription subscription) async {
+    try {
+      await _subscriptionService.cancelSubscription(subscription.id);
+      _loadSubscriptions(); // Refresh the list
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Subscription cancelled successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error cancelling subscription: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
 }
+
+
