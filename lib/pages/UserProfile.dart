@@ -109,8 +109,7 @@ class _UserProfileState extends State<UserProfile> {
         final double bmi = _calculateBMI(weight, height);
 
         final String displayName = user.displayName ?? "Unknown User";
-        final String? photoUrl = user.photoURL;
-        const String dailyCalories = "1,850 kcal"; // can also come from Firestore later
+        final String? profileUrl = snapshot.data?['profile'];
 
         return Scaffold(
           backgroundColor: currentScaffoldBgColor,
@@ -151,10 +150,10 @@ class _UserProfileState extends State<UserProfile> {
                             child: CircleAvatar(
                               radius: 50,
                               backgroundColor: Colors.white,
-                              backgroundImage: (photoUrl != null && photoUrl.isNotEmpty)
-                                  ? NetworkImage(photoUrl)
+                              backgroundImage: (profileUrl != null && profileUrl.isNotEmpty)
+                                  ? NetworkImage(profileUrl)
                                   : null,
-                              child: (photoUrl == null || photoUrl.isEmpty)
+                              child: (profileUrl == null || profileUrl.isEmpty)
                                   ? Icon(Icons.person_outline, size: 55, color: currentPrimaryColor)
                                   : null,
                             ),
@@ -241,17 +240,6 @@ class _UserProfileState extends State<UserProfile> {
                               const SizedBox(height: 20),
                               const Divider(),
                               const SizedBox(height: 12),
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(Icons.local_fire_department_outlined,
-                                      color: currentPrimaryColor, size: 20),
-                                  const SizedBox(width: 8),
-                                  Text("Daily Calories Needed:", style: infoCardLabelStyle),
-                                  const SizedBox(width: 6),
-                                  Text(dailyCalories, style: caloriesTextStyle),
-                                ],
-                              ),
                             ],
                           ),
                         ),
