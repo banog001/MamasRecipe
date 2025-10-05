@@ -30,50 +30,48 @@ class MealPlanningScreen4 extends StatelessWidget {
   }
 
   void _showConfirmationDialog(BuildContext context, String currentUserId) {
-    // --- Define Text Styles (Assuming "Plus Jakarta Sans") ---
     const String primaryFontFamily = 'PlusJakartaSans';
 
     const TextStyle dialogTitleStyle = TextStyle(
       fontFamily: primaryFontFamily,
-      fontSize: 22, // Adjusted for dialog
+      fontSize: 20,
       fontWeight: FontWeight.bold,
-      color: Color(0xFF4CAF50), // Theme green
+      color: Color(0xFF4CAF50),
     );
 
     const TextStyle dialogMessageStyle = TextStyle(
       fontFamily: primaryFontFamily,
-      fontSize: 15,
-      color: Colors.black54, // Darker grey for readability
+      fontSize: 14,
+      color: Colors.black54,
       height: 1.4,
     );
 
     const TextStyle dialogButtonTextStyle = TextStyle(
       fontFamily: primaryFontFamily,
       color: Colors.white,
-      fontSize: 16,
+      fontSize: 15,
       fontWeight: FontWeight.bold,
-      letterSpacing: 1,
+      letterSpacing: 0.8,
     );
-    // --- End Text Styles ---
 
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (BuildContext dialogContext) { // Renamed context to avoid conflict
+      builder: (BuildContext dialogContext) {
         return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          contentPadding: const EdgeInsets.symmetric(vertical: 30, horizontal: 24), // Adjusted padding
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          contentPadding: const EdgeInsets.symmetric(vertical: 28, horizontal: 24),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                width: 70, // Slightly smaller
-                height: 70,
+                width: 64,
+                height: 64,
                 decoration: const BoxDecoration(
                   color: Color(0xFF4CAF50),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.check_circle_outline, color: Colors.white, size: 40), // Different icon
+                child: const Icon(Icons.check_circle_outline, color: Colors.white, size: 36),
               ),
               const SizedBox(height: 20),
               const Text(
@@ -86,23 +84,20 @@ class MealPlanningScreen4 extends StatelessWidget {
                 textAlign: TextAlign.center,
                 style: dialogMessageStyle,
               ),
-              const SizedBox(height: 30),
-              SizedBox( // Ensure button takes reasonable width in dialog
+              const SizedBox(height: 28),
+              SizedBox(
                 width: double.infinity,
-                height: 50,
+                height: 48,
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF4CAF50),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), // Consistent radius
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    elevation: 2,
                   ),
                   onPressed: () async {
-                    await _completeTutorial(currentUserId); // Pass userId here
-
-                    // ✅ Navigate to Home
-                    // Ensure the dialog's context is used for Navigator.pop if needed,
-                    // then the original screen's context for pushReplacement.
-                    Navigator.of(dialogContext).pop(); // Close the dialog
-                    Navigator.pushReplacement( // Use the screen's context
+                    await _completeTutorial(currentUserId);
+                    Navigator.of(dialogContext).pop();
+                    Navigator.pushReplacement(
                       context,
                       MaterialPageRoute(builder: (context) => const home()),
                     );
@@ -122,65 +117,64 @@ class MealPlanningScreen4 extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // --- Define Text Styles (Assuming "Plus Jakarta Sans") ---
     const String primaryFontFamily = 'PlusJakartaSans';
 
     const TextStyle headlineStyle = TextStyle(
       fontFamily: primaryFontFamily,
-      fontSize: 30,
+      fontSize: 28,
       fontWeight: FontWeight.w900,
-      color: Color(0xFF4CAF50), // Theme green
+      color: Color(0xFF4CAF50),
     );
 
     const TextStyle subHeadlineStyle = TextStyle(
       fontFamily: primaryFontFamily,
-      fontSize: 15, // Adjusted
-      fontWeight: FontWeight.w600, // Semi-bold for better readability
-      color: Colors.black54, // Darker grey
-      height: 1.5, // Line height
+      fontSize: 15,
+      fontWeight: FontWeight.w500,
+      color: Colors.black54,
+      height: 1.5,
     );
 
     const TextStyle buttonTextStyle = TextStyle(
       fontFamily: primaryFontFamily,
       fontWeight: FontWeight.bold,
-      letterSpacing: 1.2,
-      fontSize: 18, // Slightly larger button text
+      letterSpacing: 1.0,
+      fontSize: 16,
       color: Colors.white,
     );
+
     final TextStyle smallDebugTextStyle = TextStyle(
       fontFamily: primaryFontFamily,
       fontSize: 12,
       fontWeight: FontWeight.normal,
       color: Colors.grey[500],
     );
-    // --- End Text Styles ---
 
     return Scaffold(
-      backgroundColor: Colors.white, // Full white background
+      backgroundColor: Colors.white,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
           child: Column(
             children: <Widget>[
               Expanded(
-                child: SingleChildScrollView( // Allows content to scroll if it overflows
+                child: SingleChildScrollView(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      const SizedBox(height: 100), // Adjust top spacing as needed
-                      const Icon( // Optional: Add an icon for visual appeal
-                        Icons.party_mode_outlined, // Or Icons.celebration, Icons.done_all
-                        size: 80,
+                      const SizedBox(height: 80),
+                      const Icon(
+                        Icons.celebration_outlined,
+                        size: 72,
                         color: Color(0xFF4CAF50),
                       ),
-                      const SizedBox(height: 30),
+                      const SizedBox(height: 28),
                       const Text(
                         'ALL SET!',
                         textAlign: TextAlign.center,
                         style: headlineStyle,
                       ),
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 18),
                       const Padding(
                         padding: EdgeInsets.symmetric(horizontal: 16.0),
                         child: Text(
@@ -189,9 +183,9 @@ class MealPlanningScreen4 extends StatelessWidget {
                           style: subHeadlineStyle,
                         ),
                       ),
-                      const SizedBox(height: 60), // Space before button area conceptually
+                      const SizedBox(height: 60),
 
-                      if (userId.isNotEmpty) // Debug: Show UID
+                      if (userId.isNotEmpty)
                         Padding(
                           padding: const EdgeInsets.only(bottom: 20.0),
                           child: Text(
@@ -205,24 +199,23 @@ class MealPlanningScreen4 extends StatelessWidget {
                 ),
               ),
 
-              // NEXT/FINISH Button - Positioned at the bottom
               Padding(
                 padding: const EdgeInsets.only(bottom: 30.0, top: 15.0),
                 child: SizedBox(
-                  width: MediaQuery.of(context).size.width * 0.75, // Adjust width
-                  height: 55,
+                  width: MediaQuery.of(context).size.width * 0.85,
+                  height: 52,
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF4CAF50),
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(30), // Consistent radius
+                        borderRadius: BorderRadius.circular(12),
                       ),
                       elevation: 2,
                     ),
-                    onPressed: () => _showConfirmationDialog(context, userId), // Pass userId here
+                    onPressed: () => _showConfirmationDialog(context, userId),
                     child: const Text(
-                      'FINISH SETUP', // Changed from NEXT
+                      'FINISH SETUP',
                       style: buttonTextStyle,
                     ),
                   ),
@@ -235,4 +228,3 @@ class MealPlanningScreen4 extends StatelessWidget {
     );
   }
 }
-

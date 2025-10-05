@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'start4.dart'; // Assuming MealPlanningScreen4 is correctly imported
+import 'start4.dart';
 
 class MealPlanningScreen3 extends StatefulWidget {
   final String userId;
@@ -12,19 +12,17 @@ class MealPlanningScreen3 extends StatefulWidget {
 }
 
 class _MealPlanningScreen3State extends State<MealPlanningScreen3> {
-  final _formKey = GlobalKey<FormState>(); // For Form validation
+  final _formKey = GlobalKey<FormState>();
 
-  // Controllers for new fields
-  final TextEditingController _nicknameController = TextEditingController();
-  final TextEditingController _ageController = TextEditingController();
-  final TextEditingController _genderController = TextEditingController();
+  // <CHANGE> Replaced age controller with birthday date
+  DateTime? selectedBirthday;
   final TextEditingController _weightController = TextEditingController();
   final TextEditingController _heightController = TextEditingController();
 
+  String? selectedGender;
   int? selectedHealthGoalIndex;
   int? selectedActivityLevelIndex;
 
-  // --- Re-using your existing data structures and TextStyles ---
   final List<Map<String, dynamic>> healthGoals = [
     {"icon": Icons.person_remove_outlined, "text": "Weight Loss"},
     {"icon": Icons.person_add_alt_1_outlined, "text": "Weight Gain"},
@@ -33,99 +31,169 @@ class _MealPlanningScreen3State extends State<MealPlanningScreen3> {
     {"icon": Icons.fitness_center, "text": "Workout"},
   ];
 
+  // <CHANGE> Added descriptions for each activity level
   final List<Map<String, dynamic>> activityLevels = [
-    {"icon": Icons.directions_walk, "text": "Lightly Active"},
-    {"icon": Icons.directions_run, "text": "Moderately Active"},
-    {"icon": Icons.pool, "text": "Very Active"},
-    {"icon": Icons.construction, "text": "Heavy Work"},
+    {
+      "icon": Icons.directions_walk,
+      "text": "Lightly Active",
+      "description": "Minimal exercise, desk job, light walking or household chores"
+    },
+    {
+      "icon": Icons.directions_run,
+      "text": "Moderately Active",
+      "description": "Exercise 3-5 days/week, regular physical activities like jogging or cycling"
+    },
+    {
+      "icon": Icons.pool,
+      "text": "Very Active",
+      "description": "Exercise 6-7 days/week, sports training, or physically demanding job"
+    },
+    {
+      "icon": Icons.construction,
+      "text": "Heavy Work",
+      "description": "Construction, farming, or intense physical labor daily"
+    },
   ];
 
   static const String _primaryFontFamily = 'PlusJakartaSans';
+  static const Color _primaryColor = Color(0xFF4CAF50);
+  static const Color _textColorOnPrimary = Colors.white;
 
-  static const TextStyle _screenTitleStyle = TextStyle(
+  Color _scaffoldBgColor(BuildContext context) =>
+      Theme.of(context).brightness == Brightness.dark
+          ? Colors.grey.shade900
+          : Colors.grey.shade100;
+
+  Color _cardBgColor(BuildContext context) =>
+      Theme.of(context).brightness == Brightness.dark
+          ? Colors.grey.shade800
+          : Colors.white;
+
+  Color _textColorPrimary(BuildContext context) =>
+      Theme.of(context).brightness == Brightness.dark
+          ? Colors.white70
+          : Colors.black87;
+
+  Color _textColorSecondary(BuildContext context) =>
+      Theme.of(context).brightness == Brightness.dark
+          ? Colors.white54
+          : Colors.black54;
+
+  TextStyle _getTextStyle(
+      BuildContext context, {
+        double fontSize = 16,
+        FontWeight fontWeight = FontWeight.normal,
+        Color? color,
+      }) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final defaultTextColor =
+        color ?? (isDarkMode ? Colors.white70 : Colors.black87);
+    return TextStyle(
       fontFamily: _primaryFontFamily,
-      fontSize: 26, // Slightly larger for emphasis
-      fontWeight: FontWeight.bold,
-      color: Color(0xFF333333));
+      fontSize: fontSize,
+      fontWeight: fontWeight,
+      color: defaultTextColor,
+    );
+  }
 
-  static const TextStyle _stepTextStyle = TextStyle( // For "Step X of Y"
-      fontFamily: _primaryFontFamily,
-      fontSize: 14,
-      fontWeight: FontWeight.w500,
-      color: Colors.grey
-  );
-
-  static const TextStyle _sectionTitleStyle = TextStyle(
-      fontFamily: _primaryFontFamily,
-      fontSize: 22, // Bolder section titles
-      fontWeight: FontWeight.bold,
-      color: Color(0xFF4CAF50));
-
-  static const TextStyle _labelTextStyle = TextStyle(
-      fontFamily: _primaryFontFamily,
-      fontWeight: FontWeight.w600,
-      fontSize: 15, // Slightly larger label
-      color: Colors.black54);
-
-  static const TextStyle _textFieldStyle = TextStyle(
-      fontFamily: _primaryFontFamily, fontSize: 16, color: Colors.black87);
-
-  static const TextStyle _hintTextStyle = TextStyle(
-      fontFamily: _primaryFontFamily,
-      color: Colors.grey,
-      fontSize: 14,
-      letterSpacing: 0.5);
-
-  static const TextStyle _listItemTextStyle = TextStyle(
-      fontFamily: _primaryFontFamily,
-      fontSize: 16,
-      fontWeight: FontWeight.w500);
-
-  static const TextStyle _buttonTextStyle = TextStyle(
-      fontFamily: _primaryFontFamily,
-      fontWeight: FontWeight.bold,
-      letterSpacing: 1.2,
-      fontSize: 18, // Slightly larger button text
-      color: Colors.white);
-
-  static const TextStyle _smallDebugTextStyle = TextStyle(
-      fontFamily: _primaryFontFamily,
-      fontSize: 12,
-      fontWeight: FontWeight.normal,
-      color: Colors.grey);
-  // --- End Text Styles ---
+  // <CHANGE> Added function to calculate age from birthday
+  int _calculateAge(DateTime birthDate) {
+    final today = DateTime.now();
+    int age = today.year - birthDate.year;
+    if (today.month < birthDate.month ||
+        (today.month == birthDate.month && today.day < birthDate.day)) {
+      age--;
+    }
+    return age;
+  }
 
   @override
   void dispose() {
-    _nicknameController.dispose();
-    _ageController.dispose();
-    _genderController.dispose();
     _weightController.dispose();
     _heightController.dispose();
     super.dispose();
   }
 
   Future<void> _saveUserData() async {
-    // Use Form key for validation
     if (!(_formKey.currentState?.validate() ?? false)) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please correct the errors in the form")),
+        SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.error_outline, color: _textColorOnPrimary),
+              const SizedBox(width: 12),
+              const Expanded(child: Text("Please correct the errors in the form")),
+            ],
+          ),
+          backgroundColor: Colors.redAccent,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          margin: const EdgeInsets.all(16),
+        ),
       );
       return;
     }
+
+    // <CHANGE> Validate birthday selection
+    if (selectedBirthday == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.error_outline, color: _textColorOnPrimary),
+              const SizedBox(width: 12),
+              const Expanded(child: Text("Please select your birthday")),
+            ],
+          ),
+          backgroundColor: Colors.redAccent,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          margin: const EdgeInsets.all(16),
+        ),
+      );
+      return;
+    }
+
+    if (selectedGender == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.error_outline, color: _textColorOnPrimary),
+              const SizedBox(width: 12),
+              const Expanded(child: Text("Please select your gender")),
+            ],
+          ),
+          backgroundColor: Colors.redAccent,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          margin: const EdgeInsets.all(16),
+        ),
+      );
+      return;
+    }
+
     if (selectedHealthGoalIndex == null || selectedActivityLevelIndex == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please make all selections")),
+        SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.error_outline, color: _textColorOnPrimary),
+              const SizedBox(width: 12),
+              const Expanded(child: Text("Please make all selections")),
+            ],
+          ),
+          backgroundColor: Colors.redAccent,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          margin: const EdgeInsets.all(16),
+        ),
       );
       return;
     }
 
-    // All good, proceed to save
-    _formKey.currentState!.save(); // Ensure onSaved is called if used
-
-    final String nickname = _nicknameController.text.trim();
-    final String age = _ageController.text.trim();
-    final String gender = _genderController.text.trim();
+    // <CHANGE> Calculate age from birthday
+    final int age = _calculateAge(selectedBirthday!);
     final String weight = _weightController.text.trim();
     final String height = _heightController.text.trim();
     final String healthGoal = healthGoals[selectedHealthGoalIndex!]["text"];
@@ -137,16 +205,14 @@ class _MealPlanningScreen3State extends State<MealPlanningScreen3> {
           .collection("Users")
           .doc(widget.userId)
           .set({
-        "nickname": nickname,
-        "age": int.tryParse(age) ?? 0,
-        "gender": gender,
+        "age": age,
+        "gender": selectedGender,
         "currentWeight": double.tryParse(weight) ?? 0.0,
         "height": double.tryParse(height) ?? 0.0,
         "goals": healthGoal,
         "activityLevel": activityLevel,
         "tutorialStep": 3,
-      }, SetOptions(merge: true)); // ✅ merge makes sure existing fields are kept
-
+      }, SetOptions(merge: true));
 
       if (mounted) {
         Navigator.pushReplacement(
@@ -159,10 +225,114 @@ class _MealPlanningScreen3State extends State<MealPlanningScreen3> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error saving data: $e")),
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.error_outline, color: _textColorOnPrimary),
+                const SizedBox(width: 12),
+                Expanded(child: Text("Error saving data: $e")),
+              ],
+            ),
+            backgroundColor: Colors.redAccent,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            margin: const EdgeInsets.all(16),
+          ),
         );
       }
     }
+  }
+
+  // <CHANGE> New birthday picker widget
+  Widget _buildBirthdayPicker() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          "Birthday",
+          style: _getTextStyle(
+            context,
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: _textColorSecondary(context),
+          ),
+        ),
+        const SizedBox(height: 8),
+        GestureDetector(
+          onTap: () async {
+            final DateTime? picked = await showDatePicker(
+              context: context,
+              initialDate: selectedBirthday ?? DateTime(2000, 1, 1),
+              firstDate: DateTime(1900),
+              lastDate: DateTime.now(),
+              builder: (context, child) {
+                return Theme(
+                  data: Theme.of(context).copyWith(
+                    colorScheme: const ColorScheme.light(
+                      primary: _primaryColor,
+                      onPrimary: _textColorOnPrimary,
+                      surface: Colors.white,
+                      onSurface: Colors.black87,
+                    ),
+                  ),
+                  child: child!,
+                );
+              },
+            );
+            if (picked != null) {
+              setState(() {
+                selectedBirthday = picked;
+              });
+            }
+          },
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            decoration: BoxDecoration(
+              color: _scaffoldBgColor(context),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: selectedBirthday != null
+                    ? _primaryColor
+                    : Colors.grey.shade300,
+                width: selectedBirthday != null ? 2 : 1,
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.cake_outlined,
+                  color: selectedBirthday != null
+                      ? _primaryColor
+                      : Colors.grey.shade600,
+                  size: 20,
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Text(
+                    selectedBirthday != null
+                        ? "${selectedBirthday!.day}/${selectedBirthday!.month}/${selectedBirthday!.year} (Age: ${_calculateAge(selectedBirthday!)})"
+                        : "Select your birthday",
+                    style: _getTextStyle(
+                      context,
+                      fontSize: 15,
+                      color: selectedBirthday != null
+                          ? _textColorPrimary(context)
+                          : _textColorSecondary(context),
+                    ),
+                  ),
+                ),
+                Icon(
+                  Icons.calendar_today_outlined,
+                  color: _textColorSecondary(context),
+                  size: 18,
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+      ],
+    );
   }
 
   Widget _buildTextField({
@@ -172,92 +342,203 @@ class _MealPlanningScreen3State extends State<MealPlanningScreen3> {
     TextInputType keyboardType = TextInputType.text,
     bool isNumeric = false,
     String? Function(String?)? validator,
-    IconData? prefixIcon, // Optional prefix icon
+    IconData? prefixIcon,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(labelText, style: _labelTextStyle),
+        Text(
+          labelText,
+          style: _getTextStyle(
+            context,
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: _textColorSecondary(context),
+          ),
+        ),
         const SizedBox(height: 8),
         TextFormField(
           controller: controller,
           keyboardType: keyboardType,
-          style: _textFieldStyle,
+          style: _getTextStyle(context, fontSize: 16),
           decoration: InputDecoration(
             hintText: hintText,
-            hintStyle: _hintTextStyle,
-            filled: true,
-            fillColor: Colors.grey.shade50, // Even lighter fill for a softer look
-            prefixIcon: prefixIcon != null ? Icon(prefixIcon, color: Colors.grey.shade600, size: 20) : null,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16), // More rounded
-              borderSide: BorderSide(color: Colors.grey.shade300, width: 1), // Subtle border
+            hintStyle: _getTextStyle(
+              context,
+              fontSize: 14,
+              color: _textColorSecondary(context),
             ),
-            enabledBorder: OutlineInputBorder( // Border when not focused
-              borderRadius: BorderRadius.circular(16),
-              borderSide: BorderSide(color: Colors.grey.shade300, width: 1),
+            filled: true,
+            fillColor: _scaffoldBgColor(context),
+            prefixIcon: prefixIcon != null
+                ? Icon(prefixIcon, color: _primaryColor, size: 20)
+                : null,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.grey.shade300),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.grey.shade300),
             ),
             focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
-              borderSide:
-              const BorderSide(color: Color(0xFF4CAF50), width: 1.5),
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: _primaryColor, width: 2),
+            ),
+            errorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Colors.redAccent),
+            ),
+            focusedErrorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Colors.redAccent, width: 2),
             ),
             contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 16), // Adjusted padding
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            isDense: true,
           ),
-          validator: validator ?? (value) { // Default validator
-            if (value == null || value.isEmpty) {
-              return 'Please enter $labelText';
-            }
-            if (isNumeric && double.tryParse(value) == null) {
-              return 'Please enter a valid number';
-            }
-            return null;
-          },
+          validator: validator ??
+                  (value) {
+                if (value == null || value.isEmpty) {
+                  return 'Please enter $labelText';
+                }
+                if (isNumeric && double.tryParse(value) == null) {
+                  return 'Please enter a valid number';
+                }
+                return null;
+              },
         ),
-        const SizedBox(height: 20), // Increased spacing
+        const SizedBox(height: 16),
       ],
     );
   }
 
-  Widget _buildSectionContainer({required String title, required List<Widget> children, String? sectionSubtitle}) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 24),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white, // Could be Colors.grey.shade50 for very subtle difference
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            spreadRadius: 1,
-            blurRadius: 5,
-            offset: const Offset(0, 2),
+  Widget _buildGenderSelection() {
+    final genders = [
+      {"value": "Male", "icon": Icons.male},
+      {"value": "Female", "icon": Icons.female},
+      {"value": "Other", "icon": Icons.transgender},
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          "Gender",
+          style: _getTextStyle(
+            context,
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: _textColorSecondary(context),
           ),
-        ],
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: genders.map((gender) {
+            final isSelected = selectedGender == gender["value"];
+            return Expanded(
+              child: GestureDetector(
+                onTap: () {
+                  setState(() {
+                    selectedGender = gender["value"] as String;
+                  });
+                },
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  margin: const EdgeInsets.only(right: 8),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? _primaryColor.withOpacity(0.1)
+                        : _scaffoldBgColor(context),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: isSelected ? _primaryColor : Colors.grey.shade300,
+                      width: isSelected ? 2 : 1,
+                    ),
+                  ),
+                  child: Column(
+                    children: [
+                      Icon(
+                        gender["icon"] as IconData,
+                        color: isSelected ? _primaryColor : Colors.grey.shade600,
+                        size: 28,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        gender["value"] as String,
+                        style: _getTextStyle(
+                          context,
+                          fontSize: 13,
+                          fontWeight:
+                          isSelected ? FontWeight.bold : FontWeight.w500,
+                          color: isSelected
+                              ? _primaryColor
+                              : _textColorSecondary(context),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+        const SizedBox(height: 16),
+      ],
+    );
+  }
+
+  Widget _buildSectionContainer({
+    required String title,
+    required List<Widget> children,
+    String? subtitle,
+  }) {
+    return Card(
+      elevation: 4,
+      shadowColor: _primaryColor.withOpacity(0.1),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(title, style: _sectionTitleStyle),
-          if (sectionSubtitle != null) ...[
-            const SizedBox(height: 4),
-            Text(sectionSubtitle, style: _labelTextStyle.copyWith(fontSize: 14, color: Colors.grey[700])),
+      color: _cardBgColor(context),
+      margin: const EdgeInsets.only(bottom: 16),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              title,
+              style: _getTextStyle(
+                context,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: _primaryColor,
+              ),
+            ),
+            if (subtitle != null) ...[
+              const SizedBox(height: 4),
+              Text(
+                subtitle,
+                style: _getTextStyle(
+                  context,
+                  fontSize: 13,
+                  color: _textColorSecondary(context),
+                ),
+              ),
+            ],
+            const SizedBox(height: 16),
+            ...children,
           ],
-          const SizedBox(height: 20),
-          ...children,
-        ],
+        ),
       ),
     );
   }
 
-
   Widget _buildSelectionList({
-    // required String title, // Title will be part of _buildSectionContainer
     required List<Map<String, dynamic>> items,
     required int? selectedIndex,
     required ValueChanged<int?> onSelected,
-    // String? subtitle,
   }) {
     return ListView.builder(
       shrinkWrap: true,
@@ -270,214 +551,352 @@ class _MealPlanningScreen3State extends State<MealPlanningScreen3> {
 
         return GestureDetector(
           onTap: () => onSelected(index),
-          child: AnimatedContainer( // Added AnimatedContainer for smoother selection
+          child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
-            margin: const EdgeInsets.only(bottom: 12),
-            padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+            margin: const EdgeInsets.only(bottom: 10),
+            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
             decoration: BoxDecoration(
-              color: isItemSelected ? Colors.green.shade100 : Colors.grey.shade100,
+              color: isItemSelected
+                  ? _primaryColor.withOpacity(0.1)
+                  : _scaffoldBgColor(context),
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                color: isItemSelected
-                    ? const Color(0xFF4CAF50)
-                    : Colors.grey.shade300,
-                width: isItemSelected ? 2.0 : 1.5,
+                color: isItemSelected ? _primaryColor : Colors.grey.shade300,
+                width: isItemSelected ? 2 : 1,
               ),
-              boxShadow: isItemSelected ? [
-                BoxShadow(
-                  color: Colors.green.withOpacity(0.2),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                )
-              ] : [],
             ),
-            child: Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(
-                  item["icon"],
-                  color: isItemSelected
-                      ? const Color(0xFF4CAF50)
-                      : Colors.grey.shade700,
-                  size: 24, // Slightly larger icon
+                Row(
+                  children: [
+                    Icon(
+                      item["icon"],
+                      color: isItemSelected ? _primaryColor : Colors.grey.shade600,
+                      size: 22,
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Text(
+                        item["text"],
+                        style: _getTextStyle(
+                          context,
+                          fontSize: 15,
+                          fontWeight:
+                          isItemSelected ? FontWeight.bold : FontWeight.w500,
+                          color: isItemSelected
+                              ? _primaryColor
+                              : _textColorPrimary(context),
+                        ),
+                      ),
+                    ),
+                    if (isItemSelected)
+                      const Icon(Icons.check_circle, color: _primaryColor, size: 20),
+                  ],
                 ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Text(
-                    item["text"],
-                    style: _listItemTextStyle.copyWith(
-                      color: isItemSelected
-                          ? const Color(0xFF4CAF50)
-                          : Colors.black87,
-                      fontWeight:
-                      isItemSelected ? FontWeight.bold : FontWeight.w500,
+                // <CHANGE> Added description text for activity levels
+                if (item["description"] != null) ...[
+                  const SizedBox(height: 6),
+                  Padding(
+                    padding: const EdgeInsets.only(left: 36),
+                    child: Text(
+                      item["description"],
+                      style: _getTextStyle(
+                        context,
+                        fontSize: 12,
+                        color: _textColorSecondary(context),
+                      ),
                     ),
                   ),
-                ),
-                if (isItemSelected) // Added a checkmark for selected item
-                  const Icon(Icons.check_circle, color: Color(0xFF4CAF50), size: 22),
+                ],
               ],
             ),
           ),
         );
       },
     );
-    // const SizedBox(height: 24) is removed, will be handled by section container
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey.shade50, // Slightly off-white background for overall page
+      backgroundColor: _scaffoldBgColor(context),
       body: SafeArea(
-        child: Form( // Wrap content in a Form widget
+        child: Form(
           key: _formKey,
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 20.0), // Adjusted padding
+            physics: const BouncingScrollPhysics(),
+            padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const SizedBox(height: 10),
-                const Text(
+                const SizedBox(height: 12),
+                Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    color: _primaryColor,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: _primaryColor.withOpacity(0.3),
+                        blurRadius: 15,
+                        offset: const Offset(0, 5),
+                      ),
+                    ],
+                  ),
+                  child: const Icon(
+                    Icons.person_outline,
+                    color: _textColorOnPrimary,
+                    size: 28,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
                   'Tell Us About Yourself',
                   textAlign: TextAlign.center,
-                  style: _screenTitleStyle,
+                  style: _getTextStyle(
+                    context,
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: _textColorPrimary(context),
+                  ),
                 ),
-                const SizedBox(height: 8),
-                const Text( // Progress indicator
+                const SizedBox(height: 4),
+                Text(
                   'Step 3 of 4: Profile Details',
                   textAlign: TextAlign.center,
-                  style: _stepTextStyle,
+                  style: _getTextStyle(
+                    context,
+                    fontSize: 13,
+                    color: _textColorSecondary(context),
+                  ),
                 ),
-                const SizedBox(height: 30),
+                const SizedBox(height: 20),
 
-                // --- Personal Information Section ---
+                // Personal Information Section
                 _buildSectionContainer(
                   title: 'Personal Information',
                   children: [
-                    _buildTextField(
-                        controller: _nicknameController,
-                        labelText: 'Nickname',
-                        hintText: 'E.g., Alex',
-                        prefixIcon: Icons.person_outline,
-                        validator: (value) {
-                          if (value == null || value.isEmpty) return 'Nickname is required';
-                          return null;
-                        }),
-                    _buildTextField(
-                        controller: _ageController,
-                        labelText: 'Age',
-                        hintText: 'Enter your age',
-                        keyboardType: TextInputType.number,
-                        prefixIcon: Icons.cake_outlined,
-                        isNumeric: true,
-                        validator: (value) {
-                          if (value == null || value.isEmpty) return 'Age is required';
-                          if (int.tryParse(value) == null || int.parse(value) <= 0) return 'Enter a valid age';
-                          return null;
-                        }),
-                    _buildTextField(
-                        controller: _genderController,
-                        labelText: 'Gender',
-                        prefixIcon: Icons.wc_outlined,
-                        hintText: 'E.g., Male, Female, Other'),
+                    // <CHANGE> Replaced age input with birthday picker
+                    _buildBirthdayPicker(),
+                    _buildGenderSelection(),
                     Row(
                       children: [
                         Expanded(
-                          child: _buildTextField(
-                              controller: _weightController,
-                              labelText: 'Current Weight',
-                              hintText: 'e.g., 70 kg',
-                              prefixIcon: Icons.monitor_weight_outlined,
-                              keyboardType: TextInputType.number,
-                              isNumeric: true,
-                              validator: (value) {
-                                if (value == null || value.isEmpty) return 'Weight is required';
-                                if (double.tryParse(value) == null || double.parse(value) <= 0) return 'Enter a valid weight';
-                                return null;
-                              }),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                "Weight (kg)",
+                                style: _getTextStyle(
+                                  context,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: _textColorSecondary(context),
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              TextFormField(
+                                controller: _weightController,
+                                keyboardType: TextInputType.number,
+                                style: _getTextStyle(context, fontSize: 16),
+                                decoration: InputDecoration(
+                                  hintText: 'e.g., 70',
+                                  hintStyle: _getTextStyle(
+                                    context,
+                                    fontSize: 14,
+                                    color: _textColorSecondary(context),
+                                  ),
+                                  filled: true,
+                                  fillColor: _scaffoldBgColor(context),
+                                  prefixIcon: const Icon(
+                                    Icons.monitor_weight_outlined,
+                                    color: _primaryColor,
+                                    size: 20,
+                                  ),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide:
+                                    BorderSide(color: Colors.grey.shade300),
+                                  ),
+                                  enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide:
+                                    BorderSide(color: Colors.grey.shade300),
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: const BorderSide(
+                                        color: _primaryColor, width: 2),
+                                  ),
+                                  errorBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide:
+                                    const BorderSide(color: Colors.redAccent),
+                                  ),
+                                  focusedErrorBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: const BorderSide(
+                                        color: Colors.redAccent, width: 2),
+                                  ),
+                                  contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 16, vertical: 14),
+                                  isDense: true,
+                                ),
+                                validator: (value) {
+                                  if (value == null || value.isEmpty) {
+                                    return 'Required';
+                                  }
+                                  if (double.tryParse(value) == null ||
+                                      double.parse(value) <= 0) {
+                                    return 'Invalid';
+                                  }
+                                  return null;
+                                },
+                              ),
+                            ],
+                          ),
                         ),
-                        const SizedBox(width: 16),
+                        const SizedBox(width: 12),
                         Expanded(
-                          child: _buildTextField(
-                              controller: _heightController,
-                              labelText: 'Height',
-                              hintText: 'e.g., 175 cm',
-                              prefixIcon: Icons.height_outlined,
-                              keyboardType: TextInputType.number,
-                              isNumeric: true,
-                              validator: (value) {
-                                if (value == null || value.isEmpty) return 'Height is required';
-                                if (double.tryParse(value) == null || double.parse(value) <= 0) return 'Enter a valid height';
-                                return null;
-                              }),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                "Height (cm)",
+                                style: _getTextStyle(
+                                  context,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: _textColorSecondary(context),
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              TextFormField(
+                                controller: _heightController,
+                                keyboardType: TextInputType.number,
+                                style: _getTextStyle(context, fontSize: 16),
+                                decoration: InputDecoration(
+                                  hintText: 'e.g., 175',
+                                  hintStyle: _getTextStyle(
+                                    context,
+                                    fontSize: 14,
+                                    color: _textColorSecondary(context),
+                                  ),
+                                  filled: true,
+                                  fillColor: _scaffoldBgColor(context),
+                                  prefixIcon: const Icon(
+                                    Icons.height_outlined,
+                                    color: _primaryColor,
+                                    size: 20,
+                                  ),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide:
+                                    BorderSide(color: Colors.grey.shade300),
+                                  ),
+                                  enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide:
+                                    BorderSide(color: Colors.grey.shade300),
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: const BorderSide(
+                                        color: _primaryColor, width: 2),
+                                  ),
+                                  errorBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide:
+                                    const BorderSide(color: Colors.redAccent),
+                                  ),
+                                  focusedErrorBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: const BorderSide(
+                                        color: Colors.redAccent, width: 2),
+                                  ),
+                                  contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 16, vertical: 14),
+                                  isDense: true,
+                                ),
+                                validator: (value) {
+                                  if (value == null || value.isEmpty) {
+                                    return 'Required';
+                                  }
+                                  if (double.tryParse(value) == null ||
+                                      double.parse(value) <= 0) {
+                                    return 'Invalid';
+                                  }
+                                  return null;
+                                },
+                              ),
+                            ],
+                          ),
                         ),
                       ],
                     ),
                   ],
                 ),
 
-
-                // --- Health Goals Section ---
+                // Health Goals Section
                 _buildSectionContainer(
-                    title: 'Health Goals',
-                    children: [
-                      _buildSelectionList(
-                        items: healthGoals,
-                        selectedIndex: selectedHealthGoalIndex,
-                        onSelected: (index) {
-                          setState(() => selectedHealthGoalIndex = index);
-                        },
-                      ),
-                    ]
-                ),
-
-
-                // --- Activity and Lifestyle Section ---
-                _buildSectionContainer(
-                    title: 'Activity & Lifestyle',
-                    sectionSubtitle: 'How would you describe your activity level?',
-                    children: [
-                      _buildSelectionList(
-                        items: activityLevels,
-                        selectedIndex: selectedActivityLevelIndex,
-                        onSelected: (index) {
-                          setState(() => selectedActivityLevelIndex = index);
-                        },
-                      ),
-                    ]
-                ),
-
-
-                // --- NEXT Button ---
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 24.0), // More vertical padding
-                  child: SizedBox(
-                    width: double.infinity,
-                    height: 60, // Taller button
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF4CAF50),
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16), // More rounded
-                        ),
-                        elevation: 3,
-                      ),
-                      onPressed: _saveUserData,
-                      child: const Text('NEXT', style: _buttonTextStyle),
+                  title: 'Health Goals',
+                  subtitle: 'What would you like to achieve?',
+                  children: [
+                    _buildSelectionList(
+                      items: healthGoals,
+                      selectedIndex: selectedHealthGoalIndex,
+                      onSelected: (index) {
+                        setState(() => selectedHealthGoalIndex = index);
+                      },
                     ),
-                  ),
+                  ],
                 ),
 
-                if (widget.userId.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 20.0),
+                // Activity Level Section
+                _buildSectionContainer(
+                  title: 'Activity & Lifestyle',
+                  subtitle: 'How would you describe your activity level?',
+                  children: [
+                    _buildSelectionList(
+                      items: activityLevels,
+                      selectedIndex: selectedActivityLevelIndex,
+                      onSelected: (index) {
+                        setState(() => selectedActivityLevelIndex = index);
+                      },
+                    ),
+                  ],
+                ),
+
+                // Next Button
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _primaryColor,
+                      foregroundColor: _textColorOnPrimary,
+                      elevation: 4,
+                      shadowColor: _primaryColor.withOpacity(0.4),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    onPressed: _saveUserData,
                     child: Text(
-                      "UID: ${widget.userId}",
-                      textAlign: TextAlign.center,
-                      style: _smallDebugTextStyle,
+                      'NEXT',
+                      style: _getTextStyle(
+                        context,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: _textColorOnPrimary,
+                      ),
                     ),
                   ),
+                ),
+                const SizedBox(height: 16),
               ],
             ),
           ),
@@ -486,4 +905,3 @@ class _MealPlanningScreen3State extends State<MealPlanningScreen3> {
     );
   }
 }
-

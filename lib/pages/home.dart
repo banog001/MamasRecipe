@@ -1333,11 +1333,6 @@ class _HomeState extends State<home> {
                 activeIcon: Icon(Icons.mail),
                 label: 'Messages',
               ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.person_outline_rounded),
-                activeIcon: Icon(Icons.person_rounded),
-                label: 'Profile',
-              ),
             ],
           ),
         ),

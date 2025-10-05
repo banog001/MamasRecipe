@@ -23,32 +23,32 @@ class MealPlanningScreen extends StatelessWidget {
 
   static const TextStyle _screenTitleStyle = TextStyle(
       fontFamily: _primaryFontFamily,
-      fontSize: 28, // More impactful title
-      fontWeight: FontWeight.w800, // ExtraBold for title
-      color: Color(0xFF333333), // Dark primary text color
-      height: 1.2, // Tighter line height for multi-line title
-      letterSpacing: 0.3);
+      fontSize: 26,
+      fontWeight: FontWeight.w800,
+      color: Color(0xFF333333),
+      height: 1.3,
+      letterSpacing: 0.2);
 
   static const TextStyle _stepTextStyle = TextStyle(
       fontFamily: _primaryFontFamily,
-      fontSize: 15,
-      fontWeight: FontWeight.w500,
-      color: Colors.grey, // Subtle step indicator
+      fontSize: 14,
+      fontWeight: FontWeight.w600,
+      color: Colors.grey,
       letterSpacing: 0.5);
 
   static const TextStyle _subHeadlineStyle = TextStyle(
       fontFamily: _primaryFontFamily,
-      fontSize: 16, // Clear and readable
+      fontSize: 15,
       fontWeight: FontWeight.normal,
-      color: Colors.black54, // Good contrast
+      color: Colors.black54,
       height: 1.5,
-      letterSpacing: 0.2);
+      letterSpacing: 0.1);
 
   static const TextStyle _buttonTextStyle = TextStyle(
       fontFamily: _primaryFontFamily,
       fontWeight: FontWeight.bold,
-      letterSpacing: 1.5, // More spacing
-      fontSize: 18, // Larger button text
+      letterSpacing: 1.2,
+      fontSize: 16,
       color: Colors.white);
 
   static const TextStyle _smallDebugTextStyle = TextStyle(
@@ -81,26 +81,25 @@ class MealPlanningScreen extends StatelessWidget {
                         'Step 1 of 4: Welcome!',
                         style: _stepTextStyle,
                       ),
-                      const SizedBox(height: 30),
+                      const SizedBox(height: 24),
 
-                      // Enhanced Image Presentation
                       Container(
-                        width: 230, // Slightly larger
-                        height: 230,
+                        width: 200,
+                        height: 200,
                         decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: Colors.white, // Ensure it's on a solid background if shadow is used
+                            color: Colors.white,
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.grey.withOpacity(0.3), // Softer shadow
-                                spreadRadius: 2,
-                                blurRadius: 10,
-                                offset: const Offset(0, 4), // changes position of shadow
+                                color: Colors.grey.withOpacity(0.2),
+                                spreadRadius: 1,
+                                blurRadius: 8,
+                                offset: const Offset(0, 3),
                               ),
                             ],
-                            border: Border.all( // Optional: subtle border
+                            border: Border.all(
                               color: Colors.green.shade100,
-                              width: 3,
+                              width: 2,
                             )
                         ),
                         child: ClipOval(
@@ -117,7 +116,7 @@ class MealPlanningScreen extends StatelessWidget {
                           ),
                         ),
                       ),
-                      const SizedBox(height: 40),
+                      const SizedBox(height: 32),
 
                       // Headline
                       const Text(
@@ -125,7 +124,7 @@ class MealPlanningScreen extends StatelessWidget {
                         textAlign: TextAlign.center,
                         style: _screenTitleStyle,
                       ),
-                      const SizedBox(height: 18),
+                      const SizedBox(height: 16),
 
                       // Sub-headline
                       Padding(
@@ -149,20 +148,19 @@ class MealPlanningScreen extends StatelessWidget {
                 ),
               ),
 
-              // GET STARTED Button
               Padding(
                 padding: const EdgeInsets.only(bottom: 30.0, top: 20.0),
                 child: SizedBox(
                   width: MediaQuery.of(context).size.width * 0.85, // Wider button
-                  height: 60, // Taller button
+                  height: 52, // Taller button
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF4CAF50), // Your theme green
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16), // More modern radius
+                        borderRadius: BorderRadius.circular(12), // More modern radius
                       ),
-                      elevation: 4, // More prominent shadow
+                      elevation: 2, // More prominent shadow
                     ),
                     onPressed: () async {
                       await _updateTutorialStep(1);
@@ -190,4 +188,3 @@ class MealPlanningScreen extends StatelessWidget {
     );
   }
 }
-

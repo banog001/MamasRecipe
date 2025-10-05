@@ -386,10 +386,12 @@ class _SignUpPageState extends State<signUpPage> with TickerProviderStateMixin {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      const SizedBox(height: 60),
+                      // <CHANGE> Reduced top padding from 60 to 16
+                      const SizedBox(height: 16),
 
                       _buildHeaderSection(),
-                      const SizedBox(height: 50),
+                      // <CHANGE> Reduced spacing from 50 to 16
+                      const SizedBox(height: 16),
 
                       Card(
                         elevation: 8,
@@ -399,7 +401,8 @@ class _SignUpPageState extends State<signUpPage> with TickerProviderStateMixin {
                         ),
                         color: _cardBgColor(context),
                         child: Padding(
-                          padding: const EdgeInsets.all(28.0),
+                          // <CHANGE> Reduced card padding from 28 to 16
+                          padding: const EdgeInsets.all(16.0),
                           child: Column(
                             children: [
                               _buildTextField(
@@ -409,7 +412,8 @@ class _SignUpPageState extends State<signUpPage> with TickerProviderStateMixin {
                                 validator: (v) =>
                                 (v == null || v.isEmpty) ? 'Enter your first name' : null,
                               ),
-                              const SizedBox(height: 20),
+                              // <CHANGE> Reduced spacing from 20 to 12
+                              const SizedBox(height: 12),
 
                               _buildTextField(
                                 controller: _lastNameController,
@@ -418,7 +422,7 @@ class _SignUpPageState extends State<signUpPage> with TickerProviderStateMixin {
                                 validator: (v) =>
                                 (v == null || v.isEmpty) ? 'Enter your last name' : null,
                               ),
-                              const SizedBox(height: 20),
+                              const SizedBox(height: 12),
 
                               _buildTextField(
                                 controller: _emailController,
@@ -434,7 +438,7 @@ class _SignUpPageState extends State<signUpPage> with TickerProviderStateMixin {
                                   return ok ? null : 'Enter a valid email';
                                 },
                               ),
-                              const SizedBox(height: 20),
+                              const SizedBox(height: 12),
 
                               _buildTextField(
                                 controller: _passwordController,
@@ -461,7 +465,7 @@ class _SignUpPageState extends State<signUpPage> with TickerProviderStateMixin {
                                   return null;
                                 },
                               ),
-                              const SizedBox(height: 20),
+                              const SizedBox(height: 12),
 
                               _buildTextField(
                                 controller: _confirmPasswordController,
@@ -488,23 +492,27 @@ class _SignUpPageState extends State<signUpPage> with TickerProviderStateMixin {
                                   return null;
                                 },
                               ),
-                              const SizedBox(height: 35),
+                              // <CHANGE> Reduced spacing from 35 to 16
+                              const SizedBox(height: 16),
 
                               _buildSignUpButton(),
-                              const SizedBox(height: 20),
+                              // <CHANGE> Reduced spacing from 20 to 12
+                              const SizedBox(height: 12),
 
                               _buildDivider(),
-                              const SizedBox(height: 20),
+                              const SizedBox(height: 12),
 
                               _buildGoogleSignUpButton(),
                             ],
                           ),
                         ),
                       ),
-                      const SizedBox(height: 30),
+                      // <CHANGE> Reduced spacing from 30 to 16
+                      const SizedBox(height: 16),
 
                       _buildLoginLink(),
-                      const SizedBox(height: 40),
+                      // <CHANGE> Reduced bottom padding from 40 to 16
+                      const SizedBox(height: 16),
                     ],
                   ),
                 ),
@@ -520,8 +528,9 @@ class _SignUpPageState extends State<signUpPage> with TickerProviderStateMixin {
     return Column(
       children: [
         Container(
-          width: 80,
-          height: 80,
+          // <CHANGE> Reduced icon size from 80x80 to 56x56
+          width: 56,
+          height: 56,
           decoration: BoxDecoration(
             color: _primaryColor,
             shape: BoxShape.circle,
@@ -536,25 +545,30 @@ class _SignUpPageState extends State<signUpPage> with TickerProviderStateMixin {
           child: const Icon(
             Icons.person_add_outlined,
             color: _textColorOnPrimary,
-            size: 40,
+            // <CHANGE> Reduced icon size from 40 to 32
+            size: 32,
           ),
         ),
-        const SizedBox(height: 24),
+        // <CHANGE> Reduced spacing from 24 to 12
+        const SizedBox(height: 12),
         Text(
           'Create Account',
           style: _getTextStyle(
             context,
-            fontSize: 32,
+            // <CHANGE> Reduced font size from 32 to 24
+            fontSize: 24,
             fontWeight: FontWeight.bold,
             color: _textColorPrimary(context),
           ),
         ),
-        const SizedBox(height: 8),
+        // <CHANGE> Reduced spacing from 8 to 4
+        const SizedBox(height: 4),
         Text(
           'Join us to start your health journey',
           style: _getTextStyle(
             context,
-            fontSize: 16,
+            // <CHANGE> Reduced font size from 16 to 13
+            fontSize: 13,
             color: _textColorSecondary(context),
           ),
         ),
@@ -584,7 +598,8 @@ class _SignUpPageState extends State<signUpPage> with TickerProviderStateMixin {
           color: _textColorSecondary(context),
           fontSize: 14,
         ),
-        prefixIcon: Icon(icon, color: _primaryColor, size: 22),
+        // <CHANGE> Reduced icon size from 22 to 20
+        prefixIcon: Icon(icon, color: _primaryColor, size: 20),
         suffixIcon: suffixIcon,
         filled: true,
         fillColor: _scaffoldBgColor(context),
@@ -608,7 +623,8 @@ class _SignUpPageState extends State<signUpPage> with TickerProviderStateMixin {
           borderRadius: BorderRadius.circular(16),
           borderSide: const BorderSide(color: Colors.redAccent, width: 2),
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+        // <CHANGE> Reduced vertical padding from 18 to 14
+        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
       ),
     );
   }
@@ -616,7 +632,8 @@ class _SignUpPageState extends State<signUpPage> with TickerProviderStateMixin {
   Widget _buildSignUpButton() {
     return SizedBox(
       width: double.infinity,
-      height: 56,
+      // <CHANGE> Reduced button height from 56 to 48
+      height: 48,
       child: ElevatedButton(
         onPressed: _isLoading ? null : registerUser,
         style: ElevatedButton.styleFrom(
@@ -674,7 +691,8 @@ class _SignUpPageState extends State<signUpPage> with TickerProviderStateMixin {
   Widget _buildGoogleSignUpButton() {
     return SizedBox(
       width: double.infinity,
-      height: 56,
+      // <CHANGE> Reduced button height from 56 to 48
+      height: 48,
       child: OutlinedButton.icon(
         onPressed: _isLoading ? null : signInWithGoogle,
         style: OutlinedButton.styleFrom(
@@ -684,7 +702,7 @@ class _SignUpPageState extends State<signUpPage> with TickerProviderStateMixin {
           ),
         ),
         icon: Image.asset(
-          'assets/google_logo.png', // You'll need to add this asset
+          'assets/google_logo.png',
           width: 20,
           height: 20,
           errorBuilder: (context, error, stackTrace) =>
@@ -759,8 +777,6 @@ class _SignUpPageState extends State<signUpPage> with TickerProviderStateMixin {
       }
     }
   }
-
-  // ---------- UI ----------
 
   void _showSuccessDialog(BuildContext context, {VoidCallback? onOk}) {
     showDialog(

@@ -18,7 +18,22 @@ class _EditProfilePageState extends State<EditProfilePage> {
   final ImagePicker _picker = ImagePicker();
   bool _isUploading = false;
 
-  // 🔹 Replace with your Cloudinary info
+  static const String _primaryFontFamily = 'PlusJakartaSans';
+  static const Color _primaryColor = Color(0xFF4CAF50);
+
+  static const TextStyle _labelStyle = TextStyle(
+    fontFamily: _primaryFontFamily,
+    fontSize: 13,
+    fontWeight: FontWeight.w600,
+    color: Colors.black87,
+  );
+
+  static const TextStyle _helperStyle = TextStyle(
+    fontFamily: _primaryFontFamily,
+    fontSize: 11,
+    color: Colors.black54,
+  );
+
   final String cloudName = "dbc77ko88";
   final String uploadPreset = "profile";
 
@@ -34,32 +49,52 @@ class _EditProfilePageState extends State<EditProfilePage> {
   void _showImageSourceDialog() {
     showModalBottomSheet(
       context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
       builder: (context) => SafeArea(
-        child: Wrap(
-          children: [
-            ListTile(
-              leading: const Icon(Icons.photo_library),
-              title: const Text("Choose from Gallery"),
-              onTap: () {
-                Navigator.pop(context);
-                _pickImage(ImageSource.gallery);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.camera_alt),
-              title: const Text("Take a Photo"),
-              onTap: () {
-                Navigator.pop(context);
-                _pickImage(ImageSource.camera);
-              },
-            ),
-          ],
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: _primaryColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.photo_library, color: _primaryColor),
+                ),
+                title: const Text("Choose from Gallery", style: TextStyle(fontFamily: _primaryFontFamily)),
+                onTap: () {
+                  Navigator.pop(context);
+                  _pickImage(ImageSource.gallery);
+                },
+              ),
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: _primaryColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.camera_alt, color: _primaryColor),
+                ),
+                title: const Text("Take a Photo", style: TextStyle(fontFamily: _primaryFontFamily)),
+                onTap: () {
+                  Navigator.pop(context);
+                  _pickImage(ImageSource.camera);
+                },
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  // 🔹 Upload to Cloudinary
   Future<String?> _uploadToCloudinary(File imageFile) async {
     try {
       setState(() => _isUploading = true);
@@ -71,7 +106,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
       final response = await request.send();
       final resBody = await response.stream.bytesToString();
-      print("🔹 Cloudinary response: $resBody"); // <--- ADD THIS
+      print("🔹 Cloudinary response: $resBody");
 
       final data = json.decode(resBody);
 
@@ -89,8 +124,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
     }
   }
 
-
-  // 🔹 Save to Firestore
   Future<void> _saveProfile() async {
     if (_profileImage == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -120,16 +153,40 @@ class _EditProfilePageState extends State<EditProfilePage> {
     );
   }
 
+  Future<Map<String, dynamic>?> _getUserData() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return null;
+
+    final snapshot = await FirebaseFirestore.instance
+        .collection("Users")
+        .doc(user.uid)
+        .get();
+    return snapshot.data();
+  }
+
   @override
   Widget build(BuildContext context) {
+    final user = FirebaseAuth.instance.currentUser;
+    final keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
+
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Colors.grey.shade50,
+      resizeToAvoidBottomInset: true,
       appBar: AppBar(
-        backgroundColor: Colors.green,
+        backgroundColor: _primaryColor,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => Navigator.pop(context),
+        ),
+        title: const Text(
+          "Edit Profile",
+          style: TextStyle(
+            fontFamily: _primaryFontFamily,
+            fontWeight: FontWeight.bold,
+            fontSize: 20,
+            color: Colors.white,
+          ),
         ),
         actions: [
           TextButton(
@@ -145,104 +202,238 @@ class _EditProfilePageState extends State<EditProfilePage> {
             )
                 : const Text(
               "Save",
-              style: TextStyle(color: Colors.white, fontSize: 16),
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontFamily: _primaryFontFamily,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           )
         ],
       ),
-      body: Column(
-        children: [
-          // Profile Picture
-          Container(
-            color: Colors.green,
-            padding: const EdgeInsets.symmetric(vertical: 20),
-            child: Center(
-              child: Stack(
-                children: [
-                  CircleAvatar(
-                    radius: 60,
-                    backgroundColor: Colors.white,
-                    backgroundImage:
-                    _profileImage != null ? FileImage(_profileImage!) : null,
-                    child: _profileImage == null
-                        ? const Icon(Icons.person,
-                        size: 80, color: Colors.black54)
-                        : null,
+      body: FutureBuilder<Map<String, dynamic>?>(
+        future: _getUserData(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          final userData = snapshot.data;
+          final String? profileUrl = userData?['profile'];
+          final String displayName = user?.displayName ?? "Unknown User";
+          final String displayEmail = user?.email ?? "";
+
+          return LayoutBuilder(
+            builder: (context, constraints) {
+              return SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    minHeight: constraints.maxHeight,
                   ),
-                  Positioned(
-                    bottom: 0,
-                    right: 0,
-                    child: CircleAvatar(
-                      backgroundColor: Colors.white,
-                      radius: 20,
-                      child: IconButton(
-                        padding: EdgeInsets.zero,
-                        icon: const Icon(Icons.camera_alt,
-                            color: Colors.green, size: 20),
-                        onPressed: _showImageSourceDialog,
-                      ),
+                  child: IntrinsicHeight(
+                    child: Column(
+                      children: [
+                        Container(
+                          width: double.infinity,
+                          padding: EdgeInsets.fromLTRB(20, keyboardHeight > 0 ? 16 : 20, 20, keyboardHeight > 0 ? 20 : 24),
+                          decoration: BoxDecoration(
+                            color: _primaryColor,
+                            borderRadius: const BorderRadius.vertical(bottom: Radius.circular(24)),
+                            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 8, offset: Offset(0, 3))],
+                          ),
+                          child: Column(
+                            children: [
+                              Stack(
+                                children: [
+                                  Container(
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      border: Border.all(color: Colors.white, width: 3),
+                                      boxShadow: [
+                                        BoxShadow(
+                                            color: Colors.black.withOpacity(0.15),
+                                            spreadRadius: 1,
+                                            blurRadius: 6,
+                                            offset: Offset(0, 2))
+                                      ],
+                                    ),
+                                    child: CircleAvatar(
+                                      radius: 40,
+                                      backgroundColor: Colors.white,
+                                      backgroundImage: _profileImage != null
+                                          ? FileImage(_profileImage!)
+                                          : (profileUrl != null && profileUrl.isNotEmpty)
+                                          ? NetworkImage(profileUrl)
+                                          : null,
+                                      child: (_profileImage == null && (profileUrl == null || profileUrl.isEmpty))
+                                          ? const Icon(Icons.person_outline, size: 42, color: _primaryColor)
+                                          : null,
+                                    ),
+                                  ),
+                                  Positioned(
+                                    bottom: 0,
+                                    right: 0,
+                                    child: Material(
+                                      color: Colors.white,
+                                      shape: const CircleBorder(),
+                                      elevation: 2,
+                                      child: InkWell(
+                                        onTap: _showImageSourceDialog,
+                                        customBorder: const CircleBorder(),
+                                        child: const Padding(
+                                          padding: EdgeInsets.all(6.0),
+                                          child: Icon(Icons.camera_alt, color: _primaryColor, size: 16),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 10),
+                              Text(
+                                displayName,
+                                style: const TextStyle(
+                                  fontFamily: _primaryFontFamily,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              if (displayEmail.isNotEmpty) ...[
+                                const SizedBox(height: 3),
+                                Text(
+                                  displayEmail,
+                                  style: TextStyle(
+                                    fontFamily: _primaryFontFamily,
+                                    fontSize: 13,
+                                    color: Colors.white.withOpacity(0.8),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                        Flexible(
+                          child: Padding(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: 24.0,
+                              vertical: keyboardHeight > 0 ? 12.0 : 16.0,
+                            ),
+                            child: Card(
+                              elevation: 2,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              color: Colors.white,
+                              child: Padding(
+                                padding: const EdgeInsets.all(16.0),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      "Profile Information",
+                                      style: TextStyle(
+                                        fontFamily: _primaryFontFamily,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                        color: _primaryColor,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 12),
+                                    _buildTextField("Username"),
+                                    const SizedBox(height: 10),
+                                    _buildTextField("Current weight",
+                                        helperText: "Cooldown after changing (30 days)"),
+                                    const SizedBox(height: 10),
+                                    _buildTextField("Change Password", obscure: true),
+                                    const SizedBox(height: 10),
+                                    _buildTextField("Confirm Password", obscure: true),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ],
-              ),
-            ),
-          ),
-
-          // Form Fields
-          Expanded(
-            child: Container(
-              width: double.infinity,
-              decoration: const BoxDecoration(
-                color: Color(0xFFF5F5F5),
-                borderRadius: BorderRadius.only(
-                  topLeft: Radius.circular(30),
-                  topRight: Radius.circular(30),
                 ),
-              ),
-              padding: const EdgeInsets.all(20),
-              child: SingleChildScrollView(
-                child: Column(
-                  children: [
-                    _buildTextField("Username"),
-                    const SizedBox(height: 16),
-                    _buildTextField("Current weight",
-                        helperText: "Cooldown after changing (30 days)"),
-                    const SizedBox(height: 16),
-                    _buildTextField("Change Password", obscure: true),
-                    const SizedBox(height: 16),
-                    _buildTextField("Confirm Password", obscure: true),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ],
+              );
+            },
+          );
+        },
       ),
-
-      bottomNavigationBar: BottomNavigationBar(
-        backgroundColor: Colors.green,
-        selectedItemColor: Colors.white,
-        unselectedItemColor: Colors.white,
-        showSelectedLabels: false,
-        showUnselectedLabels: false,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: ""),
-          BottomNavigationBarItem(icon: Icon(Icons.calendar_today), label: ""),
-          BottomNavigationBarItem(icon: Icon(Icons.mail), label: ""),
-        ],
+      bottomNavigationBar: ClipRRect(
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(24),
+          topRight: Radius.circular(24),
+        ),
+        child: BottomNavigationBar(
+          backgroundColor: _primaryColor,
+          selectedItemColor: Colors.white.withOpacity(0.7),
+          unselectedItemColor: Colors.white.withOpacity(0.7),
+          showSelectedLabels: false,
+          showUnselectedLabels: false,
+          items: const [
+            BottomNavigationBarItem(icon: Icon(Icons.home_outlined), activeIcon: Icon(Icons.home), label: ""),
+            BottomNavigationBarItem(icon: Icon(Icons.edit_calendar_outlined), activeIcon: Icon(Icons.edit_calendar), label: ""),
+            BottomNavigationBarItem(icon: Icon(Icons.mail_outline), activeIcon: Icon(Icons.mail), label: ""),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildTextField(String label,
       {bool obscure = false, String? helperText}) {
-    return TextField(
-      obscureText: obscure,
-      decoration: InputDecoration(
-        labelText: label,
-        helperText: helperText,
-        border: const UnderlineInputBorder(),
-      ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontFamily: _primaryFontFamily,
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: Colors.black87,
+          ),
+        ),
+        const SizedBox(height: 6),
+        TextField(
+          obscureText: obscure,
+          style: const TextStyle(
+            fontFamily: _primaryFontFamily,
+            fontSize: 15,
+          ),
+          decoration: InputDecoration(
+            helperText: helperText,
+            helperStyle: const TextStyle(
+              fontFamily: _primaryFontFamily,
+              fontSize: 11,
+              color: Colors.black54,
+            ),
+            filled: true,
+            fillColor: Colors.grey.shade100,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.grey.shade300),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: _primaryColor, width: 2),
+            ),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            isDense: true,
+          ),
+        ),
+      ],
     );
   }
 }
