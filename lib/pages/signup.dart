@@ -370,153 +370,165 @@ class _SignUpPageState extends State<signUpPage> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
+    final keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
+
     return Scaffold(
       backgroundColor: _scaffoldBgColor(context),
+      resizeToAvoidBottomInset: true,
       body: SafeArea(
         child: FadeTransition(
           opacity: _fadeAnimation,
           child: SlideTransition(
             position: _slideAnimation,
-            child: SingleChildScrollView(
-              physics: const BouncingScrollPhysics(),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      // <CHANGE> Reduced top padding from 60 to 16
-                      const SizedBox(height: 16),
-
-                      _buildHeaderSection(),
-                      // <CHANGE> Reduced spacing from 50 to 16
-                      const SizedBox(height: 16),
-
-                      Card(
-                        elevation: 8,
-                        shadowColor: _primaryColor.withOpacity(0.2),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(20),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                return SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      minHeight: constraints.maxHeight,
+                    ),
+                    child: IntrinsicHeight(
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 24.0,
+                          vertical: keyboardHeight > 0 ? 12.0 : 16.0,
                         ),
-                        color: _cardBgColor(context),
-                        child: Padding(
-                          // <CHANGE> Reduced card padding from 28 to 16
-                          padding: const EdgeInsets.all(16.0),
+                        child: Form(
+                          key: _formKey,
                           child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              _buildTextField(
-                                controller: _firstNameController,
-                                label: 'First Name',
-                                icon: Icons.person_outline,
-                                validator: (v) =>
-                                (v == null || v.isEmpty) ? 'Enter your first name' : null,
-                              ),
-                              // <CHANGE> Reduced spacing from 20 to 12
-                              const SizedBox(height: 12),
+                              SizedBox(height: keyboardHeight > 0 ? 12 : 16),
 
-                              _buildTextField(
-                                controller: _lastNameController,
-                                label: 'Last Name',
-                                icon: Icons.person_outline,
-                                validator: (v) =>
-                                (v == null || v.isEmpty) ? 'Enter your last name' : null,
-                              ),
-                              const SizedBox(height: 12),
+                              _buildHeaderSection(),
+                              SizedBox(height: keyboardHeight > 0 ? 12 : 16),
 
-                              _buildTextField(
-                                controller: _emailController,
-                                label: 'Email Address',
-                                icon: Icons.email_outlined,
-                                keyboardType: TextInputType.emailAddress,
-                                validator: (value) {
-                                  if (value == null || value.isEmpty) {
-                                    return 'Enter your email';
-                                  }
-                                  final ok = RegExp(r'^[\w-.]+@([\w-]+\.)+[\w-]{2,4}$')
-                                      .hasMatch(value);
-                                  return ok ? null : 'Enter a valid email';
-                                },
-                              ),
-                              const SizedBox(height: 12),
-
-                              _buildTextField(
-                                controller: _passwordController,
-                                label: 'Password',
-                                icon: Icons.lock_outline,
-                                obscureText: !_isPasswordVisible,
-                                suffixIcon: IconButton(
-                                  icon: Icon(
-                                    _isPasswordVisible
-                                        ? Icons.visibility_outlined
-                                        : Icons.visibility_off_outlined,
-                                    color: _textColorSecondary(context),
+                              Flexible(
+                                child: Card(
+                                  elevation: 8,
+                                  shadowColor: _primaryColor.withOpacity(0.2),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(20),
                                   ),
-                                  onPressed: () =>
-                                      setState(() => _isPasswordVisible = !_isPasswordVisible),
-                                ),
-                                validator: (value) {
-                                  if (value == null || value.isEmpty) {
-                                    return 'Enter password';
-                                  }
-                                  if (value.length < 6) {
-                                    return 'Password must be at least 6 characters';
-                                  }
-                                  return null;
-                                },
-                              ),
-                              const SizedBox(height: 12),
+                                  color: _cardBgColor(context),
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(16.0),
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        _buildTextField(
+                                          controller: _firstNameController,
+                                          label: 'First Name',
+                                          icon: Icons.person_outline,
+                                          validator: (v) =>
+                                          (v == null || v.isEmpty) ? 'Enter your first name' : null,
+                                        ),
+                                        const SizedBox(height: 12),
 
-                              _buildTextField(
-                                controller: _confirmPasswordController,
-                                label: 'Confirm Password',
-                                icon: Icons.lock_outline,
-                                obscureText: !_isConfirmPasswordVisible,
-                                suffixIcon: IconButton(
-                                  icon: Icon(
-                                    _isConfirmPasswordVisible
-                                        ? Icons.visibility_outlined
-                                        : Icons.visibility_off_outlined,
-                                    color: _textColorSecondary(context),
+                                        _buildTextField(
+                                          controller: _lastNameController,
+                                          label: 'Last Name',
+                                          icon: Icons.person_outline,
+                                          validator: (v) =>
+                                          (v == null || v.isEmpty) ? 'Enter your last name' : null,
+                                        ),
+                                        const SizedBox(height: 12),
+
+                                        _buildTextField(
+                                          controller: _emailController,
+                                          label: 'Email Address',
+                                          icon: Icons.email_outlined,
+                                          keyboardType: TextInputType.emailAddress,
+                                          validator: (value) {
+                                            if (value == null || value.isEmpty) {
+                                              return 'Enter your email';
+                                            }
+                                            final ok = RegExp(r'^[\w-.]+@([\w-]+\.)+[\w-]{2,4}$')
+                                                .hasMatch(value);
+                                            return ok ? null : 'Enter a valid email';
+                                          },
+                                        ),
+                                        const SizedBox(height: 12),
+
+                                        _buildTextField(
+                                          controller: _passwordController,
+                                          label: 'Password',
+                                          icon: Icons.lock_outline,
+                                          obscureText: !_isPasswordVisible,
+                                          suffixIcon: IconButton(
+                                            icon: Icon(
+                                              _isPasswordVisible
+                                                  ? Icons.visibility_outlined
+                                                  : Icons.visibility_off_outlined,
+                                              color: _textColorSecondary(context),
+                                            ),
+                                            onPressed: () =>
+                                                setState(() => _isPasswordVisible = !_isPasswordVisible),
+                                          ),
+                                          validator: (value) {
+                                            if (value == null || value.isEmpty) {
+                                              return 'Enter password';
+                                            }
+                                            if (value.length < 6) {
+                                              return 'Password must be at least 6 characters';
+                                            }
+                                            return null;
+                                          },
+                                        ),
+                                        const SizedBox(height: 12),
+
+                                        _buildTextField(
+                                          controller: _confirmPasswordController,
+                                          label: 'Confirm Password',
+                                          icon: Icons.lock_outline,
+                                          obscureText: !_isConfirmPasswordVisible,
+                                          suffixIcon: IconButton(
+                                            icon: Icon(
+                                              _isConfirmPasswordVisible
+                                                  ? Icons.visibility_outlined
+                                                  : Icons.visibility_off_outlined,
+                                              color: _textColorSecondary(context),
+                                            ),
+                                            onPressed: () => setState(() =>
+                                            _isConfirmPasswordVisible = !_isConfirmPasswordVisible),
+                                          ),
+                                          validator: (value) {
+                                            if (value == null || value.isEmpty) {
+                                              return 'Confirm password';
+                                            }
+                                            if (value != _passwordController.text) {
+                                              return 'Passwords do not match';
+                                            }
+                                            return null;
+                                          },
+                                        ),
+                                        const SizedBox(height: 16),
+
+                                        _buildSignUpButton(),
+                                        const SizedBox(height: 12),
+
+                                        _buildDivider(),
+                                        const SizedBox(height: 12),
+
+                                        _buildGoogleSignUpButton(),
+                                      ],
+                                    ),
                                   ),
-                                  onPressed: () => setState(() =>
-                                  _isConfirmPasswordVisible = !_isConfirmPasswordVisible),
                                 ),
-                                validator: (value) {
-                                  if (value == null || value.isEmpty) {
-                                    return 'Confirm password';
-                                  }
-                                  if (value != _passwordController.text) {
-                                    return 'Passwords do not match';
-                                  }
-                                  return null;
-                                },
                               ),
-                              // <CHANGE> Reduced spacing from 35 to 16
+
                               const SizedBox(height: 16),
-
-                              _buildSignUpButton(),
-                              // <CHANGE> Reduced spacing from 20 to 12
-                              const SizedBox(height: 12),
-
-                              _buildDivider(),
-                              const SizedBox(height: 12),
-
-                              _buildGoogleSignUpButton(),
+                              _buildLoginLink(),
+                              SizedBox(height: keyboardHeight > 0 ? 8 : 12),
                             ],
                           ),
                         ),
                       ),
-                      // <CHANGE> Reduced spacing from 30 to 16
-                      const SizedBox(height: 16),
-
-                      _buildLoginLink(),
-                      // <CHANGE> Reduced bottom padding from 40 to 16
-                      const SizedBox(height: 16),
-                    ],
+                    ),
                   ),
-                ),
-              ),
+                );
+              },
             ),
           ),
         ),
@@ -528,7 +540,6 @@ class _SignUpPageState extends State<signUpPage> with TickerProviderStateMixin {
     return Column(
       children: [
         Container(
-          // <CHANGE> Reduced icon size from 80x80 to 56x56
           width: 56,
           height: 56,
           decoration: BoxDecoration(
@@ -545,29 +556,24 @@ class _SignUpPageState extends State<signUpPage> with TickerProviderStateMixin {
           child: const Icon(
             Icons.person_add_outlined,
             color: _textColorOnPrimary,
-            // <CHANGE> Reduced icon size from 40 to 32
             size: 32,
           ),
         ),
-        // <CHANGE> Reduced spacing from 24 to 12
         const SizedBox(height: 12),
         Text(
           'Create Account',
           style: _getTextStyle(
             context,
-            // <CHANGE> Reduced font size from 32 to 24
             fontSize: 24,
             fontWeight: FontWeight.bold,
             color: _textColorPrimary(context),
           ),
         ),
-        // <CHANGE> Reduced spacing from 8 to 4
         const SizedBox(height: 4),
         Text(
           'Join us to start your health journey',
           style: _getTextStyle(
             context,
-            // <CHANGE> Reduced font size from 16 to 13
             fontSize: 13,
             color: _textColorSecondary(context),
           ),
@@ -598,7 +604,6 @@ class _SignUpPageState extends State<signUpPage> with TickerProviderStateMixin {
           color: _textColorSecondary(context),
           fontSize: 14,
         ),
-        // <CHANGE> Reduced icon size from 22 to 20
         prefixIcon: Icon(icon, color: _primaryColor, size: 20),
         suffixIcon: suffixIcon,
         filled: true,
@@ -623,7 +628,6 @@ class _SignUpPageState extends State<signUpPage> with TickerProviderStateMixin {
           borderRadius: BorderRadius.circular(16),
           borderSide: const BorderSide(color: Colors.redAccent, width: 2),
         ),
-        // <CHANGE> Reduced vertical padding from 18 to 14
         contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
       ),
     );
@@ -632,7 +636,6 @@ class _SignUpPageState extends State<signUpPage> with TickerProviderStateMixin {
   Widget _buildSignUpButton() {
     return SizedBox(
       width: double.infinity,
-      // <CHANGE> Reduced button height from 56 to 48
       height: 48,
       child: ElevatedButton(
         onPressed: _isLoading ? null : registerUser,
@@ -667,60 +670,6 @@ class _SignUpPageState extends State<signUpPage> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildDivider() {
-    return Row(
-      children: [
-        Expanded(child: Divider(color: Colors.grey.shade300)),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Text(
-            'OR',
-            style: _getTextStyle(
-              context,
-              fontSize: 12,
-              color: _textColorSecondary(context),
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ),
-        Expanded(child: Divider(color: Colors.grey.shade300)),
-      ],
-    );
-  }
-
-  Widget _buildGoogleSignUpButton() {
-    return SizedBox(
-      width: double.infinity,
-      // <CHANGE> Reduced button height from 56 to 48
-      height: 48,
-      child: OutlinedButton.icon(
-        onPressed: _isLoading ? null : signInWithGoogle,
-        style: OutlinedButton.styleFrom(
-          side: BorderSide(color: Colors.grey.shade300),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-        ),
-        icon: Image.asset(
-          'assets/google_logo.png',
-          width: 20,
-          height: 20,
-          errorBuilder: (context, error, stackTrace) =>
-              Icon(Icons.g_mobiledata, color: Colors.red, size: 24),
-        ),
-        label: Text(
-          'Continue with Google',
-          style: _getTextStyle(
-            context,
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-            color: _textColorPrimary(context),
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _buildLoginLink() {
     return Center(
       child: TextButton(
@@ -748,34 +697,6 @@ class _SignUpPageState extends State<signUpPage> with TickerProviderStateMixin {
         ),
       ),
     );
-  }
-
-  Future<void> signInWithGoogle() async {
-    try {
-      final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
-      final GoogleSignInAuthentication? googleAuth =
-      await googleUser?.authentication;
-
-      final credential = GoogleAuthProvider.credential(
-        accessToken: googleAuth?.accessToken,
-        idToken: googleAuth?.idToken,
-      );
-
-      final result =
-      await FirebaseAuth.instance.signInWithCredential(credential);
-
-      final user = result.user;
-      if (user != null) {
-        await _ensureUsersDocForGoogle(user);
-        _showSuccessDialog(context, onOk: goLogIn);
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Google sign-in failed: $e")),
-        );
-      }
-    }
   }
 
   void _showSuccessDialog(BuildContext context, {VoidCallback? onOk}) {
@@ -859,5 +780,86 @@ class _SignUpPageState extends State<signUpPage> with TickerProviderStateMixin {
         );
       },
     );
+  }
+
+  Widget _buildDivider() {
+    return Row(
+      children: [
+        Expanded(child: Divider(color: Colors.grey.shade300)),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Text(
+            'OR',
+            style: _getTextStyle(
+              context,
+              fontSize: 12,
+              color: _textColorSecondary(context),
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+        Expanded(child: Divider(color: Colors.grey.shade300)),
+      ],
+    );
+  }
+
+  Widget _buildGoogleSignUpButton() {
+    return SizedBox(
+      width: double.infinity,
+      height: 48,
+      child: OutlinedButton.icon(
+        onPressed: _isLoading ? null : signInWithGoogle,
+        style: OutlinedButton.styleFrom(
+          side: BorderSide(color: Colors.grey.shade300),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+        ),
+        icon: Image.asset(
+          'assets/google_logo.png',
+          width: 20,
+          height: 20,
+          errorBuilder: (context, error, stackTrace) =>
+              Icon(Icons.g_mobiledata, color: Colors.red, size: 24),
+        ),
+        label: Text(
+          'Continue with Google',
+          style: _getTextStyle(
+            context,
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: _textColorPrimary(context),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> signInWithGoogle() async {
+    try {
+      final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
+      final GoogleSignInAuthentication? googleAuth =
+      await googleUser?.authentication;
+
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth?.accessToken,
+        idToken: googleAuth?.idToken,
+      );
+
+      final result =
+      await FirebaseAuth.instance.signInWithCredential(credential);
+
+      final user = result.user;
+      if (user != null) {
+        await _ensureUsersDocForGoogle(user);
+        _showSuccessDialog(context, onOk: goLogIn);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Google sign-in failed: $e")),
+        );
+      }
+    }
   }
 }

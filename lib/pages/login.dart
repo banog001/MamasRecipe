@@ -7,6 +7,7 @@ import 'signup.dart';
 import 'home.dart';
 import 'start.dart';
 import '../Dietitians/homePageDietitian.dart';
+import 'start.dart';
 
 const String _primaryFontFamily = 'PlusJakartaSans';
 const Color _primaryColor = Color(0xFF4CAF50);
@@ -260,107 +261,111 @@ class _LoginPageState extends State<LoginPageMobile> with TickerProviderStateMix
           opacity: _fadeAnimation,
           child: SlideTransition(
             position: _slideAnimation,
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                return SingleChildScrollView(
-                  physics: const BouncingScrollPhysics(),
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(
-                      minHeight: constraints.maxHeight,
-                    ),
-                    child: IntrinsicHeight(
-                      child: Padding(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: 24.0,
-                          vertical: keyboardHeight > 0 ? 12.0 : 16.0,
-                        ),
-                        child: Form(
-                          key: _formKey,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              SizedBox(height: keyboardHeight > 0 ? 12 : 16),
-                              _buildCompactHeader(),
-                              SizedBox(height: keyboardHeight > 0 ? 12 : 16),
+            child: Center(
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  return SingleChildScrollView(
+                    physics: const BouncingScrollPhysics(),
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        minHeight: constraints.maxHeight,
+                        maxWidth: 500,
+                      ),
+                      child: IntrinsicHeight(
+                        child: Padding(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 24.0,
+                            vertical: keyboardHeight > 0 ? 12.0 : 16.0,
+                          ),
+                          child: Form(
+                            key: _formKey,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                SizedBox(height: keyboardHeight > 0 ? 12 : 16),
+                                _buildCompactHeader(),
+                                SizedBox(height: keyboardHeight > 0 ? 12 : 16),
 
-                              // Login Form Card
-                              Flexible(
-                                child: Card(
-                                  elevation: 8,
-                                  shadowColor: _primaryColor.withOpacity(0.2),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
-                                  color: _cardBgColor(context),
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(16.0),
-                                    child: Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        _buildTextField(
-                                          controller: emailController,
-                                          label: 'Email Address',
-                                          icon: Icons.email_outlined,
-                                          keyboardType: TextInputType.emailAddress,
-                                        ),
-                                        const SizedBox(height: 12),
-                                        _buildTextField(
-                                          controller: passController,
-                                          label: 'Password',
-                                          icon: Icons.lock_outline,
-                                          obscureText: _obscurePassword,
-                                          suffixIcon: IconButton(
-                                            icon: Icon(
-                                              _obscurePassword
-                                                  ? Icons.visibility_off_outlined
-                                                  : Icons.visibility_outlined,
-                                              color: _textColorSecondary(context),
-                                            ),
-                                            onPressed: () {
-                                              setState(() {
-                                                _obscurePassword = !_obscurePassword;
-                                              });
-                                            },
+                                // Login Form Card
+                                Flexible(
+                                  child: Card(
+                                    elevation: 8,
+                                    shadowColor: _primaryColor.withOpacity(0.2),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                    color: _cardBgColor(context),
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(16.0),
+                                      child: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          _buildTextField(
+                                            controller: emailController,
+                                            label: 'Email Address',
+                                            icon: Icons.email_outlined,
+                                            keyboardType: TextInputType.emailAddress,
                                           ),
-                                        ),
-                                        Align(
-                                          alignment: Alignment.centerRight,
-                                          child: TextButton(
-                                            onPressed: _showForgotPasswordDialog,
-                                            child: Text(
-                                              "Forgot Password?",
-                                              style: _getTextStyle(
-                                                context,
-                                                color: _primaryColor,
-                                                fontSize: 13,
-                                                fontWeight: FontWeight.w600,
+                                          const SizedBox(height: 12),
+                                          _buildTextField(
+                                            controller: passController,
+                                            label: 'Password',
+                                            icon: Icons.lock_outline,
+                                            obscureText: _obscurePassword,
+                                            suffixIcon: IconButton(
+                                              icon: Icon(
+                                                _obscurePassword
+                                                    ? Icons.visibility_off_outlined
+                                                    : Icons.visibility_outlined,
+                                                color: _textColorSecondary(context),
+                                              ),
+                                              onPressed: () {
+                                                setState(() {
+                                                  _obscurePassword = !_obscurePassword;
+                                                });
+                                              },
+                                            ),
+                                          ),
+                                          Align(
+                                            alignment: Alignment.centerRight,
+                                            child: TextButton(
+                                              onPressed: _showForgotPasswordDialog,
+                                              child: Text(
+                                                "Forgot Password?",
+                                                style: _getTextStyle(
+                                                  context,
+                                                  color: _primaryColor,
+                                                  fontSize: 13,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
                                               ),
                                             ),
                                           ),
-                                        ),
-                                        const SizedBox(height: 12),
-                                        _buildLoginButton(),
-                                        const SizedBox(height: 12),
-                                        _buildDivider(),
-                                        const SizedBox(height: 12),
-                                        _buildGoogleSignInButton(),
-                                      ],
+                                          const SizedBox(height: 12),
+                                          _buildLoginButton(),
+                                          const SizedBox(height: 12),
+                                          _buildDivider(),
+                                          const SizedBox(height: 12),
+                                          _buildGoogleSignInButton(),
+                                        ],
+                                      ),
                                     ),
                                   ),
                                 ),
-                              ),
 
-                              const SizedBox(height: 16),
-                              _buildSignUpLink(),
-                              SizedBox(height: keyboardHeight > 0 ? 8 : 12),
-                            ],
+                                const SizedBox(height: 16),
+                                _buildSignUpLink(),
+                                SizedBox(height: keyboardHeight > 0 ? 8 : 12),
+                              ],
+                            ),
                           ),
                         ),
                       ),
                     ),
-                  ),
-                );
-              },
+                  );
+                },
+              ),
             ),
           ),
         ),

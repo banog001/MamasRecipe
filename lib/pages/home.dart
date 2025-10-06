@@ -19,31 +19,31 @@ const String _primaryFontFamily = 'PlusJakartaSans';
 const Color _primaryColor = Color(0xFF4CAF50);
 Color _scaffoldBgColor(BuildContext context) =>
     Theme.of(context).brightness == Brightness.dark
-    ? Colors.grey.shade900
-    : Colors.grey.shade100;
+        ? Colors.grey.shade900
+        : Colors.grey.shade100;
 Color _cardBgColor(BuildContext context) =>
     Theme.of(context).brightness == Brightness.dark
-    ? Colors.grey.shade800
-    : Colors.white;
+        ? Colors.grey.shade800
+        : Colors.white;
 Color _textColorPrimary(BuildContext context) =>
     Theme.of(context).brightness == Brightness.dark
-    ? Colors.white70
-    : Colors.black87;
+        ? Colors.white70
+        : Colors.black87;
 Color _textColorSecondary(BuildContext context) =>
     Theme.of(context).brightness == Brightness.dark
-    ? Colors.white54
-    : Colors.black54;
+        ? Colors.white54
+        : Colors.black54;
 const Color _textColorOnPrimary = Colors.white;
 
 TextStyle _getTextStyle(
-  BuildContext context, {
-  double fontSize = 16,
-  FontWeight fontWeight = FontWeight.normal,
-  Color? color,
-  String fontFamily = _primaryFontFamily,
-  double? letterSpacing,
-  FontStyle? fontStyle,
-}) {
+    BuildContext context, {
+      double fontSize = 16,
+      FontWeight fontWeight = FontWeight.normal,
+      Color? color,
+      String fontFamily = _primaryFontFamily,
+      double? letterSpacing,
+      FontStyle? fontStyle,
+    }) {
   return TextStyle(
     fontSize: fontSize,
     fontWeight: fontWeight,
@@ -127,6 +127,10 @@ class _HomeState extends State<home> {
   String profileUrl = "";
   bool _isUserNameLoading = true;
 
+  String _searchQuery = "";
+  String _searchFilter = "All"; // Options: "All", "Health Goals", "Dietitians", "Meal Plans"
+  final TextEditingController _searchController = TextEditingController();
+
   Map<String, dynamic>? userData;
   @override
   void initState() {
@@ -137,7 +141,7 @@ class _HomeState extends State<home> {
     loadUserName();
   }
 
-  // Inside class _HomeState, replace your existing loadUserName() with this:
+
 
   void loadUserName() async {
     setState(() {
@@ -156,8 +160,7 @@ class _HomeState extends State<home> {
             setState(() {
               firstName = data['firstName'] as String? ?? '';
               lastName = data['lastName'] as String? ?? '';
-              profileUrl =
-                  data['profile'] as String? ?? ''; // <-- ADD THIS LINE
+              profileUrl = data['profile'] as String? ?? ''; // <-- ADD THIS LINE
               _isUserNameLoading = false;
             });
           } else {
@@ -191,7 +194,154 @@ class _HomeState extends State<home> {
     }
   }
 
+  Widget _buildSearchBar() {
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+          child: Container(
+            decoration: BoxDecoration(
+              color: _cardBgColor(context),
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.08),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: TextField(
+              controller: _searchController,
+              onChanged: (value) {
+                setState(() {
+                  _searchQuery = value.toLowerCase();
+                });
+              },
+              style: _getTextStyle(context, fontSize: 15),
+              decoration: InputDecoration(
+                hintText: _getSearchHint(),
+                hintStyle: _getTextStyle(
+                  context,
+                  fontSize: 14,
+                  color: _textColorSecondary(context),
+                ),
+                prefixIcon: Icon(
+                  Icons.search,
+                  color: _primaryColor,
+                  size: 24,
+                ),
+                suffixIcon: _searchQuery.isNotEmpty
+                    ? IconButton(
+                  icon: Icon(
+                    Icons.clear,
+                    color: _textColorSecondary(context),
+                    size: 20,
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      _searchController.clear();
+                      _searchQuery = "";
+                    });
+                  },
+                )
+                    : null,
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
+              ),
+            ),
+          ),
+        ),
+        _buildFilterChips(),
+      ],
+    );
+  }
+
+  String _getSearchHint() {
+    switch (_searchFilter) {
+      case "Health Goals":
+        return "Search by health goals (e.g., Weight Loss, Muscle Gain)...";
+      case "Dietitians":
+        return "Search dietitians by name or specialization...";
+      case "Meal Plans":
+        return "Search meal plans by name or type...";
+      default:
+        return "Search by health goals, dietitians, meal plans...";
+    }
+  }
+
+  Widget _buildFilterChips() {
+    final filters = [
+      {"label": "All", "icon": Icons.apps},
+      {"label": "Health Goals", "icon": Icons.favorite},
+      {"label": "Dietitians", "icon": Icons.person},
+      {"label": "Meal Plans", "icon": Icons.restaurant_menu},
+    ];
+
+    return Container(
+      height: 50,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        itemCount: filters.length,
+        itemBuilder: (context, index) {
+          final filter = filters[index];
+          final isSelected = _searchFilter == filter["label"];
+
+          return Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: FilterChip(
+              label: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    filter["icon"] as IconData,
+                    size: 16,
+                    color: isSelected ? Colors.white : _primaryColor,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    filter["label"] as String,
+                    style: _getTextStyle(
+                      context,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: isSelected ? Colors.white : _primaryColor,
+                    ),
+                  ),
+                ],
+              ),
+              selected: isSelected,
+              onSelected: (selected) {
+                setState(() {
+                  _searchFilter = filter["label"] as String;
+                });
+              },
+              backgroundColor: _cardBgColor(context),
+              selectedColor: _primaryColor,
+              checkmarkColor: Colors.white,
+              side: BorderSide(
+                color: isSelected ? _primaryColor : _primaryColor.withOpacity(0.3),
+                width: 1.5,
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              showCheckmark: false,
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+
   Widget recommendationsWidget() {
+    if (_searchFilter != "All" && _searchFilter != "Health Goals") {
+      return const SizedBox.shrink();
+    }
+
     final currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser == null)
       return const Center(child: Text("User not logged in"));
@@ -203,7 +353,13 @@ class _HomeState extends State<home> {
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-          child: Text("Recommendations ✨", style: _sectionTitleStyle(context)),
+          child: Text(
+            "Recommendations ✨",
+            style: _sectionTitleStyle(context).copyWith(
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
         ),
         SizedBox(
           height: 380,
@@ -221,7 +377,7 @@ class _HomeState extends State<home> {
               bool isSubscribed = false;
               if (userSnapshot.hasData && userSnapshot.data!.exists) {
                 var userData =
-                    userSnapshot.data!.data() as Map<String, dynamic>;
+                userSnapshot.data!.data() as Map<String, dynamic>;
                 isSubscribed = userData["isSubscribed"] ?? false;
               }
 
@@ -234,6 +390,25 @@ class _HomeState extends State<home> {
                     return _buildRecommendationsLoadingShimmer();
 
                   var docs = snapshot.data!.docs;
+
+                  if (_searchQuery.isNotEmpty) {
+                    docs = docs.where((doc) {
+                      var data = doc.data() as Map<String, dynamic>;
+                      String planName =
+                      (data["planName"] ?? "").toString().toLowerCase();
+                      String planType =
+                      (data["planType"] ?? "").toString().toLowerCase();
+                      String description =
+                      (data["description"] ?? "").toString().toLowerCase();
+                      if (_searchFilter == "Health Goals") {
+                        return planType.contains(_searchQuery);
+                      }
+                      return planName.contains(_searchQuery) ||
+                          planType.contains(_searchQuery) ||
+                          description.contains(_searchQuery);
+                    }).toList();
+                  }
+
                   List<Map<String, dynamic>> scoredPlans = docs.map((doc) {
                     var data = doc.data() as Map<String, dynamic>;
                     int likes = data["likeCounts"] ?? 0;
@@ -242,8 +417,7 @@ class _HomeState extends State<home> {
                       publishedDate = (data["timestamp"] as Timestamp).toDate();
                     } else if (data["timestamp"] is String) {
                       publishedDate =
-                          DateTime.tryParse(data["timestamp"]) ??
-                          DateTime.now();
+                          DateTime.tryParse(data["timestamp"]) ?? DateTime.now();
                     } else {
                       publishedDate = DateTime.now();
                     }
@@ -257,7 +431,7 @@ class _HomeState extends State<home> {
                   }).toList();
 
                   scoredPlans.sort(
-                    (a, b) =>
+                        (a, b) =>
                         (b["score"] as double).compareTo(a["score"] as double),
                   );
                   if (scoredPlans.length > 5)
@@ -266,7 +440,9 @@ class _HomeState extends State<home> {
                   if (scoredPlans.isEmpty) {
                     return Center(
                       child: Text(
-                        "No recommendations yet.",
+                        _searchQuery.isNotEmpty
+                            ? "No recommendations found for '$_searchQuery'"
+                            : "No recommendations yet.",
                         style: _cardBodyTextStyle(context),
                       ),
                     );
@@ -324,8 +500,7 @@ class _HomeState extends State<home> {
             width: 300,
             height: 350,
             decoration: BoxDecoration(
-              color:
-                  Colors.white, // This color is needed for shimmer to paint on
+              color: Colors.white, // This color is needed for shimmer to paint on
               borderRadius: BorderRadius.circular(12),
             ),
           ),
@@ -335,36 +510,36 @@ class _HomeState extends State<home> {
   }
 
   Widget _buildRecommendationCard(
-    BuildContext context,
-    DocumentSnapshot doc,
-    Map<String, dynamic> data,
-    String ownerId,
-    String currentUserId,
-    bool isUserSubscribed,
-  ) {
+      BuildContext context,
+      DocumentSnapshot doc,
+      Map<String, dynamic> data,
+      String ownerId,
+      String currentUserId,
+      bool isUserSubscribed,
+      ) {
     return SizedBox(
       width: 300,
       child: Card(
-        elevation: 3,
+        elevation: 8,
         margin: const EdgeInsets.only(right: 12),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         color: _cardBgColor(context),
         child: InkWell(
           onTap: () {
             debugPrint("Tapped on recommendation: ${data['planType']}");
           },
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(20),
           child: Padding(
-            padding: const EdgeInsets.all(12.0),
+            padding: const EdgeInsets.all(16.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 FutureBuilder<DocumentSnapshot>(
                   future: (ownerId.isNotEmpty)
                       ? FirebaseFirestore.instance
-                            .collection("Users")
-                            .doc(ownerId)
-                            .get()
+                      .collection("Users")
+                      .doc(ownerId)
+                      .get()
                       : Future.value(null),
                   builder: (context, ownerSnapshot) {
                     String ownerName = "Unknown Chef";
@@ -374,7 +549,7 @@ class _HomeState extends State<home> {
                         ownerSnapshot.data != null &&
                         ownerSnapshot.data!.exists) {
                       var ownerData =
-                          ownerSnapshot.data!.data() as Map<String, dynamic>;
+                      ownerSnapshot.data!.data() as Map<String, dynamic>;
                       ownerName =
                           "${ownerData["firstName"] ?? ""} ${ownerData["lastName"] ?? ""}"
                               .trim();
@@ -384,15 +559,16 @@ class _HomeState extends State<home> {
                     return Row(
                       children: [
                         CircleAvatar(
-                          radius: 18,
-                          backgroundImage: (profileUrl.isNotEmpty)
-                              ? NetworkImage(profileUrl)
+                          radius: 20,
+                          backgroundColor: _primaryColor.withOpacity(0.2),
+                          backgroundImage: (ownerProfileUrl.isNotEmpty)
+                              ? NetworkImage(ownerProfileUrl)
                               : null,
-                          child: (profileUrl.isEmpty)
-                              ? const Icon(Icons.person, size: 30, color: _primaryColor)
+                          child: (ownerProfileUrl.isEmpty)
+                              ? const Icon(Icons.person, size: 24, color: _primaryColor)
                               : null,
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: 12),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -401,7 +577,11 @@ class _HomeState extends State<home> {
                                 ownerName,
                                 style: _cardTitleStyle(
                                   context,
-                                ).copyWith(color: _primaryColor, fontSize: 15),
+                                ).copyWith(
+                                  color: _primaryColor,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
                                 overflow: TextOverflow.ellipsis,
                               ),
                               if (data["timestamp"] != null &&
@@ -410,7 +590,7 @@ class _HomeState extends State<home> {
                                   DateFormat('MMM dd, yyyy').format(
                                     (data["timestamp"] as Timestamp).toDate(),
                                   ),
-                                  style: _cardSubtitleStyle(context),
+                                  style: _cardSubtitleStyle(context).copyWith(fontSize: 12),
                                 ),
                             ],
                           ),
@@ -419,12 +599,12 @@ class _HomeState extends State<home> {
                     );
                   },
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 12),
                 Text(
                   data["planType"] ?? "Meal Plan",
                   style: _sectionTitleStyle(
                     context,
-                  ).copyWith(fontSize: 17, fontWeight: FontWeight.w600),
+                  ).copyWith(fontSize: 18, fontWeight: FontWeight.bold),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -492,7 +672,7 @@ class _HomeState extends State<home> {
                     ),
                   ),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 12),
                 Align(
                   alignment: Alignment.centerRight,
                   child: StreamBuilder<DocumentSnapshot>(
@@ -559,17 +739,143 @@ class _HomeState extends State<home> {
     );
   }
 
-  Widget mealPlansTable() {
-    final currentUser = FirebaseAuth.instance.currentUser;
-    if (currentUser == null)
-      return const Center(child: Text("User not logged in"));
+  Widget dietitiansList() {
+    if (_searchFilter != "All" && _searchFilter != "Dietitians") {
+      return const SizedBox.shrink();
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+          child: Text(
+            "Connect with Dietitians 🧑‍⚕️",
+            style: _sectionTitleStyle(context).copyWith(
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+        SizedBox(
+          height: 140,
+          child: StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection("Users") // Changed from "users" to "Users" for consistency
+                .where("role", isEqualTo: "dietitian")
+                .snapshots(),
+            builder: (context, snapshot) {
+              if (!snapshot.hasData)
+                return const Center(
+                  child: CircularProgressIndicator(color: _primaryColor),
+                );
+              var dietitians = snapshot.data!.docs;
+
+              if (_searchQuery.isNotEmpty) {
+                dietitians = dietitians.where((doc) {
+                  var data = doc.data() as Map<String, dynamic>;
+                  String name = "${data["firstName"] ?? ""} ${data["lastName"] ?? ""}"
+                      .toLowerCase();
+                  String specialization =
+                  (data["specialization"] ?? "").toString().toLowerCase();
+                  return name.contains(_searchQuery) ||
+                      specialization.contains(_searchQuery);
+                }).toList();
+              }
+
+              if (dietitians.isEmpty) {
+                return Center(
+                  child: Text(
+                    _searchQuery.isNotEmpty
+                        ? "No dietitians found for '$_searchQuery'"
+                        : "No dietitians found.",
+                    style: _cardBodyTextStyle(context),
+                  ),
+                );
+              }
+
+              return ListView.builder(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
+                itemCount: dietitians.length,
+                itemBuilder: (context, index) {
+                  var dietitianData =
+                  dietitians[index].data() as Map<String, dynamic>;
+                  String name =
+                  "${dietitianData["firstName"] ?? ""} ${dietitianData["lastName"] ?? ""}"
+                      .trim();
+                  if (name.isEmpty) name = "Dietitian";
+                  String profileUrl = dietitianData["profile"] ?? "";
+
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 16),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: _primaryColor.withOpacity(0.3),
+                                blurRadius: 8,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: CircleAvatar(
+                            radius: 32,
+                            backgroundColor: _primaryColor.withOpacity(0.2),
+                            backgroundImage: (profileUrl.isNotEmpty)
+                                ? NetworkImage(profileUrl)
+                                : null,
+                            child: (profileUrl.isEmpty)
+                                ? const Icon(Icons.person,
+                                size: 32, color: _primaryColor)
+                                : null,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        SizedBox(
+                          width: 90,
+                          child: Text(
+                            name,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.center,
+                            maxLines: 2,
+                            style: _cardBodyTextStyle(context).copyWith(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+
+  Widget mealPlansTable(String userGoal) {
+    if (_searchFilter == "Dietitians") {
+      return const SizedBox.shrink();
+    }
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0),
       child: FutureBuilder<DocumentSnapshot>(
         future: FirebaseFirestore.instance
             .collection("Users")
-            .doc(currentUser.uid)
+            .doc(firebaseUser!.uid)
             .get(),
         builder: (context, userSnapshot) {
           if (!userSnapshot.hasData)
@@ -596,12 +902,18 @@ class _HomeState extends State<home> {
               Padding(
                 padding: const EdgeInsets.fromLTRB(0, 16, 0, 8),
                 child: Text(
-                  "Meal Plans for: $userGoal",
+                  _searchQuery.isNotEmpty
+                      ? "Search Results for '$_searchQuery'"
+                      : "Meal Plans for: $userGoal",
                   style: _sectionTitleStyle(context),
                 ),
               ),
               StreamBuilder<QuerySnapshot>(
-                stream: FirebaseFirestore.instance
+                stream: _searchQuery.isNotEmpty
+                    ? FirebaseFirestore.instance
+                    .collection("mealPlans")
+                    .snapshots()
+                    : FirebaseFirestore.instance
                     .collection("mealPlans")
                     .where("planType", isEqualTo: userGoal)
                     .snapshots(),
@@ -611,10 +923,31 @@ class _HomeState extends State<home> {
                       child: CircularProgressIndicator(color: _primaryColor),
                     );
                   var plans = snapshot.data!.docs;
+
+                  if (_searchQuery.isNotEmpty) {
+                    plans = plans.where((doc) {
+                      var data = doc.data() as Map<String, dynamic>;
+                      String planName =
+                      (data["planName"] ?? "").toString().toLowerCase();
+                      String planType =
+                      (data["planType"] ?? "").toString().toLowerCase();
+                      String description =
+                      (data["description"] ?? "").toString().toLowerCase();
+                      if (_searchFilter == "Health Goals") {
+                        return planType.contains(_searchQuery);
+                      }
+                      return planName.contains(_searchQuery) ||
+                          planType.contains(_searchQuery) ||
+                          description.contains(_searchQuery);
+                    }).toList();
+                  }
+
                   if (plans.isEmpty) {
                     return Center(
                       child: Text(
-                        "No $userGoal meal plans available yet.",
+                        _searchQuery.isNotEmpty
+                            ? "No meal plans found for '$_searchQuery'"
+                            : "No $userGoal meal plans available yet.",
                         style: _cardBodyTextStyle(context),
                       ),
                     );
@@ -633,7 +966,7 @@ class _HomeState extends State<home> {
                         docSnap,
                         data,
                         ownerId,
-                        currentUser.uid,
+                        firebaseUser!.uid, // Ensure currentUserId is passed
                         isSubscribed,
                       );
                     },
@@ -648,23 +981,23 @@ class _HomeState extends State<home> {
   }
 
   Widget _buildMealPlanListItem(
-    BuildContext context,
-    DocumentSnapshot doc,
-    Map<String, dynamic> data,
-    String ownerId,
-    String currentUserId,
-    bool isUserSubscribed,
-  ) {
+      BuildContext context,
+      DocumentSnapshot doc,
+      Map<String, dynamic> data,
+      String ownerId,
+      String currentUserId,
+      bool isUserSubscribed,
+      ) {
     return Card(
-      elevation: 2,
+      elevation: 8,
       margin: const EdgeInsets.symmetric(vertical: 8),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       color: _cardBgColor(context),
       child: InkWell(
         onTap: () {
           /* TODO: Navigate to full meal plan detail */
         },
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(20),
         child: Padding(
           padding: const EdgeInsets.all(16.0),
           child: Column(
@@ -673,9 +1006,9 @@ class _HomeState extends State<home> {
               FutureBuilder<DocumentSnapshot>(
                 future: (ownerId.isNotEmpty)
                     ? FirebaseFirestore.instance
-                          .collection("Users")
-                          .doc(ownerId)
-                          .get()
+                    .collection("Users")
+                    .doc(ownerId)
+                    .get()
                     : Future.value(null),
                 builder: (context, ownerSnapshot) {
                   String ownerName = "Unknown Chef";
@@ -684,7 +1017,7 @@ class _HomeState extends State<home> {
                       ownerSnapshot.data != null &&
                       ownerSnapshot.data!.exists) {
                     var ownerData =
-                        ownerSnapshot.data!.data() as Map<String, dynamic>;
+                    ownerSnapshot.data!.data() as Map<String, dynamic>;
                     ownerName =
                         "${ownerData["firstName"] ?? ""} ${ownerData["lastName"] ?? ""}"
                             .trim();
@@ -692,7 +1025,10 @@ class _HomeState extends State<home> {
                   }
                   return Text(
                     ownerName,
-                    style: _cardTitleStyle(context).copyWith(fontSize: 15),
+                    style: _cardTitleStyle(context).copyWith(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
                   );
                 },
               ),
@@ -822,11 +1158,11 @@ class _HomeState extends State<home> {
   }
 
   TableRow _buildMealRow(
-    String time,
-    String? meal,
-    bool isSubscribed, {
-    bool isCompact = false,
-  }) {
+      String time,
+      String? meal,
+      bool isSubscribed, {
+        bool isCompact = false,
+      }) {
     return TableRow(
       children: [
         Padding(
@@ -851,11 +1187,11 @@ class _HomeState extends State<home> {
             isSubscribed ? (meal ?? "Not specified") : "🔒 Locked",
             style: isSubscribed
                 ? _cardBodyTextStyle(
-                    context,
-                  ).copyWith(fontSize: isCompact ? 13 : 14)
+              context,
+            ).copyWith(fontSize: isCompact ? 13 : 14)
                 : _lockedTextStyle(
-                    context,
-                  ).copyWith(fontSize: isCompact ? 13 : 14),
+              context,
+            ).copyWith(fontSize: isCompact ? 13 : 14),
             maxLines: isCompact ? 1 : 2,
             overflow: TextOverflow.ellipsis,
           ),
@@ -864,95 +1200,7 @@ class _HomeState extends State<home> {
     );
   }
 
-  Widget dietitiansList() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-          child: Text(
-            "Connect with Dietitians 🧑‍⚕️",
-            style: _sectionTitleStyle(context),
-          ),
-        ),
-        SizedBox(
-          height: 130, // Adjusted height
-          child: StreamBuilder<QuerySnapshot>(
-            stream: FirebaseFirestore.instance
-                .collection("Users")
-                .where("role", isEqualTo: "dietitian")
-                .snapshots(),
-            builder: (context, snapshot) {
-              if (!snapshot.hasData)
-                return const Center(
-                  child: CircularProgressIndicator(color: _primaryColor),
-                );
-              var dietitians = snapshot.data!.docs;
-              if (dietitians.isEmpty) {
-                return Center(
-                  child: Text(
-                    "No dietitians found.",
-                    style: _cardBodyTextStyle(context),
-                  ),
-                );
-              }
-
-              return ListView.builder(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
-                ),
-                itemCount: dietitians.length,
-                itemBuilder: (context, index) {
-                  var dietitianData =
-                      dietitians[index].data() as Map<String, dynamic>;
-                  String name =
-                      "${dietitianData["firstName"] ?? ""} ${dietitianData["lastName"] ?? ""}"
-                          .trim();
-                  if (name.isEmpty) name = "Dietitian";
-                  String profileUrl = dietitianData["profile"] ?? "";
-
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 16),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        CircleAvatar(
-                          radius: 30, // Corrected Radius
-                          backgroundColor: _primaryColor.withOpacity(0.2),
-                          backgroundImage: (profileUrl.isNotEmpty)
-                              ? NetworkImage(profileUrl)
-                              : null,
-                          child: (profileUrl.isEmpty)
-                              ? const Icon(Icons.person, size: 30, color: _primaryColor)
-                              : null,
-                        ),
-                        const SizedBox(height: 6), // Corrected Spacing
-                        SizedBox(
-                          width: 80,
-                          child: Text(
-                            name,
-                            overflow: TextOverflow.ellipsis,
-                            textAlign: TextAlign.center,
-                            maxLines: 2,
-                            style: _cardBodyTextStyle(context).copyWith(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                },
-              );
-            },
-          ),
-        ),
-      ],
-    );
-  }
+  // REMOVED duplicate dietitiansList method
 
   Future<void> _updateGooglePhotoURL() async {
     if (firebaseUser == null) return;
@@ -983,7 +1231,6 @@ class _HomeState extends State<home> {
       debugPrint("Firestore profile already set, skipping Google photo overwrite.");
     }
   }
-
 
   Future<void> _setUserStatus(String status) async {
     if (firebaseUser != null) {
@@ -1026,11 +1273,12 @@ class _HomeState extends State<home> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          _buildSearchBar(),
           dietitiansList(),
           const SizedBox(height: 10),
           recommendationsWidget(),
           const SizedBox(height: 10),
-          mealPlansTable(),
+          mealPlansTable(""), // Pass an empty string or default goal
           const SizedBox(height: 20),
         ],
       ),
@@ -1040,29 +1288,29 @@ class _HomeState extends State<home> {
     firebaseUser != null
         ? UserSchedulePage(currentUserId: firebaseUser!.uid)
         : const Center(
-            child: Text(
-              "Please log in to view your schedule.",
-              style: TextStyle(fontFamily: _primaryFontFamily),
-            ),
-          ), // Fallback
+      child: Text(
+        "Please log in to view your schedule.",
+        style: TextStyle(fontFamily: _primaryFontFamily),
+      ),
+    ), // Fallback
     // Page 2: Messages Tab (UsersListPage from your existing code)
     firebaseUser != null
         ? UsersListPage(currentUserId: firebaseUser!.uid)
         : const Center(
-            child: Text(
-              "Please log in to view messages.",
-              style: TextStyle(fontFamily: _primaryFontFamily),
-            ),
-          ), // Fallback
+      child: Text(
+        "Please log in to view messages.",
+        style: TextStyle(fontFamily: _primaryFontFamily),
+      ),
+    ), // Fallback
     // Page 3: Profile Tab (NEW)
     firebaseUser != null
         ? const UserProfile() // Assuming UserProfile is the correct widget for the profile tab
         : const Center(
-            child: Text(
-              "Please log in to view your profile.",
-              style: TextStyle(fontFamily: _primaryFontFamily),
-            ),
-          ), // Fallback
+      child: Text(
+        "Please log in to view your profile.",
+        style: TextStyle(fontFamily: _primaryFontFamily),
+      ),
+    ), // Fallback
   ];
 
   @override
@@ -1088,55 +1336,55 @@ class _HomeState extends State<home> {
               UserAccountsDrawerHeader(
                 accountName: _isUserNameLoading
                     ? Shimmer.fromColors(
-                        baseColor: Colors.white.withOpacity(0.3),
-                        highlightColor: Colors.white.withOpacity(0.6),
-                        period: const Duration(milliseconds: 1500),
-                        child: Container(
-                          width: 120.0,
-                          height: 18.0,
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                        ),
-                      )
+                  baseColor: Colors.white.withOpacity(0.3),
+                  highlightColor: Colors.white.withOpacity(0.6),
+                  period: const Duration(milliseconds: 1500),
+                  child: Container(
+                    width: 120.0,
+                    height: 18.0,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                )
                     : Text(
-                        (firstName.isNotEmpty || lastName.isNotEmpty)
-                            ? "$firstName $lastName".trim()
-                            : "User Profile",
-                        style: const TextStyle(
-                          fontFamily: _primaryFontFamily,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 18,
-                          color: _textColorOnPrimary,
-                        ),
-                      ),
+                  (firstName.isNotEmpty || lastName.isNotEmpty)
+                      ? "$firstName $lastName".trim()
+                      : "User Profile",
+                  style: const TextStyle(
+                    fontFamily: _primaryFontFamily,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
+                    color: _textColorOnPrimary,
+                  ),
+                ),
                 accountEmail: _isUserNameLoading
                     ? Shimmer.fromColors(
-                        baseColor: Colors.white.withOpacity(0.3),
-                        highlightColor: Colors.white.withOpacity(0.9),
-                        period: const Duration(milliseconds: 1500),
-                        child: Container(
-                          width: 150.0,
-                          height: 14.0,
-                          margin: const EdgeInsets.only(top: 4.0),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                        ),
-                      )
+                  baseColor: Colors.white.withOpacity(0.3),
+                  highlightColor: Colors.white.withOpacity(0.9),
+                  period: const Duration(milliseconds: 1500),
+                  child: Container(
+                    width: 150.0,
+                    height: 14.0,
+                    margin: const EdgeInsets.only(top: 4.0),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                )
                     : (firebaseUser!.email != null &&
-                              firebaseUser!.email!.isNotEmpty
-                          ? Text(
-                              firebaseUser!.email!,
-                              style: const TextStyle(
-                                fontFamily: _primaryFontFamily,
-                                fontSize: 14,
-                                color: _textColorOnPrimary,
-                              ),
-                            )
-                          : null),
+                    firebaseUser!.email!.isNotEmpty
+                    ? Text(
+                  firebaseUser!.email!,
+                  style: const TextStyle(
+                    fontFamily: _primaryFontFamily,
+                    fontSize: 14,
+                    color: _textColorOnPrimary,
+                  ),
+                )
+                    : null),
                 currentAccountPicture: StreamBuilder<DocumentSnapshot>(
                   stream: FirebaseFirestore.instance
                       .collection('Users')
@@ -1165,7 +1413,6 @@ class _HomeState extends State<home> {
                     }
                   },
                 ),
-
                 decoration: const BoxDecoration(color: _primaryColor),
                 otherAccountsPictures: [
                   IconButton(
@@ -1186,16 +1433,9 @@ class _HomeState extends State<home> {
                   ),
                 ],
               ),
-              buildMenuTile(
-                'Subscription',
-                Icons.subscriptions_outlined,
-                Icons.subscriptions,
-              ),
-              buildMenuTile(
-                'Settings',
-                Icons.settings_outlined,
-                Icons.settings,
-              ),
+              buildMenuTile('Subscription', Icons.subscriptions_outlined,
+                  Icons.subscriptions),
+              buildMenuTile('Settings', Icons.settings_outlined, Icons.settings),
               buildMenuTile('About', Icons.info_outline, Icons.info),
               const Divider(indent: 16, endIndent: 16),
               buildMenuTile('Logout', Icons.logout_outlined, Icons.logout),
@@ -1212,8 +1452,8 @@ class _HomeState extends State<home> {
           selectedIndex == 0
               ? "Mama's Recipe"
               : (selectedIndex == 1
-                    ? "My Schedule"
-                    : (selectedIndex == 2 ? "Messages" : "Profile")),
+              ? "My Schedule"
+              : (selectedIndex == 2 ? "Messages" : "Profile")),
           style: const TextStyle(
             fontFamily: _primaryFontFamily,
             fontWeight: FontWeight.bold,
@@ -1342,12 +1582,10 @@ class _HomeState extends State<home> {
 
   Widget buildMenuTile(String label, IconData icon, IconData activeIcon) {
     bool isSelected = selectedMenu == label;
-    final Color itemColor = isSelected
-        ? _primaryColor
-        : _textColorPrimary(context);
-    final Color itemBgColor = isSelected
-        ? _primaryColor.withOpacity(0.1)
-        : Colors.transparent;
+    final Color itemColor =
+    isSelected ? _primaryColor : _textColorPrimary(context);
+    final Color itemBgColor =
+    isSelected ? _primaryColor.withOpacity(0.1) : Colors.transparent;
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
@@ -1442,9 +1680,7 @@ class _HomeState extends State<home> {
                     child: Row(
                       children: [
                         Icon(
-                          isSubscribed
-                              ? Icons.check_circle
-                              : Icons.info_outline,
+                          isSubscribed ? Icons.check_circle : Icons.info_outline,
                           color: isSubscribed ? _primaryColor : Colors.orange,
                           size: 24,
                         ),
@@ -1865,10 +2101,8 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
           else if (_selectedDay != null)
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16.0,
-                  vertical: 8.0,
-                ),
+                padding:
+                const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -1920,7 +2154,8 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
     if (dayEvents.isEmpty) {
       return Card(
         color: _cardBgColor(context),
-        elevation: 1,
+        elevation: 2,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         child: Padding(
           padding: const EdgeInsets.all(16.0),
           child: Center(
@@ -1967,9 +2202,9 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
 
         return Card(
           margin: const EdgeInsets.only(bottom: 12),
-          elevation: 3,
+          elevation: 8,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(20),
           ),
           color: _cardBgColor(context),
           child: Padding(
@@ -2150,12 +2385,8 @@ class UsersListPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bool isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    final Color currentScaffoldBg = isDarkMode
-        ? Colors.grey.shade900
-        : Colors.grey.shade50;
-    final Color currentAppBarBg = isDarkMode
-        ? Colors.grey.shade800
-        : Colors.white;
+    final Color currentScaffoldBg = isDarkMode ? Colors.grey.shade900 : Colors.grey.shade50;
+    final Color currentAppBarBg = isDarkMode ? Colors.grey.shade800 : Colors.white;
     final Color currentTabLabel = _textColorPrimary(context);
     final Color currentIndicator = _primaryColor;
 
@@ -2298,13 +2529,11 @@ class UsersListPage extends StatelessWidget {
 
                         return ListTile(
                           leading: CircleAvatar(
-                            backgroundImage:
-                            (data["profile"] != null &&
+                            backgroundImage: (data["profile"] != null &&
                                 data["profile"].toString().isNotEmpty)
                                 ? NetworkImage(data["profile"])
                                 : null,
-                            child:
-                            (data["profile"] == null ||
+                            child: (data["profile"] == null ||
                                 data["profile"].toString().isEmpty)
                                 ? Icon(
                               Icons.person_outline,
@@ -2420,8 +2649,7 @@ class UsersListPage extends StatelessWidget {
                                 .findAncestorStateOfType<_HomeState>();
                             if (homeState != null) {
                               homeState.setState(() {
-                                homeState.selectedIndex =
-                                1; // go to My Schedule tab
+                                homeState.selectedIndex = 1; // go to My Schedule tab
                               });
                             }
                           }
@@ -2508,9 +2736,9 @@ class DietitiansListPage extends StatelessWidget {
 
               return Card(
                 margin: const EdgeInsets.only(bottom: 12),
-                elevation: 2,
+                elevation: 8,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(20),
                 ),
                 color: _cardBgColor(context),
                 child: InkWell(
@@ -2525,24 +2753,36 @@ class DietitiansListPage extends StatelessWidget {
                       ),
                     );
                   },
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(20),
                   child: Padding(
                     padding: const EdgeInsets.all(16),
                     child: Row(
                       children: [
-                        CircleAvatar(
-                          radius: 30,
-                          backgroundColor: _primaryColor.withOpacity(0.2),
-                          backgroundImage: profileUrl.isNotEmpty
-                              ? NetworkImage(profileUrl)
-                              : null,
-                          child: profileUrl.isEmpty
-                              ? const Icon(
-                            Icons.health_and_safety,
-                            size: 30,
-                            color: _primaryColor,
-                          )
-                              : null,
+                        Container(
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: _primaryColor.withOpacity(0.3),
+                                blurRadius: 8,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: CircleAvatar(
+                            radius: 32,
+                            backgroundColor: _primaryColor.withOpacity(0.2),
+                            backgroundImage: profileUrl.isNotEmpty
+                                ? NetworkImage(profileUrl)
+                                : null,
+                            child: profileUrl.isEmpty
+                                ? const Icon(
+                              Icons.health_and_safety,
+                              size: 32,
+                              color: _primaryColor,
+                            )
+                                : null,
+                          ),
                         ),
                         const SizedBox(width: 16),
                         Expanded(
@@ -2553,7 +2793,10 @@ class DietitiansListPage extends StatelessWidget {
                                 name.isEmpty ? "Dietitian" : "Dr. $name",
                                 style: _cardTitleStyle(
                                   context,
-                                ).copyWith(fontSize: 16),
+                                ).copyWith(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                               const SizedBox(height: 4),
                               Text(
@@ -2717,8 +2960,8 @@ class _MySubscriptionsPageState extends State<MySubscriptionsPage> {
   Widget _buildSubscriptionCard(UserSubscription subscription) {
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
-      elevation: 3,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      elevation: 8,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       color: _cardBgColor(context),
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -2746,7 +2989,10 @@ class _MySubscriptionsPageState extends State<MySubscriptionsPage> {
                       }
                       return Text(
                         "Dr. $dietitianName",
-                        style: _cardTitleStyle(context).copyWith(fontSize: 18),
+                        style: _cardTitleStyle(context).copyWith(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
                       );
                     },
                   ),
