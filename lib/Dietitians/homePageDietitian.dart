@@ -244,7 +244,7 @@ class _HomePageDietitianState extends State<HomePageDietitian> {
     ),
     if (firebaseUser != null)
       UsersListPage(currentUserId: firebaseUser!.uid),
-    const DietitianProfile(),
+    const DietitianProfile(), // Added Profile page back to navigation
   ];
 
   String _getAppBarTitle(int index) {
@@ -255,8 +255,8 @@ class _HomePageDietitianState extends State<HomePageDietitian> {
         return "My Schedule";
       case 2:
         return "Messages";
-      case 3:
-        return "My Profile";
+      case 3: // Added case for Profile tab
+        return "Profile";
       default:
         return "Dietitian App";
     }
@@ -412,23 +412,19 @@ class _HomePageDietitianState extends State<HomePageDietitian> {
             padding: const EdgeInsets.only(right: 16.0),
             child: GestureDetector(
               onTap: () {
-                int profileIndex =
-                _pages.indexWhere((page) => page is DietitianProfile);
-                if (profileIndex != -1) {
-                  setState(() {
-                    selectedIndex = profileIndex;
-                  });
-                }
+                setState(() {
+                  selectedIndex = 3;
+                });
               },
               child: CircleAvatar(
-                radius: 32,
+                radius: 18, // Changed from 20 to 18
                 backgroundColor: _primaryColor.withOpacity(0.2),
                 backgroundImage: (profileUrl.isNotEmpty)
                     ? NetworkImage(profileUrl)
                     : null,
                 child: (profileUrl.isEmpty)
                     ? const Icon(Icons.person,
-                    size: 32, color: _primaryColor)
+                    size: 20, color: _primaryColor)
                     : null,
               ),
             ),
@@ -491,8 +487,8 @@ class _HomePageDietitianState extends State<HomePageDietitian> {
                   activeIcon: Icon(Icons.mail),
                   label: 'Messages'),
               BottomNavigationBarItem(
-                  icon: Icon(Icons.person_outline_rounded),
-                  activeIcon: Icon(Icons.person_rounded),
+                  icon: Icon(Icons.person_outline),
+                  activeIcon: Icon(Icons.person),
                   label: 'Profile'),
             ],
           ),
@@ -616,7 +612,7 @@ class UsersListPage extends StatelessWidget {
       child: Scaffold(
         backgroundColor: currentScaffoldBg,
         appBar: AppBar(
-          backgroundColor: _primaryColor,
+          backgroundColor: Colors.white,
           elevation: 1,
           automaticallyImplyLeading: false,
           title: TabBar(
