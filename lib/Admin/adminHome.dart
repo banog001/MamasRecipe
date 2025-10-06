@@ -81,15 +81,8 @@ class _AdminHomeState extends State<AdminHome> {
                           color: Colors.grey[100],
                           child: Column(
                             children: [
-                              // Dietitians Panel
-                              Expanded(
-                                child: _buildDietitianPanel(),
-                              ),
-
-                              // Users Panel
-                              Expanded(
-                                child: _buildUsersPanel(),
-                              ),
+                              Expanded(child: _buildDietitianPanel()),
+                              Expanded(child: _buildUsersPanel()),
                             ],
                           ),
                         ),
@@ -153,7 +146,7 @@ class _AdminHomeState extends State<AdminHome> {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
           .collection('Users')
-          .where('role', isNotEqualTo: 'admin') // ✅ exclude admins
+          .where('role', isNotEqualTo: 'admin') // exclude admins
           .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
@@ -175,7 +168,7 @@ class _AdminHomeState extends State<AdminHome> {
               DataColumn(label: Text("Status")),
               DataColumn(label: Text("Role")),
               DataColumn(label: Text("Actions")),
-              DataColumn(label: Text("Upgrade")), // NEW COLUMN
+              DataColumn(label: Text("Upgrade")),
             ],
             rows: users.map((doc) {
               final user = doc.data() as Map<String, dynamic>;
@@ -196,11 +189,12 @@ class _AdminHomeState extends State<AdminHome> {
                 DataCell(
                   IconButton(
                     icon: const Icon(Icons.delete, color: Colors.red),
-                    onPressed: () {
-                      FirebaseFirestore.instance
+                    onPressed: () async {
+                      await FirebaseFirestore.instance
                           .collection("Users")
                           .doc(doc.id)
                           .delete();
+                      setState(() {}); // ensure UI rebuild
                     },
                   ),
                 ),
@@ -213,25 +207,28 @@ class _AdminHomeState extends State<AdminHome> {
                       foregroundColor: Colors.white,
                     ),
                     onPressed: role == "dietitian"
-                        ? null // disable if already dietitian
+                        ? null
                         : () async {
                       try {
-                        // Update role to dietitian
                         await FirebaseFirestore.instance
                             .collection("Users")
                             .doc(doc.id)
                             .update({"role": "dietitian"});
 
+                        setState(() {}); // force UI refresh
+
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
-                              content: Text(
-                                  "$firstName upgraded to Dietitian ✅")),
+                            content: Text(
+                                "$firstName upgraded to Dietitian ✅"),
+                          ),
                         );
                       } catch (e) {
                         print("Error upgrading user: $e");
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
-                              content: Text("Failed to upgrade user")),
+                              content:
+                              Text("Failed to upgrade user ❌")),
                         );
                       }
                     },
@@ -247,7 +244,7 @@ class _AdminHomeState extends State<AdminHome> {
   }
 
   // RIGHT PANEL: Dietitians
-  static Widget _buildDietitianPanel() {
+  Widget _buildDietitianPanel() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -279,15 +276,17 @@ class _AdminHomeState extends State<AdminHome> {
               return ListView.builder(
                 itemCount: dietitians.length,
                 itemBuilder: (context, index) {
-                  final user =
-                  dietitians[index].data() as Map<String, dynamic>;
+                  final doc = dietitians[index];
+                  final user = doc.data() as Map<String, dynamic>;
                   final firstName = user['firstName'] ?? '';
                   final lastName = user['lastName'] ?? '';
                   final email = user['email'] ?? 'No email';
                   final name = "$firstName $lastName".trim();
 
                   return ListTile(
-                    leading: const Icon(Icons.person, color: Colors.blueGrey),
+                    key: ValueKey(doc.id),
+                    leading:
+                    const Icon(Icons.person, color: Colors.blueGrey),
                     title: Text(name,
                         style: const TextStyle(fontWeight: FontWeight.bold)),
                     subtitle: Text(email),
@@ -302,7 +301,7 @@ class _AdminHomeState extends State<AdminHome> {
   }
 
   // RIGHT PANEL: Users
-  static Widget _buildUsersPanel() {
+  Widget _buildUsersPanel() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -334,7 +333,8 @@ class _AdminHomeState extends State<AdminHome> {
               return ListView.builder(
                 itemCount: users.length,
                 itemBuilder: (context, index) {
-                  final user = users[index].data() as Map<String, dynamic>;
+                  final doc = users[index];
+                  final user = doc.data() as Map<String, dynamic>;
                   final firstName = user['firstName'] ?? '';
                   final lastName = user['lastName'] ?? '';
                   final email = user['email'] ?? 'No email';
@@ -342,6 +342,7 @@ class _AdminHomeState extends State<AdminHome> {
                   final name = "$firstName $lastName".trim();
 
                   return Padding(
+                    key: ValueKey(doc.id),
                     padding:
                     const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     child: ElevatedButton(
@@ -356,7 +357,7 @@ class _AdminHomeState extends State<AdminHome> {
                         alignment: Alignment.centerLeft,
                       ),
                       onPressed: () {
-                        // optional: add click action for user
+                        // Optional: add click action
                       },
                       child: Row(
                         children: [

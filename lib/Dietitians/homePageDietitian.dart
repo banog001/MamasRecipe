@@ -69,6 +69,7 @@ class _HomePageDietitianState extends State<HomePageDietitian> {
   late int selectedIndex;
   String firstName = "";
   String lastName = "";
+  String profileUrl = "";
   bool _isUserNameLoading = true;
 
   @override
@@ -97,24 +98,27 @@ class _HomePageDietitianState extends State<HomePageDietitian> {
             setState(() {
               firstName = data['firstName'] as String? ?? '';
               lastName = data['lastName'] as String? ?? '';
+              profileUrl = data['profile'] as String? ?? ''; // <-- ADD THIS LINE
               _isUserNameLoading = false;
             });
           } else {
+            // Handle case where user document doesn't exist
             setState(() {
               firstName = "";
               lastName = "";
+              profileUrl = ""; // <-- ADD THIS LINE
               _isUserNameLoading = false;
             });
-            debugPrint(
-                "User document does not exist for Dietitian UID: ${user.uid}");
+            debugPrint("User document does not exist for UID: ${user.uid}");
           }
         }
       } catch (e) {
-        debugPrint("Error loading dietitian user name: $e");
+        debugPrint("Error loading user name: $e");
         if (mounted) {
           setState(() {
             firstName = "";
             lastName = "";
+            profileUrl = ""; // <-- ADD THIS LINE
             _isUserNameLoading = false;
           });
         }
@@ -129,18 +133,32 @@ class _HomePageDietitianState extends State<HomePageDietitian> {
   }
 
   Future<void> _updateGooglePhotoURL() async {
-    if (firebaseUser != null) {
+    if (firebaseUser == null) return;
+
+    final userDoc = FirebaseFirestore.instance
+        .collection("Users")
+        .doc(firebaseUser!.uid);
+
+    final snapshot = await userDoc.get();
+
+    // Only update if profile field is empty or missing
+    if (!snapshot.exists ||
+        !snapshot.data()!.containsKey('profile') ||
+        (snapshot.data()!['profile'] as String).isEmpty) {
       String? photoURL = firebaseUser!.photoURL;
       if (photoURL != null && photoURL.isNotEmpty) {
         try {
-          await FirebaseFirestore.instance
-              .collection("Users")
-              .doc(firebaseUser!.uid)
-              .set({"profile": photoURL}, SetOptions(merge: true));
+          await userDoc.set(
+            {"profile": photoURL},
+            SetOptions(merge: true),
+          );
+          debugPrint("Firestore profile set from Google photo (first time only).");
         } catch (e) {
-          debugPrint("Error updating G-Photo (Dietitian): $e");
+          debugPrint("Error updating Google Photo URL in Firestore: $e");
         }
       }
+    } else {
+      debugPrint("Firestore profile already set, skipping Google photo overwrite.");
     }
   }
 
@@ -272,20 +290,24 @@ class _HomePageDietitianState extends State<HomePageDietitian> {
                   highlightColor: Colors.white.withOpacity(0.6),
                   period: const Duration(milliseconds: 1500),
                   child: Container(
-                      width: 120.0,
-                      height: 18.0,
-                      decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(4))),
+                    width: 120.0,
+                    height: 18.0,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
                 )
                     : Text(
                   (firstName.isNotEmpty || lastName.isNotEmpty)
                       ? "$firstName $lastName".trim()
-                      : "Dietitian",
-                  style: _getTextStyle(context,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: _textColorOnPrimary),
+                      : "User Profile",
+                  style: const TextStyle(
+                    fontFamily: _primaryFontFamily,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
+                    color: _textColorOnPrimary,
+                  ),
                 ),
                 accountEmail: _isUserNameLoading
                     ? Shimmer.fromColors(
@@ -293,52 +315,72 @@ class _HomePageDietitianState extends State<HomePageDietitian> {
                   highlightColor: Colors.white.withOpacity(0.9),
                   period: const Duration(milliseconds: 1500),
                   child: Container(
-                      width: 150.0,
-                      height: 14.0,
-                      margin: const EdgeInsets.only(top: 4.0),
-                      decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(4))),
+                    width: 150.0,
+                    height: 14.0,
+                    margin: const EdgeInsets.only(top: 4.0),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
                 )
                     : (firebaseUser!.email != null &&
                     firebaseUser!.email!.isNotEmpty
-                    ? Text(firebaseUser!.email!,
-                    style: _getTextStyle(context,
-                        fontSize: 14, color: _textColorOnPrimary))
-                    : Text("No email set",
-                    style: _getTextStyle(context,
-                        fontSize: 14,
-                        color: _textColorOnPrimary.withOpacity(0.7)))),
-                currentAccountPicture: CircleAvatar(
-                  radius: 30,
-                  backgroundColor: Colors.white,
-                  backgroundImage: (firebaseUser!.photoURL != null &&
-                      firebaseUser!.photoURL!.isNotEmpty)
-                      ? NetworkImage(firebaseUser!.photoURL!)
-                      : null,
-                  child: (firebaseUser!.photoURL == null ||
-                      firebaseUser!.photoURL!.isEmpty)
-                      ? const Icon(Icons.health_and_safety_rounded,
-                      size: 30, color: _primaryColor)
-                      : null,
+                    ? Text(
+                  firebaseUser!.email!,
+                  style: const TextStyle(
+                    fontFamily: _primaryFontFamily,
+                    fontSize: 14,
+                    color: _textColorOnPrimary,
+                  ),
+                )
+                    : null),
+                currentAccountPicture: StreamBuilder<DocumentSnapshot>(
+                  stream: FirebaseFirestore.instance
+                      .collection('Users')
+                      .doc(FirebaseAuth.instance.currentUser!.uid)
+                      .snapshots(),
+                  builder: (context, snapshot) {
+                    if (!snapshot.hasData) {
+                      return const CircleAvatar(
+                        backgroundColor: Colors.white,
+                        child: Icon(Icons.person, size: 30, color: Colors.green),
+                      );
+                    }
+
+                    final data = snapshot.data!.data() as Map<String, dynamic>?;
+                    final profileUrl = data?['profile'] ?? '';
+
+                    if (profileUrl.isNotEmpty) {
+                      return CircleAvatar(
+                        backgroundImage: NetworkImage(profileUrl),
+                      );
+                    } else {
+                      return const CircleAvatar(
+                        backgroundColor: Colors.white,
+                        child: Icon(Icons.person, size: 30, color: Colors.green),
+                      );
+                    }
+                  },
                 ),
                 decoration: const BoxDecoration(color: _primaryColor),
                 otherAccountsPictures: [
                   IconButton(
-                    icon: Icon(Icons.edit_outlined,
-                        color: _textColorOnPrimary.withOpacity(0.8)),
+                    icon: Icon(
+                      Icons.edit_outlined,
+                      color: _textColorOnPrimary.withOpacity(0.8),
+                    ),
                     onPressed: () {
-                      Navigator.pop(context); // Close drawer
-                      int profileIndex =
-                      _pages.indexWhere((page) => page is DietitianProfile);
-                      if (profileIndex != -1) {
-                        setState(() {
-                          selectedIndex = profileIndex;
-                        });
-                      }
+                      Navigator.pop(context);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const DietitianProfile(),
+                        ),
+                      );
                     },
-                    tooltip: "View/Edit Profile",
-                  )
+                    tooltip: "Edit Profile",
+                  ),
                 ],
               ),
               buildMenuTile('My Meal Plans', Icons.list_alt_outlined,
@@ -379,16 +421,14 @@ class _HomePageDietitianState extends State<HomePageDietitian> {
                 }
               },
               child: CircleAvatar(
-                radius: 18,
-                backgroundColor: _textColorOnPrimary.withOpacity(0.2),
-                backgroundImage: (firebaseUser!.photoURL != null &&
-                    firebaseUser!.photoURL!.isNotEmpty)
-                    ? NetworkImage(firebaseUser!.photoURL!)
+                radius: 32,
+                backgroundColor: _primaryColor.withOpacity(0.2),
+                backgroundImage: (profileUrl.isNotEmpty)
+                    ? NetworkImage(profileUrl)
                     : null,
-                child: (firebaseUser!.photoURL == null ||
-                    firebaseUser!.photoURL!.isEmpty)
-                    ? Icon(Icons.health_and_safety_outlined,
-                    size: 20, color: _textColorOnPrimary.withOpacity(0.8))
+                child: (profileUrl.isEmpty)
+                    ? const Icon(Icons.person,
+                    size: 32, color: _primaryColor)
                     : null,
               ),
             ),
@@ -576,8 +616,8 @@ class UsersListPage extends StatelessWidget {
       child: Scaffold(
         backgroundColor: currentScaffoldBg,
         appBar: AppBar(
-          backgroundColor: currentAppBarBg,
-          elevation: 0.5,
+          backgroundColor: _primaryColor,
+          elevation: 1,
           automaticallyImplyLeading: false,
           title: TabBar(
             labelColor: currentTabLabel,
@@ -914,7 +954,6 @@ class UsersListPage extends StatelessWidget {
     );
   }
 }
-
 class ScheduleCalendarPage extends StatefulWidget {
   final String dietitianFirstName;
   final String dietitianLastName;

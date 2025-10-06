@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'createMealPlan.dart'; // Ensure this path is correct
+import 'createMealPlan.dart';
+import 'editDietitianProfile.dart';// Ensure this path is correct
 
 // Note: No need to import HomePageDietitian here anymore if it's just content for a tab
 
@@ -159,9 +160,13 @@ class _DietitianProfileState extends State<DietitianProfile> {
                               elevation: 3,
                               child: InkWell(
                                 onTap: () {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(content: Text("Edit profile picture tapped!")));
-                                  // TODO: Implement profile picture editing logic
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) =>
+                                      const EditProfileDietitianPage(),
+                                    ),
+                                  );
                                 },
                                 customBorder: const CircleBorder(),
                                 child: Padding(
