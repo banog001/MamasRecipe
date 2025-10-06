@@ -141,7 +141,8 @@ class _HomeState extends State<home> {
     loadUserName();
   }
 
-
+  // REMOVED duplicate dispose method at line 144-149
+  // The dispose method at line 1268-1272 already handles both _searchController disposal and _setUserStatus
 
   void loadUserName() async {
     setState(() {
@@ -1262,6 +1263,7 @@ class _HomeState extends State<home> {
 
   @override
   void dispose() {
+    _searchController.dispose();
     _setUserStatus("offline");
     super.dispose();
   }
@@ -1970,175 +1972,206 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: _scaffoldBgColor(context),
-      body: Column(
-        children: [
-          Card(
-            margin: const EdgeInsets.all(12.0),
-            elevation: 2.0,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            color: _cardBgColor(context),
-            child: Padding(
-              padding: const EdgeInsets.only(bottom: 8.0),
-              child: TableCalendar(
-                locale: 'en_US',
-                firstDay: DateTime.utc(2020, 1, 1),
-                lastDay: DateTime.utc(2030, 12, 31),
-                focusedDay: _focusedDay,
-                selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
-                calendarFormat: _calendarFormat,
-                startingDayOfWeek: StartingDayOfWeek.monday,
-                eventLoader: _getEventsForDay,
-                calendarStyle: CalendarStyle(
-                  outsideDaysVisible: false,
-                  selectedDecoration: BoxDecoration(
-                    color: _primaryColor,
-                    shape: BoxShape.circle,
-                  ),
-                  selectedTextStyle: _getTextStyle(
-                    context,
-                    color: _textColorOnPrimary,
-                    fontWeight: FontWeight.bold,
-                  ),
-                  todayDecoration: BoxDecoration(
-                    color: _primaryColor.withOpacity(0.5),
-                    shape: BoxShape.circle,
-                  ),
-                  todayTextStyle: _getTextStyle(
-                    context,
-                    color: _textColorOnPrimary,
-                    fontWeight: FontWeight.bold,
-                  ),
-                  weekendTextStyle: _getTextStyle(
-                    context,
-                    color: _primaryColor.withOpacity(0.8),
-                  ),
-                  defaultTextStyle: _getTextStyle(
-                    context,
-                    color: _textColorPrimary(context),
-                  ),
+  Widget _buildAppointmentsTab() {
+    return Column(
+      children: [
+        Card(
+          margin: const EdgeInsets.all(12.0),
+          elevation: 2.0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          color: _cardBgColor(context),
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: 8.0),
+            child: TableCalendar(
+              locale: 'en_US',
+              firstDay: DateTime.utc(2020, 1, 1),
+              lastDay: DateTime.utc(2030, 12, 31),
+              focusedDay: _focusedDay,
+              selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
+              calendarFormat: _calendarFormat,
+              startingDayOfWeek: StartingDayOfWeek.monday,
+              eventLoader: _getEventsForDay,
+              calendarStyle: CalendarStyle(
+                outsideDaysVisible: false,
+                selectedDecoration: BoxDecoration(
+                  color: _primaryColor,
+                  shape: BoxShape.circle,
                 ),
-                calendarBuilders: CalendarBuilders(
-                  markerBuilder: (context, day, events) {
-                    if (events.isNotEmpty) {
-                      return Positioned(
-                        right: 1,
-                        top: 1,
-                        child: Container(
-                          padding: const EdgeInsets.all(4.0),
-                          decoration: const BoxDecoration(
-                            color: Colors.redAccent,
-                            shape: BoxShape.circle,
-                          ),
-                          child: Text(
-                            '${events.length}',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                            ),
+                selectedTextStyle: _getTextStyle(
+                  context,
+                  color: _textColorOnPrimary,
+                  fontWeight: FontWeight.bold,
+                ),
+                todayDecoration: BoxDecoration(
+                  color: _primaryColor.withOpacity(0.5),
+                  shape: BoxShape.circle,
+                ),
+                todayTextStyle: _getTextStyle(
+                  context,
+                  color: _textColorOnPrimary,
+                  fontWeight: FontWeight.bold,
+                ),
+                weekendTextStyle: _getTextStyle(
+                  context,
+                  color: _primaryColor.withOpacity(0.8),
+                ),
+                defaultTextStyle: _getTextStyle(
+                  context,
+                  color: _textColorPrimary(context),
+                ),
+              ),
+              calendarBuilders: CalendarBuilders(
+                markerBuilder: (context, day, events) {
+                  if (events.isNotEmpty) {
+                    return Positioned(
+                      right: 1,
+                      top: 1,
+                      child: Container(
+                        padding: const EdgeInsets.all(4.0),
+                        decoration: const BoxDecoration(
+                          color: Colors.redAccent,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Text(
+                          '${events.length}',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
-                      );
-                    }
-                    return null;
-                  },
-                ),
-                headerStyle: HeaderStyle(
-                  formatButtonVisible: true,
-                  titleCentered: true,
-                  titleTextStyle: _getTextStyle(
-                    context,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: _textColorPrimary(context),
-                  ),
-                  formatButtonTextStyle: _getTextStyle(
-                    context,
-                    color: _textColorOnPrimary,
-                  ),
-                  formatButtonDecoration: BoxDecoration(
-                    color: _primaryColor,
-                    borderRadius: BorderRadius.circular(20.0),
-                  ),
-                  leftChevronIcon: Icon(
-                    Icons.chevron_left,
-                    color: _textColorPrimary(context),
-                  ),
-                  rightChevronIcon: Icon(
-                    Icons.chevron_right,
-                    color: _textColorPrimary(context),
-                  ),
-                ),
-                onDaySelected: _onDaySelected,
-                onFormatChanged: (format) {
-                  if (_calendarFormat != format) {
-                    setState(() {
-                      _calendarFormat = format;
-                    });
+                      ),
+                    );
                   }
-                },
-                onPageChanged: (focusedDay) {
-                  setState(() {
-                    _focusedDay = focusedDay;
-                  });
+                  return null;
                 },
               ),
+              headerStyle: HeaderStyle(
+                formatButtonVisible: true,
+                titleCentered: true,
+                titleTextStyle: _getTextStyle(
+                  context,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: _textColorPrimary(context),
+                ),
+                formatButtonTextStyle: _getTextStyle(
+                  context,
+                  color: _textColorOnPrimary,
+                ),
+                formatButtonDecoration: BoxDecoration(
+                  color: _primaryColor,
+                  borderRadius: BorderRadius.circular(20.0),
+                ),
+                leftChevronIcon: Icon(
+                  Icons.chevron_left,
+                  color: _textColorPrimary(context),
+                ),
+                rightChevronIcon: Icon(
+                  Icons.chevron_right,
+                  color: _textColorPrimary(context),
+                ),
+              ),
+              onDaySelected: _onDaySelected,
+              onFormatChanged: (format) {
+                if (_calendarFormat != format) {
+                  setState(() {
+                    _calendarFormat = format;
+                  });
+                }
+              },
+              onPageChanged: (focusedDay) {
+                setState(() {
+                  _focusedDay = focusedDay;
+                });
+              },
             ),
           ),
-          if (_isLoadingEvents)
-            const Padding(
-              padding: EdgeInsets.all(16.0),
-              child: Center(
-                child: CircularProgressIndicator(color: _primaryColor),
+        ),
+        if (_isLoadingEvents)
+          const Padding(
+            padding: EdgeInsets.all(16.0),
+            child: Center(
+              child: CircularProgressIndicator(color: _primaryColor),
+            ),
+          )
+        else if (_selectedDay != null)
+          Expanded(
+            child: SingleChildScrollView(
+              padding:
+              const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    "My Appointments for ${DateFormat.yMMMMd().format(_selectedDay!)}:",
+                    style: _getTextStyle(
+                      context,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: _textColorPrimary(context),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  _buildScheduledAppointmentsList(_selectedDay!),
+                  const SizedBox(height: 20),
+                ],
               ),
-            )
-          else if (_selectedDay != null)
+            ),
+          )
+        else if (!_isLoadingEvents)
             Expanded(
-              child: SingleChildScrollView(
-                padding:
-                const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      "My Appointments for ${DateFormat.yMMMMd().format(_selectedDay!)}:",
-                      style: _getTextStyle(
-                        context,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: _textColorPrimary(context),
-                      ),
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Text(
+                    "Select a day to see your appointments.",
+                    style: _getTextStyle(
+                      context,
+                      color: _textColorSecondary(context),
                     ),
-                    const SizedBox(height: 10),
-                    _buildScheduledAppointmentsList(_selectedDay!),
-                    const SizedBox(height: 20),
-                  ],
-                ),
-              ),
-            )
-          else if (!_isLoadingEvents)
-              Expanded(
-                child: Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Text(
-                      "Select a day to see your appointments.",
-                      style: _getTextStyle(
-                        context,
-                        color: _textColorSecondary(context),
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
+                    textAlign: TextAlign.center,
                   ),
                 ),
               ),
-        ],
+            ),
+      ],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        backgroundColor: _scaffoldBgColor(context),
+        appBar: PreferredSize(
+          preferredSize: const Size.fromHeight(80),
+          child: AppBar(
+            backgroundColor: _primaryColor,
+            foregroundColor: _textColorOnPrimary,
+            elevation: 0,
+            automaticallyImplyLeading: false,
+            bottom: const TabBar(
+              indicatorColor: Colors.white,
+              labelColor: Colors.white,
+              unselectedLabelColor: Colors.white70,
+              labelStyle: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+              tabs: [
+                Tab(icon: Icon(Icons.calendar_today, size: 20), text: 'Appointments'),
+                Tab(icon: Icon(Icons.restaurant_menu, size: 20), text: 'Meal Plans'),
+              ],
+            ),
+          ),
+        ),
+        body: TabBarView(
+          children: [
+            _buildAppointmentsTab(),
+            MealPlanSchedulerPage(userId: widget.currentUserId),
+          ],
+        ),
       ),
     );
   }
@@ -3160,3 +3193,680 @@ class _MySubscriptionsPageState extends State<MySubscriptionsPage> {
     }
   }
 }
+
+// =======================================================================
+// MEAL PLAN SCHEDULER - Drag and Drop Interface
+// =======================================================================
+class MealPlanSchedulerPage extends StatefulWidget {
+  final String userId;
+  const MealPlanSchedulerPage({super.key, required this.userId});
+
+  @override
+  State<MealPlanSchedulerPage> createState() => _MealPlanSchedulerPageState();
+}
+
+class _MealPlanSchedulerPageState extends State<MealPlanSchedulerPage> {
+  // State to track which meal plan is assigned to which day
+  Map<String, Map<String, dynamic>?> weeklySchedule = {
+    'Monday': null,
+    'Tuesday': null,
+    'Wednesday': null,
+    'Thursday': null,
+    'Friday': null,
+    'Saturday': null,
+    'Sunday': null,
+  };
+
+  List<Map<String, dynamic>> subscribedMealPlans = [];
+  bool _isLoading = true;
+  DateTime currentWeekStart = DateTime.now();
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSubscribedMealPlans();
+    _loadWeeklySchedule();
+  }
+
+  // =======================================================================
+  // BACKEND INTEGRATION METHODS
+  // Backend developers should implement these methods with Firebase logic
+  // =======================================================================
+
+  /// BACKEND: Fetch all meal plans that the user has subscribed to
+  ///
+  /// This method should:
+  /// 1. Query Firebase for user's active subscriptions
+  /// 2. For each subscription, fetch the associated meal plan details
+  /// 3. Return a list of meal plans with their IDs, names, and other details
+  ///
+  /// Expected return format:
+  /// [
+  ///   {
+  ///     'id': 'mealPlanId123',
+  ///     'planName': 'Weight Loss Plan',
+  ///     'planType': 'Weight Loss',
+  ///     'dietitianName': 'Dr. Smith',
+  ///     'dietitianId': 'dietitianId456'
+  ///   },
+  ///   ...
+  /// ]
+  Future<void> _loadSubscribedMealPlans() async {
+    setState(() => _isLoading = true);
+
+    try {
+      // BACKEND TODO: Replace this with actual Firebase query
+      // Example implementation:
+      /*
+      // Step 1: Get user's active subscriptions
+      QuerySnapshot subscriptionsSnapshot = await FirebaseFirestore.instance
+          .collection('subscriptions')
+          .where('userId', isEqualTo: widget.userId)
+          .where('status', isEqualTo: 'active')
+          .get();
+
+      List<Map<String, dynamic>> mealPlans = [];
+
+      // Step 2: For each subscription, fetch the meal plan
+      for (var subDoc in subscriptionsSnapshot.docs) {
+        String dietitianId = subDoc['dietitianId'];
+
+        // Get meal plans from this dietitian
+        QuerySnapshot mealPlansSnapshot = await FirebaseFirestore.instance
+            .collection('mealPlans')
+            .where('owner', isEqualTo: dietitianId)
+            .get();
+
+        for (var planDoc in mealPlansSnapshot.docs) {
+          var planData = planDoc.data() as Map<String, dynamic>;
+          planData['id'] = planDoc.id;
+
+          // Get dietitian name
+          DocumentSnapshot dietitianDoc = await FirebaseFirestore.instance
+              .collection('Users')
+              .doc(dietitianId)
+              .get();
+
+          if (dietitianDoc.exists) {
+            var dietitianData = dietitianDoc.data() as Map<String, dynamic>;
+            planData['dietitianName'] =
+                "${dietitianData['firstName']} ${dietitianData['lastName']}";
+          }
+
+          mealPlans.add(planData);
+        }
+      }
+
+      setState(() {
+        subscribedMealPlans = mealPlans;
+        _isLoading = false;
+      });
+      */
+
+      // TEMPORARY: Mock data for UI testing
+      await Future.delayed(const Duration(seconds: 1));
+      setState(() {
+        subscribedMealPlans = [
+          {
+            'id': 'plan1',
+            'planName': 'Weight Loss Plan',
+            'planType': 'Weight Loss',
+            'dietitianName': 'Dr. Smith',
+          },
+          {
+            'id': 'plan2',
+            'planName': 'Muscle Gain Plan',
+            'planType': 'Muscle Gain',
+            'dietitianName': 'Dr. Johnson',
+          },
+        ];
+        _isLoading = false;
+      });
+    } catch (e) {
+      print("Error loading subscribed meal plans: $e");
+      setState(() => _isLoading = false);
+    }
+  }
+
+  /// BACKEND: Load the user's existing weekly meal plan schedule from Firebase
+  ///
+  /// This method should:
+  /// 1. Query Firebase for the user's meal plan schedule for the current week
+  /// 2. Parse the schedule data and populate the weeklySchedule map
+  ///
+  /// Firebase collection structure suggestion:
+  /// Collection: 'userMealSchedules'
+  /// Document ID: '{userId}_{weekStartDate}'
+  /// Fields:
+  /// {
+  ///   'userId': 'user123',
+  ///   'weekStartDate': Timestamp,
+  ///   'schedule': {
+  ///     'Monday': {'mealPlanId': 'plan1', 'mealPlanName': 'Weight Loss Plan', ...},
+  ///     'Tuesday': {'mealPlanId': 'plan2', 'mealPlanName': 'Muscle Gain Plan', ...},
+  ///     ...
+  ///   },
+  ///   'lastUpdated': Timestamp
+  /// }
+  Future<void> _loadWeeklySchedule() async {
+    try {
+      // BACKEND TODO: Replace this with actual Firebase query
+      // Example implementation:
+      /*
+      String weekId = _getWeekId(currentWeekStart);
+      DocumentSnapshot scheduleDoc = await FirebaseFirestore.instance
+          .collection('userMealSchedules')
+          .doc('${widget.userId}_$weekId')
+          .get();
+
+      if (scheduleDoc.exists) {
+        var data = scheduleDoc.data() as Map<String, dynamic>;
+        Map<String, dynamic> schedule = data['schedule'] ?? {};
+
+        setState(() {
+          weeklySchedule = {
+            'Monday': schedule['Monday'],
+            'Tuesday': schedule['Tuesday'],
+            'Wednesday': schedule['Wednesday'],
+            'Thursday': schedule['Thursday'],
+            'Friday': schedule['Friday'],
+            'Saturday': schedule['Saturday'],
+            'Sunday': schedule['Sunday'],
+          };
+        });
+      }
+      */
+
+      // TEMPORARY: Mock data for UI testing
+      await Future.delayed(const Duration(milliseconds: 500));
+      // Schedule starts empty by default
+    } catch (e) {
+      print("Error loading weekly schedule: $e");
+    }
+  }
+
+  /// BACKEND: Save the updated weekly schedule to Firebase
+  ///
+  /// This method should:
+  /// 1. Take the current weeklySchedule map
+  /// 2. Save it to Firebase under the user's document
+  /// 3. Include timestamp for tracking
+  ///
+  /// Parameters:
+  /// - day: The day of the week being updated (e.g., 'Monday')
+  /// - mealPlan: The meal plan data being assigned (or null to remove)
+  Future<void> _saveScheduleToFirebase(String day, Map<String, dynamic>? mealPlan) async {
+    try {
+      // BACKEND TODO: Replace this with actual Firebase save operation
+      // Example implementation:
+      /*
+      String weekId = _getWeekId(currentWeekStart);
+      String docId = '${widget.userId}_$weekId';
+
+      await FirebaseFirestore.instance
+          .collection('userMealSchedules')
+          .doc(docId)
+          .set({
+        'userId': widget.userId,
+        'weekStartDate': Timestamp.fromDate(currentWeekStart),
+        'schedule': weeklySchedule,
+        'lastUpdated': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      print("Schedule saved successfully for $day");
+      */
+
+      // TEMPORARY: Just log for now
+      print("BACKEND TODO: Save schedule for $day: ${mealPlan?['planName'] ?? 'removed'}");
+    } catch (e) {
+      print("Error saving schedule: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error saving schedule: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  /// Helper method to generate a week identifier (e.g., '2025-W01')
+  String _getWeekId(DateTime date) {
+    int weekNumber = ((date.difference(DateTime(date.year, 1, 1)).inDays) / 7).ceil();
+    return '${date.year}-W${weekNumber.toString().padLeft(2, '0')}';
+  }
+
+  // =======================================================================
+  // UI METHODS
+  // =======================================================================
+
+  void _assignMealPlanToDay(String day, Map<String, dynamic> mealPlan) {
+    setState(() {
+      weeklySchedule[day] = mealPlan;
+    });
+    _saveScheduleToFirebase(day, mealPlan);
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('${mealPlan['planName']} assigned to $day'),
+        backgroundColor: _primaryColor,
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  void _removeMealPlanFromDay(String day) {
+    setState(() {
+      weeklySchedule[day] = null;
+    });
+    _saveScheduleToFirebase(day, null);
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Meal plan removed from $day'),
+        backgroundColor: Colors.orange,
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: _scaffoldBgColor(context),
+      body: _isLoading
+          ? const Center(
+        child: CircularProgressIndicator(color: _primaryColor),
+      )
+          : subscribedMealPlans.isEmpty
+          ? _buildEmptyState()
+          : _buildSchedulerContent(),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.restaurant_menu_outlined,
+              size: 80,
+              color: Colors.grey[400],
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'No Meal Plans Available',
+              style: _sectionTitleStyle(context).copyWith(
+                color: Colors.grey[600],
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Subscribe to a dietitian to get meal plans and start scheduling your weekly meals',
+              style: _cardSubtitleStyle(context),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const DietitiansListPage(),
+                  ),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _primaryColor,
+                foregroundColor: _textColorOnPrimary,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 12,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              icon: const Icon(Icons.person_search_rounded),
+              label: const Text('Browse Dietitians'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSchedulerContent() {
+    return Column(
+      children: [
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          margin: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+          decoration: BoxDecoration(
+            color: _primaryColor.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: _primaryColor.withOpacity(0.3)),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.info_outline, color: _primaryColor, size: 20),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Drag and drop meal plans to schedule your week',
+                  style: _cardBodyTextStyle(context).copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: _primaryColor,
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: Text(
+            'Your Meal Plans',
+            style: _sectionTitleStyle(context).copyWith(fontSize: 16),
+          ),
+        ),
+        const SizedBox(height: 6),
+        SizedBox(
+          height: 100,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            itemCount: subscribedMealPlans.length,
+            itemBuilder: (context, index) {
+              return _buildDraggableMealPlan(subscribedMealPlans[index]);
+            },
+          ),
+        ),
+
+        const SizedBox(height: 12),
+
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Weekly Schedule',
+                  style: _sectionTitleStyle(context).copyWith(fontSize: 16),
+                ),
+                const SizedBox(height: 8),
+                ...weeklySchedule.keys.map((day) {
+                  return _buildDayDropZone(day, weeklySchedule[day]);
+                }).toList(),
+                const SizedBox(height: 16),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDraggableMealPlan(Map<String, dynamic> mealPlan) {
+    return Draggable<Map<String, dynamic>>(
+      data: mealPlan,
+      feedback: Material(
+        elevation: 8,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          width: 160,
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: _primaryColor,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                mealPlan['planName'] ?? 'Meal Plan',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                  fontFamily: _primaryFontFamily,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 3),
+              Text(
+                mealPlan['planType'] ?? '',
+                style: const TextStyle(
+                  color: Colors.white70,
+                  fontSize: 11,
+                  fontFamily: _primaryFontFamily,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+      childWhenDragging: Opacity(
+        opacity: 0.3,
+        child: _buildMealPlanCard(mealPlan),
+      ),
+      child: _buildMealPlanCard(mealPlan),
+    );
+  }
+
+  Widget _buildMealPlanCard(Map<String, dynamic> mealPlan) {
+    return Container(
+      width: 160,
+      margin: const EdgeInsets.only(right: 10),
+      child: Card(
+        elevation: 4,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        color: _cardBgColor(context),
+        child: Padding(
+          padding: const EdgeInsets.all(5),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.restaurant_menu,
+                color: _primaryColor,
+                size: 24,
+              ),
+              const SizedBox(height: 6),
+              Text(
+                mealPlan['planName'] ?? 'Meal Plan',
+                style: _cardTitleStyle(context).copyWith(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 3),
+              Text(
+                mealPlan['planType'] ?? '',
+                style: _cardSubtitleStyle(context).copyWith(fontSize: 11),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                'by ${mealPlan['dietitianName'] ?? 'Dietitian'}',
+                style: _cardSubtitleStyle(context).copyWith(fontSize: 10),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDayDropZone(String day, Map<String, dynamic>? assignedPlan) {
+    return DragTarget<Map<String, dynamic>>(
+      onWillAccept: (data) => true,
+      onAccept: (mealPlan) {
+        _assignMealPlanToDay(day, mealPlan);
+      },
+      builder: (context, candidateData, rejectedData) {
+        bool isHovering = candidateData.isNotEmpty;
+
+        return Card(
+          elevation: isHovering ? 8 : 4,
+          margin: const EdgeInsets.only(bottom: 8),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: BorderSide(
+              color: isHovering ? _primaryColor : Colors.transparent,
+              width: 2,
+            ),
+          ),
+          color: isHovering
+              ? _primaryColor.withOpacity(0.1)
+              : _cardBgColor(context),
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(
+              children: [
+                // Day label
+                SizedBox(
+                  width: 85,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        day,
+                        style: _cardTitleStyle(context).copyWith(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        _getDateForDay(day),
+                        style: _cardSubtitleStyle(context).copyWith(
+                          fontSize: 11,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+
+                // Assigned meal plan or empty state
+                Expanded(
+                  child: assignedPlan != null
+                      ? _buildAssignedPlanDisplay(day, assignedPlan)
+                      : _buildEmptyDaySlot(isHovering),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildAssignedPlanDisplay(String day, Map<String, dynamic> plan) {
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: _primaryColor.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: _primaryColor.withOpacity(0.3)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.restaurant_menu, color: _primaryColor, size: 18),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  plan['planName'] ?? 'Meal Plan',
+                  style: _cardTitleStyle(context).copyWith(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  plan['planType'] ?? '',
+                  style: _cardSubtitleStyle(context).copyWith(fontSize: 11),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.close, size: 18),
+            color: Colors.red,
+            onPressed: () => _removeMealPlanFromDay(day),
+            tooltip: 'Remove meal plan',
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyDaySlot(bool isHovering) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: isHovering
+            ? _primaryColor.withOpacity(0.05)
+            : Colors.grey.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: isHovering
+              ? _primaryColor.withOpacity(0.5)
+              : Colors.grey.withOpacity(0.2),
+          width: 2,
+          style: BorderStyle.solid,
+        ),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            isHovering ? Icons.add_circle : Icons.add_circle_outline,
+            color: isHovering ? _primaryColor : Colors.grey,
+            size: 18,
+          ),
+          const SizedBox(width: 6),
+          Text(
+            isHovering ? 'Drop here' : 'No meal plan',
+            style: TextStyle(
+              color: isHovering ? _primaryColor : Colors.grey,
+              fontSize: 12,
+              fontWeight: isHovering ? FontWeight.w600 : FontWeight.normal,
+              fontFamily: _primaryFontFamily,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _getDateForDay(String day) {
+    int dayIndex = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].indexOf(day);
+    DateTime startOfWeek = currentWeekStart.subtract(Duration(days: currentWeekStart.weekday - 1));
+    DateTime targetDate = startOfWeek.add(Duration(days: dayIndex));
+    return DateFormat('MMM d').format(targetDate);
+  }
+}
+
