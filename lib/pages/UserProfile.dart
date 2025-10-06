@@ -102,8 +102,8 @@ class _UserProfileState extends State<UserProfile> {
         }
 
         final data = snapshot.data!;
-        final double weight = (data["currentWeight"] ?? 0).toDouble();
-        final double height = (data["height"] ?? 0).toDouble();
+        final double weight = double.tryParse(data["currentWeight"].toString()) ?? 0.0;
+        final double height = double.tryParse(data["height"].toString()) ?? 0.0;
         final double bmi = _calculateBMI(weight, height);
         final String displayName = user.displayName ?? "Unknown User";
         final String? profileUrl = data['profile'];
@@ -449,7 +449,7 @@ class _UserProfileState extends State<UserProfile> {
               ),
               child: BottomNavigationBar(
                 backgroundColor: _primaryColor,
-                selectedItemColor: _textColorOnPrimary,
+                selectedItemColor: Colors.white.withOpacity(0.6),
                 unselectedItemColor: _textColorOnPrimary.withOpacity(0.6),
                 type: BottomNavigationBarType.fixed,
                 showSelectedLabels: false,

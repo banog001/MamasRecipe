@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'home.dart';
 
 class EditProfilePage extends StatefulWidget {
   const EditProfilePage({super.key});
@@ -17,6 +18,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
   File? _profileImage;
   final ImagePicker _picker = ImagePicker();
   bool _isUploading = false;
+  final TextEditingController _weightController = TextEditingController();
+  Future<Map<String, dynamic>?>? _userDataFuture;
 
   static const String _primaryFontFamily = 'PlusJakartaSans';
   static const Color _primaryColor = Color(0xFF4CAF50);
@@ -36,6 +39,12 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
   final String cloudName = "dbc77ko88";
   final String uploadPreset = "profile";
+
+  @override
+  void initState() {
+    super.initState();
+    _userDataFuture = _getUserData(); // 👈 Runs only once
+  }
 
   Future<void> _pickImage(ImageSource source) async {
     final XFile? pickedFile = await _picker.pickImage(source: source);
@@ -125,32 +134,54 @@ class _EditProfilePageState extends State<EditProfilePage> {
   }
 
   Future<void> _saveProfile() async {
-    if (_profileImage == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please choose a profile image first.")),
-      );
-      return;
-    }
-
-    final imageUrl = await _uploadToCloudinary(_profileImage!);
-    if (imageUrl == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Failed to upload image.")),
-      );
-      return;
-    }
-
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
-    await FirebaseFirestore.instance
-        .collection("Users")
-        .doc(user.uid)
-        .update({'profile': imageUrl});
+    String? imageUrl;
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("✅ Profile updated successfully!")),
-    );
+    // 🔹 If a new profile image was chosen, upload it first
+    if (_profileImage != null) {
+      imageUrl = await _uploadToCloudinary(_profileImage!);
+      if (imageUrl == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Failed to upload image.")),
+        );
+        return;
+      }
+    }
+
+    // 🔹 Prepare data to update
+    final updateData = <String, dynamic>{};
+
+    // Add new image URL only if user picked one
+    if (imageUrl != null) updateData['profile'] = imageUrl;
+
+    // Add current weight (if it’s not empty)
+    if (_weightController.text.trim().isNotEmpty) {
+      updateData['currentWeight'] = _weightController.text.trim();
+    }
+
+    // 🔹 Update Firestore only if there’s something to change
+    if (updateData.isNotEmpty) {
+      await FirebaseFirestore.instance
+          .collection("Users")
+          .doc(user.uid)
+          .update(updateData);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("✅ Profile updated successfully!")),
+      );
+
+      // Refresh data on screen
+      setState(() {
+        _userDataFuture = _getUserData();
+        _profileImage = null;
+      });
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("No changes to save.")),
+      );
+    }
   }
 
   Future<Map<String, dynamic>?> _getUserData() async {
@@ -213,13 +244,17 @@ class _EditProfilePageState extends State<EditProfilePage> {
         ],
       ),
       body: FutureBuilder<Map<String, dynamic>?>(
-        future: _getUserData(),
+        future: _userDataFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
 
           final userData = snapshot.data;
+
+          if (userData != null && userData["currentWeight"] != null && _weightController.text.isEmpty) {
+            _weightController.text = userData["currentWeight"].toString();
+          }
           final String? profileUrl = userData?['profile'];
           final String displayName = user?.displayName ?? "Unknown User";
           final String displayEmail = user?.email ?? "";
@@ -343,10 +378,11 @@ class _EditProfilePageState extends State<EditProfilePage> {
                                       ),
                                     ),
                                     const SizedBox(height: 12),
-                                    _buildTextField("Username"),
-                                    const SizedBox(height: 10),
-                                    _buildTextField("Current weight",
-                                        helperText: "Cooldown after changing (30 days)"),
+                                    _buildTextField(
+                                      "Current weight",
+                                      controller: _weightController,
+                                      helperText: "Cooldown after changing (30 days)",
+                                    ),
                                     const SizedBox(height: 10),
                                     _buildTextField("Change Password", obscure: true),
                                     const SizedBox(height: 10),
@@ -368,27 +404,69 @@ class _EditProfilePageState extends State<EditProfilePage> {
       ),
       bottomNavigationBar: ClipRRect(
         borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(24),
-          topRight: Radius.circular(24),
+          topLeft: Radius.circular(20),
+          topRight: Radius.circular(20),
         ),
-        child: BottomNavigationBar(
-          backgroundColor: _primaryColor,
-          selectedItemColor: Colors.white.withOpacity(0.7),
-          unselectedItemColor: Colors.white.withOpacity(0.7),
-          showSelectedLabels: false,
-          showUnselectedLabels: false,
-          items: const [
-            BottomNavigationBarItem(icon: Icon(Icons.home_outlined), activeIcon: Icon(Icons.home), label: ""),
-            BottomNavigationBarItem(icon: Icon(Icons.edit_calendar_outlined), activeIcon: Icon(Icons.edit_calendar), label: ""),
-            BottomNavigationBarItem(icon: Icon(Icons.mail_outline), activeIcon: Icon(Icons.mail), label: ""),
-          ],
+        child: Container(
+          decoration: BoxDecoration(
+            color: _primaryColor,
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(20),
+              topRight: Radius.circular(20),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 8,
+                offset: const Offset(0, -2),
+              ),
+            ],
+          ),
+          child: BottomNavigationBar(
+            backgroundColor: _primaryColor,
+            selectedItemColor: Colors.white.withOpacity(0.6),
+            unselectedItemColor: Colors.white.withOpacity(0.6),
+            type: BottomNavigationBarType.fixed,
+            showSelectedLabels: false,
+            showUnselectedLabels: false,
+            onTap: (index) {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => home(initialIndex: index),
+                ),
+              );
+            },
+            items: const [
+              BottomNavigationBarItem(
+                icon: Icon(Icons.home_outlined),
+                activeIcon: Icon(Icons.home_rounded),
+                label: 'Home',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.edit_calendar_outlined),
+                activeIcon: Icon(Icons.edit_calendar),
+                label: 'Schedule',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.mail_outline),
+                activeIcon: Icon(Icons.mail),
+                label: 'Messages',
+              ),
+            ],
+          ),
         ),
       ),
+
     );
   }
 
-  Widget _buildTextField(String label,
-      {bool obscure = false, String? helperText}) {
+  Widget _buildTextField(
+      String label, {
+        bool obscure = false,
+        String? helperText,
+        TextEditingController? controller,
+      }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -403,6 +481,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
         ),
         const SizedBox(height: 6),
         TextField(
+          controller: controller,
           obscureText: obscure,
           style: const TextStyle(
             fontFamily: _primaryFontFamily,
