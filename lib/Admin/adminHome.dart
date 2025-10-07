@@ -371,314 +371,787 @@ class _AdminHomeState extends State<AdminHome> {
     return Container(
       color: _scaffoldBgColor(context),
       padding: const EdgeInsets.all(24),
-      child: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('Users')
-            .where('role', isNotEqualTo: 'admin')
-            .snapshots(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(
-              child: CircularProgressIndicator(color: _primaryColor),
-            );
-          }
-          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return Center(
+      child: Column(
+        children: [
+          // Add User Button
+          Padding(
+            padding: const EdgeInsets.only(bottom: 16),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _primaryColor,
+                    foregroundColor: _textColorOnPrimary,
+                    elevation: 2,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 14,
+                    ),
+                  ),
+                  onPressed: () => _showAddUserDialog(),
+                  icon: const Icon(Icons.person_add, size: 20),
+                  label: const Text(
+                    "Add User",
+                    style: TextStyle(
+                      fontFamily: _primaryFontFamily,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 15,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('Users')
+                  .where('role', isNotEqualTo: 'admin')
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(
+                    child: CircularProgressIndicator(color: _primaryColor),
+                  );
+                }
+                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.people_outline,
+                          size: 80,
+                          color: _primaryColor.withOpacity(0.3),
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          "No users found",
+                          style: _getTextStyle(context, fontSize: 18),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                final users = snapshot.data!.docs;
+
+                return Card(
+                  elevation: 4,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  color: _cardBgColor(context),
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: SingleChildScrollView(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: DataTable(
+                          headingRowColor: MaterialStateProperty.all(
+                            _primaryColor.withOpacity(0.1),
+                          ),
+                          headingRowHeight: 56,
+                          dataRowHeight: 64,
+                          columns: [
+                            DataColumn(
+                              label: Text(
+                                "First Name",
+                                style: _getTextStyle(
+                                  context,
+                                  fontWeight: FontWeight.bold,
+                                  color: _primaryColor,
+                                ),
+                              ),
+                            ),
+                            DataColumn(
+                              label: Text(
+                                "Last Name",
+                                style: _getTextStyle(
+                                  context,
+                                  fontWeight: FontWeight.bold,
+                                  color: _primaryColor,
+                                ),
+                              ),
+                            ),
+                            DataColumn(
+                              label: Text(
+                                "Email",
+                                style: _getTextStyle(
+                                  context,
+                                  fontWeight: FontWeight.bold,
+                                  color: _primaryColor,
+                                ),
+                              ),
+                            ),
+                            DataColumn(
+                              label: Text(
+                                "Status",
+                                style: _getTextStyle(
+                                  context,
+                                  fontWeight: FontWeight.bold,
+                                  color: _primaryColor,
+                                ),
+                              ),
+                            ),
+                            DataColumn(
+                              label: Text(
+                                "Role",
+                                style: _getTextStyle(
+                                  context,
+                                  fontWeight: FontWeight.bold,
+                                  color: _primaryColor,
+                                ),
+                              ),
+                            ),
+                            DataColumn(
+                              label: Text(
+                                "Actions",
+                                style: _getTextStyle(
+                                  context,
+                                  fontWeight: FontWeight.bold,
+                                  color: _primaryColor,
+                                ),
+                              ),
+                            ),
+                            DataColumn(
+                              label: Text(
+                                "Role Change",
+                                style: _getTextStyle(
+                                  context,
+                                  fontWeight: FontWeight.bold,
+                                  color: _primaryColor,
+                                ),
+                              ),
+                            ),
+                          ],
+                          rows: users.map((doc) {
+                            final user = doc.data() as Map<String, dynamic>;
+                            final firstName = user['firstName'] ?? "No first name";
+                            final lastName = user['lastName'] ?? "No last name";
+                            final email = user['email'] ?? "No email";
+                            final status = user['status'] ?? "No status";
+                            final role = user['role'] ?? "user";
+
+                            return DataRow(cells: [
+                              DataCell(Text(
+                                firstName,
+                                style: _getTextStyle(context),
+                              )),
+                              DataCell(Text(
+                                lastName,
+                                style: _getTextStyle(context),
+                              )),
+                              DataCell(Text(
+                                email,
+                                style: _getTextStyle(context, fontSize: 14),
+                              )),
+                              DataCell(
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 6,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: status.toLowerCase() == "online"
+                                        ? Colors.green.withOpacity(0.1)
+                                        : Colors.red.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Text(
+                                    status,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: status.toLowerCase() == "online"
+                                          ? Colors.green[700]
+                                          : Colors.red[700],
+                                      fontFamily: _primaryFontFamily,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              DataCell(
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 6,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: role == "dietitian"
+                                        ? _primaryColor.withOpacity(0.1)
+                                        : Colors.blue.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Text(
+                                    role,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: role == "dietitian"
+                                          ? _primaryColor
+                                          : Colors.blue[700],
+                                      fontFamily: _primaryFontFamily,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              DataCell(
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    IconButton(
+                                      icon: const Icon(Icons.edit_outlined, color: Colors.blue),
+                                      onPressed: () => _showEditUserDialog(doc.id, user),
+                                      tooltip: "Edit user",
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(Icons.delete_outline, color: Colors.red),
+                                      onPressed: () => _showDeleteConfirmation(doc.id, firstName),
+                                      tooltip: "Delete user",
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              DataCell(
+                                ElevatedButton.icon(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: role == "dietitian"
+                                        ? Colors.orange
+                                        : _primaryColor,
+                                    foregroundColor: _textColorOnPrimary,
+                                    elevation: 2,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                      vertical: 10,
+                                    ),
+                                  ),
+                                  onPressed: () => _toggleUserRole(doc.id, role, firstName),
+                                  icon: Icon(
+                                    role == "dietitian" ? Icons.arrow_downward : Icons.arrow_upward,
+                                    size: 18,
+                                  ),
+                                  label: Text(
+                                    role == "dietitian" ? "Downgrade" : "Upgrade",
+                                    style: const TextStyle(
+                                      fontFamily: _primaryFontFamily,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ]);
+                          }).toList(),
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Show Add User Dialog
+  void _showAddUserDialog() {
+    final firstNameController = TextEditingController();
+    final lastNameController = TextEditingController();
+    final emailController = TextEditingController();
+    final passwordController = TextEditingController();
+    String selectedRole = "user";
+    String selectedStatus = "active";
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: _primaryColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.person_add, color: _primaryColor),
+              ),
+              const SizedBox(width: 12),
+              const Text(
+                "Add New User",
+                style: TextStyle(fontFamily: _primaryFontFamily),
+              ),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: SizedBox(
+              width: 400,
               child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(
-                    Icons.people_outline,
-                    size: 80,
-                    color: _primaryColor.withOpacity(0.3),
+                  TextField(
+                    controller: firstNameController,
+                    decoration: InputDecoration(
+                      labelText: "First Name",
+                      prefixIcon: const Icon(Icons.person_outline),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
                   ),
                   const SizedBox(height: 16),
-                  Text(
-                    "No users found",
-                    style: _getTextStyle(context, fontSize: 18),
+                  TextField(
+                    controller: lastNameController,
+                    decoration: InputDecoration(
+                      labelText: "Last Name",
+                      prefixIcon: const Icon(Icons.person_outline),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: emailController,
+                    decoration: InputDecoration(
+                      labelText: "Email",
+                      prefixIcon: const Icon(Icons.email_outlined),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: passwordController,
+                    obscureText: true,
+                    decoration: InputDecoration(
+                      labelText: "Password",
+                      prefixIcon: const Icon(Icons.lock_outline),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  DropdownButtonFormField<String>(
+                    value: selectedRole,
+                    decoration: InputDecoration(
+                      labelText: "Role",
+                      prefixIcon: const Icon(Icons.badge_outlined),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    items: const [
+                      DropdownMenuItem(value: "user", child: Text("User")),
+                      DropdownMenuItem(value: "dietitian", child: Text("Dietitian")),
+                    ],
+                    onChanged: (value) {
+                      setDialogState(() {
+                        selectedRole = value!;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Cancel", style: TextStyle(fontFamily: _primaryFontFamily)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _primaryColor,
+                foregroundColor: _textColorOnPrimary,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              onPressed: () async {
+                if (firstNameController.text.isEmpty ||
+                    lastNameController.text.isEmpty ||
+                    emailController.text.isEmpty ||
+                    passwordController.text.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: const Row(
+                        children: [
+                          Icon(Icons.warning, color: Colors.white),
+                          SizedBox(width: 8),
+                          Text("Please fill all fields", style: TextStyle(fontFamily: _primaryFontFamily)),
+                        ],
+                      ),
+                      backgroundColor: Colors.orange,
+                      behavior: SnackBarBehavior.floating,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                  );
+                  return;
+                }
+
+                try {
+                  await FirebaseFirestore.instance.collection("Users").add({
+                    "firstName": firstNameController.text,
+                    "lastName": lastNameController.text,
+                    "email": emailController.text,
+                    "password": passwordController.text,
+                    "role": selectedRole,
+                    "status": selectedStatus,
+                    "profile": "",
+                  });
+
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: const Row(
+                        children: [
+                          Icon(Icons.check_circle, color: Colors.white),
+                          SizedBox(width: 8),
+                          Text("User added successfully", style: TextStyle(fontFamily: _primaryFontFamily)),
+                        ],
+                      ),
+                      backgroundColor: _primaryColor,
+                      behavior: SnackBarBehavior.floating,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                  );
+                } catch (e) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Row(
+                        children: const [
+                          Icon(Icons.error_outline, color: Colors.white),
+                          SizedBox(width: 8),
+                          Text("Failed to add user", style: TextStyle(fontFamily: _primaryFontFamily)),
+                        ],
+                      ),
+                      backgroundColor: Colors.red,
+                      behavior: SnackBarBehavior.floating,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                  );
+                }
+              },
+              child: const Text("Add", style: TextStyle(fontFamily: _primaryFontFamily)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Show Edit User Dialog
+  void _showEditUserDialog(String docId, Map<String, dynamic> user) {
+    final firstNameController = TextEditingController(text: user['firstName'] ?? '');
+    final lastNameController = TextEditingController(text: user['lastName'] ?? '');
+    final emailController = TextEditingController(text: user['email'] ?? '');
+    String selectedRole = user['role'] ?? "user";
+    String selectedStatus = user['status'] ?? "active";
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.blue.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.edit, color: Colors.blue),
+              ),
+              const SizedBox(width: 12),
+              const Text(
+                "Edit User",
+                style: TextStyle(fontFamily: _primaryFontFamily),
+              ),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: SizedBox(
+              width: 400,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: firstNameController,
+                    decoration: InputDecoration(
+                      labelText: "First Name",
+                      prefixIcon: const Icon(Icons.person_outline),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: lastNameController,
+                    decoration: InputDecoration(
+                      labelText: "Last Name",
+                      prefixIcon: const Icon(Icons.person_outline),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: emailController,
+                    decoration: InputDecoration(
+                      labelText: "Email",
+                      prefixIcon: const Icon(Icons.email_outlined),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  DropdownButtonFormField<String>(
+                    value: selectedRole,
+                    decoration: InputDecoration(
+                      labelText: "Role",
+                      prefixIcon: const Icon(Icons.badge_outlined),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    items: const [
+                      DropdownMenuItem(value: "user", child: Text("User")),
+                      DropdownMenuItem(value: "dietitian", child: Text("Dietitian")),
+                    ],
+                    onChanged: (value) {
+                      setDialogState(() {
+                        selectedRole = value!;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  DropdownButtonFormField<String>(
+                    value: selectedStatus,
+                    decoration: InputDecoration(
+                      labelText: "Status",
+                      prefixIcon: const Icon(Icons.info_outline),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    items: const [
+                      DropdownMenuItem(value: "online", child: Text("Online")),
+                      DropdownMenuItem(value: "offline", child: Text("Offline")),
+                    ],
+                    onChanged: (value) {
+                      setDialogState(() {
+                        selectedStatus = value!;
+                      });
+                    },
                   ),
                 ],
               ),
-            );
-          }
-
-          final users = snapshot.data!.docs;
-
-          return Card(
-            elevation: 4,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
             ),
-            color: _cardBgColor(context),
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: SingleChildScrollView(
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: DataTable(
-                    headingRowColor: MaterialStateProperty.all(
-                      _primaryColor.withOpacity(0.1),
-                    ),
-                    headingRowHeight: 56,
-                    dataRowHeight: 64,
-                    columns: [
-                      DataColumn(
-                        label: Text(
-                          "First Name",
-                          style: _getTextStyle(
-                            context,
-                            fontWeight: FontWeight.bold,
-                            color: _primaryColor,
-                          ),
-                        ),
-                      ),
-                      DataColumn(
-                        label: Text(
-                          "Last Name",
-                          style: _getTextStyle(
-                            context,
-                            fontWeight: FontWeight.bold,
-                            color: _primaryColor,
-                          ),
-                        ),
-                      ),
-                      DataColumn(
-                        label: Text(
-                          "Email",
-                          style: _getTextStyle(
-                            context,
-                            fontWeight: FontWeight.bold,
-                            color: _primaryColor,
-                          ),
-                        ),
-                      ),
-                      DataColumn(
-                        label: Text(
-                          "Status",
-                          style: _getTextStyle(
-                            context,
-                            fontWeight: FontWeight.bold,
-                            color: _primaryColor,
-                          ),
-                        ),
-                      ),
-                      DataColumn(
-                        label: Text(
-                          "Role",
-                          style: _getTextStyle(
-                            context,
-                            fontWeight: FontWeight.bold,
-                            color: _primaryColor,
-                          ),
-                        ),
-                      ),
-                      DataColumn(
-                        label: Text(
-                          "Actions",
-                          style: _getTextStyle(
-                            context,
-                            fontWeight: FontWeight.bold,
-                            color: _primaryColor,
-                          ),
-                        ),
-                      ),
-                      DataColumn(
-                        label: Text(
-                          "Upgrade",
-                          style: _getTextStyle(
-                            context,
-                            fontWeight: FontWeight.bold,
-                            color: _primaryColor,
-                          ),
-                        ),
-                      ),
-                    ],
-                    rows: users.map((doc) {
-                      final user = doc.data() as Map<String, dynamic>;
-                      final firstName = user['firstName'] ?? "No first name";
-                      final lastName = user['lastName'] ?? "No last name";
-                      final email = user['email'] ?? "No email";
-                      final status = user['status'] ?? "No status";
-                      final role = user['role'] ?? "user";
-
-                      return DataRow(cells: [
-                        DataCell(Text(
-                          firstName,
-                          style: _getTextStyle(context),
-                        )),
-                        DataCell(Text(
-                          lastName,
-                          style: _getTextStyle(context),
-                        )),
-                        DataCell(Text(
-                          email,
-                          style: _getTextStyle(context, fontSize: 14),
-                        )),
-                        DataCell(
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 6,
-                            ),
-                            decoration: BoxDecoration(
-                              color: status.toLowerCase() == "online"
-                                  ? Colors.green.withOpacity(0.1)
-                                  : Colors.red.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              status,
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: status.toLowerCase() == "online"
-                                    ? Colors.green[700]
-                                    : Colors.red[700],
-                                fontFamily: _primaryFontFamily,
-                              ),
-                            ),
-                          ),
-                        ),
-                        DataCell(
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 6,
-                            ),
-                            decoration: BoxDecoration(
-                              color: role == "dietitian"
-                                  ? _primaryColor.withOpacity(0.1)
-                                  : Colors.blue.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              role,
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: role == "dietitian"
-                                    ? _primaryColor
-                                    : Colors.blue[700],
-                                fontFamily: _primaryFontFamily,
-                              ),
-                            ),
-                          ),
-                        ),
-                        DataCell(
-                          IconButton(
-                            icon: const Icon(Icons.delete_outline, color: Colors.red),
-                            onPressed: () async {
-                              await FirebaseFirestore.instance
-                                  .collection("Users")
-                                  .doc(doc.id)
-                                  .delete();
-                              setState(() {});
-                            },
-                            tooltip: "Delete user",
-                          ),
-                        ),
-                        DataCell(
-                          ElevatedButton.icon(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: role == "dietitian"
-                                  ? Colors.grey[300]
-                                  : _primaryColor,
-                              foregroundColor: role == "dietitian"
-                                  ? Colors.grey[600]
-                                  : _textColorOnPrimary,
-                              elevation: role == "dietitian" ? 0 : 2,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 10,
-                              ),
-                            ),
-                            onPressed: role == "dietitian"
-                                ? null
-                                : () async {
-                              try {
-                                await FirebaseFirestore.instance
-                                    .collection("Users")
-                                    .doc(doc.id)
-                                    .update({"role": "dietitian"});
-
-                                setState(() {});
-
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Row(
-                                      children: [
-                                        const Icon(Icons.check_circle,
-                                            color: Colors.white),
-                                        const SizedBox(width: 8),
-                                        Text(
-                                          "$firstName upgraded to Dietitian",
-                                          style: const TextStyle(
-                                            fontFamily: _primaryFontFamily,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    backgroundColor: _primaryColor,
-                                    behavior: SnackBarBehavior.floating,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                  ),
-                                );
-                              } catch (e) {
-                                print("Error upgrading user: $e");
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Row(
-                                      children: const [
-                                        Icon(Icons.error_outline,
-                                            color: Colors.white),
-                                        SizedBox(width: 8),
-                                        Text(
-                                          "Failed to upgrade user",
-                                          style: TextStyle(
-                                            fontFamily: _primaryFontFamily,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    backgroundColor: Colors.red,
-                                    behavior: SnackBarBehavior.floating,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                  ),
-                                );
-                              }
-                            },
-                            icon: Icon(
-                              role == "dietitian"
-                                  ? Icons.check_circle
-                                  : Icons.upgrade,
-                              size: 18,
-                            ),
-                            label: Text(
-                              role == "dietitian" ? "Upgraded" : "Upgrade",
-                              style: const TextStyle(
-                                fontFamily: _primaryFontFamily,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ]);
-                    }).toList(),
-                  ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Cancel", style: TextStyle(fontFamily: _primaryFontFamily)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
                 ),
               ),
+              onPressed: () async {
+                try {
+                  await FirebaseFirestore.instance.collection("Users").doc(docId).update({
+                    "firstName": firstNameController.text,
+                    "lastName": lastNameController.text,
+                    "email": emailController.text,
+                    "role": selectedRole,
+                    "status": selectedStatus,
+                  });
+
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: const Row(
+                        children: [
+                          Icon(Icons.check_circle, color: Colors.white),
+                          SizedBox(width: 8),
+                          Text("User updated successfully", style: TextStyle(fontFamily: _primaryFontFamily)),
+                        ],
+                      ),
+                      backgroundColor: Colors.blue,
+                      behavior: SnackBarBehavior.floating,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                  );
+                } catch (e) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: const Row(
+                        children: [
+                          Icon(Icons.error_outline, color: Colors.white),
+                          SizedBox(width: 8),
+                          Text("Failed to update user", style: TextStyle(fontFamily: _primaryFontFamily)),
+                        ],
+                      ),
+                      backgroundColor: Colors.red,
+                      behavior: SnackBarBehavior.floating,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                  );
+                }
+              },
+              child: const Text("Update", style: TextStyle(fontFamily: _primaryFontFamily)),
             ),
-          );
-        },
+          ],
+        ),
       ),
     );
+  }
+
+  // Show Delete Confirmation Dialog
+  void _showDeleteConfirmation(String docId, String firstName) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.red.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(Icons.warning_amber_rounded, color: Colors.red),
+            ),
+            const SizedBox(width: 12),
+            const Text(
+              "Confirm Delete",
+              style: TextStyle(fontFamily: _primaryFontFamily),
+            ),
+          ],
+        ),
+        content: Text(
+          "Are you sure you want to delete $firstName? This action cannot be undone.",
+          style: const TextStyle(fontFamily: _primaryFontFamily),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancel", style: TextStyle(fontFamily: _primaryFontFamily)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            onPressed: () async {
+              try {
+                await FirebaseFirestore.instance.collection("Users").doc(docId).delete();
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: const Row(
+                      children: [
+                        Icon(Icons.check_circle, color: Colors.white),
+                        SizedBox(width: 8),
+                        Text("User deleted successfully", style: TextStyle(fontFamily: _primaryFontFamily)),
+                      ],
+                    ),
+                    backgroundColor: Colors.red,
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                );
+              } catch (e) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: const Row(
+                      children: [
+                        Icon(Icons.error_outline, color: Colors.white),
+                        SizedBox(width: 8),
+                        Text("Failed to delete user", style: TextStyle(fontFamily: _primaryFontFamily)),
+                      ],
+                    ),
+                    backgroundColor: Colors.red,
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                );
+              }
+            },
+            child: const Text("Delete", style: TextStyle(fontFamily: _primaryFontFamily)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Toggle User Role (Upgrade/Downgrade)
+  Future<void> _toggleUserRole(String docId, String currentRole, String firstName) async {
+    final newRole = currentRole == "dietitian" ? "user" : "dietitian";
+    final action = currentRole == "dietitian" ? "downgraded" : "upgraded";
+
+    try {
+      await FirebaseFirestore.instance.collection("Users").doc(docId).update({"role": newRole});
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.check_circle, color: Colors.white),
+              const SizedBox(width: 8),
+              Text(
+                "$firstName $action to ${newRole == 'dietitian' ? 'Dietitian' : 'User'}",
+                style: const TextStyle(fontFamily: _primaryFontFamily),
+              ),
+            ],
+          ),
+          backgroundColor: newRole == "dietitian" ? _primaryColor : Colors.orange,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Row(
+            children: [
+              Icon(Icons.error_outline, color: Colors.white),
+              SizedBox(width: 8),
+              Text("Failed to change role", style: TextStyle(fontFamily: _primaryFontFamily)),
+            ],
+          ),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      );
+    }
   }
 
   Widget _buildDietitianPanel() {
