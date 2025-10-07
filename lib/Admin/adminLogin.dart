@@ -37,6 +37,7 @@ class _LoginPageState extends State<LoginPage> {
 
       final uid = userCredential.user?.uid;
 
+
       if (uid != null) {
         final doc = await _firestore.collection('Users').doc(uid).get();
 
@@ -62,6 +63,8 @@ class _LoginPageState extends State<LoginPage> {
       });
     }
   }
+
+
 
   @override
   Widget build(BuildContext context) {
@@ -162,10 +165,13 @@ class _LoginPageState extends State<LoginPage> {
                                 _obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
                                 color: Colors.grey[600],
                               ),
+
+
                               onPressed: () {
                                 setState(() {
                                   _obscurePassword = !_obscurePassword;
                                 });
+
                               },
                             ),
                             border: OutlineInputBorder(
@@ -244,7 +250,73 @@ class _LoginPageState extends State<LoginPage> {
                             ),
                           ),
                         ),
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                        const SizedBox(height: 16),
+                        SizedBox(
+                          width: double.infinity,
+                          height: 50,
+                          child: ElevatedButton(
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (context) => const AdminHome()),
+                              );
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.red,
+                              foregroundColor: Colors.white,
+                              elevation: 2,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            child: const Text(
+                              'nakakatamad mag type ng email at pass',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
+                                fontFamily: _primaryFontFamily,
+                              ),
+                            ),
+                          ),
+                        ),
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
                       ],
+
                     ),
                   ),
                 ),
@@ -256,3 +328,36 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 }
+
+
+
+
+
+
+
+
+
+
+
+class LoginPage2 extends StatelessWidget {
+  const LoginPage2({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Login')),
+      body: Center(
+        child: ElevatedButton(
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const AdminHome()),
+            );
+          },
+          child: const Text('Go to Admin Home'),
+        ),
+      ),
+    );
+  }
+}
+

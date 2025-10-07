@@ -1,32 +1,12 @@
 name: mamas_recipe
 description: "A new Flutter project."
-# The following line prevents the package from being accidentally published to
-# pub.dev using `flutter pub publish`. This is preferred for private packages.
-publish_to: 'none' # Remove this line if you wish to publish to pub.dev
+publish_to: 'none'
 
-# The following defines the version and build number for your application.
-# A version number is three numbers separated by dots, like 1.2.43
-# followed by an optional build number separated by a +.
-# Both the version and the builder number may be overridden in flutter
-# build by specifying --build-name and --build-number, respectively.
-# In Android, build-name is used as versionName while build-number used as versionCode.
-# Read more about Android versioning at https://developer.android.com/studio/publish/versioning
-# In iOS, build-name is used as CFBundleShortVersionString while build-number is used as CFBundleVersion.
-# Read more about iOS versioning at
-# https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
-# In Windows, build-name is used as the major, minor, and patch parts
-# of the product and file versions while build-number is used as the build suffix.
 version: 1.0.0+1
 
 environment:
   sdk: ^3.8.1
 
-# Dependencies specify other packages that your package needs in order to work.
-# To automatically upgrade your package dependencies to the latest versions
-# consider running `flutter pub upgrade --major-versions`. Alternatively,
-# dependencies can be manually updated by changing the version numbers below to
-# the latest version available on pub.dev. To see which dependencies have newer
-# versions available, run `flutter pub outdated`.
 dependencies:
   flutter:
     sdk: flutter
@@ -40,31 +20,19 @@ dependencies:
   intl: ^0.18.1
   shared_preferences: ^2.1.1
   firebase_messaging: ^15.2.9
-  shimmer: ^3.0.0           # Or the latest version
+  shimmer: ^3.0.0
   flutter_svg: ^2.0.7
   table_calendar: ^3.0.9
   image_picker: ^1.0.7
   http: ^1.2.0
-
-
-
+  fl_chart: ^0.69.0  # Added for analytics line charts in admin dashboard
 
 dev_dependencies:
   flutter_launcher_icons: ^0.14.4
   flutter_test:
     sdk: flutter
-
-  # The "flutter_lints" package below contains a set of recommended lints to
-  # encourage good coding practices. The lint set provided by the package is
-  # activated in the `analysis_options.yaml` file located at the root of your
-  # package. See that file for information about deactivating specific lint
-  # rules and activating additional ones.
   flutter_lints: ^5.0.0
 
-# For information on the generic Dart part of this file, see the
-# following page: https://dart.dev/tools/pub/pubspec
-
-# The following section is specific to Flutter packages.
 flutter:
   uses-material-design: true
   assets:
@@ -72,12 +40,10 @@ flutter:
     - lib/assets/image/user.png
     - lib/assets/icons/google_icon.svg
 
-
   fonts:
-    - family: PlusJakartaSans # Changed family name
+    - family: PlusJakartaSans
       fonts:
         - asset: lib/assets/fonts/PlusJakartaSans-Regular.ttf
-          # weight: 400 (default)
         - asset: lib/assets/fonts/PlusJakartaSans-Medium.ttf
           weight: 500
         - asset: lib/assets/fonts/PlusJakartaSans-SemiBold.ttf
@@ -85,37 +51,9 @@ flutter:
         - asset: lib/assets/fonts/PlusJakartaSans-Bold.ttf
           weight: 700
         - asset: lib/assets/fonts/PlusJakartaSans-ExtraBold.ttf
-          weight: 800 # This will be used for FontWeight.w800
-
-
-
-          # ...
-
-          # and often picked for FontWeight.w900 if a specific w900 ttf isn't listed
-    # Remove or comment out the 'Inter' font family if you are no longer using it globally
-    # - family: Inter
-    #   fonts:
-    #     - asset: assets/fonts/Inter-Regular.ttf
-    #     # ... other Inter weights
-
-
-  # To add assets to your application, add an assets section, like this:
-  # assets:
-  #   - images/a_dot_burr.jpeg
-  #   - images/a_dot_ham.jpeg
-
-  # An image asset can refer to one or more resolution-specific "variants", see
-  # https://flutter.dev/to/resolution-aware-images
-
-  # For details regarding adding assets from package dependencies, see
-  # https://flutter.dev/to/asset-from-package
-
-  # For details regarding fonts from package dependencies,
-  # see https://flutter.dev/to/font-from-package
-
+          weight: 800
 
 flutter_launcher_icons:
   android: true
-  image_path : "lib/assets/icons/mamas-recipe-icon.jpg"
+  image_path: "lib/assets/icons/mamas-recipe-icon.jpg"
   min_sdk_android: 21
-
