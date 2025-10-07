@@ -138,7 +138,46 @@ class _MessagesPageState extends State<MessagesPage> {
                   : null,
             ),
             const SizedBox(width: 12),
-            Text(widget.receiverName, style: _appBarTitleStyle),
+            Expanded(
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      widget.receiverName,
+                      style: _appBarTitleStyle,
+                      overflow: TextOverflow.ellipsis, // prevents overflow
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  GestureDetector(
+                    onTap: () {
+                      // Handle info icon tap
+                      showDialog(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          title: Text(widget.receiverName),
+                          content: Text("Additional information about ${widget.receiverName}"),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context),
+                              child: const Text("Close"),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.only(right: 8.0), // adjust as needed
+                      child: Icon(
+                        Icons.info_outline,
+                        size: 30,
+                        color: isDark ? Colors.white : Colors.black54,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ],
         ),
       ),
