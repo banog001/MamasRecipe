@@ -402,29 +402,34 @@ class _HomePageDietitianState extends State<HomePageDietitian> {
         iconTheme: const IconThemeData(color: _textColorOnPrimary, size: 28),
         title: Text(
           _getAppBarTitle(selectedIndex),
-          style: _getTextStyle(context,
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: _textColorOnPrimary),
+          style: _getTextStyle(
+            context,
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: _textColorOnPrimary,
+          ),
         ),
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 16.0),
             child: GestureDetector(
               onTap: () {
-                setState(() {
-                  selectedIndex = 3;
-                });
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const DietitianProfile()),
+                );
               },
               child: CircleAvatar(
-                radius: 18, // Changed from 20 to 18
+                radius: 18,
                 backgroundColor: _primaryColor.withOpacity(0.2),
-                backgroundImage: (profileUrl.isNotEmpty)
-                    ? NetworkImage(profileUrl)
-                    : null,
+                backgroundImage:
+                (profileUrl.isNotEmpty) ? NetworkImage(profileUrl) : null,
                 child: (profileUrl.isEmpty)
-                    ? const Icon(Icons.person,
-                    size: 20, color: _primaryColor)
+                    ? const Icon(
+                  Icons.person,
+                  size: 20,
+                  color: _primaryColor,
+                )
                     : null,
               ),
             ),
@@ -486,10 +491,6 @@ class _HomePageDietitianState extends State<HomePageDietitian> {
                   icon: Icon(Icons.mail_outline),
                   activeIcon: Icon(Icons.mail),
                   label: 'Messages'),
-              BottomNavigationBarItem(
-                  icon: Icon(Icons.person_outline),
-                  activeIcon: Icon(Icons.person),
-                  label: 'Profile'),
             ],
           ),
         ),

@@ -3579,7 +3579,7 @@ class _MealPlanSchedulerPageState extends State<MealPlanSchedulerPage> {
         ),
         const SizedBox(height: 6),
         SizedBox(
-          height: 100,
+          height: 150,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 12),
