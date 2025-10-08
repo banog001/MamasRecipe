@@ -84,74 +84,28 @@ class _DietitianQRCodePageState extends State<DietitianQRCodePage> {
     );
   }
 
-  // =======================================================================
-  // BACKEND TODO: Upload QR Code Image to Cloud Storage
-  // =======================================================================
-  // This function should upload the QR code image to your cloud storage
-  // (e.g., Cloudinary, Firebase Storage, AWS S3, etc.) and return the URL.
-  //
-  // Example implementation for Cloudinary (similar to editDietitianProfile.dart):
-  //
-  // Future<String?> _uploadQRCodeImage(File imageFile) async {
-  //   try {
-  //     setState(() => _isUploading = true);
-  //     
-  //     final url = Uri.parse("https://api.cloudinary.com/v1_1/$cloudName/image/upload");
-  //     final request = http.MultipartRequest('POST', url)
-  //       ..fields['upload_preset'] = 'qr_codes'  // Create a preset for QR codes
-  //       ..files.add(await http.MultipartFile.fromPath('file', imageFile.path));
-  //     
-  //     final response = await request.send();
-  //     final resBody = await response.stream.bytesToString();
-  //     final data = json.decode(resBody);
-  //     
-  //     if (response.statusCode == 200) {
-  //       return data['secure_url'];
-  //     }
-  //     return null;
-  //   } catch (e) {
-  //     print("Upload error: $e");
-  //     return null;
-  //   } finally {
-  //     setState(() => _isUploading = false);
-  //   }
-  // }
-  //
   Future<String?> _uploadQRCodeImage(File imageFile) async {
-    // BACKEND TODO: Implement your cloud storage upload logic here
-    // Return the uploaded image URL
-
     setState(() => _isUploading = true);
-
-    // Simulate upload delay (remove this in production)
     await Future.delayed(const Duration(seconds: 2));
-
     setState(() => _isUploading = false);
-
-    // TEMPORARY: Return null until backend is implemented
-    // Replace with actual upload logic
     return null;
   }
 
-  // =======================================================================
-  // BACKEND TODO: Save QR Code URL to Database
-  // =======================================================================
-  // This function saves the QR code image URL to your database.
-  // Update the field name 'qrCodeUrl' to match your database schema.
-  //
   Future<void> _saveQRCode() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
     if (_qrCodeImage == null) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Please select a QR code image first.")),
       );
       return;
     }
 
-    // BACKEND TODO: Upload the image and get the URL
     final String? imageUrl = await _uploadQRCodeImage(_qrCodeImage!);
+
+    if (!mounted) return;
 
     if (imageUrl == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -160,13 +114,13 @@ class _DietitianQRCodePageState extends State<DietitianQRCodePage> {
       return;
     }
 
-    // BACKEND TODO: Save the QR code URL to your database
-    // Update the field name to match your database schema
     try {
       await FirebaseFirestore.instance
           .collection("Users")
           .doc(user.uid)
           .update({'qrCodeUrl': imageUrl});
+
+      if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -175,12 +129,12 @@ class _DietitianQRCodePageState extends State<DietitianQRCodePage> {
         ),
       );
 
-      // Refresh data
       setState(() {
         _userDataFuture = _getUserData();
         _qrCodeImage = null;
       });
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Error saving QR code: $e")),
       );
@@ -252,7 +206,6 @@ class _DietitianQRCodePageState extends State<DietitianQRCodePage> {
           }
 
           final userData = snapshot.data;
-          // BACKEND TODO: Update field name to match your database schema
           final String? qrCodeUrl = userData?['qrCodeUrl'];
           final String displayName = user?.displayName ?? "Unknown User";
 
@@ -260,7 +213,6 @@ class _DietitianQRCodePageState extends State<DietitianQRCodePage> {
             physics: const BouncingScrollPhysics(),
             child: Column(
               children: [
-                // Header Section
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
@@ -304,13 +256,10 @@ class _DietitianQRCodePageState extends State<DietitianQRCodePage> {
                     ],
                   ),
                 ),
-
-                // QR Code Display Section
                 Padding(
                   padding: const EdgeInsets.all(24.0),
                   child: Column(
                     children: [
-                      // QR Code Card
                       Card(
                         elevation: 4,
                         shape: RoundedRectangleBorder(
@@ -322,7 +271,6 @@ class _DietitianQRCodePageState extends State<DietitianQRCodePage> {
                           padding: const EdgeInsets.all(24),
                           child: Column(
                             children: [
-                              // QR Code Image Display
                               Container(
                                 width: 280,
                                 height: 280,
@@ -412,8 +360,6 @@ class _DietitianQRCodePageState extends State<DietitianQRCodePage> {
                                 ),
                               ),
                               const SizedBox(height: 20),
-
-                              // Upload Button
                               SizedBox(
                                 width: double.infinity,
                                 child: ElevatedButton.icon(
@@ -444,10 +390,7 @@ class _DietitianQRCodePageState extends State<DietitianQRCodePage> {
                           ),
                         ),
                       ),
-
                       const SizedBox(height: 20),
-
-                      // Info Box
                       Container(
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(

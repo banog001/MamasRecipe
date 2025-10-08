@@ -1,24 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'mealEntry.dart'; // Ensure this is correctly defined
-import 'homePageDietitian.dart'; // Ensure this path is correct
+import 'mealEntry.dart';
+import 'homePageDietitian.dart';
 
-// --- Style Definitions (Should be consistent with CreateMealPlanPage.dart or from a shared style file) ---
+
 const String _primaryFontFamily = 'PlusJakartaSans';
 const Color _primaryColor = Color(0xFF4CAF50);
-const Color _accentColor = Color(0xFF66BB6A); // Or another accent
+const Color _accentColor = Color(0xFF66BB6A);
 const Color _textColorOnPrimary = Colors.white;
-const Color _neutralButtonColor = Colors.blueGrey; // For Cancel
+const Color _neutralButtonColor = Colors.blueGrey;
 
-// CORRECTED _getTextStyle function
 TextStyle _getTextStyle(BuildContext context, {
   double fontSize = 16,
   FontWeight fontWeight = FontWeight.normal,
   Color? color,
   String fontFamily = _primaryFontFamily,
   double? letterSpacing,
-  FontStyle? fontStyle, // <--- ADDED fontStyle parameter
+  FontStyle? fontStyle,
 }) {
   final isDarkMode = Theme.of(context).brightness == Brightness.dark;
   final defaultTextColor = color ?? (isDarkMode ? Colors.white70 : Colors.black87);
@@ -28,22 +27,10 @@ TextStyle _getTextStyle(BuildContext context, {
     fontWeight: fontWeight,
     color: defaultTextColor,
     letterSpacing: letterSpacing,
-    fontStyle: fontStyle, // <--- USED fontStyle parameter
+    fontStyle: fontStyle,
   );
 }
 
-Color _getScaffoldBgColor(BuildContext context) =>
-    Theme.of(context).brightness == Brightness.dark ? Colors.grey.shade900 : Colors.grey.shade100;
-
-Color _getCardBgColor(BuildContext context) =>
-    Theme.of(context).brightness == Brightness.dark ? Colors.grey.shade800 : Colors.white;
-
-Color _getTextColorPrimary(BuildContext context) =>
-    Theme.of(context).brightness == Brightness.dark ? Colors.white70 : Colors.black87;
-
-Color _getTextColorSecondary(BuildContext context) =>
-    Theme.of(context).brightness == Brightness.dark ? Colors.white54 : Colors.black54;
-// --- End Style Definitions ---
 
 class MealPlanPreviewPage extends StatelessWidget {
   final String planType;
@@ -57,7 +44,7 @@ class MealPlanPreviewPage extends StatelessWidget {
 
   String _getMealString(String key) {
     try {
-      final meal = meals.firstWhere((m) => m.name.toLowerCase() == key.toLowerCase()); // Case-insensitive match
+      final meal = meals.firstWhere((m) => m.name.toLowerCase() == key.toLowerCase());
       return meal.items.join(", ");
     } catch (_) {
       return "";
@@ -67,6 +54,7 @@ class MealPlanPreviewPage extends StatelessWidget {
   Future<void> _postMealPlan(BuildContext context) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
+      if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text("You must be logged in to post a meal plan.", style: _getTextStyle(context, color: _textColorOnPrimary)),
@@ -89,6 +77,8 @@ class MealPlanPreviewPage extends StatelessWidget {
         "timestamp": FieldValue.serverTimestamp(),
       });
 
+      if (!context.mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text("Meal Plan Posted Successfully!", style: _getTextStyle(context, color: _textColorOnPrimary)),
@@ -102,6 +92,7 @@ class MealPlanPreviewPage extends StatelessWidget {
             (route) => false,
       );
     } catch (e) {
+      if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text("Error posting meal plan: $e", style: _getTextStyle(context, color: _textColorOnPrimary)),
@@ -113,6 +104,7 @@ class MealPlanPreviewPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
@@ -160,8 +152,7 @@ class MealPlanPreviewPage extends StatelessWidget {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-
-                                meal.name,
+                                  meal.name,
                                   style: _getTextStyle(context, fontSize: 17, fontWeight: FontWeight.bold, color: _getTextColorPrimary(context)),
                                 ),
                                 const SizedBox(height: 6),
@@ -174,7 +165,7 @@ class MealPlanPreviewPage extends StatelessWidget {
                                   ...meal.items.map((item) => Padding(
                                     padding: const EdgeInsets.only(bottom: 3.0),
                                     child: Text(
-                                      "• $item", // Bullet point for items
+                                      "• $item",
                                       style: _getTextStyle(context, fontSize: 14, color: _getTextColorPrimary(context)),
                                     ),
                                   )),
@@ -186,7 +177,6 @@ class MealPlanPreviewPage extends StatelessWidget {
                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                             decoration: BoxDecoration(
                               color: _accentColor.withOpacity(0.15),
-                              // border: Border.all(color: _primaryColor.withOpacity(0.5)),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Text(
@@ -201,8 +191,8 @@ class MealPlanPreviewPage extends StatelessWidget {
                 },
               ),
             ),
-            Padding( // Padding for the buttons at the bottom
-              padding: const EdgeInsets.symmetric(vertical: 20.0, horizontal: 0), // Adjusted horizontal padding to 0 if body has 16
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 20.0, horizontal: 0),
               child: Row(
                 children: [
                   Expanded(
@@ -216,7 +206,7 @@ class MealPlanPreviewPage extends StatelessWidget {
                         textStyle: _getTextStyle(context, fontSize: 16, fontWeight: FontWeight.bold, color: _textColorOnPrimary),
                       ),
                       icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
-                      label: const Text("Edit"), // Changed from "Cancel" to "Edit"
+                      label: const Text("Edit"),
                     ),
                   ),
                   const SizedBox(width: 16),
@@ -231,7 +221,7 @@ class MealPlanPreviewPage extends StatelessWidget {
                         textStyle: _getTextStyle(context, fontSize: 16, fontWeight: FontWeight.bold, color: _textColorOnPrimary),
                       ),
                       icon: const Icon(Icons.check_circle_outline_rounded, size: 20),
-                      label: const Text("Post Plan"), // Changed from "Post"
+                      label: const Text("Post Plan"),
                     ),
                   ),
                 ],
@@ -244,3 +234,14 @@ class MealPlanPreviewPage extends StatelessWidget {
   }
 }
 
+Color _getScaffoldBgColor(BuildContext context) =>
+    Theme.of(context).brightness == Brightness.dark ? Colors.grey.shade900 : Colors.grey.shade100;
+
+Color _getCardBgColor(BuildContext context) =>
+    Theme.of(context).brightness == Brightness.dark ? Colors.grey.shade800 : Colors.white;
+
+Color _getTextColorPrimary(BuildContext context) =>
+    Theme.of(context).brightness == Brightness.dark ? Colors.white70 : Colors.black87;
+
+Color _getTextColorSecondary(BuildContext context) =>
+    Theme.of(context).brightness == Brightness.dark ? Colors.white54 : Colors.black54;

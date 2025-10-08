@@ -69,6 +69,16 @@ class _AdminHomeState extends State<AdminHome> {
   bool isMultiSelectMode = false;
   String chartFilter = "Week"; // Week, Month, Year
 
+  final ScrollController _scrollController = ScrollController();
+  final TextEditingController _messageController = TextEditingController();
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    _messageController.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
@@ -467,21 +477,73 @@ class _AdminHomeState extends State<AdminHome> {
 
   Widget _buildHomeDashboard() {
     final isMobile = MediaQuery.of(context).size.width < 768;
+    final screenWidth = MediaQuery.of(context).size.width;
 
     return Container(
       color: _scaffoldBgColor(context),
       padding: EdgeInsets.all(isMobile ? 16 : 24),
       child: SingleChildScrollView(
-        child: Column(
+        child: isMobile
+            ? Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // User Creation Line Chart
             _buildUserCreationChart(),
-            const SizedBox(height: 24),
-            // Dietitian Activity History
+            const SizedBox(height: 16),
+            _buildAppointmentAnalytics(),
+            const SizedBox(height: 16),
+            _buildEngagementMetrics(),
+            const SizedBox(height: 16),
+            _buildMealPlanPerformance(),
+            const SizedBox(height: 16),
+            _buildUserRetentionChurn(),
+            const SizedBox(height: 16),
+            _buildHealthGoalsDistribution(),
+            const SizedBox(height: 16),
+            _buildUserDemographics(),
+            const SizedBox(height: 16),
             _buildDietitianActivityHistory(),
-            const SizedBox(height: 24),
-            // Meal Plans with Likes
+            const SizedBox(height: 16),
+            _buildMealPlansWithLikes(),
+          ],
+        )
+            : Column(
+          children: [
+            // Row 1: Full width chart
+            _buildUserCreationChart(),
+            const SizedBox(height: 16),
+            // Row 2: Two cards side by side
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(child: _buildAppointmentAnalytics()),
+                const SizedBox(width: 16),
+                Expanded(child: _buildEngagementMetrics()),
+              ],
+            ),
+            const SizedBox(height: 16),
+            // Row 3: Two cards side by side
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(child: _buildMealPlanPerformance()),
+                const SizedBox(width: 16),
+                Expanded(child: _buildUserRetentionChurn()),
+              ],
+            ),
+            const SizedBox(height: 16),
+            // Row 4: Two cards side by side
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(child: _buildHealthGoalsDistribution()),
+                const SizedBox(width: 16),
+                Expanded(child: _buildUserDemographics()),
+              ],
+            ),
+            const SizedBox(height: 16),
+            // Row 5: Full width cards
+            _buildDietitianActivityHistory(),
+            const SizedBox(height: 16),
             _buildMealPlansWithLikes(),
           ],
         ),
@@ -1161,10 +1223,10 @@ class _AdminHomeState extends State<AdminHome> {
             ),
             child: Row(
               children: [
-                const Icon(Icons.people, color: _primaryColor),
+                const Icon(Icons.message, color: _primaryColor),
                 const SizedBox(width: 12),
                 Text(
-                  "All Users",
+                  "Recent Messages",
                   style: _getTextStyle(
                     context,
                     fontWeight: FontWeight.bold,
@@ -1177,49 +1239,108 @@ class _AdminHomeState extends State<AdminHome> {
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance
-                  .collection('Users')
-                  .where('role', whereIn: ['user', 'dietitian'])
+                  .collection('messages')
+                  .orderBy('timestamp', descending: true)
+                  .limit(50)
                   .snapshots(),
               builder: (context, snapshot) {
                 if (!snapshot.hasData) {
                   return const Center(child: CircularProgressIndicator(color: _primaryColor));
                 }
 
-                final users = snapshot.data!.docs;
+                final messages = snapshot.data!.docs;
+
+                // Group messages by chatRoomID and get the most recent one
+                Map<String, Map<String, dynamic>> latestMessages = {};
+
+                for (var doc in messages) {
+                  final data = doc.data() as Map<String, dynamic>;
+                  final chatRoomId = data['chatRoomID'] ?? '';
+
+                  if (chatRoomId.isNotEmpty && !latestMessages.containsKey(chatRoomId)) {
+                    latestMessages[chatRoomId] = {
+                      ...data,
+                      'docId': doc.id,
+                    };
+                  }
+                }
+
+                // Convert to list and sort by timestamp
+                final sortedChats = latestMessages.values.toList()
+                  ..sort((a, b) {
+                    final aTime = a['timestamp'] as Timestamp?;
+                    final bTime = b['timestamp'] as Timestamp?;
+                    if (aTime == null || bTime == null) return 0;
+                    return bTime.compareTo(aTime);
+                  });
+
+                if (sortedChats.isEmpty) {
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(32.0),
+                      child: Text(
+                        "No messages yet",
+                        style: _cardSubtitleStyle(context),
+                      ),
+                    ),
+                  );
+                }
 
                 return ListView.builder(
                   padding: const EdgeInsets.all(8),
-                  itemCount: users.length,
+                  itemCount: sortedChats.length,
                   itemBuilder: (context, index) {
-                    final doc = users[index];
-                    final user = doc.data() as Map<String, dynamic>;
-                    final firstName = user['firstName'] ?? '';
-                    final lastName = user['lastName'] ?? '';
-                    final name = "$firstName $lastName".trim();
-                    final profileUrl = user['profile'] ?? '';
-                    final role = user['role'] ?? 'user';
-                    final status = user['status'] ?? 'offline';
+                    final messageData = sortedChats[index];
+                    final currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
+                    final senderId = messageData['senderID'] ?? '';
+                    final receiverId = messageData['receiverID'] ?? '';
+                    final senderName = messageData['senderName'] ?? 'Unknown';
+                    final message = messageData['message'] ?? '';
+                    final timestamp = messageData['timestamp'] as Timestamp?;
 
-                    final isSelected = selectedChatUserId == doc.id;
+                    // Determine the other user (not the admin)
+                    final otherUserId = senderId == currentUserId ? receiverId : senderId;
+                    final displayName = senderId == currentUserId
+                        ? messageData['receiverName'] ?? 'Unknown'
+                        : senderName;
 
-                    return Card(
-                      margin: const EdgeInsets.only(bottom: 8),
-                      elevation: isSelected ? 4 : 1,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        side: BorderSide(
-                          color: isSelected ? _primaryColor : Colors.transparent,
-                          width: 2,
-                        ),
-                      ),
-                      child: ListTile(
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 8,
-                        ),
-                        leading: Stack(
-                          children: [
-                            CircleAvatar(
+                    final timeAgo = timestamp != null
+                        ? _getTimeAgo(timestamp.toDate())
+                        : 'Unknown';
+
+                    final isSelected = selectedChatUserId == otherUserId;
+
+                    return FutureBuilder<DocumentSnapshot>(
+                      future: FirebaseFirestore.instance
+                          .collection('Users')
+                          .doc(otherUserId)
+                          .get(),
+                      builder: (context, userSnapshot) {
+                        String profileUrl = '';
+                        String role = 'user';
+
+                        if (userSnapshot.hasData && userSnapshot.data!.exists) {
+                          final userData = userSnapshot.data!.data() as Map<String, dynamic>?;
+                          profileUrl = userData?['profile'] ?? '';
+                          role = userData?['role'] ?? 'user';
+                        }
+
+                        return Card(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          elevation: isSelected ? 4 : 1,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            side: BorderSide(
+                              color: isSelected ? _primaryColor : Colors.transparent,
+                              width: 2,
+                            ),
+                          ),
+                          child: ListTile(
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
+                            leading: CircleAvatar(
                               radius: 24,
                               backgroundColor: _primaryColor.withOpacity(0.2),
                               backgroundImage: profileUrl.isNotEmpty
@@ -1229,46 +1350,47 @@ class _AdminHomeState extends State<AdminHome> {
                                   ? const Icon(Icons.person, color: _primaryColor)
                                   : null,
                             ),
-                            Positioned(
-                              right: 0,
-                              bottom: 0,
-                              child: Container(
-                                width: 12,
-                                height: 12,
-                                decoration: BoxDecoration(
-                                  color: status.toLowerCase() == "online"
-                                      ? Colors.green
-                                      : Colors.grey,
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                    color: _cardBgColor(context),
-                                    width: 2,
+                            title: Text(
+                              displayName,
+                              style: _getTextStyle(
+                                context,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 14,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            subtitle: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const SizedBox(height: 4),
+                                Text(
+                                  "${senderId == currentUserId ? 'You' : senderName}: \"$message\"",
+                                  style: _cardSubtitleStyle(context),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  timeAgo,
+                                  style: _getTextStyle(
+                                    context,
+                                    fontSize: 11,
+                                    color: _primaryColor,
                                   ),
                                 ),
-                              ),
+                              ],
                             ),
-                          ],
-                        ),
-                        title: Text(
-                          name.isEmpty ? "User" : name,
-                          style: _getTextStyle(
-                            context,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 14,
+                            onTap: () {
+                              setState(() {
+                                selectedChatUserId = otherUserId;
+                                selectedChatUserName = displayName;
+                                selectedChatUserProfile = profileUrl;
+                              });
+                            },
                           ),
-                        ),
-                        subtitle: Text(
-                          role,
-                          style: _cardSubtitleStyle(context),
-                        ),
-                        onTap: () {
-                          setState(() {
-                            selectedChatUserId = doc.id;
-                            selectedChatUserName = name;
-                            selectedChatUserProfile = profileUrl;
-                          });
-                        },
-                      ),
+                        );
+                      },
                     );
                   },
                 );
@@ -1279,9 +1401,6 @@ class _AdminHomeState extends State<AdminHome> {
       ),
     );
   }
-
-  final TextEditingController _messageController = TextEditingController();
-  final ScrollController _scrollController = ScrollController();
 
   Widget _buildChatArea() {
     if (selectedChatUserId == null) {
@@ -3780,5 +3899,827 @@ class _AdminHomeState extends State<AdminHome> {
         );
       }
     }
+  }
+
+  Widget _buildAppointmentAnalytics() {
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      color: _cardBgColor(context),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.calendar_today, color: Colors.blue),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  "Appointment Analytics",
+                  style: _getTextStyle(
+                    context,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('appointments')
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (!snapshot.hasData) {
+                  return const Center(child: CircularProgressIndicator(color: _primaryColor));
+                }
+
+                final appointments = snapshot.data!.docs;
+                int scheduled = 0, confirmed = 0, completed = 0, declined = 0;
+
+                for (var doc in appointments) {
+                  final data = doc.data() as Map<String, dynamic>;
+                  final status = (data['status'] ?? '').toString().toLowerCase();
+
+                  if (status == 'scheduled') scheduled++;
+                  else if (status == 'confirmed') confirmed++;
+                  else if (status == 'completed') completed++;
+                  else if (status == 'declined') declined++;
+                }
+
+                final total = appointments.length;
+                final completionRate = total > 0 ? (completed / total * 100).toStringAsFixed(1) : '0.0';
+
+                return Column(
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildStatCard(
+                            "Scheduled",
+                            scheduled.toString(),
+                            Colors.blue,
+                            Icons.schedule,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _buildStatCard(
+                            "Confirmed",
+                            confirmed.toString(),
+                            Colors.green,
+                            Icons.check_circle,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildStatCard(
+                            "Completed",
+                            completed.toString(),
+                            Colors.purple,
+                            Icons.done_all,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _buildStatCard(
+                            "Declined",
+                            declined.toString(),
+                            Colors.red,
+                            Icons.cancel,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: _scaffoldBgColor(context),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            "Completion Rate",
+                            style: _getTextStyle(context, fontWeight: FontWeight.w600),
+                          ),
+                          Text(
+                            "$completionRate%",
+                            style: _getTextStyle(
+                              context,
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.blue,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEngagementMetrics() {
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      color: _cardBgColor(context),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.teal.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.trending_up, color: Colors.teal),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  "Engagement Metrics",
+                  style: _getTextStyle(
+                    context,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('Users')
+                  .where('role', whereIn: ['user', 'dietitian'])
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (!snapshot.hasData) {
+                  return const Center(child: CircularProgressIndicator(color: _primaryColor));
+                }
+
+                final users = snapshot.data!.docs;
+                final now = DateTime.now();
+                final today = DateTime(now.year, now.month, now.day);
+                final weekAgo = today.subtract(const Duration(days: 7));
+                final monthAgo = today.subtract(const Duration(days: 30));
+
+                int dailyActive = 0, weeklyActive = 0, monthlyActive = 0;
+
+                for (var doc in users) {
+                  final data = doc.data() as Map<String, dynamic>;
+                  final lastActive = data['lastActive'] as Timestamp?;
+
+                  if (lastActive != null) {
+                    final lastActiveDate = lastActive.toDate();
+                    if (lastActiveDate.isAfter(today)) dailyActive++;
+                    if (lastActiveDate.isAfter(weekAgo)) weeklyActive++;
+                    if (lastActiveDate.isAfter(monthAgo)) monthlyActive++;
+                  }
+                }
+
+                return Column(
+                  children: [
+                    _buildStatCard(
+                      "Daily Active Users",
+                      dailyActive.toString(),
+                      Colors.teal,
+                      Icons.today,
+                    ),
+                    const SizedBox(height: 12),
+                    _buildStatCard(
+                      "Weekly Active Users",
+                      weeklyActive.toString(),
+                      Colors.cyan,
+                      Icons.date_range,
+                    ),
+                    const SizedBox(height: 12),
+                    _buildStatCard(
+                      "Monthly Active Users",
+                      monthlyActive.toString(),
+                      Colors.blue,
+                      Icons.calendar_month,
+                    ),
+                  ],
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMealPlanPerformance() {
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      color: _cardBgColor(context),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.amber.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.restaurant_menu, color: Colors.amber),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  "Meal Plan Performance",
+                  style: _getTextStyle(
+                    context,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('mealPlans')
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (!snapshot.hasData) {
+                  return const Center(child: CircularProgressIndicator(color: _primaryColor));
+                }
+
+                final mealPlans = snapshot.data!.docs;
+                Map<String, int> categoryCount = {};
+                int totalLikes = 0;
+
+                for (var doc in mealPlans) {
+                  final data = doc.data() as Map<String, dynamic>;
+                  final planType = data['planType'] ?? 'Unknown';
+                  categoryCount[planType] = (categoryCount[planType] ?? 0) + 1;
+                }
+
+                final avgLikes = mealPlans.isNotEmpty ? (totalLikes / mealPlans.length).toStringAsFixed(1) : '0.0';
+
+                return Column(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: _scaffoldBgColor(context),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Column(
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                "Total Meal Plans",
+                                style: _getTextStyle(context, fontWeight: FontWeight.w600),
+                              ),
+                              Text(
+                                mealPlans.length.toString(),
+                                style: _getTextStyle(
+                                  context,
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.amber,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          ...categoryCount.entries.map((entry) => Padding(
+                            padding: const EdgeInsets.only(bottom: 8.0),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  entry.key,
+                                  style: _cardSubtitleStyle(context),
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: Colors.amber.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Text(
+                                    entry.value.toString(),
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.amber[700],
+                                      fontFamily: _primaryFontFamily,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )),
+                        ],
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildUserRetentionChurn() {
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      color: _cardBgColor(context),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.indigo.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.people_outline, color: Colors.indigo),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  "User Retention & Churn",
+                  style: _getTextStyle(
+                    context,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('Users')
+                  .where('role', whereIn: ['user', 'dietitian'])
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (!snapshot.hasData) {
+                  return const Center(child: CircularProgressIndicator(color: _primaryColor));
+                }
+
+                final users = snapshot.data!.docs;
+                final now = DateTime.now();
+                final monthAgo = now.subtract(const Duration(days: 30));
+                final weekAgo = now.subtract(const Duration(days: 7));
+
+                int newUsers = 0, returningUsers = 0;
+
+                for (var doc in users) {
+                  final data = doc.data() as Map<String, dynamic>;
+                  final createdAt = data['createdAt'] as Timestamp?;
+                  final lastActive = data['lastActive'] as Timestamp?;
+
+                  if (createdAt != null) {
+                    final createdDate = createdAt.toDate();
+
+                    // New user: created within last 30 days
+                    if (createdDate.isAfter(monthAgo)) {
+                      newUsers++;
+                    }
+                    // Returning user: created more than 30 days ago AND active in last 7 days
+                    else if (lastActive != null && lastActive.toDate().isAfter(weekAgo)) {
+                      returningUsers++;
+                    }
+                  }
+                }
+
+                final total = users.length;
+                final retentionRate = total > 0 ? (returningUsers / total * 100).toStringAsFixed(1) : '0.0';
+                final churnRate = total > 0 ? ((total - newUsers - returningUsers) / total * 100).toStringAsFixed(1) : '0.0';
+
+                return Column(
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildStatCard(
+                            "New Users (30d)",
+                            newUsers.toString(),
+                            Colors.green,
+                            Icons.person_add,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _buildStatCard(
+                            "Returning Users",
+                            returningUsers.toString(),
+                            Colors.blue,
+                            Icons.repeat,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: _scaffoldBgColor(context),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Column(
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                "Retention Rate",
+                                style: _getTextStyle(context, fontWeight: FontWeight.w600),
+                              ),
+                              Text(
+                                "$retentionRate%",
+                                style: _getTextStyle(
+                                  context,
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.green,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const Divider(height: 24),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                "Churn Rate",
+                                style: _getTextStyle(context, fontWeight: FontWeight.w600),
+                              ),
+                              Text(
+                                "$churnRate%",
+                                style: _getTextStyle(
+                                  context,
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.red,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHealthGoalsDistribution() {
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      color: _cardBgColor(context),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.pink.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.favorite, color: Colors.pink),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  "Health Goals Distribution",
+                  style: _getTextStyle(
+                    context,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('Users')
+                  .where('role', isEqualTo: 'user')
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (!snapshot.hasData) {
+                  return const Center(child: CircularProgressIndicator(color: _primaryColor));
+                }
+
+                final users = snapshot.data!.docs;
+                Map<String, int> goalCounts = {};
+
+                for (var doc in users) {
+                  final data = doc.data() as Map<String, dynamic>;
+                  final goal = data['goals'] ?? 'Not Set';
+                  goalCounts[goal] = (goalCounts[goal] ?? 0) + 1;
+                }
+
+                final sortedGoals = goalCounts.entries.toList()
+                  ..sort((a, b) => b.value.compareTo(a.value));
+
+                return Column(
+                  children: sortedGoals.map((entry) {
+                    final percentage = users.isNotEmpty
+                        ? (entry.value / users.length * 100).toStringAsFixed(1)
+                        : '0.0';
+
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: _scaffoldBgColor(context),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                entry.key,
+                                style: _getTextStyle(context, fontWeight: FontWeight.w600),
+                              ),
+                              Text(
+                                "${entry.value} users ($percentage%)",
+                                style: _getTextStyle(
+                                  context,
+                                  fontSize: 14,
+                                  color: Colors.pink,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          LinearProgressIndicator(
+                            value: users.isNotEmpty ? entry.value / users.length : 0,
+                            backgroundColor: Colors.pink.withOpacity(0.1),
+                            valueColor: const AlwaysStoppedAnimation<Color>(Colors.pink),
+                            minHeight: 8,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                        ],
+                      ),
+                    );
+                  }).toList(),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildUserDemographics() {
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      color: _cardBgColor(context),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.deepOrange.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.analytics, color: Colors.deepOrange),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  "User Demographics & Behavior",
+                  style: _getTextStyle(
+                    context,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('Users')
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (!snapshot.hasData) {
+                  return const Center(child: CircularProgressIndicator(color: _primaryColor));
+                }
+
+                final users = snapshot.data!.docs;
+                int regularUsers = 0, dietitians = 0, admins = 0;
+                int googleAuth = 0, emailAuth = 0;
+
+                for (var doc in users) {
+                  final data = doc.data() as Map<String, dynamic>;
+                  final role = data['role'] ?? 'user';
+                  final authProvider = data['authProvider'] ?? 'email';
+
+                  if (role == 'user') regularUsers++;
+                  else if (role == 'dietitian') dietitians++;
+                  else if (role == 'admin') admins++;
+
+                  if (authProvider == 'google') googleAuth++;
+                  else emailAuth++;
+                }
+
+                return Column(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: _scaffoldBgColor(context),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            "Role Distribution",
+                            style: _getTextStyle(
+                              context,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          _buildDemographicRow("Users", regularUsers, Colors.blue),
+                          const SizedBox(height: 8),
+                          _buildDemographicRow("Dietitians", dietitians, Colors.green),
+                          const SizedBox(height: 8),
+                          _buildDemographicRow("Admins", admins, Colors.orange),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: _scaffoldBgColor(context),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            "Authentication Method",
+                            style: _getTextStyle(
+                              context,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          _buildDemographicRow("Google Sign-In", googleAuth, Colors.red),
+                          const SizedBox(height: 8),
+                          _buildDemographicRow("Email/Password", emailAuth, Colors.purple),
+                        ],
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatCard(String label, String value, Color color, IconData icon) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, color: color, size: 20),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  label,
+                  style: _getTextStyle(
+                    context,
+                    fontSize: 12,
+                    color: _textColorSecondary(context),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: _getTextStyle(
+              context,
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDemographicRow(String label, int count, Color color) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Row(
+          children: [
+            Container(
+              width: 12,
+              height: 12,
+              decoration: BoxDecoration(
+                color: color,
+                shape: BoxShape.circle,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: _getTextStyle(context),
+            ),
+          ],
+        ),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Text(
+            count.toString(),
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: color,
+              fontFamily: _primaryFontFamily,
+            ),
+          ),
+        ),
+      ],
+    );
   }
 }

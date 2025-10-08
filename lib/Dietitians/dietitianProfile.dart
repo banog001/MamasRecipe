@@ -544,6 +544,7 @@ class _DietitianProfileState extends State<DietitianProfile> {
                 label: 'Messages',
               ),
             ],
+<<<<<<< HEAD
           ),
         ),
       ),
@@ -561,6 +562,25 @@ class _DietitianProfileState extends State<DietitianProfile> {
           ),
           child: Icon(icon, color: _primaryColor, size: 24),
         ),
+=======
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _summaryItem(IconData icon, String label, String value, Color textColor) {
+    return Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: _primaryColor.withOpacity(0.1),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(icon, color: _primaryColor, size: 24),
+        ),
+>>>>>>> 6f21ce8 (last na)
         const SizedBox(height: 8),
         Text(
           label,
