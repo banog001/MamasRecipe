@@ -515,8 +515,4 @@ class _EditProfilePageState extends State<EditProfileDietitianPage> {
       ],
     );
   }
-<<<<<<< HEAD
 }
-=======
-}
->>>>>>> 6f21ce8 (last na)
