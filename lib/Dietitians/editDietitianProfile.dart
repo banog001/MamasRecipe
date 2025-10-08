@@ -1,991 +1,518 @@
+import 'dart:io';
+import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:http/http.dart' as http;
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:table_calendar/table_calendar.dart';
-import 'package:intl/intl.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'homePageDietitian.dart';
 
-const String _primaryFontFamily = 'PlusJakartaSans';
-const Color _primaryColor = Color(0xFF4CAF50);
-const Color _accentColor = Color(0xFF81C784);
-const Color _textColorOnPrimary = Colors.white;
-
-Color _scaffoldBgColor(BuildContext context) =>
-    Theme.of(context).brightness == Brightness.dark
-        ? Colors.grey.shade900
-        : Colors.grey.shade50;
-
-Color _cardBgColor(BuildContext context) =>
-    Theme.of(context).brightness == Brightness.dark
-        ? Colors.grey.shade800
-        : Colors.white;
-
-Color _textColorPrimary(BuildContext context) =>
-    Theme.of(context).brightness == Brightness.dark
-        ? Colors.white70
-        : Colors.black87;
-
-Color _textColorSecondary(BuildContext context) =>
-    Theme.of(context).brightness == Brightness.dark
-        ? Colors.white54
-        : Colors.black54;
-
-TextStyle _getTextStyle(
-    BuildContext context, {
-      double fontSize = 16,
-      FontWeight fontWeight = FontWeight.normal,
-      Color? color,
-    }) {
-  return TextStyle(
-    fontSize: fontSize,
-    fontWeight: fontWeight,
-    color: color ?? _textColorPrimary(context),
-    fontFamily: _primaryFontFamily,
-  );
-}
-
-// <CHANGE> Added initialIndex parameter to allow navigation with specific tab selected
-class HomePageDietitian extends StatefulWidget {
-  final int initialIndex;
-
-  const HomePageDietitian({super.key, this.initialIndex = 0});
+class EditProfileDietitianPage extends StatefulWidget {
+  const EditProfileDietitianPage({super.key});
 
   @override
-  State<HomePageDietitian> createState() => _HomePageDietitianState();
+  State<EditProfileDietitianPage> createState() => _EditProfilePageState();
 }
 
-class _HomePageDietitianState extends State<HomePageDietitian> {
-  late int _selectedIndex;
-  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+class _EditProfilePageState extends State<EditProfileDietitianPage> {
+  File? _profileImage;
+  final ImagePicker _picker = ImagePicker();
+  bool _isUploading = false;
+  final TextEditingController _weightController = TextEditingController();
+  Future<Map<String, dynamic>?>? _userDataFuture;
 
-  late final List<Widget> _pages;
+  static const String _primaryFontFamily = 'PlusJakartaSans';
+  static const Color _primaryColor = Color(0xFF4CAF50);
+
+  static const TextStyle _labelStyle = TextStyle(
+    fontFamily: _primaryFontFamily,
+    fontSize: 13,
+    fontWeight: FontWeight.w600,
+    color: Colors.black87,
+  );
+
+  static const TextStyle _helperStyle = TextStyle(
+    fontFamily: _primaryFontFamily,
+    fontSize: 11,
+    color: Colors.black54,
+  );
+
+  final String cloudName = "dbc77ko88";
+  final String uploadPreset = "profile";
 
   @override
   void initState() {
     super.initState();
-    // <CHANGE> Initialize _selectedIndex with the passed initialIndex parameter
-    _selectedIndex = widget.initialIndex;
-    _pages = [
-      _DashboardPage(scaffoldKey: _scaffoldKey),
-      const _SchedulePage(),
-      const _MessagesPage(),
-    ];
+    _userDataFuture = _getUserData(); // 👈 Runs only once
   }
 
-  void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
+  Future<void> _pickImage(ImageSource source) async {
+    final XFile? pickedFile = await _picker.pickImage(source: source);
+    if (pickedFile != null) {
+      setState(() {
+        _profileImage = File(pickedFile.path);
+      });
+    }
+  }
+
+  void _showImageSourceDialog() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: _primaryColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.photo_library, color: _primaryColor),
+                ),
+                title: const Text("Choose from Gallery", style: TextStyle(fontFamily: _primaryFontFamily)),
+                onTap: () {
+                  Navigator.pop(context);
+                  _pickImage(ImageSource.gallery);
+                },
+              ),
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: _primaryColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.camera_alt, color: _primaryColor),
+                ),
+                title: const Text("Take a Photo", style: TextStyle(fontFamily: _primaryFontFamily)),
+                onTap: () {
+                  Navigator.pop(context);
+                  _pickImage(ImageSource.camera);
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<String?> _uploadToCloudinary(File imageFile) async {
+    try {
+      setState(() => _isUploading = true);
+
+      final url = Uri.parse("https://api.cloudinary.com/v1_1/$cloudName/image/upload");
+      final request = http.MultipartRequest('POST', url)
+        ..fields['upload_preset'] = uploadPreset
+        ..files.add(await http.MultipartFile.fromPath('file', imageFile.path));
+
+      final response = await request.send();
+      final resBody = await response.stream.bytesToString();
+      print("🔹 Cloudinary response: $resBody");
+
+      final data = json.decode(resBody);
+
+      if (response.statusCode == 200) {
+        return data['secure_url'];
+      } else {
+        print("❌ Upload failed: ${data['error']}");
+        return null;
+      }
+    } catch (e) {
+      print("❌ Upload error: $e");
+      return null;
+    } finally {
+      setState(() => _isUploading = false);
+    }
+  }
+
+  Future<void> _saveProfile() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    String? imageUrl;
+
+    // 🔹 If a new profile image was chosen, upload it first
+    if (_profileImage != null) {
+      imageUrl = await _uploadToCloudinary(_profileImage!);
+      if (imageUrl == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Failed to upload image.")),
+        );
+        return;
+      }
+    }
+
+    // 🔹 Prepare data to update
+    final updateData = <String, dynamic>{};
+
+    // Add new image URL only if user picked one
+    if (imageUrl != null) updateData['profile'] = imageUrl;
+
+    // Add current weight (if it’s not empty)
+    if (_weightController.text.trim().isNotEmpty) {
+      updateData['currentWeight'] = _weightController.text.trim();
+    }
+
+    // 🔹 Update Firestore only if there’s something to change
+    if (updateData.isNotEmpty) {
+      await FirebaseFirestore.instance
+          .collection("Users")
+          .doc(user.uid)
+          .update(updateData);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("✅ Profile updated successfully!")),
+      );
+
+      // Refresh data on screen
+      setState(() {
+        _userDataFuture = _getUserData();
+        _profileImage = null;
+      });
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("No changes to save.")),
+      );
+    }
+  }
+
+  Future<Map<String, dynamic>?> _getUserData() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return null;
+
+    final snapshot = await FirebaseFirestore.instance
+        .collection("Users")
+        .doc(user.uid)
+        .get();
+    return snapshot.data();
   }
 
   @override
   Widget build(BuildContext context) {
+    final user = FirebaseAuth.instance.currentUser;
+    final keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
+
     return Scaffold(
-      key: _scaffoldKey,
-      backgroundColor: _scaffoldBgColor(context),
+      backgroundColor: Colors.grey.shade50,
+      resizeToAvoidBottomInset: true,
       appBar: AppBar(
         backgroundColor: _primaryColor,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.menu, color: _textColorOnPrimary),
-          onPressed: () {
-            _scaffoldKey.currentState?.openDrawer();
-          },
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
         ),
-        title: Text(
-          _getPageTitle(),
-          style: const TextStyle(
-            color: _textColorOnPrimary,
-            fontWeight: FontWeight.bold,
+        title: const Text(
+          "Edit Profile",
+          style: TextStyle(
             fontFamily: _primaryFontFamily,
+            fontWeight: FontWeight.bold,
+            fontSize: 20,
+            color: Colors.white,
           ),
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_outlined, color: _textColorOnPrimary),
-            onPressed: () {},
-          ),
-          Padding(
-            padding: const EdgeInsets.only(right: 8.0),
-            child: StreamBuilder<DocumentSnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection('Users')
-                  .doc(FirebaseAuth.instance.currentUser?.uid)
-                  .snapshots(),
-              builder: (context, snapshot) {
-                if (!snapshot.hasData) {
-                  return const CircleAvatar(
-                    backgroundColor: _textColorOnPrimary,
-                    child: Icon(Icons.person, color: _primaryColor),
-                  );
-                }
-
-                final userData = snapshot.data!.data() as Map<String, dynamic>?;
-                final profileUrl = userData?['profile'] ?? '';
-
-                return GestureDetector(
-                  onTap: () {
-                    // Navigate to profile or show profile menu
-                  },
-                  child: CircleAvatar(
-                    backgroundColor: _textColorOnPrimary,
-                    backgroundImage: profileUrl.isNotEmpty
-                        ? NetworkImage(profileUrl)
-                        : null,
-                    child: profileUrl.isEmpty
-                        ? const Icon(Icons.person, color: _primaryColor)
-                        : null,
-                  ),
-                );
-              },
-            ),
-          ),
-        ],
-      ),
-      drawer: _buildDrawer(),
-      body: _pages[_selectedIndex],
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              blurRadius: 10,
-              offset: const Offset(0, -2),
-            ),
-          ],
-        ),
-        child: BottomNavigationBar(
-          currentIndex: _selectedIndex,
-          onTap: _onItemTapped,
-          backgroundColor: _cardBgColor(context),
-          selectedItemColor: _primaryColor,
-          unselectedItemColor: _textColorSecondary(context),
-          selectedLabelStyle: const TextStyle(
-            fontFamily: _primaryFontFamily,
-            fontWeight: FontWeight.w600,
-          ),
-          unselectedLabelStyle: const TextStyle(
-            fontFamily: _primaryFontFamily,
-          ),
-          type: BottomNavigationBarType.fixed,
-          items: const [
-            BottomNavigationBarItem(
-              icon: Icon(Icons.dashboard_outlined),
-              activeIcon: Icon(Icons.dashboard),
-              label: 'Dashboard',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.calendar_today_outlined),
-              activeIcon: Icon(Icons.calendar_today),
-              label: 'Schedule',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.message_outlined),
-              activeIcon: Icon(Icons.message),
-              label: 'Messages',
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  String _getPageTitle() {
-    switch (_selectedIndex) {
-      case 0:
-        return 'Dashboard';
-      case 1:
-        return 'Schedule';
-      case 2:
-        return 'Messages';
-      default:
-        return 'Dietitian';
-    }
-  }
-
-  Widget _buildDrawer() {
-    return Drawer(
-      backgroundColor: _cardBgColor(context),
-      child: Column(
-        children: [
-          StreamBuilder<DocumentSnapshot>(
-            stream: FirebaseFirestore.instance
-                .collection('Users')
-                .doc(FirebaseAuth.instance.currentUser?.uid)
-                .snapshots(),
-            builder: (context, snapshot) {
-              if (!snapshot.hasData) {
-                return DrawerHeader(
-                  decoration: const BoxDecoration(color: _primaryColor),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const CircleAvatar(
-                        radius: 40,
-                        backgroundColor: _textColorOnPrimary,
-                        child: Icon(Icons.person, size: 40, color: _primaryColor),
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        'Loading...',
-                        style: _getTextStyle(
-                          context,
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: _textColorOnPrimary,
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              }
-
-              final userData = snapshot.data!.data() as Map<String, dynamic>?;
-              final firstName = userData?['firstName'] ?? 'Dietitian';
-              final lastName = userData?['lastName'] ?? '';
-              final email = userData?['email'] ?? 'No email';
-              final profileUrl = userData?['profile'] ?? '';
-
-              return DrawerHeader(
-                decoration: const BoxDecoration(color: _primaryColor),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    CircleAvatar(
-                      radius: 40,
-                      backgroundColor: _textColorOnPrimary,
-                      backgroundImage: profileUrl.isNotEmpty
-                          ? NetworkImage(profileUrl)
-                          : null,
-                      child: profileUrl.isEmpty
-                          ? const Icon(Icons.person, size: 40, color: _primaryColor)
-                          : null,
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      '$firstName $lastName',
-                      style: _getTextStyle(
-                        context,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: _textColorOnPrimary,
-                      ),
-                    ),
-                    Text(
-                      email,
-                      style: _getTextStyle(
-                        context,
-                        fontSize: 12,
-                        color: _textColorOnPrimary.withOpacity(0.8),
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.dashboard, color: _primaryColor),
-            title: Text('Dashboard', style: _getTextStyle(context)),
-            onTap: () {
-              Navigator.pop(context);
-              setState(() => _selectedIndex = 0);
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.calendar_today, color: _primaryColor),
-            title: Text('Schedule', style: _getTextStyle(context)),
-            onTap: () {
-              Navigator.pop(context);
-              setState(() => _selectedIndex = 1);
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.message, color: _primaryColor),
-            title: Text('Messages', style: _getTextStyle(context)),
-            onTap: () {
-              Navigator.pop(context);
-              setState(() => _selectedIndex = 2);
-            },
-          ),
-          const Divider(),
-          ListTile(
-            leading: const Icon(Icons.settings, color: _primaryColor),
-            title: Text('Settings', style: _getTextStyle(context)),
-            onTap: () {
-              Navigator.pop(context);
-            },
-          ),
-          const Spacer(),
-          const Divider(),
-          ListTile(
-            leading: const Icon(Icons.logout, color: Colors.red),
-            title: Text(
-              'Logout',
-              style: _getTextStyle(context, color: Colors.red),
-            ),
-            onTap: () async {
-              await FirebaseAuth.instance.signOut();
-              if (context.mounted) {
-                Navigator.of(context).pushReplacementNamed('/login');
-              }
-            },
-          ),
-          const SizedBox(height: 20),
-        ],
-      ),
-    );
-  }
-}
-
-// ... existing code ...
-
-class _DashboardPage extends StatelessWidget {
-  final GlobalKey<ScaffoldState> scaffoldKey;
-
-  const _DashboardPage({required this.scaffoldKey});
-
-  @override
-  Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Welcome Back!',
-            style: _getTextStyle(
-              context,
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Here\'s your overview for today',
-            style: _getTextStyle(
-              context,
-              fontSize: 14,
-              color: _textColorSecondary(context),
-            ),
-          ),
-          const SizedBox(height: 24),
-          Row(
-            children: [
-              Expanded(
-                child: _buildStatCard(
-                  context,
-                  'Total Clients',
-                  '24',
-                  Icons.people,
-                  _primaryColor,
-                ),
+          TextButton(
+            onPressed: _saveProfile,
+            child: _isUploading
+                ? const SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(
+                color: Colors.white,
+                strokeWidth: 2,
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _buildStatCard(
-                  context,
-                  'Appointments',
-                  '8',
-                  Icons.calendar_today,
-                  Colors.blue,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: _buildStatCard(
-                  context,
-                  'Meal Plans',
-                  '15',
-                  Icons.restaurant_menu,
-                  Colors.orange,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _buildStatCard(
-                  context,
-                  'Messages',
-                  '12',
-                  Icons.message,
-                  Colors.purple,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
-          Text(
-            'Recent Activity',
-            style: _getTextStyle(
-              context,
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 16),
-          _buildActivityCard(
-            context,
-            'New client registered',
-            'John Doe joined your program',
-            '2 hours ago',
-            Icons.person_add,
-            _primaryColor,
-          ),
-          const SizedBox(height: 12),
-          _buildActivityCard(
-            context,
-            'Appointment scheduled',
-            'Meeting with Sarah Smith at 3:00 PM',
-            '4 hours ago',
-            Icons.calendar_today,
-            Colors.blue,
-          ),
-          const SizedBox(height: 12),
-          _buildActivityCard(
-            context,
-            'Meal plan updated',
-            'Updated plan for Mike Johnson',
-            '1 day ago',
-            Icons.restaurant_menu,
-            Colors.orange,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatCard(
-      BuildContext context,
-      String title,
-      String value,
-      IconData icon,
-      Color color,
-      ) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      color: _cardBgColor(context),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(icon, color: color, size: 24),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              value,
-              style: _getTextStyle(
-                context,
-                fontSize: 24,
+            )
+                : const Text(
+              "Save",
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontFamily: _primaryFontFamily,
                 fontWeight: FontWeight.bold,
               ),
             ),
-            const SizedBox(height: 4),
-            Text(
-              title,
-              style: _getTextStyle(
-                context,
-                fontSize: 12,
-                color: _textColorSecondary(context),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildActivityCard(
-      BuildContext context,
-      String title,
-      String subtitle,
-      String time,
-      IconData icon,
-      Color color,
-      ) {
-    return Card(
-      elevation: 1,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      color: _cardBgColor(context),
-      child: ListTile(
-        leading: Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Icon(icon, color: color, size: 24),
-        ),
-        title: Text(
-          title,
-          style: _getTextStyle(context, fontWeight: FontWeight.w600),
-        ),
-        subtitle: Text(
-          subtitle,
-          style: _getTextStyle(
-            context,
-            fontSize: 12,
-            color: _textColorSecondary(context),
-          ),
-        ),
-        trailing: Text(
-          time,
-          style: _getTextStyle(
-            context,
-            fontSize: 11,
-            color: _textColorSecondary(context),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _SchedulePage extends StatefulWidget {
-  const _SchedulePage();
-
-  @override
-  State<_SchedulePage> createState() => _SchedulePageState();
-}
-
-class _SchedulePageState extends State<_SchedulePage> {
-  CalendarFormat _calendarFormat = CalendarFormat.month;
-  DateTime _focusedDay = DateTime.now();
-  DateTime? _selectedDay;
-
-  @override
-  Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Card(
-            elevation: 2,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            color: _cardBgColor(context),
-            child: TableCalendar(
-              firstDay: DateTime.utc(2020, 1, 1),
-              lastDay: DateTime.utc(2030, 12, 31),
-              focusedDay: _focusedDay,
-              calendarFormat: _calendarFormat,
-              selectedDayPredicate: (day) {
-                return isSameDay(_selectedDay, day);
-              },
-              onDaySelected: (selectedDay, focusedDay) {
-                setState(() {
-                  _selectedDay = selectedDay;
-                  _focusedDay = focusedDay;
-                });
-              },
-              onFormatChanged: (format) {
-                setState(() {
-                  _calendarFormat = format;
-                });
-              },
-              onPageChanged: (focusedDay) {
-                _focusedDay = focusedDay;
-              },
-              calendarStyle: CalendarStyle(
-                todayDecoration: BoxDecoration(
-                  color: _accentColor,
-                  shape: BoxShape.circle,
-                ),
-                selectedDecoration: const BoxDecoration(
-                  color: _primaryColor,
-                  shape: BoxShape.circle,
-                ),
-                markerDecoration: const BoxDecoration(
-                  color: _primaryColor,
-                  shape: BoxShape.circle,
-                ),
-              ),
-              headerStyle: HeaderStyle(
-                formatButtonDecoration: BoxDecoration(
-                  color: _primaryColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                formatButtonTextStyle: const TextStyle(
-                  color: _primaryColor,
-                  fontFamily: _primaryFontFamily,
-                ),
-                titleTextStyle: _getTextStyle(
-                  context,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 24),
-          Text(
-            'Upcoming Appointments',
-            style: _getTextStyle(
-              context,
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 16),
-          _buildAppointmentCard(
-            context,
-            'Sarah Smith',
-            'Initial Consultation',
-            '10:00 AM - 11:00 AM',
-            'https://via.placeholder.com/150',
-          ),
-          const SizedBox(height: 12),
-          _buildAppointmentCard(
-            context,
-            'John Doe',
-            'Follow-up Session',
-            '2:00 PM - 3:00 PM',
-            'https://via.placeholder.com/150',
-          ),
-          const SizedBox(height: 12),
-          _buildAppointmentCard(
-            context,
-            'Mike Johnson',
-            'Meal Plan Review',
-            '4:00 PM - 5:00 PM',
-            'https://via.placeholder.com/150',
-          ),
+          )
         ],
       ),
-    );
-  }
+      body: FutureBuilder<Map<String, dynamic>?>(
+        future: _userDataFuture,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
 
-  Widget _buildAppointmentCard(
-      BuildContext context,
-      String name,
-      String type,
-      String time,
-      String imageUrl,
-      ) {
-    return Card(
-      elevation: 1,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      color: _cardBgColor(context),
-      child: ListTile(
-        contentPadding: const EdgeInsets.all(12),
-        leading: CircleAvatar(
-          radius: 28,
-          backgroundColor: _primaryColor.withOpacity(0.2),
-          backgroundImage: NetworkImage(imageUrl),
-        ),
-        title: Text(
-          name,
-          style: _getTextStyle(context, fontWeight: FontWeight.w600),
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 4),
-            Text(
-              type,
-              style: _getTextStyle(
-                context,
-                fontSize: 13,
-                color: _textColorSecondary(context),
-              ),
-            ),
-            const SizedBox(height: 4),
-            Row(
-              children: [
-                const Icon(Icons.access_time, size: 14, color: _primaryColor),
-                const SizedBox(width: 4),
-                Text(
-                  time,
-                  style: _getTextStyle(
-                    context,
-                    fontSize: 12,
-                    color: _primaryColor,
+          final userData = snapshot.data;
+
+          if (userData != null && userData["currentWeight"] != null && _weightController.text.isEmpty) {
+            _weightController.text = userData["currentWeight"].toString();
+          }
+          final String? profileUrl = userData?['profile'];
+          final String displayName = user?.displayName ?? "Unknown User";
+          final String displayEmail = user?.email ?? "";
+
+          return LayoutBuilder(
+            builder: (context, constraints) {
+              return SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    minHeight: constraints.maxHeight,
                   ),
-                ),
-              ],
-            ),
-          ],
-        ),
-        trailing: IconButton(
-          icon: const Icon(Icons.more_vert, color: _primaryColor),
-          onPressed: () {},
-        ),
-      ),
-    );
-  }
-}
-
-class _MessagesPage extends StatefulWidget {
-  const _MessagesPage();
-
-  @override
-  State<_MessagesPage> createState() => _MessagesPageState();
-}
-
-class _MessagesPageState extends State<_MessagesPage>
-    with SingleTickerProviderStateMixin {
-  late TabController _tabController;
-
-  @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: 2, vsync: this);
-  }
-
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Container(
-          color: _cardBgColor(context),
-          child: TabBar(
-            controller: _tabController,
-            labelColor: _primaryColor,
-            unselectedLabelColor: _textColorSecondary(context),
-            indicatorColor: _primaryColor,
-            labelStyle: const TextStyle(
-              fontFamily: _primaryFontFamily,
-              fontWeight: FontWeight.w600,
-            ),
-            tabs: const [
-              Tab(text: 'Chats'),
-              Tab(text: 'Notifications'),
-            ],
-          ),
-        ),
-        Expanded(
-          child: TabBarView(
-            controller: _tabController,
-            children: [
-              _buildChatsList(),
-              _buildNotificationsList(),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildChatsList() {
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('Users')
-          .where('role', isEqualTo: 'user')
-          .limit(10)
-          .snapshots(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(
-            child: CircularProgressIndicator(color: _primaryColor),
-          );
-        }
-
-        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.chat_bubble_outline,
-                  size: 80,
-                  color: _primaryColor.withOpacity(0.3),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'No messages yet',
-                  style: _getTextStyle(context, fontSize: 18),
-                ),
-              ],
-            ),
-          );
-        }
-
-        final users = snapshot.data!.docs;
-
-        return ListView.builder(
-          padding: const EdgeInsets.all(8),
-          itemCount: users.length,
-          itemBuilder: (context, index) {
-            final user = users[index].data() as Map<String, dynamic>;
-            final firstName = user['firstName'] ?? 'User';
-            final lastName = user['lastName'] ?? '';
-            final profileUrl = user['profile'] ?? '';
-            final status = user['status'] ?? 'offline';
-
-            return Card(
-              margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-              elevation: 1,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              color: _cardBgColor(context),
-              child: ListTile(
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 8,
-                ),
-                leading: Stack(
-                  children: [
-                    CircleAvatar(
-                      radius: 28,
-                      backgroundColor: _primaryColor.withOpacity(0.2),
-                      backgroundImage: profileUrl.isNotEmpty
-                          ? NetworkImage(profileUrl)
-                          : null,
-                      child: profileUrl.isEmpty
-                          ? const Icon(Icons.person, color: _primaryColor)
-                          : null,
-                    ),
-                    if (status.toLowerCase() == 'online')
-                      Positioned(
-                        right: 0,
-                        bottom: 0,
-                        child: Container(
-                          width: 14,
-                          height: 14,
+                  child: IntrinsicHeight(
+                    child: Column(
+                      children: [
+                        Container(
+                          width: double.infinity,
+                          padding: EdgeInsets.fromLTRB(20, keyboardHeight > 0 ? 16 : 20, 20, keyboardHeight > 0 ? 20 : 24),
                           decoration: BoxDecoration(
-                            color: Colors.green,
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: _cardBgColor(context),
-                              width: 2,
+                            color: _primaryColor,
+                            borderRadius: const BorderRadius.vertical(bottom: Radius.circular(24)),
+                            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 8, offset: Offset(0, 3))],
+                          ),
+                          child: Column(
+                            children: [
+                              Stack(
+                                children: [
+                                  Container(
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      border: Border.all(color: Colors.white, width: 3),
+                                      boxShadow: [
+                                        BoxShadow(
+                                            color: Colors.black.withOpacity(0.15),
+                                            spreadRadius: 1,
+                                            blurRadius: 6,
+                                            offset: Offset(0, 2))
+                                      ],
+                                    ),
+                                    child: CircleAvatar(
+                                      radius: 40,
+                                      backgroundColor: Colors.white,
+                                      backgroundImage: _profileImage != null
+                                          ? FileImage(_profileImage!)
+                                          : (profileUrl != null && profileUrl.isNotEmpty)
+                                          ? NetworkImage(profileUrl)
+                                          : null,
+                                      child: (_profileImage == null && (profileUrl == null || profileUrl.isEmpty))
+                                          ? const Icon(Icons.person_outline, size: 42, color: _primaryColor)
+                                          : null,
+                                    ),
+                                  ),
+                                  Positioned(
+                                    bottom: 0,
+                                    right: 0,
+                                    child: Material(
+                                      color: Colors.white,
+                                      shape: const CircleBorder(),
+                                      elevation: 2,
+                                      child: InkWell(
+                                        onTap: _showImageSourceDialog,
+                                        customBorder: const CircleBorder(),
+                                        child: const Padding(
+                                          padding: EdgeInsets.all(6.0),
+                                          child: Icon(Icons.camera_alt, color: _primaryColor, size: 16),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 10),
+                              Text(
+                                displayName,
+                                style: const TextStyle(
+                                  fontFamily: _primaryFontFamily,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              if (displayEmail.isNotEmpty) ...[
+                                const SizedBox(height: 3),
+                                Text(
+                                  displayEmail,
+                                  style: TextStyle(
+                                    fontFamily: _primaryFontFamily,
+                                    fontSize: 13,
+                                    color: Colors.white.withOpacity(0.8),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                        Flexible(
+                          child: Padding(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: 24.0,
+                              vertical: keyboardHeight > 0 ? 12.0 : 16.0,
+                            ),
+                            child: Card(
+                              elevation: 2,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              color: Colors.white,
+                              child: Padding(
+                                padding: const EdgeInsets.all(16.0),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      "Profile Information",
+                                      style: TextStyle(
+                                        fontFamily: _primaryFontFamily,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                        color: _primaryColor,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 12),
+                                    _buildTextField(
+                                      "Current weight",
+                                      controller: _weightController,
+                                      helperText: "Cooldown after changing (30 days)",
+                                    ),
+                                    const SizedBox(height: 10),
+                                    _buildTextField("Change Password", obscure: true),
+                                    const SizedBox(height: 10),
+                                    _buildTextField("Confirm Password", obscure: true),
+                                  ],
+                                ),
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                  ],
-                ),
-                title: Text(
-                  '$firstName $lastName',
-                  style: _getTextStyle(context, fontWeight: FontWeight.w600),
-                ),
-                subtitle: Text(
-                  'Tap to start conversation',
-                  style: _getTextStyle(
-                    context,
-                    fontSize: 13,
-                    color: _textColorSecondary(context),
+                      ],
+                    ),
                   ),
                 ),
-                trailing: const Icon(Icons.chevron_right, color: _primaryColor),
-                onTap: () {
-                  // Navigate to chat screen
-                },
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
-
-  Widget _buildNotificationsList() {
-    return ListView(
-      padding: const EdgeInsets.all(8),
-      children: [
-        _buildNotificationCard(
-          context,
-          'New Appointment',
-          'Sarah Smith booked an appointment for tomorrow at 10:00 AM',
-          '2 hours ago',
-          Icons.calendar_today,
-          Colors.blue,
+              );
+            },
+          );
+        },
+      ),
+      bottomNavigationBar: ClipRRect(
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(20),
+          topRight: Radius.circular(20),
         ),
-        _buildNotificationCard(
-          context,
-          'Message Received',
-          'John Doe sent you a message',
-          '4 hours ago',
-          Icons.message,
-          _primaryColor,
-        ),
-        _buildNotificationCard(
-          context,
-          'Meal Plan Completed',
-          'Mike Johnson completed his meal plan for the week',
-          '1 day ago',
-          Icons.check_circle,
-          Colors.green,
-        ),
-        _buildNotificationCard(
-          context,
-          'Payment Received',
-          'Payment of \$150 received from Emma Wilson',
-          '2 days ago',
-          Icons.payment,
-          Colors.orange,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildNotificationCard(
-      BuildContext context,
-      String title,
-      String message,
-      String time,
-      IconData icon,
-      Color color,
-      ) {
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-      elevation: 1,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      color: _cardBgColor(context),
-      child: ListTile(
-        contentPadding: const EdgeInsets.all(12),
-        leading: Container(
-          padding: const EdgeInsets.all(10),
+        child: Container(
           decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(10),
+            color: _primaryColor,
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(20),
+              topRight: Radius.circular(20),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 8,
+                offset: const Offset(0, -2),
+              ),
+            ],
           ),
-          child: Icon(icon, color: color, size: 24),
-        ),
-        title: Text(
-          title,
-          style: _getTextStyle(context, fontWeight: FontWeight.w600),
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 4),
-            Text(
-              message,
-              style: _getTextStyle(
+          child: BottomNavigationBar(
+            backgroundColor: _primaryColor,
+            selectedItemColor: Colors.white.withOpacity(0.6),
+            unselectedItemColor: Colors.white.withOpacity(0.6),
+            type: BottomNavigationBarType.fixed,
+            showSelectedLabels: false,
+            showUnselectedLabels: false,
+            onTap: (index) {
+              Navigator.pushReplacement(
                 context,
-                fontSize: 13,
-                color: _textColorSecondary(context),
+                MaterialPageRoute(
+                  builder: (_) => HomePageDietitian(initialIndex: index),
+                ),
+              );
+            },
+            items: const [
+              BottomNavigationBarItem(
+                icon: Icon(Icons.home_outlined),
+                activeIcon: Icon(Icons.home_rounded),
+                label: 'Home',
               ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              time,
-              style: _getTextStyle(
-                context,
-                fontSize: 11,
-                color: _textColorSecondary(context),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.edit_calendar_outlined),
+                activeIcon: Icon(Icons.edit_calendar),
+                label: 'Schedule',
               ),
-            ),
-          ],
+              BottomNavigationBarItem(
+                icon: Icon(Icons.mail_outline),
+                activeIcon: Icon(Icons.mail),
+                label: 'Messages',
+              ),
+            ],
+          ),
         ),
       ),
+
+    );
+  }
+
+  Widget _buildTextField(
+      String label, {
+        bool obscure = false,
+        String? helperText,
+        TextEditingController? controller,
+      }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontFamily: _primaryFontFamily,
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: Colors.black87,
+          ),
+        ),
+        const SizedBox(height: 6),
+        TextField(
+          controller: controller,
+          obscureText: obscure,
+          style: const TextStyle(
+            fontFamily: _primaryFontFamily,
+            fontSize: 15,
+          ),
+          decoration: InputDecoration(
+            helperText: helperText,
+            helperStyle: const TextStyle(
+              fontFamily: _primaryFontFamily,
+              fontSize: 11,
+              color: Colors.black54,
+            ),
+            filled: true,
+            fillColor: Colors.grey.shade100,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.grey.shade300),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: _primaryColor, width: 2),
+            ),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            isDense: true,
+          ),
+        ),
+      ],
     );
   }
 }
