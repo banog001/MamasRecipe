@@ -8,6 +8,7 @@ import 'dietitianQRCode.dart';
 import 'dietitianSubscriberPage.dart';
 import 'app_theme.dart';
 
+const Color primaryColor = Color(0xFF4CAF50);
 class DietitianProfile extends StatefulWidget {
   const DietitianProfile({super.key});
 

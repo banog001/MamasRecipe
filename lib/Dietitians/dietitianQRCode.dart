@@ -1,3 +1,5 @@
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -86,9 +88,34 @@ class _DietitianQRCodePageState extends State<DietitianQRCodePage> {
 
   Future<String?> _uploadQRCodeImage(File imageFile) async {
     setState(() => _isUploading = true);
-    await Future.delayed(const Duration(seconds: 2));
-    setState(() => _isUploading = false);
-    return null;
+    try {
+      // Cloudinary unsigned upload preset (create this in Cloudinary console)
+      const cloudName = 'dbc77ko88';
+      const uploadPreset = 'qrpicture';
+
+      final url = Uri.parse('https://api.cloudinary.com/v1_1/$cloudName/image/upload');
+
+      final request = http.MultipartRequest('POST', url)
+        ..fields['upload_preset'] = uploadPreset
+        ..files.add(await http.MultipartFile.fromPath('file', imageFile.path));
+
+      final response = await request.send();
+      final responseData = await http.Response.fromStream(response);
+
+      if (response.statusCode == 200) {
+        final data = json.decode(responseData.body);
+        setState(() => _isUploading = false);
+        return data['secure_url'];
+      } else {
+        debugPrint('Cloudinary upload failed: ${responseData.body}');
+        setState(() => _isUploading = false);
+        return null;
+      }
+    } catch (e) {
+      debugPrint('Upload error: $e');
+      setState(() => _isUploading = false);
+      return null;
+    }
   }
 
   Future<void> _saveQRCode() async {
@@ -118,9 +145,17 @@ class _DietitianQRCodePageState extends State<DietitianQRCodePage> {
       await FirebaseFirestore.instance
           .collection("Users")
           .doc(user.uid)
-          .update({'qrCodeUrl': imageUrl});
+          .set({'qrpic': imageUrl}, SetOptions(merge: true));
 
       if (!mounted) return;
+
+      // Fetch the updated data again
+      final updatedData = await _getUserData();
+
+      setState(() {
+        _userDataFuture = Future.value(updatedData); // ✅ force refresh
+        _qrCodeImage = null;
+      });
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -128,17 +163,13 @@ class _DietitianQRCodePageState extends State<DietitianQRCodePage> {
           backgroundColor: _primaryColor,
         ),
       );
-
-      setState(() {
-        _userDataFuture = _getUserData();
-        _qrCodeImage = null;
-      });
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Error saving QR code: $e")),
       );
     }
+
   }
 
   Future<Map<String, dynamic>?> _getUserData() async {
@@ -206,7 +237,7 @@ class _DietitianQRCodePageState extends State<DietitianQRCodePage> {
           }
 
           final userData = snapshot.data;
-          final String? qrCodeUrl = userData?['qrCodeUrl'];
+          final String? qrCodeUrl = userData?['qrpic'];
           final String displayName = user?.displayName ?? "Unknown User";
 
           return SingleChildScrollView(
@@ -424,7 +455,7 @@ class _DietitianQRCodePageState extends State<DietitianQRCodePage> {
                                   ),
                                   const SizedBox(height: 6),
                                   Text(
-                                    "• Upload your personal QR code image\n"
+                                    "• Upload your personal GcashQR or any bankQR code image\n"
                                         "• Clients can scan it to connect with you\n"
                                         "• Update anytime by uploading a new image",
                                     style: TextStyle(
