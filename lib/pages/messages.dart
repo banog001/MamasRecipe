@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../Dietitians/dietitianPublicProfile.dart';
 
 class MessagesPage extends StatefulWidget {
   final String receiverId;
@@ -84,22 +85,28 @@ class _MessagesPageState extends State<MessagesPage> {
     });
 
     // Add notification
-    await _firestore
-        .collection("Users")
-        .doc(widget.receiverId) // 👈 parent is receiver
-        .collection("notifications")
-        .add({
-      "title": "New Message",
-      "message": "$currentUserName: $text",
-      "senderId": widget.currentUserId,
-      "senderName": currentUserName,
-      "receiverId": widget.receiverId,
-      "receiverName": widget.receiverName,
-      "receiverProfile": widget.receiverProfile,
-      "type": "message",
-      "isRead": false,
-      "timestamp": FieldValue.serverTimestamp(),
-    });
+    try {
+      await _firestore
+          .collection("Users")
+          .doc(widget.receiverId)
+          .collection("notifications")
+          .add({
+        "title": "New Message",
+        "message": "$currentUserName: $text",
+        "senderId": widget.currentUserId,
+        "senderName": currentUserName,
+        "receiverId": widget.receiverId,
+        "receiverName": widget.receiverName,
+        "receiverProfile": widget.receiverProfile,
+        "type": "message",
+        "isRead": false,
+        "timestamp": FieldValue.serverTimestamp(),
+      });
+      print("✅ Notification added successfully");
+    } catch (e) {
+      print("❌ Error adding notification: $e");
+    }
+
 
 
     if (_scrollController.hasClients) {
@@ -151,23 +158,58 @@ class _MessagesPageState extends State<MessagesPage> {
                   const SizedBox(width: 4),
                   GestureDetector(
                     onTap: () {
-                      // Handle info icon tap
                       showDialog(
                         context: context,
                         builder: (context) => AlertDialog(
-                          title: Text(widget.receiverName),
-                          content: Text("Additional information about ${widget.receiverName}"),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          title: Text(
+                            widget.receiverName,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 18,
+                              fontFamily: 'PlusJakartaSans',
+                            ),
+                          ),
+                          content: const Text(
+                            "Do you want to view this dietitian's public profile?",
+                            style: TextStyle(fontFamily: 'PlusJakartaSans'),
+                          ),
                           actions: [
                             TextButton(
                               onPressed: () => Navigator.pop(context),
                               child: const Text("Close"),
+                            ),
+                            ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.green,
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                              onPressed: () {
+                                Navigator.pop(context); // close dialog
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => DietitianPublicProfile(
+                                      dietitianId: widget.receiverId,
+                                      dietitianName: widget.receiverName,
+                                      dietitianProfile: widget.receiverProfile,
+                                    ),
+                                  ),
+                                );
+                              },
+                              child: const Text("View Profile"),
                             ),
                           ],
                         ),
                       );
                     },
                     child: Padding(
-                      padding: const EdgeInsets.only(right: 8.0), // adjust as needed
+                      padding: const EdgeInsets.only(right: 8.0),
                       child: Icon(
                         Icons.info_outline,
                         size: 30,

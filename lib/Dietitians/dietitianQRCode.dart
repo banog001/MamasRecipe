@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../email/OTPSender.dart';
 
 class DietitianQRCodePage extends StatefulWidget {
   const DietitianQRCodePage({super.key});
@@ -14,6 +15,7 @@ class DietitianQRCodePage extends StatefulWidget {
 }
 
 class _DietitianQRCodePageState extends State<DietitianQRCodePage> {
+  late EmailOtpService _emailOtpService;
   File? _qrCodeImage;
   final ImagePicker _picker = ImagePicker();
   bool _isUploading = false;
@@ -26,6 +28,11 @@ class _DietitianQRCodePageState extends State<DietitianQRCodePage> {
   void initState() {
     super.initState();
     _userDataFuture = _getUserData();
+
+    _emailOtpService = EmailOtpService(
+      senderEmail: 'mamas.recipe0@gmail.com',       // replace later with secure storage
+      appPassword: 'gbsk ioml dham zgme', // your Gmail app password
+    );
   }
 
   Future<void> _pickImage(ImageSource source) async {
@@ -35,6 +42,78 @@ class _DietitianQRCodePageState extends State<DietitianQRCodePage> {
         _qrCodeImage = File(pickedFile.path);
       });
     }
+  }
+  Future<void> _showOtpVerificationDialog(String email) async {
+    final otpController = TextEditingController();
+    bool isVerifying = false;
+
+    // Send OTP via the service
+    await _emailOtpService.sendOtpToEmail(email);
+
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setState) => AlertDialog(
+            title: const Text(
+              'Email Verification',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('Enter the 6-digit OTP sent to your email:'),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: otpController,
+                  keyboardType: TextInputType.number,
+                  maxLength: 6,
+                  textAlign: TextAlign.center,
+                  decoration: const InputDecoration(
+                    hintText: 'Enter OTP',
+                    counterText: '',
+                  ),
+                ),
+                if (isVerifying)
+                  const Padding(
+                    padding: EdgeInsets.only(top: 8.0),
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: isVerifying
+                    ? null
+                    : () {
+                  setState(() => isVerifying = true);
+
+                  final enteredOtp = otpController.text.trim();
+
+                  final isValid = _emailOtpService.verifyOtp(enteredOtp);
+
+                  if (isValid) {
+                    Navigator.pop(context);
+                    _showImageSourceDialog(); // ✅ allow QR change
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Invalid or expired OTP.'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+
+                  setState(() => isVerifying = false);
+                },
+                child: const Text('Verify'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   void _showImageSourceDialog() {
@@ -394,7 +473,16 @@ class _DietitianQRCodePageState extends State<DietitianQRCodePage> {
                               SizedBox(
                                 width: double.infinity,
                                 child: ElevatedButton.icon(
-                                  onPressed: _showImageSourceDialog,
+                                  onPressed: () async {
+                                    final user = FirebaseAuth.instance.currentUser;
+                                    if (user?.email != null) {
+                                      await _showOtpVerificationDialog(user!.email!);
+                                    } else {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(content: Text('No email found for your account.')),
+                                      );
+                                    }
+                                  },
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: _primaryColor,
                                     foregroundColor: Colors.white,
