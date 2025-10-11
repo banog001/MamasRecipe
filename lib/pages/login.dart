@@ -851,8 +851,10 @@ class _LoginPageState extends State<LoginPageMobile> with TickerProviderStateMix
         "hasCompletedTutorial": false,
         "tutorialStep": 0,
         "role": "user",
+        "qrapproved": false,
       });
     } else {
+      await docRef.set({"qrapproved": docSnap.data()?["qrapproved"] ?? false}, SetOptions(merge: true));
       await _updateUserStatus(user.uid, true);
     }
   }

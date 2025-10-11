@@ -152,6 +152,7 @@ class _AdminHomeState extends State<AdminHome> {
                   const SizedBox(height: 20),
                   _buildSidebarItem(Icons.home_outlined, Icons.home, "Home", isTablet),
                   _buildSidebarItem(Icons.settings_outlined, Icons.settings, "CRUD", isTablet),
+                  _buildSidebarItem(Icons.check_circle_outlined, Icons.check_circle, "QR Approval", isTablet),
                   _buildSidebarItem(Icons.message_outlined, Icons.message, "Messages", isTablet),
                   _buildSidebarItem(Icons.bar_chart_outlined, Icons.bar_chart, "Sales", isTablet),
                   const Spacer(),
@@ -372,6 +373,8 @@ class _AdminHomeState extends State<AdminHome> {
         return "Overview and statistics";
       case "CRUD":
         return "Manage users and data";
+      case "QR Approval":
+        return "Approve QR codes";
       case "Messages":
         return "Chat with users and dietitians";
       case "Sales":
@@ -438,6 +441,8 @@ class _AdminHomeState extends State<AdminHome> {
       return _buildHomeDashboard();
     } else if (selectedPage == "CRUD") {
       return _buildCrudTable();
+    } else if (selectedPage == "QR Approval") {
+      return _buildQRApprovalPage();
     } else if (selectedPage == "Messages") {
       return _buildMessagesPage();
     } else if (selectedPage == "Sales") {
@@ -1824,6 +1829,112 @@ class _AdminHomeState extends State<AdminHome> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildQRApprovalPage() {
+    return Container(
+      color: _scaffoldBgColor(context),
+      padding: const EdgeInsets.all(16),
+      child: StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection('Users')
+            .where('role', isEqualTo: 'dietitian')
+            .where('qrstatus', isEqualTo: 'pending')
+            .where('qrapproved', isEqualTo: false)
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+            return const Center(
+              child: Text(
+                "No pending QR requests",
+                style: TextStyle(fontSize: 16),
+              ),
+            );
+          }
+
+          final docs = snapshot.data!.docs;
+
+          return SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: DataTable(
+              columnSpacing: 16,
+              columns: const [
+                DataColumn(label: Text('First Name')),
+                DataColumn(label: Text('Last Name')),
+                DataColumn(label: Text('Email')),
+                DataColumn(label: Text('QR Status')),
+                DataColumn(label: Text('Action')),
+              ],
+              rows: docs.map((doc) {
+                final data = doc.data() as Map<String, dynamic>;
+                final docId = doc.id;
+
+                return DataRow(
+                  cells: [
+                    DataCell(Text(data['firstName'] ?? '-')),
+                    DataCell(Text(data['lastName'] ?? '-')),
+                    DataCell(Text(data['email'] ?? '-')),
+                    DataCell(Text(data['qrstatus'] ?? '-')),
+                    DataCell(
+                      ElevatedButton(
+                        onPressed: () async {
+                          final confirm = await showDialog<bool>(
+                            context: context,
+                            builder: (context) => AlertDialog(
+                              title: const Text("Confirm Approval"),
+                              content: Text(
+                                "Approve QR code for ${data['firstName']} ${data['lastName']}?",
+                              ),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.pop(context, false),
+                                  child: const Text("Cancel"),
+                                ),
+                                TextButton(
+                                  onPressed: () => Navigator.pop(context, true),
+                                  child: const Text("OK"),
+                                ),
+                              ],
+                            ),
+                          );
+
+                          if (confirm == true) {
+                            // Update Firestore
+                            await FirebaseFirestore.instance
+                                .collection('Users')
+                                .doc(docId)
+                                .update({
+                              'qrstatus': 'approved',
+                              'qrapproved': true,
+                            });
+
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                    "✅ ${data['firstName']} ${data['lastName']} approved!"),
+                                backgroundColor: Colors.green,
+                              ),
+                            );
+                          }
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green,
+                        ),
+                        child: const Text("Approve"),
+                      ),
+                    ),
+                  ],
+                );
+              }).toList(),
+            ),
+          );
+        },
       ),
     );
   }

@@ -6,6 +6,8 @@ import 'package:image_picker/image_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../email/OTPSender.dart';
+import 'package:flutter_file_dialog/flutter_file_dialog.dart';
+import 'package:flutter/services.dart';
 
 class DietitianQRCodePage extends StatefulWidget {
   const DietitianQRCodePage({super.key});
@@ -115,6 +117,50 @@ class _DietitianQRCodePageState extends State<DietitianQRCodePage> {
       },
     );
   }
+
+  Future<void> _downloadFileFromAssets(BuildContext context) async {
+    try {
+      // 1️⃣ Load PDF from assets
+      final byteData = await rootBundle.load('lib/assets/files/DIETITIAN-SERVICE-AGREEMENT.pdf');
+
+      // 2️⃣ Prepare save dialog parameters
+      final params = SaveFileDialogParams(
+        data: byteData.buffer.asUint8List(),
+        fileName: 'DIETITIAN-SERVICE-AGREEMENT.pdf',
+        // fileType and allowedExtensions are no longer needed
+      );
+
+      // 3️⃣ Open save dialog
+      final savedFilePath = await FlutterFileDialog.saveFile(params: params);
+
+      // 4️⃣ Notify user
+      if (savedFilePath != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('PDF downloaded successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Save canceled by user'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+    } catch (e) {
+      print('$e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error saving PDF: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+
 
   void _showImageSourceDialog() {
     showModalBottomSheet(
@@ -308,14 +354,18 @@ class _DietitianQRCodePageState extends State<DietitianQRCodePage> {
           )
         ],
       ),
-      body: FutureBuilder<Map<String, dynamic>?>(
-        future: _userDataFuture,
+      body: StreamBuilder<DocumentSnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection("Users")
+            .doc(user!.uid)
+            .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
 
-          final userData = snapshot.data;
+          final userData = snapshot.data!.data() as Map<String, dynamic>?;
+
           final String? qrCodeUrl = userData?['qrpic'];
           final String displayName = user?.displayName ?? "Unknown User";
 
@@ -475,14 +525,47 @@ class _DietitianQRCodePageState extends State<DietitianQRCodePage> {
                                 child: ElevatedButton.icon(
                                   onPressed: () async {
                                     final user = FirebaseAuth.instance.currentUser;
-                                    if (user?.email != null) {
-                                      await _showOtpVerificationDialog(user!.email!);
+                                    final hasQrPic = userData?['qrpic'] != null && (userData?['qrpic'] as String).isNotEmpty;
+                                    final qrApproved = userData?['qrapproved'] ?? false;
+                                    if (user == null) return;
+
+                                    if (!hasQrPic && !qrApproved) {
+                                      // Create qrstatus field as "pending"
+                                      try {
+                                        await FirebaseFirestore.instance
+                                            .collection("Users")
+                                            .doc(user.uid)
+                                            .set({'qrstatus': 'pending'}, SetOptions(merge: true));
+
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          const SnackBar(
+                                            content: Text(
+                                              "Your request has been sent. We'll check your QR code soon!",
+                                            ),
+                                            backgroundColor: Colors.green,
+                                          ),
+                                        );
+                                      } catch (e) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(
+                                            content: Text("Failed to send request: $e"),
+                                            backgroundColor: Colors.red,
+                                          ),
+                                        );
+                                      }
+                                      return;
+                                    }
+
+// If qrpic exists or is approved, proceed with OTP verification to upload/change QR
+                                    if (user.email != null) {
+                                      await _showOtpVerificationDialog(user.email!);
                                     } else {
                                       ScaffoldMessenger.of(context).showSnackBar(
                                         const SnackBar(content: Text('No email found for your account.')),
                                       );
                                     }
                                   },
+
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: _primaryColor,
                                     foregroundColor: Colors.white,
@@ -494,15 +577,80 @@ class _DietitianQRCodePageState extends State<DietitianQRCodePage> {
                                   ),
                                   icon: const Icon(Icons.upload_outlined, size: 20),
                                   label: Text(
-                                    _qrCodeImage != null || (qrCodeUrl != null && qrCodeUrl.isNotEmpty)
-                                        ? "Change QR Code"
-                                        : "Upload QR Code",
+                                    (() {
+                                      final hasQrPic = userData?['qrpic'] != null && (userData?['qrpic'] as String).isNotEmpty;
+                                      final qrApproved = userData?['qrapproved'] ?? false;
+                                      final qrStatus = userData?['qrstatus'] ?? '';
+
+                                      if ((userData?['qrpic'] == null || (userData?['qrpic'] as String).isEmpty) &&
+                                          !qrApproved &&
+                                          qrStatus == 'pending') {
+                                        return "Request to upload QR Code";
+                                      } else if ((userData?['qrpic'] == null || (userData?['qrpic'] as String).isEmpty) &&
+                                          qrApproved &&
+                                          qrStatus == 'approved') {
+                                        return "Upload QR Code";
+                                      } else if (hasQrPic && qrApproved && qrStatus == 'approved') {
+                                        return "Change QR Code";
+                                      } else {
+                                        // fallback text
+                                        return "Upload QR Code";
+                                      }
+                                    })(),
                                     style: const TextStyle(
                                       fontFamily: _primaryFontFamily,
                                       fontSize: 15,
                                       fontWeight: FontWeight.w600,
                                     ),
                                   ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      Card(
+                        elevation: 4,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        color: Colors.white,
+                        child: Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(24),
+                          child: Column(
+                            children: [
+                              // your existing QR code UI here...
+
+                              const SizedBox(height: 20),
+
+                              // 🧾 File download section
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: Colors.grey.shade100,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: Colors.grey.shade300),
+                                ),
+                                child: Row(
+                                  children: [
+                                    const Icon(Icons.picture_as_pdf, color: Colors.redAccent, size: 30),
+                                    const SizedBox(width: 12),
+                                    const Expanded(
+                                      child: Text(
+                                        'DIETITIAN-SERVICE-AGREEMENT.pdf',
+                                        style: TextStyle(
+                                          fontFamily: _primaryFontFamily,
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(Icons.download_rounded, color: _primaryColor),
+                                      onPressed: () => _downloadFileFromAssets(context),
+                                    ),
+                                  ],
                                 ),
                               ),
                             ],
