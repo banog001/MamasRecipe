@@ -64,10 +64,10 @@ class AdminHome extends StatefulWidget {
 
 class _AdminHomeState extends State<AdminHome> {
   String selectedPage = "Home";
-  String crudFilter = "All"; // All, Users, Dietitians, Verifications, Meal Plans
+  String crudFilter = "All";
   Set<String> selectedUserIds = {};
   bool isMultiSelectMode = false;
-  String chartFilter = "Week"; // Week, Month, Year
+  String chartFilter = "Week";
 
   final ScrollController _scrollController = ScrollController();
   final TextEditingController _messageController = TextEditingController();
@@ -162,8 +162,6 @@ class _AdminHomeState extends State<AdminHome> {
                 ],
               ),
             ),
-
-          // MAIN CONTENT AREA
           Expanded(
             child: Column(
               children: [
@@ -254,8 +252,6 @@ class _AdminHomeState extends State<AdminHome> {
                     ],
                   ),
                 ),
-
-                // BODY CONTENT
                 Expanded(
                   child: isMobile
                       ? _buildMobileLayout()
@@ -335,6 +331,7 @@ class _AdminHomeState extends State<AdminHome> {
           const SizedBox(height: 20),
           _buildSidebarItem(Icons.home_outlined, Icons.home, "Home", false),
           _buildSidebarItem(Icons.settings_outlined, Icons.settings, "CRUD", false),
+          _buildSidebarItem(Icons.check_circle_outlined, Icons.check_circle, "QR Approval", false),
           _buildSidebarItem(Icons.message_outlined, Icons.message, "Messages", false),
           _buildSidebarItem(Icons.bar_chart_outlined, Icons.bar_chart, "Sales", false),
           const Spacer(),
@@ -482,7 +479,6 @@ class _AdminHomeState extends State<AdminHome> {
 
   Widget _buildHomeDashboard() {
     final isMobile = MediaQuery.of(context).size.width < 768;
-    final screenWidth = MediaQuery.of(context).size.width;
 
     return Container(
       color: _scaffoldBgColor(context),
@@ -513,10 +509,8 @@ class _AdminHomeState extends State<AdminHome> {
         )
             : Column(
           children: [
-            // Row 1: Full width chart
             _buildUserCreationChart(),
             const SizedBox(height: 16),
-            // Row 2: Two cards side by side
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -526,7 +520,6 @@ class _AdminHomeState extends State<AdminHome> {
               ],
             ),
             const SizedBox(height: 16),
-            // Row 3: Two cards side by side
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -536,7 +529,6 @@ class _AdminHomeState extends State<AdminHome> {
               ],
             ),
             const SizedBox(height: 16),
-            // Row 4: Two cards side by side
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -546,7 +538,6 @@ class _AdminHomeState extends State<AdminHome> {
               ],
             ),
             const SizedBox(height: 16),
-            // Row 5: Full width cards
             _buildDietitianActivityHistory(),
             const SizedBox(height: 16),
             _buildMealPlansWithLikes(),
@@ -809,6 +800,510 @@ class _AdminHomeState extends State<AdminHome> {
       'spots': spots,
       'maxY': maxY,
     };
+  }
+
+  Widget _buildQRApprovalPage() {
+    return Container(
+      color: _scaffoldBgColor(context),
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            "QR Code Approval",
+            style: _getTextStyle(
+              context,
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            "Review and approve dietitian QR codes",
+            style: _cardSubtitleStyle(context),
+          ),
+          const SizedBox(height: 24),
+          Expanded(
+            child: StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('Users')
+                  .where('role', isEqualTo: 'dietitian')
+                  .where('qrstatus', isEqualTo: 'pending')
+                  .where('qrapproved', isEqualTo: false)
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(
+                    child: CircularProgressIndicator(color: _primaryColor),
+                  );
+                }
+
+                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.check_circle_outline,
+                          size: 80,
+                          color: _primaryColor.withOpacity(0.3),
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          "No pending QR requests",
+                          style: _getTextStyle(context, fontSize: 18),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                final docs = snapshot.data!.docs;
+
+                return Card(
+                  elevation: 4,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  color: _cardBgColor(context),
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: SingleChildScrollView(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: DataTable(
+                          headingRowColor: MaterialStateProperty.all(
+                            _primaryColor.withOpacity(0.1),
+                          ),
+                          headingRowHeight: 56,
+                          dataRowHeight: 72,
+                          columns: [
+                            DataColumn(
+                              label: Text(
+                                "Profile",
+                                style: _getTextStyle(
+                                  context,
+                                  fontWeight: FontWeight.bold,
+                                  color: _primaryColor,
+                                ),
+                              ),
+                            ),
+                            DataColumn(
+                              label: Text(
+                                "Name",
+                                style: _getTextStyle(
+                                  context,
+                                  fontWeight: FontWeight.bold,
+                                  color: _primaryColor,
+                                ),
+                              ),
+                            ),
+                            DataColumn(
+                              label: Text(
+                                "Email",
+                                style: _getTextStyle(
+                                  context,
+                                  fontWeight: FontWeight.bold,
+                                  color: _primaryColor,
+                                ),
+                              ),
+                            ),
+                            DataColumn(
+                              label: Text(
+                                "Status",
+                                style: _getTextStyle(
+                                  context,
+                                  fontWeight: FontWeight.bold,
+                                  color: _primaryColor,
+                                ),
+                              ),
+                            ),
+                            DataColumn(
+                              label: Text(
+                                "QR Code",
+                                style: _getTextStyle(
+                                  context,
+                                  fontWeight: FontWeight.bold,
+                                  color: _primaryColor,
+                                ),
+                              ),
+                            ),
+                            DataColumn(
+                              label: Text(
+                                "Actions",
+                                style: _getTextStyle(
+                                  context,
+                                  fontWeight: FontWeight.bold,
+                                  color: _primaryColor,
+                                ),
+                              ),
+                            ),
+                          ],
+                          rows: docs.map((doc) {
+                            final data = doc.data() as Map<String, dynamic>;
+                            final docId = doc.id;
+                            final firstName = data['firstName'] ?? '';
+                            final lastName = data['lastName'] ?? '';
+                            final email = data['email'] ?? '';
+                            final qrstatus = data['qrstatus'] ?? 'pending';
+                            final profileUrl = data['profile'] ?? '';
+                            final qrCodeUrl = data['qrCode'] ?? '';
+
+                            return DataRow(
+                              cells: [
+                                DataCell(
+                                  CircleAvatar(
+                                    radius: 20,
+                                    backgroundColor: _primaryColor.withOpacity(0.2),
+                                    backgroundImage: profileUrl.isNotEmpty
+                                        ? NetworkImage(profileUrl)
+                                        : null,
+                                    child: profileUrl.isEmpty
+                                        ? const Icon(Icons.person, color: _primaryColor)
+                                        : null,
+                                  ),
+                                ),
+                                DataCell(
+                                  Text(
+                                    "$firstName $lastName",
+                                    style: _getTextStyle(context, fontWeight: FontWeight.w600),
+                                  ),
+                                ),
+                                DataCell(
+                                  Text(
+                                    email,
+                                    style: _getTextStyle(context, fontSize: 14),
+                                  ),
+                                ),
+                                DataCell(
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 6,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.orange.withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Text(
+                                      qrstatus,
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.orange[700],
+                                        fontFamily: _primaryFontFamily,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                DataCell(
+                                  qrCodeUrl.isNotEmpty
+                                      ? ElevatedButton.icon(
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.blue,
+                                      foregroundColor: _textColorOnPrimary,
+                                      elevation: 2,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 16,
+                                        vertical: 10,
+                                      ),
+                                    ),
+                                    onPressed: () {
+                                      showDialog(
+                                        context: context,
+                                        builder: (context) => Dialog(
+                                          child: Container(
+                                            padding: const EdgeInsets.all(20),
+                                            child: Column(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Text(
+                                                  "QR Code Preview",
+                                                  style: _getTextStyle(
+                                                    context,
+                                                    fontSize: 18,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
+                                                const SizedBox(height: 16),
+                                                Image.network(
+                                                  qrCodeUrl,
+                                                  width: 300,
+                                                  height: 300,
+                                                  fit: BoxFit.contain,
+                                                ),
+                                                const SizedBox(height: 16),
+                                                ElevatedButton(
+                                                  onPressed: () => Navigator.pop(context),
+                                                  child: const Text("Close"),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                    icon: const Icon(Icons.visibility, size: 18),
+                                    label: const Text(
+                                      "View",
+                                      style: TextStyle(
+                                        fontFamily: _primaryFontFamily,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  )
+                                      : Text(
+                                    "No QR Code",
+                                    style: _cardSubtitleStyle(context),
+                                  ),
+                                ),
+                                DataCell(
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      ElevatedButton.icon(
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: Colors.green,
+                                          foregroundColor: _textColorOnPrimary,
+                                          elevation: 2,
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(10),
+                                          ),
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 16,
+                                            vertical: 10,
+                                          ),
+                                        ),
+                                        onPressed: () async {
+                                          final confirm = await showDialog<bool>(
+                                            context: context,
+                                            builder: (context) => AlertDialog(
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius: BorderRadius.circular(16),
+                                              ),
+                                              title: Row(
+                                                children: [
+                                                  Container(
+                                                    padding: const EdgeInsets.all(8),
+                                                    decoration: BoxDecoration(
+                                                      color: Colors.green.withOpacity(0.1),
+                                                      borderRadius: BorderRadius.circular(8),
+                                                    ),
+                                                    child: const Icon(
+                                                      Icons.check_circle,
+                                                      color: Colors.green,
+                                                    ),
+                                                  ),
+                                                  const SizedBox(width: 12),
+                                                  const Text(
+                                                    "Confirm Approval",
+                                                    style: TextStyle(fontFamily: _primaryFontFamily),
+                                                  ),
+                                                ],
+                                              ),
+                                              content: Text(
+                                                "Approve QR code for $firstName $lastName?",
+                                                style: const TextStyle(fontFamily: _primaryFontFamily),
+                                              ),
+                                              actions: [
+                                                TextButton(
+                                                  onPressed: () => Navigator.pop(context, false),
+                                                  child: const Text(
+                                                    "Cancel",
+                                                    style: TextStyle(fontFamily: _primaryFontFamily),
+                                                  ),
+                                                ),
+                                                ElevatedButton(
+                                                  style: ElevatedButton.styleFrom(
+                                                    backgroundColor: Colors.green,
+                                                    foregroundColor: Colors.white,
+                                                    shape: RoundedRectangleBorder(
+                                                      borderRadius: BorderRadius.circular(10),
+                                                    ),
+                                                  ),
+                                                  onPressed: () => Navigator.pop(context, true),
+                                                  child: const Text(
+                                                    "Approve",
+                                                    style: TextStyle(fontFamily: _primaryFontFamily),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          );
+
+                                          if (confirm == true) {
+                                            await FirebaseFirestore.instance
+                                                .collection('Users')
+                                                .doc(docId)
+                                                .update({
+                                              'qrstatus': 'approved',
+                                              'qrapproved': true,
+                                            });
+
+                                            if (mounted) {
+                                              ScaffoldMessenger.of(context).showSnackBar(
+                                                SnackBar(
+                                                  content: Row(
+                                                    children: [
+                                                      const Icon(Icons.check_circle, color: Colors.white),
+                                                      const SizedBox(width: 8),
+                                                      Text(
+                                                        "$firstName $lastName approved!",
+                                                        style: const TextStyle(fontFamily: _primaryFontFamily),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                  backgroundColor: Colors.green,
+                                                  behavior: SnackBarBehavior.floating,
+                                                  shape: RoundedRectangleBorder(
+                                                    borderRadius: BorderRadius.circular(10),
+                                                  ),
+                                                ),
+                                              );
+                                            }
+                                          }
+                                        },
+                                        icon: const Icon(Icons.check, size: 18),
+                                        label: const Text(
+                                          "Approve",
+                                          style: TextStyle(
+                                            fontFamily: _primaryFontFamily,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      ElevatedButton.icon(
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: Colors.red,
+                                          foregroundColor: _textColorOnPrimary,
+                                          elevation: 2,
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(10),
+                                          ),
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 16,
+                                            vertical: 10,
+                                          ),
+                                        ),
+                                        onPressed: () async {
+                                          final confirm = await showDialog<bool>(
+                                            context: context,
+                                            builder: (context) => AlertDialog(
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius: BorderRadius.circular(16),
+                                              ),
+                                              title: Row(
+                                                children: [
+                                                  Container(
+                                                    padding: const EdgeInsets.all(8),
+                                                    decoration: BoxDecoration(
+                                                      color: Colors.red.withOpacity(0.1),
+                                                      borderRadius: BorderRadius.circular(8),
+                                                    ),
+                                                    child: const Icon(
+                                                      Icons.cancel,
+                                                      color: Colors.red,
+                                                    ),
+                                                  ),
+                                                  const SizedBox(width: 12),
+                                                  const Text(
+                                                    "Confirm Rejection",
+                                                    style: TextStyle(fontFamily: _primaryFontFamily),
+                                                  ),
+                                                ],
+                                              ),
+                                              content: Text(
+                                                "Reject QR code for $firstName $lastName?",
+                                                style: const TextStyle(fontFamily: _primaryFontFamily),
+                                              ),
+                                              actions: [
+                                                TextButton(
+                                                  onPressed: () => Navigator.pop(context, false),
+                                                  child: const Text(
+                                                    "Cancel",
+                                                    style: TextStyle(fontFamily: _primaryFontFamily),
+                                                  ),
+                                                ),
+                                                ElevatedButton(
+                                                  style: ElevatedButton.styleFrom(
+                                                    backgroundColor: Colors.red,
+                                                    foregroundColor: Colors.white,
+                                                    shape: RoundedRectangleBorder(
+                                                      borderRadius: BorderRadius.circular(10),
+                                                    ),
+                                                  ),
+                                                  onPressed: () => Navigator.pop(context, true),
+                                                  child: const Text(
+                                                    "Reject",
+                                                    style: TextStyle(fontFamily: _primaryFontFamily),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          );
+
+                                          if (confirm == true) {
+                                            await FirebaseFirestore.instance
+                                                .collection('Users')
+                                                .doc(docId)
+                                                .update({
+                                              'qrstatus': 'rejected',
+                                              'qrapproved': false,
+                                            });
+
+                                            if (mounted) {
+                                              ScaffoldMessenger.of(context).showSnackBar(
+                                                SnackBar(
+                                                  content: Row(
+                                                    children: [
+                                                      const Icon(Icons.cancel, color: Colors.white),
+                                                      const SizedBox(width: 8),
+                                                      Text(
+                                                        "$firstName $lastName rejected",
+                                                        style: const TextStyle(fontFamily: _primaryFontFamily),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                  backgroundColor: Colors.red,
+                                                  behavior: SnackBarBehavior.floating,
+                                                  shape: RoundedRectangleBorder(
+                                                    borderRadius: BorderRadius.circular(10),
+                                                  ),
+                                                ),
+                                              );
+                                            }
+                                          }
+                                        },
+                                        icon: const Icon(Icons.close, size: 18),
+                                        label: const Text(
+                                          "Reject",
+                                          style: TextStyle(
+                                            fontFamily: _primaryFontFamily,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildDietitianActivityHistory() {
@@ -1254,8 +1749,6 @@ class _AdminHomeState extends State<AdminHome> {
                 }
 
                 final messages = snapshot.data!.docs;
-
-                // Group messages by chatRoomID and get the most recent one
                 Map<String, Map<String, dynamic>> latestMessages = {};
 
                 for (var doc in messages) {
@@ -1270,7 +1763,6 @@ class _AdminHomeState extends State<AdminHome> {
                   }
                 }
 
-                // Convert to list and sort by timestamp
                 final sortedChats = latestMessages.values.toList()
                   ..sort((a, b) {
                     final aTime = a['timestamp'] as Timestamp?;
@@ -1303,7 +1795,6 @@ class _AdminHomeState extends State<AdminHome> {
                     final message = messageData['message'] ?? '';
                     final timestamp = messageData['timestamp'] as Timestamp?;
 
-                    // Determine the other user (not the admin)
                     final otherUserId = senderId == currentUserId ? receiverId : senderId;
                     final displayName = senderId == currentUserId
                         ? messageData['receiverName'] ?? 'Unknown'
@@ -1322,12 +1813,10 @@ class _AdminHomeState extends State<AdminHome> {
                           .get(),
                       builder: (context, userSnapshot) {
                         String profileUrl = '';
-                        String role = 'user';
 
                         if (userSnapshot.hasData && userSnapshot.data!.exists) {
                           final userData = userSnapshot.data!.data() as Map<String, dynamic>?;
                           profileUrl = userData?['profile'] ?? '';
-                          role = userData?['role'] ?? 'user';
                         }
 
                         return Card(
@@ -1635,7 +2124,6 @@ class _AdminHomeState extends State<AdminHome> {
     _messageController.clear();
     final chatRoomId = _getChatRoomId(currentUserId, selectedChatUserId!);
 
-    // Get admin name
     final adminDoc = await FirebaseFirestore.instance
         .collection('Users')
         .doc(currentUserId)
@@ -1654,7 +2142,6 @@ class _AdminHomeState extends State<AdminHome> {
       "read": "false",
     });
 
-    // Add notification
     await FirebaseFirestore.instance
         .collection("Users")
         .doc(selectedChatUserId!)
@@ -1829,112 +2316,6 @@ class _AdminHomeState extends State<AdminHome> {
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildQRApprovalPage() {
-    return Container(
-      color: _scaffoldBgColor(context),
-      padding: const EdgeInsets.all(16),
-      child: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('Users')
-            .where('role', isEqualTo: 'dietitian')
-            .where('qrstatus', isEqualTo: 'pending')
-            .where('qrapproved', isEqualTo: false)
-            .snapshots(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return const Center(
-              child: Text(
-                "No pending QR requests",
-                style: TextStyle(fontSize: 16),
-              ),
-            );
-          }
-
-          final docs = snapshot.data!.docs;
-
-          return SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: DataTable(
-              columnSpacing: 16,
-              columns: const [
-                DataColumn(label: Text('First Name')),
-                DataColumn(label: Text('Last Name')),
-                DataColumn(label: Text('Email')),
-                DataColumn(label: Text('QR Status')),
-                DataColumn(label: Text('Action')),
-              ],
-              rows: docs.map((doc) {
-                final data = doc.data() as Map<String, dynamic>;
-                final docId = doc.id;
-
-                return DataRow(
-                  cells: [
-                    DataCell(Text(data['firstName'] ?? '-')),
-                    DataCell(Text(data['lastName'] ?? '-')),
-                    DataCell(Text(data['email'] ?? '-')),
-                    DataCell(Text(data['qrstatus'] ?? '-')),
-                    DataCell(
-                      ElevatedButton(
-                        onPressed: () async {
-                          final confirm = await showDialog<bool>(
-                            context: context,
-                            builder: (context) => AlertDialog(
-                              title: const Text("Confirm Approval"),
-                              content: Text(
-                                "Approve QR code for ${data['firstName']} ${data['lastName']}?",
-                              ),
-                              actions: [
-                                TextButton(
-                                  onPressed: () => Navigator.pop(context, false),
-                                  child: const Text("Cancel"),
-                                ),
-                                TextButton(
-                                  onPressed: () => Navigator.pop(context, true),
-                                  child: const Text("OK"),
-                                ),
-                              ],
-                            ),
-                          );
-
-                          if (confirm == true) {
-                            // Update Firestore
-                            await FirebaseFirestore.instance
-                                .collection('Users')
-                                .doc(docId)
-                                .update({
-                              'qrstatus': 'approved',
-                              'qrapproved': true,
-                            });
-
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                    "✅ ${data['firstName']} ${data['lastName']} approved!"),
-                                backgroundColor: Colors.green,
-                              ),
-                            );
-                          }
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green,
-                        ),
-                        child: const Text("Approve"),
-                      ),
-                    ),
-                  ],
-                );
-              }).toList(),
-            ),
-          );
-        },
       ),
     );
   }
@@ -2600,7 +2981,6 @@ class _AdminHomeState extends State<AdminHome> {
       } else if (crudFilter == "Dietitians") {
         return baseQuery.where('role', isEqualTo: 'dietitian').snapshots();
       } else {
-        // All
         return baseQuery.snapshots();
       }
     }
@@ -3086,8 +3466,8 @@ class _AdminHomeState extends State<AdminHome> {
                     "createdAt": FieldValue.serverTimestamp(),
                   });
 
-                  Navigator.of(dialogContext).pop(); // Close loading
-                  Navigator.of(dialogContext).pop(); // Close add user dialog
+                  Navigator.of(dialogContext).pop();
+                  Navigator.of(dialogContext).pop();
 
                   await Future.delayed(const Duration(milliseconds: 100));
 
@@ -3138,7 +3518,7 @@ class _AdminHomeState extends State<AdminHome> {
                     );
                   }
                 } catch (e) {
-                  Navigator.of(dialogContext).pop(); // Close loading
+                  Navigator.of(dialogContext).pop();
 
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
@@ -3430,13 +3810,8 @@ class _AdminHomeState extends State<AdminHome> {
     final newRole = currentRole == "dietitian" ? "user" : "dietitian";
     final action = currentRole == "dietitian" ? "downgraded" : "upgraded";
 
-    print("[v0] Attempting to change role for docId: $docId");
-    print("[v0] Current role: $currentRole, New role: $newRole");
-
     try {
       await FirebaseFirestore.instance.collection("Users").doc(docId).update({"role": newRole});
-
-      print("[v0] Role updated successfully");
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -3456,9 +3831,6 @@ class _AdminHomeState extends State<AdminHome> {
         ),
       );
     } catch (e) {
-      print("[v0] Error changing role: $e");
-      print("[v0] Error type: ${e.runtimeType}");
-
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Column(
@@ -3995,7 +4367,6 @@ class _AdminHomeState extends State<AdminHome> {
         });
       }
     } catch (e) {
-      print("[v0] Error deleting multiple users: $e");
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -4287,15 +4658,12 @@ class _AdminHomeState extends State<AdminHome> {
 
                 final mealPlans = snapshot.data!.docs;
                 Map<String, int> categoryCount = {};
-                int totalLikes = 0;
 
                 for (var doc in mealPlans) {
                   final data = doc.data() as Map<String, dynamic>;
                   final planType = data['planType'] ?? 'Unknown';
                   categoryCount[planType] = (categoryCount[planType] ?? 0) + 1;
                 }
-
-                final avgLikes = mealPlans.isNotEmpty ? (totalLikes / mealPlans.length).toStringAsFixed(1) : '0.0';
 
                 return Column(
                   children: [
@@ -4424,12 +4792,9 @@ class _AdminHomeState extends State<AdminHome> {
                   if (createdAt != null) {
                     final createdDate = createdAt.toDate();
 
-                    // New user: created within last 30 days
                     if (createdDate.isAfter(monthAgo)) {
                       newUsers++;
-                    }
-                    // Returning user: created more than 30 days ago AND active in last 7 days
-                    else if (lastActive != null && lastActive.toDate().isAfter(weekAgo)) {
+                    } else if (lastActive != null && lastActive.toDate().isAfter(weekAgo)) {
                       returningUsers++;
                     }
                   }
