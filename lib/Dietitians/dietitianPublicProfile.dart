@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../pages/home.dart';
+import 'package:intl/intl.dart';
+import '../plan/choosePlan.dart';
 
 class DietitianPublicProfile extends StatefulWidget {
   final String dietitianId;
@@ -27,6 +29,8 @@ class _DietitianPublicProfileState extends State<DietitianPublicProfile> {
 
   bool _isFollowing = false;
   int _followerCount = 0;
+  int _uploadCount = 0;
+  String _bio = "";
 
   final _firestore = FirebaseFirestore.instance;
   final _auth = FirebaseAuth.instance;
@@ -36,6 +40,8 @@ class _DietitianPublicProfileState extends State<DietitianPublicProfile> {
     super.initState();
     _checkIfFollowing();
     _getFollowerCount();
+    _getUploadCount();
+    _getDietitianBio();
   }
 
   Future<void> _checkIfFollowing() async {
@@ -123,6 +129,88 @@ class _DietitianPublicProfileState extends State<DietitianPublicProfile> {
     await batch.commit();
   }
 
+  Future<void> _getUploadCount() async {
+    final snapshot = await _firestore
+        .collection('mealPlans')
+        .where('ownerId', isEqualTo: widget.dietitianId)
+        .get();
+
+    setState(() {
+      _uploadCount = snapshot.docs.length;
+    });
+  }
+
+  Future<void> _getDietitianBio() async {
+    final doc = await _firestore.collection('Users').doc(widget.dietitianId).get();
+    if (doc.exists) {
+      setState(() {
+        _bio = doc.data()?['bio'] ?? 'No bio available';
+      });
+    }
+  }
+
+  Widget _buildMealPlanListItem(
+      BuildContext context,
+      DocumentSnapshot doc,
+      Map<String, dynamic> data,
+      String ownerId,
+      String currentUserId,
+      bool isUserSubscribed,
+      ) {
+    return Card(
+      elevation: 4,
+      margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      color: Colors.white,
+      child: InkWell(
+        onTap: () {
+          // TODO: Add navigation to full meal plan details page if needed
+        },
+        borderRadius: BorderRadius.circular(20),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                data["planType"] ?? "Meal Plan",
+                style: const TextStyle(
+                  fontFamily: _fontFamily,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 17,
+                ),
+              ),
+              if (data["timestamp"] != null && data["timestamp"] is Timestamp)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4.0),
+                  child: Text(
+                    DateFormat('MMM dd, yyyy – hh:mm a')
+                        .format((data["timestamp"] as Timestamp).toDate()),
+                    style: const TextStyle(
+                      fontFamily: _fontFamily,
+                      fontSize: 13,
+                      color: Colors.grey,
+                    ),
+                  ),
+                ),
+              const Divider(height: 20),
+              if (data["breakfast"] != null)
+                Text("🍳 Breakfast: ${data["breakfast"]}",
+                    style: const TextStyle(fontFamily: _fontFamily)),
+              if (data["lunch"] != null)
+                Text("🥗 Lunch: ${data["lunch"]}",
+                    style: const TextStyle(fontFamily: _fontFamily)),
+              if (data["dinner"] != null)
+                Text("🍛 Dinner: ${data["dinner"]}",
+                    style: const TextStyle(fontFamily: _fontFamily)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -166,16 +254,16 @@ class _DietitianPublicProfileState extends State<DietitianPublicProfile> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Column(
-                        children: const [
+                        children: [
                           Text(
-                            "2",
-                            style: TextStyle(
+                            "$_uploadCount",
+                            style: const TextStyle(
                               fontFamily: _fontFamily,
                               fontWeight: FontWeight.bold,
                               fontSize: 16,
                             ),
                           ),
-                          Text(
+                          const Text(
                             "uploads",
                             style: TextStyle(
                               fontFamily: _fontFamily,
@@ -230,7 +318,28 @@ class _DietitianPublicProfileState extends State<DietitianPublicProfile> {
                       ),
                       const SizedBox(width: 12),
                       ElevatedButton(
-                        onPressed: () {},
+                        onPressed: () async {
+                          final doc = await FirebaseFirestore.instance
+                              .collection('Users')
+                              .doc(widget.dietitianId)
+                              .get();
+
+                          if (!doc.exists) return;
+
+                          final data = doc.data()!;
+                          final dietitianEmail = data['email'] ?? 'No email';
+
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => ChoosePlanPage(
+                                dietitianName: widget.dietitianName,
+                                dietitianEmail: dietitianEmail,
+                                dietitianProfile: widget.dietitianProfile,
+                              ),
+                            ),
+                          );
+                        },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: _primaryColor,
                           foregroundColor: Colors.white,
@@ -242,10 +351,81 @@ class _DietitianPublicProfileState extends State<DietitianPublicProfile> {
                       ),
                     ],
                   ),
+                  const SizedBox(height: 50),
+                  Column(
+                    children: [
+                      Text(
+                        _bio,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontFamily: _fontFamily,
+                          fontSize: 14,
+                          color: Colors.black87,
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      const Divider(
+                        thickness: 1,
+                        color: Colors.grey,
+                        indent: 20,
+                        endIndent: 20,
+                      ),
+                      const SizedBox(height: 10),
+
+                      // 🔹 Meal Plan List Section
+                      StreamBuilder<QuerySnapshot>(
+                        stream: FirebaseFirestore.instance
+                            .collection('mealPlans')
+                            .where('ownerId', isEqualTo: widget.dietitianId)
+                            .orderBy('timestamp', descending: true)
+                            .snapshots(),
+                        builder: (context, snapshot) {
+                          if (snapshot.connectionState == ConnectionState.waiting) {
+                            return const Center(
+                              child: Padding(
+                                padding: EdgeInsets.symmetric(vertical: 40),
+                                child: CircularProgressIndicator(color: _primaryColor),
+                              ),
+                            );
+                          }
+
+                          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                            return const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 30),
+                              child: Text(
+                                "No meal plan available.",
+                                style: TextStyle(
+                                  fontFamily: _fontFamily,
+                                  fontSize: 15,
+                                  color: Colors.grey,
+                                ),
+                              ),
+                            );
+                          }
+
+                          final currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
+
+                          return Column(
+                            children: snapshot.data!.docs.map((doc) {
+                              final data = doc.data() as Map<String, dynamic>;
+                              final ownerId = data['ownerId'] ?? '';
+                              return _buildMealPlanListItem(
+                                context,
+                                doc,
+                                data,
+                                ownerId,
+                                currentUserId,
+                                false, // dietitian public profile → not showing locked items
+                              );
+                            }).toList(),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),
-            const SizedBox(height: 80),
           ],
         ),
       ),

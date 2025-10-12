@@ -190,6 +190,49 @@ class _HomePageDietitianState extends State<HomePageDietitian> {
     }
   }
 
+  Future<List<Map<String, dynamic>>> _fetchReceiptsWithClients() async {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) return [];
+
+    final receiptsSnap = await FirebaseFirestore.instance
+        .collection('receipts')
+        .where('dietitianID', isEqualTo: currentUser.uid)
+        .orderBy('timeStamp', descending: true)
+        .get();
+
+    List<Map<String, dynamic>> results = [];
+
+    for (var doc in receiptsSnap.docs) {
+      final data = doc.data();
+      final clientID = data['clientID'];
+      print('🔎 Fetching user for clientID: $clientID');
+
+      final clientDoc = await FirebaseFirestore.instance
+          .collection('Users')
+          .doc(clientID)
+          .get();
+
+      if (!clientDoc.exists) {
+        print('⚠️ No user found for clientID: $clientID');
+        continue;
+      }
+
+      final clientData = clientDoc.data() ?? {};
+      print('✅ Found user: ${clientData['firstname']} ${clientData['lastname']}');
+
+      results.add({
+        'firstname': clientData['firstname'] ?? clientData['firstName'] ?? 'N/A',
+        'lastname': clientData['lastname'] ?? clientData['lastName'] ?? 'N/A',
+        'planPrice': data['planPrice'] ?? '',
+        'planType': data['planType'] ?? '',
+        'status': data['status'] ?? '',
+      });
+    }
+
+    return results;
+  }
+
+
   @override
   void dispose() {
     _setUserStatus("offline");
@@ -197,46 +240,164 @@ class _HomePageDietitianState extends State<HomePageDietitian> {
   }
 
   List<Widget> get _pages => [
-    Center(
+
+    //home dashboard
+    Padding(
+      padding: const EdgeInsets.all(12.0),
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Text(
-            "Dietitian Dashboard",
-            style: _getTextStyle(context,
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: _textColorPrimary(context)),
+          // Top-right button
+          Align(
+            alignment: Alignment.topRight,
+            child: Padding(
+              padding: const EdgeInsets.only(top: 8, bottom: 12),
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const CreateMealPlanPage(),
+                    ),
+                  );
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _primaryColor,
+                  foregroundColor: _textColorOnPrimary,
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  textStyle: _getTextStyle(context,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: _textColorOnPrimary),
+                ),
+                icon: const Icon(Icons.post_add_rounded, size: 18),
+                label: Text(
+                  "Create Meal Plan",
+                  style: _getTextStyle(context,
+                      color: _textColorOnPrimary,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600),
+                ),
+              ),
+            ),
           ),
-          const SizedBox(height: 25),
-          ElevatedButton.icon(
-            onPressed: () {
-              Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (context) => const CreateMealPlanPage()));
-            },
-            style: ElevatedButton.styleFrom(
-                backgroundColor: _primaryColor,
-                foregroundColor: _textColorOnPrimary,
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 28, vertical: 14),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
-                textStyle: _getTextStyle(context,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: _textColorOnPrimary)),
-            icon: const Icon(Icons.post_add_rounded, size: 22),
-            label: Text("Create Meal Plan",
-                style: _getTextStyle(context,
-                    color: _textColorOnPrimary,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600)),
+
+          const SizedBox(height: 8),
+
+          // Table of Receipts
+          Expanded(
+            child: FutureBuilder<List<Map<String, dynamic>>>(
+              future: _fetchReceiptsWithClients(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                  return const Center(child: Text("No subscriptions found yet."));
+                }
+
+                final receipts = snapshot.data!;
+
+                return SingleChildScrollView(
+                  scrollDirection: Axis.horizontal, // allow horizontal scroll if needed
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                        minWidth: MediaQuery.of(context).size.width), // try to fit screen
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.vertical, // vertical scroll for long table
+                      child: DataTable(
+                        columnSpacing: 10,
+                        horizontalMargin: 8,
+                        headingRowHeight: 32,
+                        dataRowHeight: 36,
+                        columns: const [
+                          DataColumn(
+                              label: Text("Firstname",
+                                  style: TextStyle(fontSize: 12))),
+                          DataColumn(
+                              label:
+                              Text("Lastname", style: TextStyle(fontSize: 12))),
+                          DataColumn(
+                              label: Text("Price", style: TextStyle(fontSize: 12))),
+                          DataColumn(
+                              label:
+                              Text("Plan Type", style: TextStyle(fontSize: 12))),
+                          DataColumn(
+                              label: Text("Status", style: TextStyle(fontSize: 12))),
+                          DataColumn(
+                              label: Text("Action", style: TextStyle(fontSize: 12))),
+                        ],
+                        rows: receipts.map((r) {
+                          return DataRow(
+                            cells: [
+                              DataCell(SizedBox(
+                                  width: 80,
+                                  child: FittedBox(
+                                      fit: BoxFit.scaleDown,
+                                      alignment: Alignment.centerLeft,
+                                      child: Text(r['firstname'],
+                                          style:
+                                          const TextStyle(fontSize: 12))))),
+                              DataCell(SizedBox(
+                                  width: 80,
+                                  child: FittedBox(
+                                      fit: BoxFit.scaleDown,
+                                      alignment: Alignment.centerLeft,
+                                      child: Text(r['lastname'],
+                                          style:
+                                          const TextStyle(fontSize: 12))))),
+                              DataCell(SizedBox(
+                                  width: 50,
+                                  child: FittedBox(
+                                      fit: BoxFit.scaleDown,
+                                      child: Text(r['planPrice'],
+                                          style:
+                                          const TextStyle(fontSize: 12))))),
+                              DataCell(SizedBox(
+                                  width: 70,
+                                  child: FittedBox(
+                                      fit: BoxFit.scaleDown,
+                                      child: Text(r['planType'],
+                                          style:
+                                          const TextStyle(fontSize: 12))))),
+                              DataCell(SizedBox(
+                                  width: 60,
+                                  child: FittedBox(
+                                      fit: BoxFit.scaleDown,
+                                      child: Text(r['status'],
+                                          style:
+                                          const TextStyle(fontSize: 12))))),
+                              DataCell(
+                                ElevatedButton(
+                                  onPressed: () {
+                                    // TODO: Handle approve action
+                                  },
+                                  style: ElevatedButton.styleFrom(
+                                    minimumSize: const Size(60, 28),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 8, vertical: 4),
+                                    textStyle: const TextStyle(fontSize: 12),
+                                  ),
+                                  child: const Text("Approved"),
+                                ),
+                              ),
+                            ],
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
           ),
         ],
       ),
     ),
+
     ScheduleCalendarPage(
       dietitianFirstName: firstName,
       dietitianLastName: lastName,
@@ -1318,8 +1479,8 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
     required DateTime appointmentDateTime,
     required String notes,
     required String status,
-    required BuildContext contextForSnackBar,
-  }) async {
+    required BuildContext contextForSnackBar, }) async {
+
     try {
       final String appointmentDateStr =
       DateFormat('yyyy-MM-dd HH:mm').format(appointmentDateTime);

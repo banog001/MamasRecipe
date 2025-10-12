@@ -48,7 +48,9 @@ dependencies:
   fl_chart: ^0.69.0
   mailer: ^6.1.0
   flutter_file_dialog: 3.0.2
-  syncfusion_flutter_pdfviewer: ^26.1.41
+  syncfusion_flutter_pdfviewer: ^31.1.19
+  flutter_local_notifications: ^19.4.2
+
 
 
 dev_dependencies:

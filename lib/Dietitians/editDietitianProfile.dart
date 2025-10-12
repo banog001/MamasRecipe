@@ -15,6 +15,7 @@ class EditProfileDietitianPage extends StatefulWidget {
 }
 
 class _EditProfilePageState extends State<EditProfileDietitianPage> {
+  final TextEditingController _bioController = TextEditingController();
   File? _profileImage;
   final ImagePicker _picker = ImagePicker();
   bool _isUploading = false;
@@ -136,7 +137,8 @@ class _EditProfilePageState extends State<EditProfileDietitianPage> {
   Future<void> _saveProfile() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
-
+    // 🔹 Prepare data to update
+    final updateData = <String, dynamic>{};
     String? imageUrl;
 
     // 🔹 If a new profile image was chosen, upload it first
@@ -149,9 +151,18 @@ class _EditProfilePageState extends State<EditProfileDietitianPage> {
         return;
       }
     }
+    // 🔹 Add bio if it has content
+    if (_bioController.text.trim().isNotEmpty) {
+      if (_bioController.text.trim().length > 30) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Bio cannot exceed 30 characters.")),
+        );
+        return; // stop saving if limit exceeded
+      }
+      updateData['bio'] = _bioController.text.trim();
+    }
 
-    // 🔹 Prepare data to update
-    final updateData = <String, dynamic>{};
+
 
     // Add new image URL only if user picked one
     if (imageUrl != null) updateData['profile'] = imageUrl;
@@ -252,8 +263,8 @@ class _EditProfilePageState extends State<EditProfileDietitianPage> {
 
           final userData = snapshot.data;
 
-          if (userData != null && userData["currentWeight"] != null && _weightController.text.isEmpty) {
-            _weightController.text = userData["currentWeight"].toString();
+          if (userData != null && userData["bio"] != null && _bioController.text.isEmpty) {
+            _bioController.text = userData["bio"].toString();
           }
           final String? profileUrl = userData?['profile'];
           final String displayName = user?.displayName ?? "Unknown User";
@@ -379,14 +390,10 @@ class _EditProfilePageState extends State<EditProfileDietitianPage> {
                                     ),
                                     const SizedBox(height: 12),
                                     _buildTextField(
-                                      "Current weight",
-                                      controller: _weightController,
-                                      helperText: "Cooldown after changing (30 days)",
+                                      "Bio",
+                                      controller: _bioController,
+                                      helperText: "Maximum of 30 characters",
                                     ),
-                                    const SizedBox(height: 10),
-                                    _buildTextField("Change Password", obscure: true),
-                                    const SizedBox(height: 10),
-                                    _buildTextField("Confirm Password", obscure: true),
                                   ],
                                 ),
                               ),
@@ -483,11 +490,13 @@ class _EditProfilePageState extends State<EditProfileDietitianPage> {
         TextField(
           controller: controller,
           obscureText: obscure,
+          maxLength: label == "Bio" ? 30 : null, // ✅ Limit Bio to 30 chars
           style: const TextStyle(
             fontFamily: _primaryFontFamily,
             fontSize: 15,
           ),
           decoration: InputDecoration(
+            counterText: "", // hides the small counter below
             helperText: helperText,
             helperStyle: const TextStyle(
               fontFamily: _primaryFontFamily,
@@ -508,7 +517,8 @@ class _EditProfilePageState extends State<EditProfileDietitianPage> {
               borderRadius: BorderRadius.circular(12),
               borderSide: const BorderSide(color: _primaryColor, width: 2),
             ),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             isDense: true,
           ),
         ),

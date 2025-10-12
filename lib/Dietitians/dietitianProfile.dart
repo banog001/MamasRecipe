@@ -297,12 +297,15 @@ class _DietitianProfileState extends State<DietitianProfile> {
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.spaceAround,
                             children: [
-                              _summaryItem(Icons.group_outlined, "Clients",
+                              _summaryItem(Icons.group_outlined, "Subscribers",
                                   (data["clientCount"] ?? 0).toString(), textPrimary),
                               _summaryItem(Icons.article_outlined, "Plans Created",
                                   (data["plansCreatedCount"] ?? 0).toString(), textPrimary),
                               _summaryItem(Icons.star_border_outlined, "Rating",
                                   (data["averageRating"] ?? "N/A").toString(), textPrimary),
+
+                              // _summaryItem(Icons.people_alt_outlined,
+                              //     "Followers", _followerCount.toString(), textPrimary),
                             ],
                           ),
                         ),
