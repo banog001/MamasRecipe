@@ -433,8 +433,43 @@ class _HomeState extends State<home> {
                     );
                   }
 
-                  var docs = snapshot.data!.docs;
+                  // ✅ Filter out invalid docs
+                  var docs = snapshot.data!.docs.where((doc) {
+                    var data = doc.data() as Map<String, dynamic>?;
 
+                    if (data == null) return false;
+
+                    // Skip if owner is missing or blank
+                    if (data["owner"] == null ||
+                        data["owner"].toString().trim().isEmpty) {
+                      return false;
+                    }
+
+                    // Skip if all meal fields are blank
+                    bool allMealsEmpty = [
+                      data["breakfast"],
+                      data["amSnack"],
+                      data["lunch"],
+                      data["pmSnack"],
+                      data["dinner"],
+                      data["midnightSnack"],
+                    ].every((meal) =>
+                    meal == null ||
+                        meal.toString().trim().isEmpty ||
+                        meal.toString().toLowerCase() == "null");
+
+                    if (allMealsEmpty) return false;
+
+                    // Skip if planType missing
+                    if (data["planType"] == null ||
+                        data["planType"].toString().trim().isEmpty) {
+                      return false;
+                    }
+
+                    return true;
+                  }).toList();
+
+                  // ✅ Apply search filter
                   if (_searchQuery.isNotEmpty) {
                     docs = docs.where((doc) {
                       var data = doc.data() as Map<String, dynamic>;
@@ -454,6 +489,16 @@ class _HomeState extends State<home> {
                     }).toList();
                   }
 
+                  if (docs.isEmpty) {
+                    return const Center(
+                      child: Text(
+                        "There’s no meal plan recommendation.",
+                        style: TextStyle(fontSize: 16),
+                      ),
+                    );
+                  }
+
+                  // ✅ Compute scores
                   List<Map<String, dynamic>> scoredPlans = docs.map((doc) {
                     var data = doc.data() as Map<String, dynamic>;
                     int likes = data["likeCounts"] ?? 0;
@@ -475,6 +520,7 @@ class _HomeState extends State<home> {
 
                     double finalScore =
                         (w1 * likes) / (alpha * daysSincePublished);
+
                     return {"doc": doc, "data": data, "score": finalScore};
                   }).toList();
 
@@ -487,12 +533,14 @@ class _HomeState extends State<home> {
                     );
                   }
 
+                  // ✅ Sort and limit to top 5
                   scoredPlans.sort((a, b) =>
                       (b["score"] as double).compareTo(a["score"] as double));
                   if (scoredPlans.length > 5) {
                     scoredPlans = scoredPlans.sublist(0, 5);
                   }
 
+                  // ✅ Display horizontal list
                   return ListView.builder(
                     scrollDirection: Axis.horizontal,
                     padding:
@@ -503,6 +551,7 @@ class _HomeState extends State<home> {
                       var docSnap = plan["doc"] as DocumentSnapshot;
                       var data = plan["data"] as Map<String, dynamic>;
                       String ownerId = data["owner"] ?? "";
+
                       return _buildRecommendationCard(
                         context,
                         docSnap,
@@ -522,105 +571,282 @@ class _HomeState extends State<home> {
     );
   }
 
+
   Widget _buildRecommendationCard(
       BuildContext context,
       DocumentSnapshot doc,
       Map<String, dynamic> data,
       String ownerId,
       String currentUserId,
-      bool isUserSubscribed,
+      bool isUserSubscribed, // <-- still passed, but we'll override below
       ) {
-    return SizedBox(
-      width: 300,
-      child: Card(
-        elevation: 8,
-        margin: const EdgeInsets.only(right: 12),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        color: _cardBgColor(context),
-        child: InkWell(
-          onTap: () {
-            debugPrint("Tapped on recommendation: ${data['planType']}");
-          },
-          borderRadius: BorderRadius.circular(20),
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                FutureBuilder<DocumentSnapshot?>(
-                  future: (ownerId.isNotEmpty)
-                      ? FirebaseFirestore.instance
-                      .collection("Users")
-                      .doc(ownerId)
-                      .get()
-                      : Future.value(null),
-                  builder: (context, ownerSnapshot) {
-                    String ownerName = "Unknown Chef";
-                    String ownerProfileUrl = "";
+    return StreamBuilder<DocumentSnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection("Users")
+          .doc(currentUserId)
+          .collection("subscribeTo")
+          .doc(ownerId)
+          .snapshots(),
+      builder: (context, subscribeSnapshot) {
+        bool isSubscribed = false;
 
-                    if (ownerId.isNotEmpty &&
-                        ownerSnapshot.hasData &&
-                        ownerSnapshot.data != null &&
-                        ownerSnapshot.data!.exists) {
-                      var ownerData = ownerSnapshot.data!.data() as Map<String, dynamic>;
-                      ownerName =
-                          "${ownerData["firstName"] ?? ""} ${ownerData["lastName"] ?? ""}"
-                              .trim();
-                      if (ownerName.isEmpty) ownerName = "Unknown Chef";
-                      ownerProfileUrl = ownerData["profile"] ?? "";
-                    }
+        if (subscribeSnapshot.hasData &&
+            subscribeSnapshot.data != null &&
+            subscribeSnapshot.data!.exists) {
+          final subData =
+          subscribeSnapshot.data!.data() as Map<String, dynamic>;
+          if (subData["status"] == "approved") {
+            isSubscribed = true;
+          }
+        }
 
-                    return Row(
-                      children: [
-                        CircleAvatar(
-                          radius: 20,
-                          backgroundColor: _primaryColor.withOpacity(0.2),
-                          backgroundImage: (ownerProfileUrl.isNotEmpty)
-                              ? NetworkImage(ownerProfileUrl)
-                              : null,
-                          child: (ownerProfileUrl.isEmpty)
-                              ? const Icon(Icons.person,
-                              size: 24, color: _primaryColor)
-                              : null,
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+        return SizedBox(
+          width: 300,
+          child: Card(
+            elevation: 8,
+            margin: const EdgeInsets.only(right: 12),
+            shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            color: _cardBgColor(context),
+            child: InkWell(
+              onTap: () {
+                debugPrint("Tapped on recommendation: ${data['planType']}");
+              },
+              borderRadius: BorderRadius.circular(20),
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // 🔹 Owner Info Header
+                      FutureBuilder<DocumentSnapshot?>(
+                        future: (ownerId.isNotEmpty)
+                            ? FirebaseFirestore.instance
+                            .collection("Users")
+                            .doc(ownerId)
+                            .get()
+                            : Future.value(null),
+                        builder: (context, ownerSnapshot) {
+                          String ownerName = "Unknown Chef";
+                          String ownerProfileUrl = "";
+
+                          if (ownerId.isNotEmpty &&
+                              ownerSnapshot.hasData &&
+                              ownerSnapshot.data != null &&
+                              ownerSnapshot.data!.exists) {
+                            var ownerData = ownerSnapshot.data!.data()
+                            as Map<String, dynamic>;
+                            ownerName =
+                                "${ownerData["firstName"] ?? ""} ${ownerData["lastName"] ?? ""}"
+                                    .trim();
+                            if (ownerName.isEmpty) ownerName = "Unknown Chef";
+                            ownerProfileUrl = ownerData["profile"] ?? "";
+                          }
+
+                          return Row(
                             children: [
-                              Text(
-                                ownerName,
-                                style: _cardTitleStyle(context).copyWith(
-                                  color: _primaryColor,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                                overflow: TextOverflow.ellipsis,
+                              CircleAvatar(
+                                radius: 20,
+                                backgroundColor: _primaryColor.withOpacity(0.2),
+                                backgroundImage: (ownerProfileUrl.isNotEmpty)
+                                    ? NetworkImage(ownerProfileUrl)
+                                    : null,
+                                child: (ownerProfileUrl.isEmpty)
+                                    ? const Icon(Icons.person,
+                                    size: 24, color: _primaryColor)
+                                    : null,
                               ),
-                              if (data["timestamp"] != null &&
-                                  data["timestamp"] is Timestamp)
-                                Text(
-                                  DateFormat('MMM dd, yyyy').format(
-                                    (data["timestamp"] as Timestamp).toDate(),
-                                  ),
-                                  style: _cardSubtitleStyle(context)
-                                      .copyWith(fontSize: 12),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      ownerName,
+                                      style: _cardTitleStyle(context).copyWith(
+                                        color: _primaryColor,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    if (data["timestamp"] != null &&
+                                        data["timestamp"] is Timestamp)
+                                      Text(
+                                        DateFormat('MMM dd, yyyy').format(
+                                          (data["timestamp"] as Timestamp)
+                                              .toDate(),
+                                        ),
+                                        style: _cardSubtitleStyle(context)
+                                            .copyWith(fontSize: 12),
+                                      ),
+                                  ],
                                 ),
+                              ),
                             ],
+                          );
+                        },
+                      ),
+
+                      const SizedBox(height: 10),
+
+                      // 🔹 Plan Info
+                      Text(
+                        data["planType"] ?? "Meal Plan",
+                        style: _cardBodyTextStyle(context).copyWith(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 17,
+                        ),
+                      ),
+
+                      if (data["timestamp"] != null &&
+                          data["timestamp"] is Timestamp)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 4.0),
+                          child: Text(
+                            DateFormat('MMM dd, yyyy – hh:mm a').format(
+                              (data["timestamp"] as Timestamp).toDate(),
+                            ),
+                            style: _cardSubtitleStyle(context),
                           ),
                         ),
-                      ],
-                    );
-                  },
+
+                      const Divider(height: 20),
+
+                      // 🔹 Meals Table (Locked / Unlocked)
+                      Table(
+                        children: [
+                          _buildMealRow("Breakfast", data["breakfast"], true,
+                              isCompact: true),
+                          _buildMealRow("AM Snack", data["amSnack"], isSubscribed,
+                              isCompact: true),
+                          _buildMealRow("Lunch", data["lunch"], isSubscribed,
+                              isCompact: true),
+                          _buildMealRow("PM Snack", data["pmSnack"], isSubscribed,
+                              isCompact: true),
+                          _buildMealRow("Dinner", data["dinner"], isSubscribed,
+                              isCompact: true),
+                          _buildMealRow("Midnight Snack", data["midnightSnack"],
+                              isSubscribed,
+                              isCompact: true),
+                        ],
+                      ),
+
+                      const SizedBox(height: 10),
+
+                      // ❤️ Like & Download buttons
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            StreamBuilder<DocumentSnapshot>(
+                              stream: FirebaseFirestore.instance
+                                  .collection("likes")
+                                  .doc("${currentUserId}_${doc.id}")
+                                  .snapshots(),
+                              builder: (context, likeSnapshot) {
+                                bool isLiked = likeSnapshot.hasData &&
+                                    likeSnapshot.data!.exists;
+                                int likeCount = data["likeCounts"] ?? 0;
+
+                                return TextButton.icon(
+                                  onPressed: () async {
+                                    final likeDocRef = FirebaseFirestore.instance
+                                        .collection("likes")
+                                        .doc("${currentUserId}_${doc.id}");
+                                    final mealPlanDocRef = FirebaseFirestore
+                                        .instance
+                                        .collection("mealPlans")
+                                        .doc(doc.id);
+
+                                    if (isLiked) {
+                                      await likeDocRef.delete();
+                                      await mealPlanDocRef.update({
+                                        "likeCounts": FieldValue.increment(-1),
+                                      });
+                                    } else {
+                                      await likeDocRef.set({
+                                        "mealPlanID": doc.id,
+                                        "userID": currentUserId,
+                                        "timestamp":
+                                        FieldValue.serverTimestamp(),
+                                      });
+                                      await mealPlanDocRef.update({
+                                        "likeCounts": FieldValue.increment(1),
+                                      });
+                                    }
+                                  },
+                                  icon: Icon(
+                                    isLiked
+                                        ? Icons.favorite
+                                        : Icons.favorite_border,
+                                    color: Colors.redAccent,
+                                    size: 18,
+                                  ),
+                                  label: Text(
+                                    "$likeCount",
+                                    style: const TextStyle(
+                                      color: Colors.redAccent,
+                                      fontFamily: _primaryFontFamily,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                  style: TextButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 6, vertical: 3),
+                                  ),
+                                );
+                              },
+                            ),
+
+                            const SizedBox(width: 8),
+
+                            TextButton.icon(
+                              onPressed: () {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                        "Meal plan downloaded for offline use."),
+                                    duration: Duration(seconds: 2),
+                                  ),
+                                );
+                              },
+                              icon: const Icon(
+                                Icons.download_rounded,
+                                color: Colors.blueAccent,
+                                size: 18,
+                              ),
+                              label: const Text(
+                                "Download",
+                                style: TextStyle(
+                                  color: Colors.blueAccent,
+                                  fontFamily: _primaryFontFamily,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 13,
+                                ),
+                              ),
+                              style: TextButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 6, vertical: 3),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-                // ... rest of your card content ...
-              ],
+              ),
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
+
 
 
   Widget dietitiansList() {
@@ -851,7 +1077,6 @@ class _HomeState extends State<home> {
                         data,
                         ownerId,
                         firebaseUser!.uid, // Ensure currentUserId is passed
-                        isSubscribed,
                       );
                     },
                   );
@@ -868,176 +1093,217 @@ class _HomeState extends State<home> {
       BuildContext context,
       DocumentSnapshot doc,
       Map<String, dynamic> data,
-      String ownerId,
+      String ownerId, // this is the dietitianId
       String currentUserId,
-      bool isUserSubscribed,
       ) {
-    return Card(
-      elevation: 8,
-      margin: const EdgeInsets.symmetric(vertical: 8),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      color: _cardBgColor(context),
-      child: InkWell(
-        onTap: () {
-          /* TODO: Navigate to full meal plan detail */
-        },
-        borderRadius: BorderRadius.circular(20),
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              FutureBuilder<DocumentSnapshot>(
-                future: (ownerId.isNotEmpty)
-                    ? FirebaseFirestore.instance
-                    .collection("Users")
-                    .doc(ownerId)
-                    .get()
-                    : Future.value(null),
-                builder: (context, ownerSnapshot) {
-                  String ownerName = "Unknown Chef";
-                  if (ownerId.isNotEmpty &&
-                      ownerSnapshot.hasData &&
-                      ownerSnapshot.data != null &&
-                      ownerSnapshot.data!.exists) {
-                    var ownerData =
-                    ownerSnapshot.data!.data() as Map<String, dynamic>;
-                    ownerName =
-                        "${ownerData["firstName"] ?? ""} ${ownerData["lastName"] ?? ""}"
-                            .trim();
-                    if (ownerName.isEmpty) ownerName = "Unknown Chef";
-                  }
-                  return Text(
-                    ownerName,
-                    style: _cardTitleStyle(context).copyWith(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  );
-                },
-              ),
-              const SizedBox(height: 4),
-              Text(
-                data["planType"] ?? "Meal Plan",
-                style: _cardBodyTextStyle(
-                  context,
-                ).copyWith(fontWeight: FontWeight.w600, fontSize: 17),
-              ),
-              if (data["timestamp"] != null && data["timestamp"] is Timestamp)
-                Padding(
-                  padding: const EdgeInsets.only(top: 4.0),
-                  child: Text(
-                    DateFormat(
-                      'MMM dd, yyyy – hh:mm a',
-                    ).format((data["timestamp"] as Timestamp).toDate()),
-                    style: _cardSubtitleStyle(context),
-                  ),
-                ),
-              const Divider(height: 20),
-              Table(
+    return StreamBuilder<DocumentSnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('Users')
+          .doc(currentUserId)
+          .collection('subscribeTo')
+          .doc(ownerId)
+          .snapshots(),
+      builder: (context, subscribeSnapshot) {
+        bool isSubscribed = false;
+
+        // ✅ check if user has a valid approved subscription to this dietitian
+        if (subscribeSnapshot.hasData &&
+            subscribeSnapshot.data != null &&
+            subscribeSnapshot.data!.exists) {
+          final subData =
+          subscribeSnapshot.data!.data() as Map<String, dynamic>;
+          if (subData['status'] == 'approved') {
+            isSubscribed = true;
+          }
+        }
+
+        return Card(
+          elevation: 8,
+          margin: const EdgeInsets.symmetric(vertical: 8),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          color: _cardBgColor(context),
+          child: InkWell(
+            onTap: () {
+              // Optionally: navigate to full plan details
+            },
+            borderRadius: BorderRadius.circular(20),
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildMealRow(
-                    "Breakfast",
-                    data["breakfast"],
-                    true,
-                    isCompact: true,
+                  // 👩‍🍳 Show Dietitian (owner) Name
+                  FutureBuilder<DocumentSnapshot>(
+                    future: FirebaseFirestore.instance
+                        .collection("Users")
+                        .doc(ownerId)
+                        .get(),
+                    builder: (context, ownerSnapshot) {
+                      String ownerName = "Unknown Chef";
+                      if (ownerSnapshot.hasData &&
+                          ownerSnapshot.data != null &&
+                          ownerSnapshot.data!.exists) {
+                        var ownerData =
+                        ownerSnapshot.data!.data() as Map<String, dynamic>;
+                        ownerName =
+                            "${ownerData["firstName"] ?? ""} ${ownerData["lastName"] ?? ""}"
+                                .trim();
+                        if (ownerName.isEmpty) ownerName = "Unknown Chef";
+                      }
+                      return Text(
+                        ownerName,
+                        style: _cardTitleStyle(context).copyWith(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      );
+                    },
                   ),
-                  _buildMealRow(
-                    "AM Snack",
-                    data["amSnack"],
-                    isUserSubscribed,
-                    isCompact: true,
+                  const SizedBox(height: 4),
+
+                  // 🥗 Plan Type
+                  Text(
+                    data["planType"] ?? "Meal Plan",
+                    style: _cardBodyTextStyle(context).copyWith(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 17,
+                    ),
                   ),
-                  _buildMealRow(
-                    "Lunch",
-                    data["lunch"],
-                    isUserSubscribed,
-                    isCompact: true,
+
+                  // 🕒 Timestamp
+                  if (data["timestamp"] != null && data["timestamp"] is Timestamp)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4.0),
+                      child: Text(
+                        DateFormat('MMM dd, yyyy – hh:mm a')
+                            .format((data["timestamp"] as Timestamp).toDate()),
+                        style: _cardSubtitleStyle(context),
+                      ),
+                    ),
+
+                  const Divider(height: 20),
+
+                  // 🍱 Meals (Locked/Unlocked)
+                  Table(
+                    children: [
+                      _buildMealRow("Breakfast", data["breakfast"], isSubscribed,
+                          isCompact: true),
+                      _buildMealRow("AM Snack", data["amSnack"], isSubscribed,
+                          isCompact: true),
+                      _buildMealRow("Lunch", data["lunch"], isSubscribed,
+                          isCompact: true),
+                      _buildMealRow("PM Snack", data["pmSnack"], isSubscribed,
+                          isCompact: true),
+                      _buildMealRow("Dinner", data["dinner"], isSubscribed,
+                          isCompact: true),
+                      _buildMealRow("Midnight Snack", data["midnightSnack"],
+                          isSubscribed,
+                          isCompact: true),
+                    ],
                   ),
-                  _buildMealRow(
-                    "Pm Snack",
-                    data["pmSnack"],
-                    isUserSubscribed,
-                    isCompact: true,
-                  ),
-                  _buildMealRow(
-                    "Dinner",
-                    data["dinner"],
-                    isUserSubscribed,
-                    isCompact: true,
-                  ),
-                  _buildMealRow(
-                    "Midnight Snack",
-                    data["midnightSnack"],
-                    isUserSubscribed,
-                    isCompact: true,
+
+                  const SizedBox(height: 10),
+                  const SizedBox(height: 10),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // ❤️ Like Button
+                        StreamBuilder<DocumentSnapshot>(
+                          stream: FirebaseFirestore.instance
+                              .collection("likes")
+                              .doc("${currentUserId}_${doc.id}")
+                              .snapshots(),
+                          builder: (context, likeSnapshot) {
+                            bool isLiked = likeSnapshot.hasData && likeSnapshot.data!.exists;
+                            int likeCount = data["likeCounts"] ?? 0;
+                            return TextButton.icon(
+                              onPressed: () async {
+                                final likeDocRef = FirebaseFirestore.instance
+                                    .collection("likes")
+                                    .doc("${currentUserId}_${doc.id}");
+                                final mealPlanDocRef = FirebaseFirestore.instance
+                                    .collection("mealPlans")
+                                    .doc(doc.id);
+                                if (isLiked) {
+                                  await likeDocRef.delete();
+                                  await mealPlanDocRef.update({
+                                    "likeCounts": FieldValue.increment(-1),
+                                  });
+                                } else {
+                                  await likeDocRef.set({
+                                    "mealPlanID": doc.id,
+                                    "userID": currentUserId,
+                                    "timestamp": FieldValue.serverTimestamp(),
+                                  });
+                                  await mealPlanDocRef.update({
+                                    "likeCounts": FieldValue.increment(1),
+                                  });
+                                }
+                              },
+                              icon: Icon(
+                                isLiked ? Icons.favorite : Icons.favorite_border,
+                                color: Colors.redAccent,
+                                size: 18,
+                              ),
+                              label: Text(
+                                "$likeCount",
+                                style: const TextStyle(
+                                  color: Colors.redAccent,
+                                  fontFamily: _primaryFontFamily,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 13,
+                                ),
+                              ),
+                              style: TextButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                              ),
+                            );
+                          },
+                        ),
+
+                        const SizedBox(width: 8),
+
+                        // ⬇️ Download Offline Button
+                        TextButton.icon(
+                          onPressed: () async {
+                            // Example: save meal plan locally (you can customize this)
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text("Meal plan downloaded for offline use."),
+                                duration: Duration(seconds: 2),
+                              ),
+                            );
+                            // TODO: Implement actual offline saving logic here
+                          },
+                          icon: const Icon(
+                            Icons.download_rounded,
+                            color: Colors.blueAccent,
+                            size: 18,
+                          ),
+                          label: const Text(
+                            "Download",
+                            style: TextStyle(
+                              color: Colors.blueAccent,
+                              fontFamily: _primaryFontFamily,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 13,
+                            ),
+                          ),
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
-              const SizedBox(height: 10),
-              Align(
-                alignment: Alignment.centerRight,
-                child: StreamBuilder<DocumentSnapshot>(
-                  stream: FirebaseFirestore.instance
-                      .collection("likes")
-                      .doc("${currentUserId}_${doc.id}")
-                      .snapshots(),
-                  builder: (context, likeSnapshot) {
-                    bool isLiked =
-                        likeSnapshot.hasData && likeSnapshot.data!.exists;
-                    int likeCount = data["likeCounts"] ?? 0;
-                    return TextButton.icon(
-                      onPressed: () async {
-                        final likeDocRef = FirebaseFirestore.instance
-                            .collection("likes")
-                            .doc("${currentUserId}_${doc.id}");
-                        final mealPlanDocRef = FirebaseFirestore.instance
-                            .collection("mealPlans")
-                            .doc(doc.id);
-                        if (isLiked) {
-                          await likeDocRef.delete();
-                          await mealPlanDocRef.update({
-                            "likeCounts": FieldValue.increment(-1),
-                          });
-                        } else {
-                          await likeDocRef.set({
-                            "mealPlanID": doc.id,
-                            "userID": currentUserId,
-                            "timestamp": FieldValue.serverTimestamp(),
-                          });
-                          await mealPlanDocRef.update({
-                            "likeCounts": FieldValue.increment(1),
-                          });
-                        }
-                      },
-                      icon: Icon(
-                        isLiked ? Icons.favorite : Icons.favorite_border,
-                        color: Colors.redAccent,
-                        size: 18,
-                      ),
-                      label: Text(
-                        "$likeCount",
-                        style: const TextStyle(
-                          color: Colors.redAccent,
-                          fontFamily: _primaryFontFamily,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 13,
-                        ),
-                      ),
-                      style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 3,
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 

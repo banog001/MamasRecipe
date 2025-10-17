@@ -221,16 +221,20 @@ class _HomePageDietitianState extends State<HomePageDietitian> {
       print('✅ Found user: ${clientData['firstname']} ${clientData['lastname']}');
 
       results.add({
-        'firstname': clientData['firstname'] ?? clientData['firstName'] ?? 'N/A',
-        'lastname': clientData['lastname'] ?? clientData['lastName'] ?? 'N/A',
-        'planPrice': data['planPrice'] ?? '',
-        'planType': data['planType'] ?? '',
-        'status': data['status'] ?? '',
+        "docId": doc.id, // ✅ add the receipt document ID
+        "clientID": clientID, // ✅ keep this for reference
+        "dietitianID": data['dietitianID'], // ✅ also keep this
+        "firstname": clientData['firstname'] ?? clientData['firstName'] ?? 'N/A',
+        "lastname": clientData['lastname'] ?? clientData['lastName'] ?? 'N/A',
+        "planPrice": data['planPrice'] ?? '',
+        "planType": data['planType'] ?? '',
+        "status": data['status'] ?? '',
       });
     }
 
     return results;
   }
+
 
 
   @override
@@ -371,18 +375,88 @@ class _HomePageDietitianState extends State<HomePageDietitian> {
                                           style:
                                           const TextStyle(fontSize: 12))))),
                               DataCell(
-                                ElevatedButton(
-                                  onPressed: () {
-                                    // TODO: Handle approve action
-                                  },
-                                  style: ElevatedButton.styleFrom(
-                                    minimumSize: const Size(60, 28),
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 8, vertical: 4),
-                                    textStyle: const TextStyle(fontSize: 12),
-                                  ),
-                                  child: const Text("Approved"),
-                                ),
+                                  ElevatedButton(
+                                    onPressed: r['status'] == 'approved'
+                                        ? null
+                                        : () async {
+                                      try {
+                                        final currentDietitian = FirebaseAuth.instance.currentUser;
+                                        if (currentDietitian == null) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            const SnackBar(content: Text("You must be logged in.")),
+                                          );
+                                          return;
+                                        }
+
+                                        // Extract receipt fields
+                                        final receiptId = r['docId'];
+                                        final clientId = r['clientID'];
+                                        final dietitianId = r['dietitianID'];
+                                        final planType = r['planType'];
+                                        final planPrice = r['planPrice'];
+
+                                        // ✅ Compute expiration date
+                                        DateTime now = DateTime.now();
+                                        DateTime expirationDate;
+
+                                        if (planType.toString().toLowerCase() == 'monthly') {
+                                          expirationDate = DateTime(now.year, now.month + 1, now.day);
+                                        } else if (planType.toString().toLowerCase() == 'yearly') {
+                                          expirationDate = DateTime(now.year + 1, now.month, now.day);
+                                        } else {
+                                          // Default: 1 month if plan type is unknown
+                                          expirationDate = DateTime(now.year, now.month + 1, now.day);
+                                        }
+
+                                        // Firestore references (same Users collection)
+                                        final usersRef = FirebaseFirestore.instance.collection("Users");
+                                        final clientRef = usersRef.doc(clientId);
+                                        final dietitianRef = usersRef.doc(dietitianId);
+
+                                        // ✅ 1. Add to dietitian’s subcollection → subscriber/{clientId}
+                                        await dietitianRef.collection("subscriber").doc(clientId).set({
+                                          "userId": clientId,
+                                          "planType": planType,
+                                          "price": planPrice,
+                                          "status": "approved",
+                                          "timestamp": FieldValue.serverTimestamp(),
+                                          "expirationDate": Timestamp.fromDate(expirationDate),
+                                        });
+
+                                        // ✅ 2. Add to client’s subcollection → subscribeTo/{dietitianId}
+                                        await clientRef.collection("subscribeTo").doc(dietitianId).set({
+                                          "dietitianId": dietitianId,
+                                          "planType": planType,
+                                          "price": planPrice,
+                                          "status": "approved",
+                                          "timestamp": FieldValue.serverTimestamp(),
+                                          "expirationDate": Timestamp.fromDate(expirationDate),
+                                        });
+
+                                        // ✅ 3. Update the receipt’s status → approved
+                                        await FirebaseFirestore.instance
+                                            .collection("receipts")
+                                            .doc(receiptId)
+                                            .update({"status": "approved"});
+
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          const SnackBar(content: Text("User subscription approved!")),
+                                        );
+
+                                        setState(() {});
+                                      } catch (e) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(content: Text("Error approving user: $e")),
+                                        );
+                                      }
+                                    },
+                                    style: ElevatedButton.styleFrom(
+                                      minimumSize: const Size(60, 28),
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                      textStyle: const TextStyle(fontSize: 12),
+                                    ),
+                                    child: const Text("Approved"),
+                                  )
                               ),
                             ],
                           );
