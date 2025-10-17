@@ -395,6 +395,7 @@ class _LoginPageState extends State<LoginPageMobile> with TickerProviderStateMix
         "tutorialStep": 0,
         "role": "user",
         "qrapproved": false,
+        "creationDate": FieldValue.serverTimestamp(),
       });
     } else {
       dataToUpdate["qrapproved"] = docSnap.data()?["qrapproved"] ?? false;

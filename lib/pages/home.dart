@@ -6,14 +6,13 @@ import 'login.dart';
 import 'messages.dart';
 import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
-// import 'dart:ui'; // REMOVED - Assuming ImageFilter or other direct dart:ui members are not used
 import 'UserProfile.dart';
-import 'package:shimmer/shimmer.dart'; // Import for Shimmer effect
+import 'package:shimmer/shimmer.dart';
 import 'subscription_model.dart';
 import 'subscription_service.dart';
 import 'subscription_page.dart';
+import 'subscription_widget.dart';
 
-// --- Style Definitions (Ideally in a separate file or Theme) ---
 const String _primaryFontFamily = 'PlusJakartaSans';
 
 const Color _primaryColor = Color(0xFF4CAF50);
@@ -91,7 +90,6 @@ TextStyle _lockedTextStyle(BuildContext context) => TextStyle(
   color: _textColorSecondary(context).withOpacity(0.7),
   fontStyle: FontStyle.italic,
 );
-// --- End Style Definitions ---
 
 class home extends StatefulWidget {
   final int initialIndex;
@@ -128,7 +126,7 @@ class _HomeState extends State<home> {
   bool _isUserNameLoading = true;
 
   String _searchQuery = "";
-  String _searchFilter = "All"; // Options: "All", "Health Goals", "Dietitians", "Meal Plans"
+  String _searchFilter = "All";
   final TextEditingController _searchController = TextEditingController();
 
   Map<String, dynamic>? userData;
@@ -140,9 +138,6 @@ class _HomeState extends State<home> {
     _updateGooglePhotoURL();
     loadUserName();
   }
-
-  // REMOVED duplicate dispose method at line 144-149
-  // The dispose method at line 1268-1272 already handles both _searchController disposal and _setUserStatus
 
   void loadUserName() async {
     setState(() {
@@ -161,15 +156,14 @@ class _HomeState extends State<home> {
             setState(() {
               firstName = data['firstName'] as String? ?? '';
               lastName = data['lastName'] as String? ?? '';
-              profileUrl = data['profile'] as String? ?? ''; // <-- ADD THIS LINE
+              profileUrl = data['profile'] as String? ?? '';
               _isUserNameLoading = false;
             });
           } else {
-            // Handle case where user document doesn't exist
             setState(() {
               firstName = "";
               lastName = "";
-              profileUrl = ""; // <-- ADD THIS LINE
+              profileUrl = "";
               _isUserNameLoading = false;
             });
             debugPrint("User document does not exist for UID: ${user.uid}");
@@ -181,7 +175,7 @@ class _HomeState extends State<home> {
           setState(() {
             firstName = "";
             lastName = "";
-            profileUrl = ""; // <-- ADD THIS LINE
+            profileUrl = "";
             _isUserNameLoading = false;
           });
         }
@@ -337,8 +331,6 @@ class _HomeState extends State<home> {
     );
   }
 
-
-
   Widget _buildRecommendationsLoadingShimmer() {
     return ListView.builder(
       scrollDirection: Axis.horizontal,
@@ -349,7 +341,6 @@ class _HomeState extends State<home> {
         margin: const EdgeInsets.only(right: 12),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         child: Shimmer.fromColors(
-          // Added Shimmer here
           baseColor: Theme.of(context).brightness == Brightness.dark
               ? Colors.grey[800]!
               : Colors.grey[300]!,
@@ -360,7 +351,7 @@ class _HomeState extends State<home> {
             width: 300,
             height: 350,
             decoration: BoxDecoration(
-              color: Colors.white, // This color is needed for shimmer to paint on
+              color: Colors.white,
               borderRadius: BorderRadius.circular(12),
             ),
           ),
@@ -427,25 +418,22 @@ class _HomeState extends State<home> {
                   if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
                     return const Center(
                       child: Text(
-                        "There’s no meal plan recommendation.",
+                        "There's no meal plan recommendation.",
                         style: TextStyle(fontSize: 16),
                       ),
                     );
                   }
 
-                  // ✅ Filter out invalid docs
                   var docs = snapshot.data!.docs.where((doc) {
                     var data = doc.data() as Map<String, dynamic>?;
 
                     if (data == null) return false;
 
-                    // Skip if owner is missing or blank
                     if (data["owner"] == null ||
                         data["owner"].toString().trim().isEmpty) {
                       return false;
                     }
 
-                    // Skip if all meal fields are blank
                     bool allMealsEmpty = [
                       data["breakfast"],
                       data["amSnack"],
@@ -460,7 +448,6 @@ class _HomeState extends State<home> {
 
                     if (allMealsEmpty) return false;
 
-                    // Skip if planType missing
                     if (data["planType"] == null ||
                         data["planType"].toString().trim().isEmpty) {
                       return false;
@@ -469,7 +456,6 @@ class _HomeState extends State<home> {
                     return true;
                   }).toList();
 
-                  // ✅ Apply search filter
                   if (_searchQuery.isNotEmpty) {
                     docs = docs.where((doc) {
                       var data = doc.data() as Map<String, dynamic>;
@@ -492,13 +478,12 @@ class _HomeState extends State<home> {
                   if (docs.isEmpty) {
                     return const Center(
                       child: Text(
-                        "There’s no meal plan recommendation.",
+                        "There's no meal plan recommendation.",
                         style: TextStyle(fontSize: 16),
                       ),
                     );
                   }
 
-                  // ✅ Compute scores
                   List<Map<String, dynamic>> scoredPlans = docs.map((doc) {
                     var data = doc.data() as Map<String, dynamic>;
                     int likes = data["likeCounts"] ?? 0;
@@ -527,20 +512,18 @@ class _HomeState extends State<home> {
                   if (scoredPlans.isEmpty) {
                     return const Center(
                       child: Text(
-                        "There’s no meal plan recommendation.",
+                        "There's no meal plan recommendation.",
                         style: TextStyle(fontSize: 16),
                       ),
                     );
                   }
 
-                  // ✅ Sort and limit to top 5
                   scoredPlans.sort((a, b) =>
                       (b["score"] as double).compareTo(a["score"] as double));
                   if (scoredPlans.length > 5) {
                     scoredPlans = scoredPlans.sublist(0, 5);
                   }
 
-                  // ✅ Display horizontal list
                   return ListView.builder(
                     scrollDirection: Axis.horizontal,
                     padding:
@@ -571,14 +554,13 @@ class _HomeState extends State<home> {
     );
   }
 
-
   Widget _buildRecommendationCard(
       BuildContext context,
       DocumentSnapshot doc,
       Map<String, dynamic> data,
       String ownerId,
       String currentUserId,
-      bool isUserSubscribed, // <-- still passed, but we'll override below
+      bool isUserSubscribed,
       ) {
     return StreamBuilder<DocumentSnapshot>(
       stream: FirebaseFirestore.instance
@@ -619,7 +601,6 @@ class _HomeState extends State<home> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // 🔹 Owner Info Header
                       FutureBuilder<DocumentSnapshot?>(
                         future: (ownerId.isNotEmpty)
                             ? FirebaseFirestore.instance
@@ -688,10 +669,7 @@ class _HomeState extends State<home> {
                           );
                         },
                       ),
-
                       const SizedBox(height: 10),
-
-                      // 🔹 Plan Info
                       Text(
                         data["planType"] ?? "Meal Plan",
                         style: _cardBodyTextStyle(context).copyWith(
@@ -699,7 +677,6 @@ class _HomeState extends State<home> {
                           fontSize: 17,
                         ),
                       ),
-
                       if (data["timestamp"] != null &&
                           data["timestamp"] is Timestamp)
                         Padding(
@@ -711,10 +688,7 @@ class _HomeState extends State<home> {
                             style: _cardSubtitleStyle(context),
                           ),
                         ),
-
                       const Divider(height: 20),
-
-                      // 🔹 Meals Table (Locked / Unlocked)
                       Table(
                         children: [
                           _buildMealRow("Breakfast", data["breakfast"], true,
@@ -732,10 +706,7 @@ class _HomeState extends State<home> {
                               isCompact: true),
                         ],
                       ),
-
                       const SizedBox(height: 10),
-
-                      // ❤️ Like & Download buttons
                       Align(
                         alignment: Alignment.centerRight,
                         child: Row(
@@ -801,9 +772,7 @@ class _HomeState extends State<home> {
                                 );
                               },
                             ),
-
                             const SizedBox(width: 8),
-
                             TextButton.icon(
                               onPressed: () {
                                 ScaffoldMessenger.of(context).showSnackBar(
@@ -847,8 +816,6 @@ class _HomeState extends State<home> {
     );
   }
 
-
-
   Widget dietitiansList() {
     if (_searchFilter != "All" && _searchFilter != "Dietitians") {
       return const SizedBox.shrink();
@@ -871,7 +838,7 @@ class _HomeState extends State<home> {
           height: 140,
           child: StreamBuilder<QuerySnapshot>(
             stream: FirebaseFirestore.instance
-                .collection("Users") // Changed from "users" to "Users" for consistency
+                .collection("Users")
                 .where("role", isEqualTo: "dietitian")
                 .snapshots(),
             builder: (context, snapshot) {
@@ -974,7 +941,6 @@ class _HomeState extends State<home> {
     );
   }
 
-
   Widget mealPlansTable(String userGoal) {
     if (_searchFilter == "Dietitians") {
       return const SizedBox.shrink();
@@ -1076,7 +1042,7 @@ class _HomeState extends State<home> {
                         docSnap,
                         data,
                         ownerId,
-                        firebaseUser!.uid, // Ensure currentUserId is passed
+                        firebaseUser!.uid,
                       );
                     },
                   );
@@ -1093,7 +1059,7 @@ class _HomeState extends State<home> {
       BuildContext context,
       DocumentSnapshot doc,
       Map<String, dynamic> data,
-      String ownerId, // this is the dietitianId
+      String ownerId,
       String currentUserId,
       ) {
     return StreamBuilder<DocumentSnapshot>(
@@ -1106,7 +1072,6 @@ class _HomeState extends State<home> {
       builder: (context, subscribeSnapshot) {
         bool isSubscribed = false;
 
-        // ✅ check if user has a valid approved subscription to this dietitian
         if (subscribeSnapshot.hasData &&
             subscribeSnapshot.data != null &&
             subscribeSnapshot.data!.exists) {
@@ -1123,16 +1088,13 @@ class _HomeState extends State<home> {
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           color: _cardBgColor(context),
           child: InkWell(
-            onTap: () {
-              // Optionally: navigate to full plan details
-            },
+            onTap: () {},
             borderRadius: BorderRadius.circular(20),
             child: Padding(
               padding: const EdgeInsets.all(16.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // 👩‍🍳 Show Dietitian (owner) Name
                   FutureBuilder<DocumentSnapshot>(
                     future: FirebaseFirestore.instance
                         .collection("Users")
@@ -1160,8 +1122,6 @@ class _HomeState extends State<home> {
                     },
                   ),
                   const SizedBox(height: 4),
-
-                  // 🥗 Plan Type
                   Text(
                     data["planType"] ?? "Meal Plan",
                     style: _cardBodyTextStyle(context).copyWith(
@@ -1169,8 +1129,6 @@ class _HomeState extends State<home> {
                       fontSize: 17,
                     ),
                   ),
-
-                  // 🕒 Timestamp
                   if (data["timestamp"] != null && data["timestamp"] is Timestamp)
                     Padding(
                       padding: const EdgeInsets.only(top: 4.0),
@@ -1180,10 +1138,7 @@ class _HomeState extends State<home> {
                         style: _cardSubtitleStyle(context),
                       ),
                     ),
-
                   const Divider(height: 20),
-
-                  // 🍱 Meals (Locked/Unlocked)
                   Table(
                     children: [
                       _buildMealRow("Breakfast", data["breakfast"], isSubscribed,
@@ -1201,7 +1156,6 @@ class _HomeState extends State<home> {
                           isCompact: true),
                     ],
                   ),
-
                   const SizedBox(height: 10),
                   const SizedBox(height: 10),
                   Align(
@@ -1209,7 +1163,6 @@ class _HomeState extends State<home> {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        // ❤️ Like Button
                         StreamBuilder<DocumentSnapshot>(
                           stream: FirebaseFirestore.instance
                               .collection("likes")
@@ -1262,20 +1215,15 @@ class _HomeState extends State<home> {
                             );
                           },
                         ),
-
                         const SizedBox(width: 8),
-
-                        // ⬇️ Download Offline Button
                         TextButton.icon(
                           onPressed: () async {
-                            // Example: save meal plan locally (you can customize this)
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
                                 content: Text("Meal plan downloaded for offline use."),
                                 duration: Duration(seconds: 2),
                               ),
                             );
-                            // TODO: Implement actual offline saving logic here
                           },
                           icon: const Icon(
                             Icons.download_rounded,
@@ -1350,8 +1298,6 @@ class _HomeState extends State<home> {
     );
   }
 
-  // REMOVED duplicate dietitiansList method
-
   Future<void> _updateGooglePhotoURL() async {
     if (firebaseUser == null) return;
 
@@ -1361,7 +1307,6 @@ class _HomeState extends State<home> {
 
     final snapshot = await userDoc.get();
 
-    // Only update if profile field is empty or missing
     if (!snapshot.exists ||
         !snapshot.data()!.containsKey('profile') ||
         (snapshot.data()!['profile'] as String).isEmpty) {
@@ -1419,7 +1364,6 @@ class _HomeState extends State<home> {
 
   List<Widget> get _pages => [
     SingleChildScrollView(
-      // Home Tab Content (Page 0) - From your existing code
       key: const PageStorageKey('homePageScroll'),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1429,13 +1373,11 @@ class _HomeState extends State<home> {
           const SizedBox(height: 10),
           recommendationsWidget(),
           const SizedBox(height: 10),
-          mealPlansTable(""), // Pass an empty string or default goal
+          mealPlansTable(""),
           const SizedBox(height: 20),
         ],
       ),
     ),
-    // Page 1: User's Schedule (NEW)
-    // Conditional rendering based on firebaseUser ensures currentUserId is not null
     firebaseUser != null
         ? UserSchedulePage(currentUserId: firebaseUser!.uid)
         : const Center(
@@ -1443,8 +1385,7 @@ class _HomeState extends State<home> {
         "Please log in to view your schedule.",
         style: TextStyle(fontFamily: _primaryFontFamily),
       ),
-    ), // Fallback
-    // Page 2: Messages Tab (UsersListPage from your existing code)
+    ),
     firebaseUser != null
         ? UsersListPage(currentUserId: firebaseUser!.uid)
         : const Center(
@@ -1452,16 +1393,15 @@ class _HomeState extends State<home> {
         "Please log in to view messages.",
         style: TextStyle(fontFamily: _primaryFontFamily),
       ),
-    ), // Fallback
-    // Page 3: Profile Tab (NEW)
+    ),
     firebaseUser != null
-        ? const UserProfile() // Assuming UserProfile is the correct widget for the profile tab
+        ? const UserProfile()
         : const Center(
       child: Text(
         "Please log in to view your profile.",
         style: TextStyle(fontFamily: _primaryFontFamily),
       ),
-    ), // Fallback
+    ),
   ];
 
   @override
@@ -1599,7 +1539,6 @@ class _HomeState extends State<home> {
         backgroundColor: _primaryColor,
         iconTheme: const IconThemeData(color: _textColorOnPrimary, size: 28),
         title: Text(
-          // MODIFIED: AppBar title logic for the new schedule tab
           selectedIndex == 0
               ? "Mama's Recipe"
               : (selectedIndex == 1
@@ -1680,12 +1619,11 @@ class _HomeState extends State<home> {
             currentIndex: selectedIndex,
             onTap: (index) {
               if (index == 3) {
-                // Profile button tapped
                 Navigator.push(
                   context,
                   MaterialPageRoute(
                     builder: (context) => const UserProfile(),
-                  ), // Assuming EditProfilePage is the correct widget
+                  ),
                 );
               } else {
                 setState(() => selectedIndex = index);
@@ -1772,7 +1710,7 @@ class _HomeState extends State<home> {
               );
             }
           } else if (label == 'Subscription') {
-            _showSubscriptionOptions();
+            showSubscriptionOptions(context, firebaseUser!.uid);
           } else {
             setState(() {
               selectedMenu = label;
@@ -1784,165 +1722,8 @@ class _HomeState extends State<home> {
       ),
     );
   }
-
-  void _showSubscriptionOptions() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: _cardBgColor(context),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (BuildContext context) {
-        return Container(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Subscription Options', style: _sectionTitleStyle(context)),
-              const SizedBox(height: 20),
-
-              // Current subscription status
-              FutureBuilder<DocumentSnapshot>(
-                future: FirebaseFirestore.instance
-                    .collection("Users")
-                    .doc(firebaseUser!.uid)
-                    .get(),
-                builder: (context, snapshot) {
-                  bool isSubscribed = false;
-                  if (snapshot.hasData && snapshot.data!.exists) {
-                    var userData =
-                    snapshot.data!.data() as Map<String, dynamic>;
-                    isSubscribed = userData["isSubscribed"] ?? false;
-                  }
-
-                  return Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: isSubscribed
-                          ? _primaryColor.withOpacity(0.1)
-                          : Colors.orange.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: isSubscribed ? _primaryColor : Colors.orange,
-                        width: 1,
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          isSubscribed ? Icons.check_circle : Icons.info_outline,
-                          color: isSubscribed ? _primaryColor : Colors.orange,
-                          size: 24,
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                isSubscribed ? 'Premium Member' : 'Free Member',
-                                style: _cardTitleStyle(context).copyWith(
-                                  color: isSubscribed
-                                      ? _primaryColor
-                                      : Colors.orange,
-                                ),
-                              ),
-                              Text(
-                                isSubscribed
-                                    ? 'You have access to all meal plans'
-                                    : 'Upgrade to unlock all meal plans',
-                                style: _cardSubtitleStyle(context),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                },
-              ),
-
-              const SizedBox(height: 20),
-
-              // Browse dietitians button
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: () {
-                    Navigator.pop(context);
-                    _showDietitiansForSubscription();
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _primaryColor,
-                    foregroundColor: _textColorOnPrimary,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  icon: const Icon(Icons.person_search_rounded),
-                  label: const Text(
-                    'Browse Dietitians',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 12),
-
-              // My subscriptions button
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  onPressed: () {
-                    Navigator.pop(context);
-                    _showMySubscriptions();
-                  },
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: _primaryColor,
-                    side: BorderSide(color: _primaryColor),
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  icon: const Icon(Icons.subscriptions_outlined),
-                  label: const Text(
-                    'My Subscriptions',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 20),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  void _showDietitiansForSubscription() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => const DietitiansListPage()),
-    );
-  }
-
-  void _showMySubscriptions() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => MySubscriptionsPage(userId: firebaseUser!.uid),
-      ),
-    );
-  }
 }
 
-// =======================================================================
-// ENHANCED UserSchedulePage to match dietitian's schedule design and functionality
-// =======================================================================
 class UserSchedulePage extends StatefulWidget {
   final String currentUserId;
   const UserSchedulePage({super.key, required this.currentUserId});
@@ -2022,7 +1803,6 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
     }
 
     try {
-      // Try both clientId and clientID field names for compatibility
       QuerySnapshot snapshot = await FirebaseFirestore.instance
           .collection('schedules')
           .where('clientID', isEqualTo: widget.currentUserId)
@@ -2038,7 +1818,7 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
       final Map<DateTime, List<dynamic>> eventsMap = {};
       for (var doc in snapshot.docs) {
         final data = doc.data() as Map<String, dynamic>;
-        data['id'] = doc.id; // Store document ID
+        data['id'] = doc.id;
         final appointmentDateStr = data['appointmentDate'] as String?;
         if (appointmentDateStr != null) {
           try {
@@ -2097,7 +1877,6 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
           .doc(appointmentId)
           .update({'status': newStatus});
 
-      // Refresh the calendar events
       _loadAppointmentsForCalendar();
 
       if (mounted) {
@@ -2394,7 +2173,6 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Header with dietitian name and status
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -2431,7 +2209,6 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
                   ],
                 ),
                 const SizedBox(height: 12),
-                // Time and date info
                 Row(
                   children: [
                     Icon(Icons.access_time, size: 16, color: _primaryColor),
@@ -2483,7 +2260,7 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
   String _getStatusDisplayText(String status) {
     switch (status.toLowerCase()) {
       case 'proposed_by_dietitian':
-        return 'Scheduled'; // Changed from 'Pending'
+        return 'Scheduled';
       case 'confirmed':
         return 'Confirmed';
       case 'declined':
@@ -2511,7 +2288,6 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
   }
 }
 
-//user list chat messages
 class UsersListPage extends StatelessWidget {
   final String currentUserId;
   const UsersListPage({super.key, required this.currentUserId});
@@ -2644,7 +2420,6 @@ class UsersListPage extends StatelessWidget {
         ),
         body: TabBarView(
           children: [
-            // Chats tab
             StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance
                   .collection("Users")
@@ -2755,12 +2530,10 @@ class UsersListPage extends StatelessWidget {
                 );
               },
             ),
-
-            // Notifications tab
             StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance
                   .collection("Users")
-                  .doc(currentUserId) // 👈 notifications inside this user
+                  .doc(currentUserId)
                   .collection("notifications")
                   .orderBy("timestamp", descending: true)
                   .snapshots(),
@@ -2775,7 +2548,7 @@ class UsersListPage extends StatelessWidget {
 
                 return MediaQuery.removePadding(
                   context: context,
-                  removeTop: true, // 🔥 removes the space above
+                  removeTop: true,
                   child: ListView.builder(
                     itemCount: docs.length,
                     itemBuilder: (context, index) {
@@ -2826,14 +2599,6 @@ class UsersListPage extends StatelessWidget {
                                 ),
                               ),
                             );
-                          } else if (data["type"] == "appointment") {
-                            final homeState = context
-                                .findAncestorStateOfType<_HomeState>();
-                            if (homeState != null) {
-                              homeState.setState(() {
-                                homeState.selectedIndex = 1; // go to My Schedule tab
-                              });
-                            }
                           }
                         },
                       );
@@ -2849,503 +2614,6 @@ class UsersListPage extends StatelessWidget {
   }
 }
 
-class DietitiansListPage extends StatelessWidget {
-  const DietitiansListPage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: _scaffoldBgColor(context),
-      appBar: AppBar(
-        title: const Text('Choose Your Dietitian'),
-        backgroundColor: _primaryColor,
-        foregroundColor: _textColorOnPrimary,
-        elevation: 1,
-      ),
-      body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection("Users")
-            .where("role", isEqualTo: "dietitian")
-            .snapshots(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(
-              child: CircularProgressIndicator(color: _primaryColor),
-            );
-          }
-
-          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.health_and_safety_outlined,
-                    size: 80,
-                    color: Colors.grey[400],
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'No dietitians available',
-                    style: _sectionTitleStyle(
-                      context,
-                    ).copyWith(color: Colors.grey[600]),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Check back later for available dietitians',
-                    style: _cardSubtitleStyle(context),
-                  ),
-                ],
-              ),
-            );
-          }
-
-          final dietitians = snapshot.data!.docs;
-          return ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: dietitians.length,
-            itemBuilder: (context, index) {
-              final dietitianData =
-              dietitians[index].data() as Map<String, dynamic>;
-              final dietitianId = dietitians[index].id;
-              final name =
-              "${dietitianData["firstName"] ?? ""} ${dietitianData["lastName"] ?? ""}"
-                  .trim();
-              final profileUrl = dietitianData["profile"] ?? "";
-              final specialization =
-                  dietitianData["specialization"] ?? "General Nutrition";
-
-              return Card(
-                margin: const EdgeInsets.only(bottom: 12),
-                elevation: 8,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                color: _cardBgColor(context),
-                child: InkWell(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => SubscriptionPage(
-                          dietitianId: dietitianId,
-                          dietitianName: name.isEmpty ? "Dietitian" : name,
-                        ),
-                      ),
-                    );
-                  },
-                  borderRadius: BorderRadius.circular(20),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Row(
-                      children: [
-                        Container(
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(
-                                color: _primaryColor.withOpacity(0.3),
-                                blurRadius: 8,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
-                          ),
-                          child: CircleAvatar(
-                            radius: 32,
-                            backgroundColor: _primaryColor.withOpacity(0.2),
-                            backgroundImage: profileUrl.isNotEmpty
-                                ? NetworkImage(profileUrl)
-                                : null,
-                            child: profileUrl.isEmpty
-                                ? const Icon(
-                              Icons.health_and_safety,
-                              size: 32,
-                              color: _primaryColor,
-                            )
-                                : null,
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                name.isEmpty ? "Dietitian" : "Dr. $name",
-                                style: _cardTitleStyle(
-                                  context,
-                                ).copyWith(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                specialization,
-                                style: _cardSubtitleStyle(context),
-                              ),
-                              const SizedBox(height: 8),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 4,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: _primaryColor.withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Text(
-                                  'View Plans',
-                                  style: _cardSubtitleStyle(context).copyWith(
-                                    color: _primaryColor,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Icon(
-                          Icons.arrow_forward_ios,
-                          color: _textColorSecondary(context),
-                          size: 16,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              );
-            },
-          );
-        },
-      ),
-    );
-  }
-}
-
-class MySubscriptionsPage extends StatefulWidget {
-  final String userId;
-
-  const MySubscriptionsPage({super.key, required this.userId});
-
-  @override
-  State<MySubscriptionsPage> createState() => _MySubscriptionsPageState();
-}
-
-class _MySubscriptionsPageState extends State<MySubscriptionsPage> {
-  final SubscriptionService _subscriptionService = SubscriptionService();
-  List<UserSubscription> _subscriptions = [];
-  bool _isLoading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadSubscriptions();
-  }
-
-  Future<void> _loadSubscriptions() async {
-    try {
-      final subscriptions = await _subscriptionService.getUserSubscriptions(
-        widget.userId,
-      );
-      setState(() {
-        _subscriptions = subscriptions;
-        _isLoading = false;
-      });
-    } catch (e) {
-      setState(() {
-        _isLoading = false;
-      });
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error loading subscriptions: $e')),
-        );
-      }
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: _scaffoldBgColor(context),
-      appBar: AppBar(
-        title: const Text('My Subscriptions'),
-        backgroundColor: _primaryColor,
-        foregroundColor: _textColorOnPrimary,
-        elevation: 1,
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: _primaryColor))
-          : _subscriptions.isEmpty
-          ? _buildEmptyState()
-          : _buildSubscriptionsList(),
-    );
-  }
-
-  Widget _buildEmptyState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.subscriptions_outlined, size: 80, color: Colors.grey[400]),
-          const SizedBox(height: 16),
-          Text(
-            'No Active Subscriptions',
-            style: _sectionTitleStyle(
-              context,
-            ).copyWith(color: Colors.grey[600]),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Subscribe to a dietitian to get personalized meal plans',
-            style: _cardSubtitleStyle(context),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 24),
-          ElevatedButton.icon(
-            onPressed: () {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const DietitiansListPage(),
-                ),
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: _primaryColor,
-              foregroundColor: _textColorOnPrimary,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            icon: const Icon(Icons.person_search_rounded),
-            label: const Text('Browse Dietitians'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSubscriptionsList() {
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: _subscriptions.length,
-      itemBuilder: (context, index) {
-        final subscription = _subscriptions[index];
-        return _buildSubscriptionCard(subscription);
-      },
-    );
-  }
-
-  Widget _buildSubscriptionCard(UserSubscription subscription) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 16),
-      elevation: 8,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      color: _cardBgColor(context),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: FutureBuilder<DocumentSnapshot>(
-                    future: FirebaseFirestore.instance
-                        .collection("Users")
-                        .doc(subscription.dietitianId)
-                        .get(),
-                    builder: (context, snapshot) {
-                      String dietitianName = "Unknown Dietitian";
-                      if (snapshot.hasData && snapshot.data!.exists) {
-                        var data =
-                        snapshot.data!.data() as Map<String, dynamic>;
-                        dietitianName =
-                            "${data["firstName"] ?? ""} ${data["lastName"] ?? ""}"
-                                .trim();
-                        if (dietitianName.isEmpty) dietitianName = "Dietitian";
-                      }
-                      return Text(
-                        "Dr. $dietitianName",
-                        style: _cardTitleStyle(context).copyWith(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      );
-                    },
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: _getSubscriptionStatusColor(
-                      subscription.status,
-                    ).withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    subscription.status.toUpperCase(),
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: _getSubscriptionStatusColor(subscription.status),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Icon(
-                  Icons.calendar_today,
-                  size: 16,
-                  color: _textColorSecondary(context),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  'Started: ${DateFormat('MMM dd, yyyy').format(subscription.startDate)}',
-                  style: _cardSubtitleStyle(context),
-                ),
-              ],
-            ),
-            if (subscription.endDate != null) ...[
-              const SizedBox(height: 4),
-              Row(
-                children: [
-                  Icon(
-                    Icons.event_busy,
-                    size: 16,
-                    color: _textColorSecondary(context),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Ends: ${DateFormat('MMM dd, yyyy').format(subscription.endDate!)}',
-                    style: _cardSubtitleStyle(context),
-                  ),
-                ],
-              ),
-            ],
-            const SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                TextButton.icon(
-                  onPressed: () {
-                    // Navigate to dietitian's meal plans or profile
-                  },
-                  icon: const Icon(Icons.restaurant_menu, size: 18),
-                  label: const Text('View Meal Plans'),
-                  style: TextButton.styleFrom(foregroundColor: _primaryColor),
-                ),
-                if (subscription.status == 'active')
-                  TextButton.icon(
-                    onPressed: () => _showCancelDialog(subscription),
-                    icon: const Icon(Icons.cancel_outlined, size: 18),
-                    label: const Text('Cancel'),
-                    style: TextButton.styleFrom(foregroundColor: Colors.red),
-                  ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Color _getSubscriptionStatusColor(String status) {
-    switch (status.toLowerCase()) {
-      case 'active':
-        return Colors.green;
-      case 'cancelled':
-        return Colors.red;
-      case 'past_due':
-        return Colors.orange;
-      default:
-        return _primaryColor;
-    }
-  }
-
-  void _showCancelDialog(UserSubscription subscription) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          backgroundColor: _cardBgColor(context),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          title: Text(
-            'Cancel Subscription',
-            style: _sectionTitleStyle(context),
-          ),
-          content: Text(
-            'Are you sure you want to cancel this subscription? You will lose access to premium meal plans.',
-            style: _cardBodyTextStyle(context),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: Text(
-                'Keep Subscription',
-                style: TextStyle(color: _textColorSecondary(context)),
-              ),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                Navigator.of(context).pop();
-                await _cancelSubscription(subscription);
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-              child: const Text('Cancel Subscription'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Future<void> _cancelSubscription(UserSubscription subscription) async {
-    try {
-      await _subscriptionService.cancelSubscription(subscription.id);
-      _loadSubscriptions(); // Refresh the list
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Subscription cancelled successfully'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error cancelling subscription: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
-}
-
-// =======================================================================
-// MEAL PLAN SCHEDULER - Drag and Drop Interface
-// =======================================================================
 class MealPlanSchedulerPage extends StatefulWidget {
   final String userId;
   const MealPlanSchedulerPage({super.key, required this.userId});
@@ -3355,7 +2623,6 @@ class MealPlanSchedulerPage extends StatefulWidget {
 }
 
 class _MealPlanSchedulerPageState extends State<MealPlanSchedulerPage> {
-  // State to track which meal plan is assigned to which day
   Map<String, Map<String, dynamic>?> weeklySchedule = {
     'Monday': null,
     'Tuesday': null,
@@ -3377,82 +2644,10 @@ class _MealPlanSchedulerPageState extends State<MealPlanSchedulerPage> {
     _loadWeeklySchedule();
   }
 
-  // =======================================================================
-  // BACKEND INTEGRATION METHODS
-  // Backend developers should implement these methods with Firebase logic
-  // =======================================================================
-
-  /// BACKEND: Fetch all meal plans that the user has subscribed to
-  ///
-  /// This method should:
-  /// 1. Query Firebase for user's active subscriptions
-  /// 2. For each subscription, fetch the associated meal plan details
-  /// 3. Return a list of meal plans with their IDs, names, and other details
-  ///
-  /// Expected return format:
-  /// [
-  ///   {
-  ///     'id': 'mealPlanId123',
-  ///     'planName': 'Weight Loss Plan',
-  ///     'planType': 'Weight Loss',
-  ///     'dietitianName': 'Dr. Smith',
-  ///     'dietitianId': 'dietitianId456'
-  ///   },
-  ///   ...
-  /// ]
   Future<void> _loadSubscribedMealPlans() async {
     setState(() => _isLoading = true);
 
     try {
-      // BACKEND TODO: Replace this with actual Firebase query
-      // Example implementation:
-      /*
-      // Step 1: Get user's active subscriptions
-      QuerySnapshot subscriptionsSnapshot = await FirebaseFirestore.instance
-          .collection('subscriptions')
-          .where('userId', isEqualTo: widget.userId)
-          .where('status', isEqualTo: 'active')
-          .get();
-
-      List<Map<String, dynamic>> mealPlans = [];
-
-      // Step 2: For each subscription, fetch the meal plan
-      for (var subDoc in subscriptionsSnapshot.docs) {
-        String dietitianId = subDoc['dietitianId'];
-
-        // Get meal plans from this dietitian
-        QuerySnapshot mealPlansSnapshot = await FirebaseFirestore.instance
-            .collection('mealPlans')
-            .where('owner', isEqualTo: dietitianId)
-            .get();
-
-        for (var planDoc in mealPlansSnapshot.docs) {
-          var planData = planDoc.data() as Map<String, dynamic>;
-          planData['id'] = planDoc.id;
-
-          // Get dietitian name
-          DocumentSnapshot dietitianDoc = await FirebaseFirestore.instance
-              .collection('Users')
-              .doc(dietitianId)
-              .get();
-
-          if (dietitianDoc.exists) {
-            var dietitianData = dietitianDoc.data() as Map<String, dynamic>;
-            planData['dietitianName'] =
-                "${dietitianData['firstName']} ${dietitianData['lastName']}";
-          }
-
-          mealPlans.add(planData);
-        }
-      }
-
-      setState(() {
-        subscribedMealPlans = mealPlans;
-        _isLoading = false;
-      });
-      */
-
-      // TEMPORARY: Mock data for UI testing
       await Future.delayed(const Duration(seconds: 1));
       setState(() {
         subscribedMealPlans = [
@@ -3477,95 +2672,21 @@ class _MealPlanSchedulerPageState extends State<MealPlanSchedulerPage> {
     }
   }
 
-  /// BACKEND: Load the user's existing weekly meal plan schedule from Firebase
-  ///
-  /// This method should:
-  /// 1. Query Firebase for the user's meal plan schedule for the current week
-  /// 2. Parse the schedule data and populate the weeklySchedule map
-  ///
-  /// Firebase collection structure suggestion:
-  /// Collection: 'userMealSchedules'
-  /// Document ID: '{userId}_{weekStartDate}'
-  /// Fields:
-  /// {
-  ///   'userId': 'user123',
-  ///   'weekStartDate': Timestamp,
-  ///   'schedule': {
-  ///     'Monday': {'mealPlanId': 'plan1', 'mealPlanName': 'Weight Loss Plan', ...},
-  ///     'Tuesday': {'mealPlanId': 'plan2', 'mealPlanName': 'Muscle Gain Plan', ...},
-  ///     ...
-  ///   },
-  ///   'lastUpdated': Timestamp
-  /// }
   Future<void> _loadWeeklySchedule() async {
     try {
-      // BACKEND TODO: Replace this with actual Firebase query
-      // Example implementation:
-      /*
-      String weekId = _getWeekId(currentWeekStart);
-      DocumentSnapshot scheduleDoc = await FirebaseFirestore.instance
-          .collection('userMealSchedules')
-          .doc('${widget.userId}_$weekId')
-          .get();
-
-      if (scheduleDoc.exists) {
-        var data = scheduleDoc.data() as Map<String, dynamic>;
-        Map<String, dynamic> schedule = data['schedule'] ?? {};
-
-        setState(() {
-          weeklySchedule = {
-            'Monday': schedule['Monday'],
-            'Tuesday': schedule['Tuesday'],
-            'Wednesday': schedule['Wednesday'],
-            'Thursday': schedule['Thursday'],
-            'Friday': schedule['Friday'],
-            'Saturday': schedule['Saturday'],
-            'Sunday': schedule['Sunday'],
-          };
-        });
-      }
-      */
-
-      // TEMPORARY: Mock data for UI testing
       await Future.delayed(const Duration(milliseconds: 500));
-      // Schedule starts empty by default
     } catch (e) {
       print("Error loading weekly schedule: $e");
     }
   }
 
-  /// BACKEND: Save the updated weekly schedule to Firebase
-  ///
-  /// This method should:
-  /// 1. Take the current weeklySchedule map
-  /// 2. Save it to Firebase under the user's document
-  /// 3. Include timestamp for tracking
-  ///
-  /// Parameters:
-  /// - day: The day of the week being updated (e.g., 'Monday')
-  /// - mealPlan: The meal plan data being assigned (or null to remove)
+  String _getWeekId(DateTime date) {
+    int weekNumber = ((date.difference(DateTime(date.year, 1, 1)).inDays) / 7).ceil();
+    return '${date.year}-W${weekNumber.toString().padLeft(2, '0')}';
+  }
+
   Future<void> _saveScheduleToFirebase(String day, Map<String, dynamic>? mealPlan) async {
     try {
-      // BACKEND TODO: Replace this with actual Firebase save operation
-      // Example implementation:
-      /*
-      String weekId = _getWeekId(currentWeekStart);
-      String docId = '${widget.userId}_$weekId';
-
-      await FirebaseFirestore.instance
-          .collection('userMealSchedules')
-          .doc(docId)
-          .set({
-        'userId': widget.userId,
-        'weekStartDate': Timestamp.fromDate(currentWeekStart),
-        'schedule': weeklySchedule,
-        'lastUpdated': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
-
-      print("Schedule saved successfully for $day");
-      */
-
-      // TEMPORARY: Just log for now
       print("BACKEND TODO: Save schedule for $day: ${mealPlan?['planName'] ?? 'removed'}");
     } catch (e) {
       print("Error saving schedule: $e");
@@ -3579,16 +2700,6 @@ class _MealPlanSchedulerPageState extends State<MealPlanSchedulerPage> {
       }
     }
   }
-
-  /// Helper method to generate a week identifier (e.g., '2025-W01')
-  String _getWeekId(DateTime date) {
-    int weekNumber = ((date.difference(DateTime(date.year, 1, 1)).inDays) / 7).ceil();
-    return '${date.year}-W${weekNumber.toString().padLeft(2, '0')}';
-  }
-
-  // =======================================================================
-  // UI METHODS
-  // =======================================================================
 
   void _assignMealPlanToDay(String day, Map<String, dynamic> mealPlan) {
     setState(() {
@@ -3718,7 +2829,6 @@ class _MealPlanSchedulerPageState extends State<MealPlanSchedulerPage> {
             ],
           ),
         ),
-
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12),
           child: Text(
@@ -3738,9 +2848,7 @@ class _MealPlanSchedulerPageState extends State<MealPlanSchedulerPage> {
             },
           ),
         ),
-
         const SizedBox(height: 12),
-
         Expanded(
           child: SingleChildScrollView(
             padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -3887,7 +2995,6 @@ class _MealPlanSchedulerPageState extends State<MealPlanSchedulerPage> {
             padding: const EdgeInsets.all(12),
             child: Row(
               children: [
-                // Day label
                 SizedBox(
                   width: 85,
                   child: Column(
@@ -3910,8 +3017,6 @@ class _MealPlanSchedulerPageState extends State<MealPlanSchedulerPage> {
                   ),
                 ),
                 const SizedBox(width: 12),
-
-                // Assigned meal plan or empty state
                 Expanded(
                   child: assignedPlan != null
                       ? _buildAssignedPlanDisplay(day, assignedPlan)
@@ -3998,11 +3103,10 @@ class _MealPlanSchedulerPageState extends State<MealPlanSchedulerPage> {
           ),
           const SizedBox(width: 6),
           Text(
-            isHovering ? 'Drop here' : 'No meal plan',
+            'Drop meal plan here',
             style: TextStyle(
               color: isHovering ? _primaryColor : Colors.grey,
               fontSize: 12,
-              fontWeight: isHovering ? FontWeight.w600 : FontWeight.normal,
               fontFamily: _primaryFontFamily,
             ),
           ),
@@ -4012,10 +3116,18 @@ class _MealPlanSchedulerPageState extends State<MealPlanSchedulerPage> {
   }
 
   String _getDateForDay(String day) {
-    int dayIndex = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].indexOf(day);
-    DateTime startOfWeek = currentWeekStart.subtract(Duration(days: currentWeekStart.weekday - 1));
-    DateTime targetDate = startOfWeek.add(Duration(days: dayIndex));
-    return DateFormat('MMM d').format(targetDate);
+    final now = DateTime.now();
+    final weekStart = now.subtract(Duration(days: now.weekday - 1));
+    final daysMap = {
+      'Monday': 0,
+      'Tuesday': 1,
+      'Wednesday': 2,
+      'Thursday': 3,
+      'Friday': 4,
+      'Saturday': 5,
+      'Sunday': 6,
+    };
+    final date = weekStart.add(Duration(days: daysMap[day] ?? 0));
+    return DateFormat('MMM d').format(date);
   }
 }
-

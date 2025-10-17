@@ -5,14 +5,17 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:intl/intl.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:table_calendar/table_calendar.dart';
-import '../pages/login.dart';
-import 'messagesDietitian.dart'; // Assuming this is UsersListPage
-import 'createMealPlan.dart';
-import 'dietitianProfile.dart'; // <--- IMPORT DietitianProfile
+import 'dart:collection';
 
-// --- Style Definitions (Ensure these are consistent across your app or in a shared file) ---
+import '../pages/login.dart';
+import 'messagesDietitian.dart';
+import 'createMealPlan.dart';
+import 'dietitianProfile.dart';
+
+// --- THEME & STYLING CONSTANTS (Available to the whole file) ---
 const String _primaryFontFamily = 'PlusJakartaSans';
 const Color _primaryColor = Color(0xFF4CAF50);
+const Color _textColorOnPrimary = Colors.white;
 
 Color _scaffoldBgColor(BuildContext context) =>
     Theme.of(context).brightness == Brightness.dark
@@ -30,27 +33,18 @@ Color _textColorSecondary(BuildContext context) =>
     Theme.of(context).brightness == Brightness.dark
         ? Colors.white54
         : Colors.black54;
-const Color _textColorOnPrimary = Colors.white;
 
 TextStyle _getTextStyle(
     BuildContext context, {
       double fontSize = 16,
       FontWeight fontWeight = FontWeight.normal,
       Color? color,
-      String fontFamily = _primaryFontFamily,
-      double? letterSpacing,
-      FontStyle? fontStyle,
     }) {
-  final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-  final defaultTextColor =
-      color ?? (isDarkMode ? Colors.white70 : Colors.black87);
   return TextStyle(
-    fontFamily: fontFamily,
+    fontFamily: _primaryFontFamily,
     fontSize: fontSize,
     fontWeight: fontWeight,
-    color: defaultTextColor,
-    letterSpacing: letterSpacing,
-    fontStyle: fontStyle,
+    color: color ?? _textColorPrimary(context),
   );
 }
 
@@ -65,7 +59,6 @@ class HomePageDietitian extends StatefulWidget {
 
 class _HomePageDietitianState extends State<HomePageDietitian> {
   final User? firebaseUser = FirebaseAuth.instance.currentUser;
-  String selectedMenu = ''; // For Drawer item selection
   late int selectedIndex;
   String firstName = "";
   String lastName = "";
@@ -81,407 +74,22 @@ class _HomePageDietitianState extends State<HomePageDietitian> {
     loadUserName();
   }
 
-  void loadUserName() async {
-    setState(() {
-      _isUserNameLoading = true;
-    });
-    final user = FirebaseAuth.instance.currentUser;
-    if (user != null) {
-      try {
-        final doc = await FirebaseFirestore.instance
-            .collection('Users')
-            .doc(user.uid)
-            .get();
-        if (mounted) {
-          if (doc.exists && doc.data() != null) {
-            final data = doc.data()!;
-            setState(() {
-              firstName = data['firstName'] as String? ?? '';
-              lastName = data['lastName'] as String? ?? '';
-              profileUrl = data['profile'] as String? ?? ''; // <-- ADD THIS LINE
-              _isUserNameLoading = false;
-            });
-          } else {
-            // Handle case where user document doesn't exist
-            setState(() {
-              firstName = "";
-              lastName = "";
-              profileUrl = ""; // <-- ADD THIS LINE
-              _isUserNameLoading = false;
-            });
-            debugPrint("User document does not exist for UID: ${user.uid}");
-          }
-        }
-      } catch (e) {
-        debugPrint("Error loading user name: $e");
-        if (mounted) {
-          setState(() {
-            firstName = "";
-            lastName = "";
-            profileUrl = ""; // <-- ADD THIS LINE
-            _isUserNameLoading = false;
-          });
-        }
-      }
-    } else {
-      if (mounted) {
-        setState(() {
-          _isUserNameLoading = false;
-        });
-      }
-    }
-  }
-
-  Future<void> _updateGooglePhotoURL() async {
-    if (firebaseUser == null) return;
-
-    final userDoc = FirebaseFirestore.instance
-        .collection("Users")
-        .doc(firebaseUser!.uid);
-
-    final snapshot = await userDoc.get();
-
-    // Only update if profile field is empty or missing
-    if (!snapshot.exists ||
-        !snapshot.data()!.containsKey('profile') ||
-        (snapshot.data()!['profile'] as String).isEmpty) {
-      String? photoURL = firebaseUser!.photoURL;
-      if (photoURL != null && photoURL.isNotEmpty) {
-        try {
-          await userDoc.set(
-            {"profile": photoURL},
-            SetOptions(merge: true),
-          );
-          debugPrint("Firestore profile set from Google photo (first time only).");
-        } catch (e) {
-          debugPrint("Error updating Google Photo URL in Firestore: $e");
-        }
-      }
-    } else {
-      debugPrint("Firestore profile already set, skipping Google photo overwrite.");
-    }
-  }
-
-  Future<void> _setUserStatus(String status) async {
-    if (firebaseUser != null) {
-      try {
-        await FirebaseFirestore.instance
-            .collection("Users")
-            .doc(firebaseUser!.uid)
-            .set({"status": status}, SetOptions(merge: true));
-      } catch (e) {
-        debugPrint("Error setting dietitian status: $e");
-      }
-    }
-  }
-
-  Future<bool> signOutFromGoogle() async {
-    try {
-      await _setUserStatus("offline");
-      final googleSignIn = GoogleSignIn();
-      if (await googleSignIn.isSignedIn()) {
-        await googleSignIn.signOut();
-      }
-      await FirebaseAuth.instance.signOut();
-      return true;
-    } catch (e) {
-      debugPrint("Sign out error (Dietitian): $e");
-      return false;
-    }
-  }
-
-  Future<List<Map<String, dynamic>>> _fetchReceiptsWithClients() async {
-    final currentUser = FirebaseAuth.instance.currentUser;
-    if (currentUser == null) return [];
-
-    final receiptsSnap = await FirebaseFirestore.instance
-        .collection('receipts')
-        .where('dietitianID', isEqualTo: currentUser.uid)
-        .orderBy('timeStamp', descending: true)
-        .get();
-
-    List<Map<String, dynamic>> results = [];
-
-    for (var doc in receiptsSnap.docs) {
-      final data = doc.data();
-      final clientID = data['clientID'];
-      print('🔎 Fetching user for clientID: $clientID');
-
-      final clientDoc = await FirebaseFirestore.instance
-          .collection('Users')
-          .doc(clientID)
-          .get();
-
-      if (!clientDoc.exists) {
-        print('⚠️ No user found for clientID: $clientID');
-        continue;
-      }
-
-      final clientData = clientDoc.data() ?? {};
-      print('✅ Found user: ${clientData['firstname']} ${clientData['lastname']}');
-
-      results.add({
-        "docId": doc.id, // ✅ add the receipt document ID
-        "clientID": clientID, // ✅ keep this for reference
-        "dietitianID": data['dietitianID'], // ✅ also keep this
-        "firstname": clientData['firstname'] ?? clientData['firstName'] ?? 'N/A',
-        "lastname": clientData['lastname'] ?? clientData['lastName'] ?? 'N/A',
-        "planPrice": data['planPrice'] ?? '',
-        "planType": data['planType'] ?? '',
-        "status": data['status'] ?? '',
-      });
-    }
-
-    return results;
-  }
-
-
-
-  @override
-  void dispose() {
-    _setUserStatus("offline");
-    super.dispose();
-  }
-
+  // --- WIDGETS FOR EACH TAB ---
   List<Widget> get _pages => [
-
-    //home dashboard
-    Padding(
-      padding: const EdgeInsets.all(12.0),
-      child: Column(
-        children: [
-          // Top-right button
-          Align(
-            alignment: Alignment.topRight,
-            child: Padding(
-              padding: const EdgeInsets.only(top: 8, bottom: 12),
-              child: ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const CreateMealPlanPage(),
-                    ),
-                  );
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _primaryColor,
-                  foregroundColor: _textColorOnPrimary,
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  textStyle: _getTextStyle(context,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: _textColorOnPrimary),
-                ),
-                icon: const Icon(Icons.post_add_rounded, size: 18),
-                label: Text(
-                  "Create Meal Plan",
-                  style: _getTextStyle(context,
-                      color: _textColorOnPrimary,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600),
-                ),
-              ),
-            ),
-          ),
-
-          const SizedBox(height: 8),
-
-          // Table of Receipts
-          Expanded(
-            child: FutureBuilder<List<Map<String, dynamic>>>(
-              future: _fetchReceiptsWithClients(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-
-                if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                  return const Center(child: Text("No subscriptions found yet."));
-                }
-
-                final receipts = snapshot.data!;
-
-                return SingleChildScrollView(
-                  scrollDirection: Axis.horizontal, // allow horizontal scroll if needed
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(
-                        minWidth: MediaQuery.of(context).size.width), // try to fit screen
-                    child: SingleChildScrollView(
-                      scrollDirection: Axis.vertical, // vertical scroll for long table
-                      child: DataTable(
-                        columnSpacing: 10,
-                        horizontalMargin: 8,
-                        headingRowHeight: 32,
-                        dataRowHeight: 36,
-                        columns: const [
-                          DataColumn(
-                              label: Text("Firstname",
-                                  style: TextStyle(fontSize: 12))),
-                          DataColumn(
-                              label:
-                              Text("Lastname", style: TextStyle(fontSize: 12))),
-                          DataColumn(
-                              label: Text("Price", style: TextStyle(fontSize: 12))),
-                          DataColumn(
-                              label:
-                              Text("Plan Type", style: TextStyle(fontSize: 12))),
-                          DataColumn(
-                              label: Text("Status", style: TextStyle(fontSize: 12))),
-                          DataColumn(
-                              label: Text("Action", style: TextStyle(fontSize: 12))),
-                        ],
-                        rows: receipts.map((r) {
-                          return DataRow(
-                            cells: [
-                              DataCell(SizedBox(
-                                  width: 80,
-                                  child: FittedBox(
-                                      fit: BoxFit.scaleDown,
-                                      alignment: Alignment.centerLeft,
-                                      child: Text(r['firstname'],
-                                          style:
-                                          const TextStyle(fontSize: 12))))),
-                              DataCell(SizedBox(
-                                  width: 80,
-                                  child: FittedBox(
-                                      fit: BoxFit.scaleDown,
-                                      alignment: Alignment.centerLeft,
-                                      child: Text(r['lastname'],
-                                          style:
-                                          const TextStyle(fontSize: 12))))),
-                              DataCell(SizedBox(
-                                  width: 50,
-                                  child: FittedBox(
-                                      fit: BoxFit.scaleDown,
-                                      child: Text(r['planPrice'],
-                                          style:
-                                          const TextStyle(fontSize: 12))))),
-                              DataCell(SizedBox(
-                                  width: 70,
-                                  child: FittedBox(
-                                      fit: BoxFit.scaleDown,
-                                      child: Text(r['planType'],
-                                          style:
-                                          const TextStyle(fontSize: 12))))),
-                              DataCell(SizedBox(
-                                  width: 60,
-                                  child: FittedBox(
-                                      fit: BoxFit.scaleDown,
-                                      child: Text(r['status'],
-                                          style:
-                                          const TextStyle(fontSize: 12))))),
-                              DataCell(
-                                  ElevatedButton(
-                                    onPressed: r['status'] == 'approved'
-                                        ? null
-                                        : () async {
-                                      try {
-                                        final currentDietitian = FirebaseAuth.instance.currentUser;
-                                        if (currentDietitian == null) {
-                                          ScaffoldMessenger.of(context).showSnackBar(
-                                            const SnackBar(content: Text("You must be logged in.")),
-                                          );
-                                          return;
-                                        }
-
-                                        // Extract receipt fields
-                                        final receiptId = r['docId'];
-                                        final clientId = r['clientID'];
-                                        final dietitianId = r['dietitianID'];
-                                        final planType = r['planType'];
-                                        final planPrice = r['planPrice'];
-
-                                        // ✅ Compute expiration date
-                                        DateTime now = DateTime.now();
-                                        DateTime expirationDate;
-
-                                        if (planType.toString().toLowerCase() == 'monthly') {
-                                          expirationDate = DateTime(now.year, now.month + 1, now.day);
-                                        } else if (planType.toString().toLowerCase() == 'yearly') {
-                                          expirationDate = DateTime(now.year + 1, now.month, now.day);
-                                        } else {
-                                          // Default: 1 month if plan type is unknown
-                                          expirationDate = DateTime(now.year, now.month + 1, now.day);
-                                        }
-
-                                        // Firestore references (same Users collection)
-                                        final usersRef = FirebaseFirestore.instance.collection("Users");
-                                        final clientRef = usersRef.doc(clientId);
-                                        final dietitianRef = usersRef.doc(dietitianId);
-
-                                        // ✅ 1. Add to dietitian’s subcollection → subscriber/{clientId}
-                                        await dietitianRef.collection("subscriber").doc(clientId).set({
-                                          "userId": clientId,
-                                          "planType": planType,
-                                          "price": planPrice,
-                                          "status": "approved",
-                                          "timestamp": FieldValue.serverTimestamp(),
-                                          "expirationDate": Timestamp.fromDate(expirationDate),
-                                        });
-
-                                        // ✅ 2. Add to client’s subcollection → subscribeTo/{dietitianId}
-                                        await clientRef.collection("subscribeTo").doc(dietitianId).set({
-                                          "dietitianId": dietitianId,
-                                          "planType": planType,
-                                          "price": planPrice,
-                                          "status": "approved",
-                                          "timestamp": FieldValue.serverTimestamp(),
-                                          "expirationDate": Timestamp.fromDate(expirationDate),
-                                        });
-
-                                        // ✅ 3. Update the receipt’s status → approved
-                                        await FirebaseFirestore.instance
-                                            .collection("receipts")
-                                            .doc(receiptId)
-                                            .update({"status": "approved"});
-
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          const SnackBar(content: Text("User subscription approved!")),
-                                        );
-
-                                        setState(() {});
-                                      } catch (e) {
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          SnackBar(content: Text("Error approving user: $e")),
-                                        );
-                                      }
-                                    },
-                                    style: ElevatedButton.styleFrom(
-                                      minimumSize: const Size(60, 28),
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                      textStyle: const TextStyle(fontSize: 12),
-                                    ),
-                                    child: const Text("Approved"),
-                                  )
-                              ),
-                            ],
-                          );
-                        }).toList(),
-                      ),
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-        ],
-      ),
-    ),
-
+    // 0: Analytics Dashboard Page
+    const AnalyticsDashboard(),
+    // 1: Schedule Page
     ScheduleCalendarPage(
       dietitianFirstName: firstName,
       dietitianLastName: lastName,
       isDietitianNameLoading: _isUserNameLoading,
     ),
+    // 2: Messages Page
     if (firebaseUser != null)
       UsersListPage(currentUserId: firebaseUser!.uid),
-    const DietitianProfile(), // Added Profile page back to navigation
   ];
 
+  // --- APP BAR TITLE LOGIC ---
   String _getAppBarTitle(int index) {
     switch (index) {
       case 0:
@@ -490,8 +98,6 @@ class _HomePageDietitianState extends State<HomePageDietitian> {
         return "My Schedule";
       case 2:
         return "Messages";
-      case 3: // Added case for Profile tab
-        return "Profile";
       default:
         return "Dietitian App";
     }
@@ -503,168 +109,38 @@ class _HomePageDietitianState extends State<HomePageDietitian> {
       return Scaffold(
         backgroundColor: _scaffoldBgColor(context),
         body: Center(
-            child: Text("No dietitian user logged in.",
-                style: _getTextStyle(context,
-                    color: _textColorPrimary(context)))),
+            child: Text("No dietitian user logged in.", style: _getTextStyle(context))),
       );
     }
 
     return Scaffold(
       backgroundColor: _scaffoldBgColor(context),
-      drawer: SizedBox(
-        width: MediaQuery.of(context).size.width * 0.75,
-        child: Drawer(
-          backgroundColor: _cardBgColor(context),
-          child: ListView(
-            padding: EdgeInsets.zero,
-            children: [
-              UserAccountsDrawerHeader(
-                accountName: _isUserNameLoading
-                    ? Shimmer.fromColors(
-                  baseColor: Colors.white.withOpacity(0.3),
-                  highlightColor: Colors.white.withOpacity(0.6),
-                  period: const Duration(milliseconds: 1500),
-                  child: Container(
-                    width: 120.0,
-                    height: 18.0,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                  ),
-                )
-                    : Text(
-                  (firstName.isNotEmpty || lastName.isNotEmpty)
-                      ? "$firstName $lastName".trim()
-                      : "User Profile",
-                  style: const TextStyle(
-                    fontFamily: _primaryFontFamily,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 18,
-                    color: _textColorOnPrimary,
-                  ),
-                ),
-                accountEmail: _isUserNameLoading
-                    ? Shimmer.fromColors(
-                  baseColor: Colors.white.withOpacity(0.3),
-                  highlightColor: Colors.white.withOpacity(0.9),
-                  period: const Duration(milliseconds: 1500),
-                  child: Container(
-                    width: 150.0,
-                    height: 14.0,
-                    margin: const EdgeInsets.only(top: 4.0),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                  ),
-                )
-                    : (firebaseUser!.email != null &&
-                    firebaseUser!.email!.isNotEmpty
-                    ? Text(
-                  firebaseUser!.email!,
-                  style: const TextStyle(
-                    fontFamily: _primaryFontFamily,
-                    fontSize: 14,
-                    color: _textColorOnPrimary,
-                  ),
-                )
-                    : null),
-                currentAccountPicture: StreamBuilder<DocumentSnapshot>(
-                  stream: FirebaseFirestore.instance
-                      .collection('Users')
-                      .doc(FirebaseAuth.instance.currentUser!.uid)
-                      .snapshots(),
-                  builder: (context, snapshot) {
-                    if (!snapshot.hasData) {
-                      return const CircleAvatar(
-                        backgroundColor: Colors.white,
-                        child: Icon(Icons.person, size: 30, color: Colors.green),
-                      );
-                    }
-
-                    final data = snapshot.data!.data() as Map<String, dynamic>?;
-                    final profileUrl = data?['profile'] ?? '';
-
-                    if (profileUrl.isNotEmpty) {
-                      return CircleAvatar(
-                        backgroundImage: NetworkImage(profileUrl),
-                      );
-                    } else {
-                      return const CircleAvatar(
-                        backgroundColor: Colors.white,
-                        child: Icon(Icons.person, size: 30, color: Colors.green),
-                      );
-                    }
-                  },
-                ),
-                decoration: const BoxDecoration(color: _primaryColor),
-                otherAccountsPictures: [
-                  IconButton(
-                    icon: Icon(
-                      Icons.edit_outlined,
-                      color: _textColorOnPrimary.withOpacity(0.8),
-                    ),
-                    onPressed: () {
-                      Navigator.pop(context);
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const DietitianProfile(),
-                        ),
-                      );
-                    },
-                    tooltip: "Edit Profile",
-                  ),
-                ],
-              ),
-              buildMenuTile('My Meal Plans', Icons.list_alt_outlined,
-                  Icons.list_alt_rounded),
-              buildMenuTile('Client Management', Icons.people_outline_rounded,
-                  Icons.people_rounded),
-              buildMenuTile(
-                  'Settings', Icons.settings_outlined, Icons.settings_rounded),
-              const Divider(indent: 16, endIndent: 16),
-              buildMenuTile(
-                  'Logout', Icons.logout_outlined, Icons.logout_rounded),
-            ],
-          ),
-        ),
-      ),
+      drawer: _buildDrawer(),
       appBar: AppBar(
         elevation: 1,
         backgroundColor: _primaryColor,
         iconTheme: const IconThemeData(color: _textColorOnPrimary, size: 28),
         title: Text(
           _getAppBarTitle(selectedIndex),
-          style: _getTextStyle(
-            context,
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-            color: _textColorOnPrimary,
-          ),
+          style: _getTextStyle(context,
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: _textColorOnPrimary),
         ),
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 16.0),
             child: GestureDetector(
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const DietitianProfile()),
-                );
-              },
+              onTap: () => Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => const DietitianProfile())),
               child: CircleAvatar(
                 radius: 18,
                 backgroundColor: _primaryColor.withOpacity(0.2),
                 backgroundImage:
                 (profileUrl.isNotEmpty) ? NetworkImage(profileUrl) : null,
                 child: (profileUrl.isEmpty)
-                    ? const Icon(
-                  Icons.person,
-                  size: 20,
-                  color: _primaryColor,
-                )
+                    ? const Icon(Icons.person,
+                    size: 20, color: _textColorOnPrimary)
                     : null,
               ),
             ),
@@ -673,113 +149,1049 @@ class _HomePageDietitianState extends State<HomePageDietitian> {
       ),
       body: PageStorage(
         bucket: PageStorageBucket(),
-        child: (firebaseUser != null &&
-            selectedIndex >= 0 &&
-            selectedIndex < _pages.length)
+        child: (_pages.isNotEmpty && selectedIndex < _pages.length)
             ? _pages[selectedIndex]
-            : Center(
-            child: Text("Page not found or user not logged in",
-                style: _getTextStyle(context))),
+            : Center(child: Text("Page not found", style: _getTextStyle(context))),
       ),
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: _primaryColor,
-          boxShadow: [
-            BoxShadow(
-                color: Colors.black.withOpacity(0.1),
-                blurRadius: 8,
-                offset: const Offset(0, -2))
+      bottomNavigationBar: _buildBottomNavigationBar(),
+    );
+  }
+
+  // --- DRAWER WIDGET ---
+  Widget _buildDrawer() {
+    return SizedBox(
+      width: MediaQuery.of(context).size.width * 0.75,
+      child: Drawer(
+        backgroundColor: _cardBgColor(context),
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: [
+            UserAccountsDrawerHeader(
+              accountName: _isUserNameLoading
+                  ? _buildShimmerText(120, 18)
+                  : Text(
+                (firstName.isNotEmpty || lastName.isNotEmpty)
+                    ? "$firstName $lastName".trim()
+                    : "User Profile",
+                style: const TextStyle(
+                    fontFamily: _primaryFontFamily,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
+                    color: _textColorOnPrimary),
+              ),
+              accountEmail: _isUserNameLoading
+                  ? _buildShimmerText(150, 14, topMargin: 4)
+                  : Text(firebaseUser!.email ?? "",
+                  style: const TextStyle(
+                      fontFamily: _primaryFontFamily,
+                      fontSize: 14,
+                      color: _textColorOnPrimary)),
+              currentAccountPicture: StreamBuilder<DocumentSnapshot>(
+                stream: FirebaseFirestore.instance
+                    .collection('Users')
+                    .doc(FirebaseAuth.instance.currentUser!.uid)
+                    .snapshots(),
+                builder: (context, snapshot) {
+                  if (!snapshot.hasData) {
+                    return const CircleAvatar(
+                        backgroundColor: Colors.white,
+                        child: Icon(Icons.person, size: 30, color: Colors.green));
+                  }
+                  final profileUrl =
+                      (snapshot.data!.data() as Map<String, dynamic>?)?['profile'] ?? '';
+                  return CircleAvatar(
+                    backgroundImage:
+                    profileUrl.isNotEmpty ? NetworkImage(profileUrl) : null,
+                    backgroundColor: Colors.white,
+                    child: profileUrl.isEmpty
+                        ? const Icon(Icons.person, size: 30, color: Colors.green)
+                        : null,
+                  );
+                },
+              ),
+              decoration: const BoxDecoration(color: _primaryColor),
+            ),
+            _buildMenuTile('My Meal Plans', Icons.list_alt_outlined),
+            _buildMenuTile('Client Management', Icons.people_outline_rounded),
+            _buildMenuTile('Settings', Icons.settings_outlined),
+            const Divider(indent: 16, endIndent: 16),
+            _buildMenuTile('Logout', Icons.logout_outlined),
           ],
-          borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(20), topRight: Radius.circular(20)),
         ),
-        child: ClipRRect(
-          borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(20), topRight: Radius.circular(20)),
-          child: BottomNavigationBar(
-            currentIndex: selectedIndex,
-            onTap: (index) {
-              setState(() => selectedIndex = index);
-            },
-            selectedItemColor: _textColorOnPrimary,
-            unselectedItemColor: _textColorOnPrimary.withOpacity(0.6),
-            backgroundColor: _primaryColor,
-            type: BottomNavigationBarType.fixed,
-            showSelectedLabels: true,
-            showUnselectedLabels: false,
-            selectedLabelStyle: _getTextStyle(context,
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                color: _textColorOnPrimary),
-            unselectedLabelStyle: _getTextStyle(context,
-                fontSize: 11, color: _textColorOnPrimary.withOpacity(0.6)),
-            items: const [
-              BottomNavigationBarItem(
-                  icon: Icon(Icons.dashboard_outlined),
-                  activeIcon: Icon(Icons.dashboard_rounded),
-                  label: 'Dashboard'),
-              BottomNavigationBarItem(
-                  icon: Icon(Icons.edit_calendar_outlined),
-                  activeIcon: Icon(Icons.edit_calendar),
-                  label: 'Schedule'),
-              BottomNavigationBarItem(
-                  icon: Icon(Icons.mail_outline),
-                  activeIcon: Icon(Icons.mail),
-                  label: 'Messages'),
+      ),
+    );
+  }
+
+  // --- BOTTOM NAVIGATION BAR WIDGET ---
+  Widget _buildBottomNavigationBar() {
+    return Container(
+      decoration: BoxDecoration(
+        color: _primaryColor,
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 8,
+              offset: const Offset(0, -2))
+        ],
+        borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(20), topRight: Radius.circular(20)),
+      ),
+      child: ClipRRect(
+        borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(20), topRight: Radius.circular(20)),
+        child: BottomNavigationBar(
+          currentIndex: selectedIndex,
+          onTap: (index) => setState(() => selectedIndex = index),
+          selectedItemColor: _textColorOnPrimary,
+          unselectedItemColor: _textColorOnPrimary.withOpacity(0.6),
+          backgroundColor: _primaryColor,
+          type: BottomNavigationBarType.fixed,
+          showSelectedLabels: true,
+          showUnselectedLabels: false,
+          selectedLabelStyle: _getTextStyle(context,
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: _textColorOnPrimary),
+          items: const [
+            BottomNavigationBarItem(
+                icon: Icon(Icons.dashboard_outlined),
+                activeIcon: Icon(Icons.dashboard_rounded),
+                label: 'Dashboard'),
+            BottomNavigationBarItem(
+                icon: Icon(Icons.edit_calendar_outlined),
+                activeIcon: Icon(Icons.edit_calendar),
+                label: 'Schedule'),
+            BottomNavigationBarItem(
+                icon: Icon(Icons.mail_outline),
+                activeIcon: Icon(Icons.mail),
+                label: 'Messages'),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // --- HELPER & LOGIC METHODS ---
+
+  Widget _buildMenuTile(String label, IconData icon) {
+    return ListTile(
+      leading: Icon(icon, color: _textColorPrimary(context), size: 24),
+      title: Text(label,
+          style: _getTextStyle(context,
+              fontWeight: FontWeight.w500, fontSize: 15)),
+      onTap: () async {
+        Navigator.pop(context);
+        if (label == 'Logout') {
+          bool signedOut = await signOutFromGoogle();
+          if (signedOut && mounted) {
+            Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(builder: (_) => const LoginPageMobile()),
+                    (Route<dynamic> route) => false);
+          }
+        }
+      },
+      dense: true,
+    );
+  }
+
+  Widget _buildShimmerText(double width, double height, {double topMargin = 0}) {
+    return Shimmer.fromColors(
+      baseColor: Colors.white.withOpacity(0.3),
+      highlightColor: Colors.white.withOpacity(0.6),
+      child: Container(
+        width: width,
+        height: height,
+        margin: EdgeInsets.only(top: topMargin),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.2),
+          borderRadius: BorderRadius.circular(4),
+        ),
+      ),
+    );
+  }
+
+  void loadUserName() async {
+    setState(() { _isUserNameLoading = true; });
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      try {
+        final doc = await FirebaseFirestore.instance.collection('Users').doc(user.uid).get();
+        if (mounted && doc.exists) {
+          final data = doc.data()!;
+          setState(() {
+            firstName = data['firstName'] as String? ?? '';
+            lastName = data['lastName'] as String? ?? '';
+            profileUrl = data['profile'] as String? ?? '';
+          });
+        }
+      } catch (e) {
+        debugPrint("Error loading user name: $e");
+      }
+    }
+    if (mounted) {
+      setState(() { _isUserNameLoading = false; });
+    }
+  }
+
+  Future<void> _updateGooglePhotoURL() async {
+    if (firebaseUser == null) return;
+    final userDoc = FirebaseFirestore.instance.collection("Users").doc(firebaseUser!.uid);
+    final snapshot = await userDoc.get();
+
+    if (!snapshot.exists || (snapshot.data()?['profile'] as String? ?? '').isEmpty) {
+      if (firebaseUser!.photoURL != null) {
+        await userDoc.set({"profile": firebaseUser!.photoURL}, SetOptions(merge: true));
+      }
+    }
+  }
+
+  Future<void> _setUserStatus(String status) async {
+    if (firebaseUser != null) {
+      await FirebaseFirestore.instance
+          .collection("Users")
+          .doc(firebaseUser!.uid)
+          .set({"status": status}, SetOptions(merge: true));
+    }
+  }
+
+  Future<bool> signOutFromGoogle() async {
+    try {
+      await _setUserStatus("offline");
+      await GoogleSignIn().signOut();
+      await FirebaseAuth.instance.signOut();
+      return true;
+    } catch (e) {
+      debugPrint("Sign out error (Dietitian): $e");
+      return false;
+    }
+  }
+
+  @override
+  void dispose() {
+    _setUserStatus("offline");
+    super.dispose();
+  }
+}
+
+// --- NEW ANALYTICS DASHBOARD WIDGET ---
+class AnalyticsDashboard extends StatefulWidget {
+  const AnalyticsDashboard({super.key});
+
+  @override
+  State<AnalyticsDashboard> createState() => _AnalyticsDashboardState();
+}
+
+class _AnalyticsDashboardState extends State<AnalyticsDashboard> {
+  late Future<Map<String, dynamic>> _analyticsData;
+
+  @override
+  void initState() {
+    super.initState();
+    _analyticsData = _fetchAnalyticsData();
+  }
+
+  Future<Map<String, dynamic>> _fetchAnalyticsData() async {
+    final dietitianId = FirebaseAuth.instance.currentUser?.uid;
+    if (dietitianId == null) return {};
+
+    final results = await Future.wait([
+      _fetchSubscriptionData(dietitianId),
+      _fetchMealPlanData(dietitianId),
+      _fetchAppointmentData(dietitianId),
+    ]);
+
+    return {
+      'subscriptions': results[0],
+      'mealPlans': results[1],
+      'appointments': results[2],
+    };
+  }
+
+  Future<Map<String, dynamic>> _fetchSubscriptionData(String dietitianId) async {
+    final subscriberSnap = await FirebaseFirestore.instance
+        .collection('Users')
+        .doc(dietitianId)
+        .collection('subscriber')
+        .get();
+
+    int activeSubscriptions = subscriberSnap.docs.length;
+    int monthlySubs = 0;
+    int yearlySubs = 0;
+    int newClientsThisMonth = 0;
+    double totalRevenue = 0.0;
+    final now = DateTime.now();
+
+    for (var doc in subscriberSnap.docs) {
+      final data = doc.data();
+      if (data['planType'] == 'Monthly') monthlySubs++;
+      if (data['planType'] == 'Yearly') yearlySubs++;
+
+      final timestamp = data['timestamp'] as Timestamp?;
+      if (timestamp != null) {
+        final date = timestamp.toDate();
+        if (date.year == now.year && date.month == now.month) {
+          newClientsThisMonth++;
+        }
+      }
+
+      final priceString = data['price']?.toString().replaceAll(RegExp(r'[^0-9.]'), '');
+      if (priceString != null && priceString.isNotEmpty) {
+        totalRevenue += double.tryParse(priceString) ?? 0.0;
+      }
+    }
+
+    return {
+      'activeSubscriptions': activeSubscriptions,
+      'monthlySubs': monthlySubs,
+      'yearlySubs': yearlySubs,
+      'newClientsThisMonth': newClientsThisMonth,
+      'totalRevenue': totalRevenue,
+    };
+  }
+
+  Future<Map<String, dynamic>> _fetchMealPlanData(String dietitianId) async {
+    final mealPlanSnap = await FirebaseFirestore.instance
+        .collection('mealPlans')
+        .where('dietitianId', isEqualTo: dietitianId)
+        .get();
+
+    String mostPopularPlan = 'N/A';
+    int maxLikes = -1;
+
+    for (var doc in mealPlanSnap.docs) {
+      final data = doc.data();
+      final likes = data['likes'] as int? ?? 0;
+      if (likes > maxLikes) {
+        maxLikes = likes;
+        mostPopularPlan = data['planName'] ?? 'Unnamed Plan';
+      }
+    }
+
+    return {
+      'plansCreated': mealPlanSnap.docs.length,
+      'mostPopularPlan': mostPopularPlan,
+    };
+  }
+
+  Future<Map<String, dynamic>> _fetchAppointmentData(String dietitianId) async {
+    final scheduleSnap = await FirebaseFirestore.instance
+        .collection('schedules')
+        .where('dietitianID', isEqualTo: dietitianId)
+        .get();
+
+    int appointmentsThisMonth = 0;
+    final now = DateTime.now();
+    final clientFrequency = <String, int>{};
+    final dayFrequency = <int, int>{};
+
+    for (var doc in scheduleSnap.docs) {
+      final data = doc.data();
+      final dateStr = data['appointmentDate'] as String?;
+      if (dateStr != null) {
+        try {
+          final date = DateFormat('yyyy-MM-dd HH:mm').parse(dateStr);
+          if (date.year == now.year && date.month == now.month) {
+            appointmentsThisMonth++;
+          }
+          dayFrequency[date.weekday] = (dayFrequency[date.weekday] ?? 0) + 1;
+        } catch (e) { /* ignore parse error */ }
+      }
+
+      final clientName = data['clientName'] as String?;
+      if (clientName != null) {
+        clientFrequency[clientName] = (clientFrequency[clientName] ?? 0) + 1;
+      }
+    }
+
+    String mostFrequentClient = 'N/A';
+    if (clientFrequency.isNotEmpty) {
+      mostFrequentClient = clientFrequency.entries
+          .reduce((a, b) => a.value > b.value ? a : b)
+          .key;
+    }
+
+    String busiestDay = 'N/A';
+    if (dayFrequency.isNotEmpty) {
+      final busiestDayIndex = dayFrequency.entries
+          .reduce((a, b) => a.value > b.value ? a : b)
+          .key;
+      busiestDay = [
+        'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'
+      ][busiestDayIndex - 1];
+    }
+
+    return {
+      'appointmentsThisMonth': appointmentsThisMonth,
+      'mostFrequentClient': mostFrequentClient,
+      'busiestDay': busiestDay,
+    };
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<Map<String, dynamic>>(
+      future: _analyticsData,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return _buildLoadingState();
+        }
+        if (!snapshot.hasData || snapshot.hasError || snapshot.data!.isEmpty) {
+          return const Center(child: Text("Could not load analytics."));
+        }
+
+        final data = snapshot.data!;
+        final subData = data['subscriptions'] ?? {};
+        final mealData = data['mealPlans'] ?? {};
+        final apptData = data['appointments'] ?? {};
+
+        return ListView(
+          padding: const EdgeInsets.all(16.0),
+          children: [
+            _buildAnalyticsCard(
+              context: context,
+              title: "Client & Subscriptions",
+              icon: Icons.group,
+              children: [
+                _buildStatItem(context, Icons.check, "Active Subscriptions",
+                    subData['activeSubscriptions']?.toString() ?? '0'),
+                _buildStatItem(context, Icons.pie_chart, "Subscription Breakdown",
+                    "${subData['monthlySubs'] ?? 0} Monthly / ${subData['yearlySubs'] ?? 0} Yearly"),
+                _buildStatItem(context, Icons.new_releases, "New Clients This Month",
+                    subData['newClientsThisMonth']?.toString() ?? '0'),
+                _buildStatItem(
+                    context,
+                    Icons.monetization_on,
+                    "Total Revenue",
+                    "\$${(subData['totalRevenue'] ?? 0.0).toStringAsFixed(2)}"),
+              ],
+            ),
+            _buildAnalyticsCard(
+              context: context,
+              title: "Meal Plan Engagement",
+              icon: Icons.restaurant_menu,
+              children: [
+                _buildStatItem(context, Icons.thumb_up, "Most Popular Meal Plan",
+                    mealData['mostPopularPlan'] ?? 'N/A'),
+                _buildStatItem(context, Icons.note_add, "Plans Created",
+                    mealData['plansCreated']?.toString() ?? '0'),
+              ],
+            ),
+            _buildAnalyticsCard(
+              context: context,
+              title: "Appointments & Schedule",
+              icon: Icons.calendar_today,
+              children: [
+                _buildStatItem(context, Icons.event_available, "Appointments This Month",
+                    apptData['appointmentsThisMonth']?.toString() ?? '0'),
+                _buildStatItem(context, Icons.star, "Most Frequent Client",
+                    apptData['mostFrequentClient'] ?? 'N/A'),
+                _buildStatItem(context, Icons.work, "Busiest Day of the Week",
+                    apptData['busiestDay'] ?? 'N/A'),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Text("Quick Actions",
+                style: _getTextStyle(context,
+                    fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 16),
+            const PendingSubscriptionCard(),
+            const SizedBox(height: 24),
+            Align(
+              alignment: Alignment.center,
+              child: ElevatedButton.icon(
+                onPressed: () => Navigator.push(context,
+                    MaterialPageRoute(builder: (_) => const CreateMealPlanPage())),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _primaryColor,
+                  foregroundColor: _textColorOnPrimary,
+                  padding:
+                  const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                ),
+                icon: const Icon(Icons.post_add_rounded, size: 20),
+                label: Text("Create a New Meal Plan",
+                    style: _getTextStyle(context,
+                        color: _textColorOnPrimary,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600)),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildAnalyticsCard({
+    required BuildContext context,
+    required String title,
+    required IconData icon,
+    required List<Widget> children,
+  }) {
+    return Card(
+      elevation: 2,
+      margin: const EdgeInsets.only(bottom: 16),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      color: _cardBgColor(context),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(icon, color: _primaryColor, size: 22),
+                const SizedBox(width: 8),
+                Text(
+                  title,
+                  style: _getTextStyle(context,
+                      fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+            const Divider(height: 24),
+            ...children,
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatItem(BuildContext context, IconData icon, String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12.0),
+      child: Row(
+        children: [
+          Icon(icon, color: _textColorSecondary(context), size: 18),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              label,
+              style: _getTextStyle(context,
+                  fontSize: 14, color: _textColorSecondary(context)),
+            ),
+          ),
+          Text(
+            value,
+            style: _getTextStyle(context,
+                fontSize: 15, fontWeight: FontWeight.bold),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLoadingState() {
+    return Shimmer.fromColors(
+      baseColor: _cardBgColor(context),
+      highlightColor: _scaffoldBgColor(context),
+      child: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          _buildLoadingCard(itemCount: 4),
+          _buildLoadingCard(itemCount: 2),
+          _buildLoadingCard(itemCount: 3),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLoadingCard({required int itemCount}) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 16),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(width: 200, height: 24, color: Colors.white),
+            const SizedBox(height: 16),
+            for (int i = 0; i < itemCount; i++)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8.0),
+                child: Row(
+                  children: [
+                    Container(width: 24, height: 24, color: Colors.white),
+                    const SizedBox(width: 8),
+                    Expanded(child: Container(height: 24, color: Colors.white)),
+                  ],
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// --- ALL OTHER WIDGETS FOR THIS FILE ---
+
+class PendingSubscriptionCard extends StatelessWidget {
+  const PendingSubscriptionCard({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final dietitianId = FirebaseAuth.instance.currentUser?.uid;
+    if (dietitianId == null) return const SizedBox.shrink();
+
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      color: _cardBgColor(context),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const SubscriptionApprovalPage(),
+            ),
+          );
+        },
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Row(
+            children: [
+              Icon(
+                Icons.group_add_outlined,
+                color: _primaryColor,
+                size: 32,
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      "Subscription Requests",
+                      style: _getTextStyle(context,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: _textColorPrimary(context)),
+                    ),
+                    const SizedBox(height: 4),
+                    StreamBuilder<QuerySnapshot>(
+                      stream: FirebaseFirestore.instance
+                          .collection('receipts')
+                          .where('dietitianID', isEqualTo: dietitianId)
+                          .where('status', isEqualTo: 'pending')
+                          .snapshots(),
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState == ConnectionState.waiting) {
+                          return Text("Loading...",
+                              style: _getTextStyle(context,
+                                  fontSize: 13,
+                                  color: _textColorSecondary(context)));
+                        }
+                        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                          return Text("No pending requests.",
+                              style: _getTextStyle(context,
+                                  fontSize: 13,
+                                  color: _textColorSecondary(context)));
+                        }
+                        final count = snapshot.data!.docs.length;
+                        return Text(
+                          "$count request${count == 1 ? '' : 's'} to review",
+                          style: _getTextStyle(context,
+                              fontSize: 13, color: _primaryColor, fontWeight: FontWeight.bold),
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.arrow_forward_ios_rounded,
+                  color: _textColorSecondary(context), size: 16),
             ],
           ),
         ),
       ),
     );
   }
+}
 
-  Widget buildMenuTile(String label, IconData icon, IconData activeIcon) {
-    bool isSelected = selectedMenu == label;
-    int targetTabIndex = -1;
-    if (label == 'My Meal Plans') targetTabIndex = 0;
+class SubscriptionApprovalPage extends StatelessWidget {
+  const SubscriptionApprovalPage({super.key});
 
-    final Color itemColor =
-    isSelected ? _primaryColor : _textColorPrimary(context);
-    final Color itemBgColor =
-    isSelected ? _primaryColor.withOpacity(0.1) : Colors.transparent;
-
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-      decoration:
-      BoxDecoration(color: itemBgColor, borderRadius: BorderRadius.circular(10)),
-      child: ListTile(
-        leading: Icon(isSelected ? activeIcon : icon, color: itemColor, size: 24),
-        title: Text(
-          label,
-          style: _getTextStyle(context,
-              color: itemColor,
-              fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-              fontSize: 15),
+  @override
+  Widget build(BuildContext context) {
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        backgroundColor: _scaffoldBgColor(context),
+        appBar: AppBar(
+          elevation: 1,
+          backgroundColor: _primaryColor,
+          iconTheme: const IconThemeData(color: _textColorOnPrimary, size: 28),
+          title: Text(
+            "Manage Subscriptions",
+            style: _getTextStyle(
+              context,
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: _textColorOnPrimary,
+            ),
+          ),
+          bottom: TabBar(
+            indicatorColor: Colors.white,
+            labelColor: Colors.white,
+            unselectedLabelColor: Colors.white70,
+            labelStyle: _getTextStyle(
+              context,
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: _textColorOnPrimary,
+            ),
+            unselectedLabelStyle: _getTextStyle(
+              context,
+              fontSize: 14,
+              color: _textColorOnPrimary.withOpacity(0.7),
+            ),
+            tabs: const [
+              Tab(text: "Pending Requests"),
+              Tab(text: "Approved History"),
+            ],
+          ),
         ),
-        onTap: () async {
-          Navigator.pop(context); // Close drawer
-          if (label == 'Logout') {
-            bool signedOut = await signOutFromGoogle();
-            if (signedOut && mounted) {
-              Navigator.of(context).pushAndRemoveUntil(
-                  MaterialPageRoute(
-                      builder: (context) => const LoginPageMobile()),
-                      (Route<dynamic> route) => false);
-            }
-          } else if (targetTabIndex != -1) {
-            setState(() {
-              selectedIndex = targetTabIndex;
-              selectedMenu = label;
-            });
-          } else {
-            setState(() {
-              selectedMenu = label;
-            });
-          }
-        },
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        dense: true,
+        body: const TabBarView(
+          children: [
+            SubscriptionRequests(status: 'pending'),
+            SubscriptionRequests(status: 'approved'),
+          ],
+        ),
       ),
+    );
+  }
+}
+
+class SubscriptionRequests extends StatefulWidget {
+  final String status;
+  const SubscriptionRequests({super.key, required this.status});
+
+  @override
+  State<SubscriptionRequests> createState() => _SubscriptionRequestsState();
+}
+
+class _SubscriptionRequestsState extends State<SubscriptionRequests> {
+  Future<List<Map<String, dynamic>>> _fetchReceiptsWithClients(String status) async {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) return [];
+
+    final receiptsSnap = await FirebaseFirestore.instance
+        .collection('receipts')
+        .where('dietitianID', isEqualTo: currentUser.uid)
+        .where('status', isEqualTo: status)
+        .orderBy('timeStamp', descending: true)
+        .get();
+
+    List<Map<String, dynamic>> results = [];
+
+    for (var doc in receiptsSnap.docs) {
+      final data = doc.data();
+      final clientID = data['clientID'];
+
+      final clientDoc = await FirebaseFirestore.instance
+          .collection('Users')
+          .doc(clientID)
+          .get();
+
+      if (!clientDoc.exists) {
+        continue;
+      }
+
+      final clientData = clientDoc.data() ?? {};
+      results.add({
+        "docId": doc.id,
+        "clientID": clientID,
+        "dietitianID": data['dietitianID'],
+        "firstname": clientData['firstname'] ?? clientData['firstName'] ?? 'N/A',
+        "lastname": clientData['lastname'] ?? clientData['lastName'] ?? 'N/A',
+        "planPrice": data['planPrice'] ?? '',
+        "planType": data['planType'] ?? '',
+        "status": data['status'] ?? '',
+      });
+    }
+
+    return results;
+  }
+
+  Future<void> _approveSubscription(Map<String, dynamic> receipt) async {
+    try {
+      final currentDietitian = FirebaseAuth.instance.currentUser;
+      if (currentDietitian == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("You must be logged in.")),
+        );
+        return;
+      }
+
+      final receiptId = receipt['docId'];
+      final clientId = receipt['clientID'];
+      final dietitianId = receipt['dietitianID'];
+      final planType = receipt['planType'];
+      final planPrice = receipt['planPrice'];
+
+      DateTime now = DateTime.now();
+      DateTime expirationDate;
+
+      if (planType.toString().toLowerCase() == 'monthly') {
+        expirationDate = DateTime(now.year, now.month + 1, now.day);
+      } else if (planType.toString().toLowerCase() == 'yearly') {
+        expirationDate = DateTime(now.year + 1, now.month, now.day);
+      } else {
+        expirationDate = DateTime(now.year, now.month + 1, now.day);
+      }
+
+      final usersRef = FirebaseFirestore.instance.collection("Users");
+      final clientRef = usersRef.doc(clientId);
+      final dietitianRef = usersRef.doc(dietitianId);
+
+      await dietitianRef.collection("subscriber").doc(clientId).set({
+        "userId": clientId,
+        "planType": planType,
+        "price": planPrice,
+        "status": "approved",
+        "timestamp": FieldValue.serverTimestamp(),
+        "expirationDate": Timestamp.fromDate(expirationDate),
+      });
+
+      await clientRef.collection("subscribeTo").doc(dietitianId).set({
+        "dietitianId": dietitianId,
+        "planType": planType,
+        "price": planPrice,
+        "status": "approved",
+        "timestamp": FieldValue.serverTimestamp(),
+        "expirationDate": Timestamp.fromDate(expirationDate),
+      });
+
+      await FirebaseFirestore.instance
+          .collection("receipts")
+          .doc(receiptId)
+          .update({"status": "approved"});
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("User subscription approved!")),
+      );
+
+      if (mounted) {
+        setState(() {});
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error approving user: $e")),
+      );
+    }
+  }
+
+  Color _getStatusColor(String status) {
+    switch (status.toLowerCase()) {
+      case 'approved':
+        return Colors.green;
+      case 'pending':
+        return Colors.orange;
+      case 'rejected':
+        return Colors.red;
+      default:
+        return _primaryColor;
+    }
+  }
+
+  Color _getPlanTypeColor(String planType) {
+    switch (planType.toLowerCase()) {
+      case 'monthly':
+        return Colors.blue;
+      case 'yearly':
+        return Colors.purple;
+      default:
+        return _primaryColor;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<List<Map<String, dynamic>>>(
+      future: _fetchReceiptsWithClients(widget.status),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.receipt_long_outlined,
+                  size: 80,
+                  color: _primaryColor.withOpacity(0.3),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  "No ${widget.status} subscriptions found",
+                  style: _getTextStyle(context, fontSize: 18),
+                ),
+              ],
+            ),
+          );
+        }
+
+        final receipts = snapshot.data!;
+        return ListView.builder(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+          itemCount: receipts.length,
+          itemBuilder: (context, index) {
+            final receipt = receipts[index];
+            final statusColor = _getStatusColor(receipt['status']);
+            final planTypeColor = _getPlanTypeColor(receipt['planType']);
+
+            return Card(
+              margin: const EdgeInsets.only(bottom: 12),
+              elevation: 2,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              color: _cardBgColor(context),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                "${receipt['firstname']} ${receipt['lastname']}",
+                                style: _getTextStyle(context,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: _primaryColor),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                receipt['planType'],
+                                style: _getTextStyle(context,
+                                    fontSize: 12,
+                                    color: _textColorSecondary(context)),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: statusColor.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            receipt['status'],
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: statusColor,
+                              fontFamily: _primaryFontFamily,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              "Price",
+                              style: _getTextStyle(context,
+                                  fontSize: 11,
+                                  color: _textColorSecondary(context)),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              receipt['planPrice'],
+                              style: _getTextStyle(context,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold),
+                            ),
+                          ],
+                        ),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              "Plan Type",
+                              style: _getTextStyle(context,
+                                  fontSize: 11,
+                                  color: _textColorSecondary(context)),
+                            ),
+                            const SizedBox(height: 4),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: planTypeColor.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                receipt['planType'],
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: planTypeColor,
+                                  fontFamily: _primaryFontFamily,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                    if (receipt['status'] == 'pending')
+                      Padding(
+                        padding: const EdgeInsets.only(top: 12.0),
+                        child: SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            onPressed: () => _approveSubscription(receipt),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: _primaryColor,
+                              foregroundColor: _textColorOnPrimary,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              padding: const EdgeInsets.symmetric(vertical: 10),
+                            ),
+                            child: Text(
+                              'Approve',
+                              style: _getTextStyle(context,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: _textColorOnPrimary),
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 }
@@ -838,8 +1250,6 @@ class UsersListPage extends StatelessWidget {
     final bool isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final Color currentScaffoldBg =
     isDarkMode ? Colors.grey.shade900 : Colors.grey.shade50;
-    final Color currentAppBarBg =
-    isDarkMode ? Colors.grey.shade800 : Colors.white;
     final Color currentTabLabel = _textColorPrimary(context);
     final Color currentIndicator = _primaryColor;
 
@@ -848,7 +1258,7 @@ class UsersListPage extends StatelessWidget {
       child: Scaffold(
         backgroundColor: currentScaffoldBg,
         appBar: AppBar(
-          backgroundColor: Colors.white,
+          backgroundColor: _cardBgColor(context),
           elevation: 1,
           automaticallyImplyLeading: false,
           title: TabBar(
@@ -874,8 +1284,8 @@ class UsersListPage extends StatelessWidget {
                   children: [
                     const Text("NOTIFICATIONS"),
                     Positioned(
-                      top: -1,
-                      right: -1,
+                      top: 8,
+                      right: -2,
                       child: StreamBuilder<QuerySnapshot>(
                         stream: FirebaseFirestore.instance
                             .collection('Users')
@@ -931,7 +1341,7 @@ class UsersListPage extends StatelessWidget {
                 if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
                   return Center(
                     child: Text(
-                      "No dietitians to chat with yet.",
+                      "No clients to chat with yet.",
                       style: _getTextStyle(context,
                           fontSize: 16, color: _textColorPrimary(context)),
                     ),
@@ -968,15 +1378,12 @@ class UsersListPage extends StatelessWidget {
                             snapshotMessage.hasData) {
                           final lastMsg = snapshotMessage.data!;
                           final lastMessage = lastMsg["message"] ?? "";
-                          final lastSenderName = lastMsg["senderName"] ?? "";
                           timeText = lastMsg["time"] ?? "";
 
                           if (lastMessage.isNotEmpty) {
-                            if (lastMsg["isMe"] ?? false) {
-                              subtitleText = "Me: $lastMessage";
-                            } else {
-                              subtitleText = "$lastSenderName: $lastMessage";
-                            }
+                            subtitleText = (lastMsg["isMe"] ?? false)
+                                ? "You: $lastMessage"
+                                : lastMessage;
                           }
                         }
 
@@ -992,9 +1399,11 @@ class UsersListPage extends StatelessWidget {
                                 color: _primaryColor)
                                 : null,
                           ),
-                          title: Text(senderName),
+                          title: Text(senderName, style: _getTextStyle(context)),
                           subtitle: Text(subtitleText,
-                              maxLines: 1, overflow: TextOverflow.ellipsis),
+                            maxLines: 1, overflow: TextOverflow.ellipsis,
+                            style: _getTextStyle(context, fontSize: 13, color: _textColorSecondary(context)),
+                          ),
                           trailing: timeText.isNotEmpty
                               ? Text(timeText,
                               style: const TextStyle(fontSize: 12))
@@ -1041,27 +1450,27 @@ class UsersListPage extends StatelessWidget {
                     final doc = docs[index];
                     final data = doc.data() as Map<String, dynamic>;
                     final Timestamp? timestamp = data["timestamp"] as Timestamp?;
-                    String formattedTime = ""; // Changed from formattedDate for simplicity here
+                    String formattedTime = "";
 
                     if (timestamp != null) {
                       final date = timestamp.toDate();
                       final now = DateTime.now();
                       if (date.year == now.year && date.month == now.month && date.day == now.day) {
-                        formattedTime = DateFormat.jm().format(date); // Just time for today
+                        formattedTime = DateFormat.jm().format(date);
                       } else if (date.year == now.year && date.month == now.month && date.day == now.day -1) {
-                        formattedTime = "Yesterday"; // Simpler "Yesterday"
+                        formattedTime = "Yesterday";
                       } else {
-                        formattedTime = DateFormat('MMM d').format(date); // Short date for older
+                        formattedTime = DateFormat('MMM d').format(date);
                       }
                     }
 
-                    IconData notificationIcon = Icons.notifications_none; // Simpler default icon
-                    Color iconColor = _primaryColor; // Your primary color for active/unread
+                    IconData notificationIcon = Icons.notifications_none;
+                    Color iconColor = _primaryColor;
 
                     if (data["type"] == "message") {
                       notificationIcon = Icons.chat_bubble_outline_rounded;
                     } else if (data["type"] == "appointment" || data["type"] == "appointment_update") {
-                      notificationIcon = Icons.event_available_outlined; // Alt calendar icon
+                      notificationIcon = Icons.event_available_outlined;
                     }
 
                     bool isRead = data["isRead"] == true;
@@ -1072,7 +1481,6 @@ class UsersListPage extends StatelessWidget {
                       color: _cardBgColor(context),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12.0),
-                        // No explicit border, rely on elevation and unread indicator
                       ),
                       child: InkWell(
                         borderRadius: BorderRadius.circular(12.0),
@@ -1099,37 +1507,33 @@ class UsersListPage extends StatelessWidget {
                               ),
                             );
                           } else if (data["type"] == "appointment" || data["type"] == "appointment_update") {
-                            print("Appointment/Update notification tapped. Consider navigation.");
-                            // Potentially navigate to the schedule page
+                            // You can add navigation to the schedule page here
+                            // For now, it just marks as read
                           }
                         },
                         child: Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
                           child: Row(
                             children: [
-                              // Livelier Unread Indicator using a colored CircleAvatar or Container
                               if (!isRead)
                                 Container(
                                   width: 10,
                                   height: 10,
-                                  margin: const EdgeInsets.only(right: 12.0), // Margin for the dot container
-                                  decoration: BoxDecoration(
+                                  margin: const EdgeInsets.only(right: 12.0),
+                                  decoration: const BoxDecoration(
                                     color: _primaryColor,
                                     shape: BoxShape.circle,
                                   ),
                                 )
                               else
-                              // Placeholder for alignment when read:
-                              // This SizedBox takes the width of the dot (10) PLUS the margin (12)
-                              // to push the subsequent Icon to the same starting position.
-                                SizedBox(width: 10 + 12.0), // Corrected: width is 22
+                                const SizedBox(width: 10 + 12.0),
 
                               Icon(
                                 notificationIcon,
                                 color: isRead ? _textColorSecondary(context).withOpacity(0.7) : iconColor,
                                 size: 26.0,
                               ),
-                              const SizedBox(width: 14), // Space between Icon and Text
+                              const SizedBox(width: 14),
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1153,7 +1557,7 @@ class UsersListPage extends StatelessWidget {
                                         fontSize: 13,
                                         color: _textColorSecondary(context),
                                       ),
-                                      maxLines: 1, // Keep message concise in the list
+                                      maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                     ),
                                   ],
@@ -1186,6 +1590,7 @@ class UsersListPage extends StatelessWidget {
     );
   }
 }
+
 class ScheduleCalendarPage extends StatefulWidget {
   final String dietitianFirstName;
   final String dietitianLastName;
@@ -1207,23 +1612,15 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
 
-  // --- MODIFICATION START: Added state variables for events ---
   Map<DateTime, List<dynamic>> _events = {};
   bool _isLoadingEvents = true;
-
-  // --- MODIFICATION END ---
 
   @override
   void initState() {
     super.initState();
     _selectedDay = _focusedDay;
-    // --- MODIFICATION START: Load appointments on init ---
     _loadAppointmentsForCalendar();
-    // --- MODIFICATION END ---
   }
-
-  // --- MODIFICATION START: New method to load appointments ---
-  // Inside class _ScheduleCalendarPageState
 
   Future<void> _loadAppointmentsForCalendar() async {
     final dietitianId = FirebaseAuth.instance.currentUser?.uid;
@@ -1245,11 +1642,9 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
           .get();
 
       final Map<DateTime, List<dynamic>> eventsMap = {};
-      for (var doc in snapshot.docs) { // doc is a QueryDocumentSnapshot
+      for (var doc in snapshot.docs) {
         final data = doc.data();
-        // --- THIS IS THE LINE TO ADD ---
-        data['id'] = doc.id; // Store document ID
-        // --- END OF LINE TO ADD ---
+        data['id'] = doc.id;
         final appointmentDateStr = data['appointmentDate'] as String?;
         if (appointmentDateStr != null) {
           try {
@@ -1282,16 +1677,11 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
     }
   }
 
-  // --- MODIFICATION END ---
-
-  // --- MODIFICATION START: New method for TableCalendar eventLoader ---
   List<dynamic> _getEventsForDay(DateTime day) {
     final normalizedDay =
-    DateTime.utc(day.year, day.month, day.day); // Normalize to UTC midnight
+    DateTime.utc(day.year, day.month, day.day);
     return _events[normalizedDay] ?? [];
   }
-
-  // --- MODIFICATION END ---
 
   void _onDaySelected(DateTime selectedDay, DateTime focusedDay) {
     if (!isSameDay(_selectedDay, selectedDay)) {
@@ -1384,9 +1774,9 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
                             "${data['firstName'] ?? ''} ${data['lastName'] ??
                                 ''}"
                                 .trim();
-                            if (name.isEmpty)
-                              name =
-                              "Client ID: ${document.id.substring(0, 5)}";
+                            if (name.isEmpty) {
+                              name = "Client ID: ${document.id.substring(0, 5)}";
+                            }
                             return DropdownMenuItem<String>(
                               value: document.id,
                               child: Text(name,
@@ -1406,9 +1796,9 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
                                     "${clientData['firstName'] ??
                                         ''} ${clientData['lastName'] ?? ''}"
                                         .trim();
-                                if (selectedClientName.isEmpty)
-                                  selectedClientName =
-                                  "Client ID: ${newValue.substring(0, 5)}";
+                                if (selectedClientName.isEmpty) {
+                                  selectedClientName = "Client ID: ${newValue.substring(0, 5)}";
+                                }
                               } else {
                                 selectedClientName = "Select Client";
                               }
@@ -1598,9 +1988,7 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
           backgroundColor: _primaryColor,
         ),
       );
-      // --- MODIFICATION START: Refresh calendar events after saving ---
       _loadAppointmentsForCalendar();
-      // --- MODIFICATION END ---
     } catch (e) {
       print("Error saving schedule: $e");
       if (!mounted) return;
@@ -1635,29 +2023,28 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
                 selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
                 calendarFormat: _calendarFormat,
                 startingDayOfWeek: StartingDayOfWeek.monday,
-                // --- MODIFICATION START: Added eventLoader and updated calendarStyle ---
                 eventLoader: _getEventsForDay,
                 calendarStyle: CalendarStyle(
-                  outsideDaysVisible: false,
-                  selectedDecoration: BoxDecoration(
-                      color: _primaryColor, shape: BoxShape.circle),
-                  selectedTextStyle: _getTextStyle(context,
-                      color: _textColorOnPrimary,
-                      fontWeight: FontWeight.bold),
-                  todayDecoration: BoxDecoration(
-                      color: _primaryColor.withOpacity(0.5),
-                      shape: BoxShape.circle),
-                  todayTextStyle: _getTextStyle(context,
-                      color: _textColorOnPrimary,
-                      fontWeight: FontWeight.bold),
-                  weekendTextStyle: _getTextStyle(context,
-                      color: _primaryColor.withOpacity(0.8)),
-                  defaultTextStyle: _getTextStyle(context,
-                      color: _textColorPrimary(context)),
-                  markersMaxCount: 1,
-                  markerSize: 0, // Hide default markers
+                    outsideDaysVisible: false,
+                    selectedDecoration: const BoxDecoration(
+                        color: _primaryColor, shape: BoxShape.circle),
+                    selectedTextStyle: _getTextStyle(context,
+                        color: _textColorOnPrimary,
+                        fontWeight: FontWeight.bold),
+                    todayDecoration: BoxDecoration(
+                        color: _primaryColor.withOpacity(0.5),
+                        shape: BoxShape.circle),
+                    todayTextStyle: _getTextStyle(context,
+                        color: _textColorOnPrimary,
+                        fontWeight: FontWeight.bold),
+                    weekendTextStyle: _getTextStyle(context,
+                        color: _primaryColor.withOpacity(0.8)),
+                    defaultTextStyle: _getTextStyle(context,
+                        color: _textColorPrimary(context)),
+                    markersMaxCount: 1,
+                    markerSize: 5,
+                    markerDecoration: const BoxDecoration(color: Colors.redAccent, shape: BoxShape.circle)
                 ),
-                // --- MODIFICATION END ---
                 headerStyle: HeaderStyle(
                   formatButtonVisible: true,
                   titleCentered: true,
@@ -1684,50 +2071,15 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
                   }
                 },
                 onPageChanged: (focusedDay) {
-                  // --- MODIFICATION START: Update focusedDay on page change ---
                   setState(() {
                     _focusedDay = focusedDay;
                   });
-                  // --- MODIFICATION END ---
                 },
-                calendarBuilders: CalendarBuilders(
-                  markerBuilder: (context, day, events) {
-                    if (events.isNotEmpty) {
-                      return Positioned(
-                        right: 1,
-                        top: 1,
-                        child: Container(
-                          padding: const EdgeInsets.all(4.0),
-                          decoration: BoxDecoration(
-                            color: Colors.redAccent,
-                            borderRadius: BorderRadius.circular(10.0),
-                          ),
-                          constraints: const BoxConstraints(
-                            minWidth: 18,
-                            minHeight: 18,
-                          ),
-                          child: Text(
-                            '${events.length}',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
-                      );
-                    }
-                    return null;
-                  },
-                ),
               ),
             ),
           ),
-          // --- MODIFICATION START: Conditional UI based on event loading state ---
           if (_isLoadingEvents)
-            const Padding(
-              padding: EdgeInsets.all(16.0),
+            const Expanded(
               child: Center(
                   child: CircularProgressIndicator(color: _primaryColor)),
             )
@@ -1750,7 +2102,6 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
                       ),
                       const SizedBox(height: 10),
                       _buildScheduledAppointmentsList(_selectedDay!),
-                      // Using new method
                       const SizedBox(height: 20),
                       Center(
                         child: ElevatedButton.icon(
@@ -1783,7 +2134,7 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
                 ),
               )
             else
-              if (!_isLoadingEvents) // Shown if no day is selected and not loading
+              if (!_isLoadingEvents)
                 Expanded(
                   child: Center(
                     child: Padding(
@@ -1797,17 +2148,13 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
                     ),
                   ),
                 ),
-          // --- MODIFICATION END ---
         ],
       ),
     );
   }
 
-  // --- MODIFICATION START: New widget method to display appointments for a selected day ---
   Widget _buildScheduledAppointmentsList(DateTime selectedDate) {
-    final normalizedSelectedDate = DateTime.utc(
-        selectedDate.year, selectedDate.month, selectedDate.day);
-    final dayEvents = _events[normalizedSelectedDate] ?? [];
+    final dayEvents = _getEventsForDay(selectedDate);
 
     if (dayEvents.isEmpty) {
       return Card(
@@ -1846,8 +2193,6 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
           appointmentDateTime =
               DateFormat('yyyy-MM-dd HH:mm').parse(data['appointmentDate']);
         } catch (e) {
-          print(
-              "Error parsing date in _buildScheduledAppointmentsList: ${data['appointmentDate']}");
           return const SizedBox.shrink();
         }
         final formattedTime = DateFormat.jm().format(appointmentDateTime);
@@ -1881,4 +2226,3 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
     );
   }
 }
-// --- MODIFICATION END ---
