@@ -452,24 +452,28 @@ class _AnalyticsDashboardState extends State<AnalyticsDashboard> {
   Future<Map<String, dynamic>> _fetchMealPlanData(String dietitianId) async {
     final mealPlanSnap = await FirebaseFirestore.instance
         .collection('mealPlans')
-        .where('dietitianId', isEqualTo: dietitianId)
+        .where('owner', isEqualTo: dietitianId)
         .get();
 
-    String mostPopularPlan = 'N/A';
+    String mostPopularPlanName = 'N/A';
+    Map<String, dynamic> mostPopularPlanData = {};
     int maxLikes = -1;
 
     for (var doc in mealPlanSnap.docs) {
       final data = doc.data();
-      final likes = data['likes'] as int? ?? 0;
+      final likes = data['likeCounts'] as int? ?? 0;
+
       if (likes > maxLikes) {
         maxLikes = likes;
-        mostPopularPlan = data['planName'] ?? 'Unnamed Plan';
+        mostPopularPlanName = data['planType'] ?? 'Unnamed Plan';
+        mostPopularPlanData = data;
       }
     }
 
     return {
       'plansCreated': mealPlanSnap.docs.length,
-      'mostPopularPlan': mostPopularPlan,
+      'mostPopularPlan': mostPopularPlanName,
+      'mostPopularPlanData': mostPopularPlanData,
     };
   }
 
@@ -494,7 +498,7 @@ class _AnalyticsDashboardState extends State<AnalyticsDashboard> {
             appointmentsThisMonth++;
           }
           dayFrequency[date.weekday] = (dayFrequency[date.weekday] ?? 0) + 1;
-        } catch (e) { /* ignore parse error */ }
+        } catch (e) { }
       }
 
       final clientName = data['clientName'] as String?;
@@ -547,93 +551,203 @@ class _AnalyticsDashboardState extends State<AnalyticsDashboard> {
         return ListView(
           padding: const EdgeInsets.all(16.0),
           children: [
-            _buildAnalyticsCard(
-              context: context,
-              title: "Client & Subscriptions",
-              icon: Icons.group,
-              children: [
-                _buildStatItem(context, Icons.check, "Active Subscriptions",
-                    subData['activeSubscriptions']?.toString() ?? '0'),
-                _buildStatItem(context, Icons.pie_chart, "Subscription Breakdown",
-                    "${subData['monthlySubs'] ?? 0} Monthly / ${subData['yearlySubs'] ?? 0} Yearly"),
-                _buildStatItem(context, Icons.new_releases, "New Clients This Month",
-                    subData['newClientsThisMonth']?.toString() ?? '0'),
-                _buildStatItem(
-                    context,
-                    Icons.monetization_on,
-                    "Total Revenue",
-                    "\$${(subData['totalRevenue'] ?? 0.0).toStringAsFixed(2)}"),
-              ],
-            ),
-            _buildAnalyticsCard(
-              context: context,
-              title: "Meal Plan Engagement",
-              icon: Icons.restaurant_menu,
-              children: [
-                _buildStatItem(context, Icons.thumb_up, "Most Popular Meal Plan",
-                    mealData['mostPopularPlan'] ?? 'N/A'),
-                _buildStatItem(context, Icons.note_add, "Plans Created",
-                    mealData['plansCreated']?.toString() ?? '0'),
-              ],
-            ),
-            _buildAnalyticsCard(
-              context: context,
-              title: "Appointments & Schedule",
-              icon: Icons.calendar_today,
-              children: [
-                _buildStatItem(context, Icons.event_available, "Appointments This Month",
-                    apptData['appointmentsThisMonth']?.toString() ?? '0'),
-                _buildStatItem(context, Icons.star, "Most Frequent Client",
-                    apptData['mostFrequentClient'] ?? 'N/A'),
-                _buildStatItem(context, Icons.work, "Busiest Day of the Week",
-                    apptData['busiestDay'] ?? 'N/A'),
-              ],
-            ),
+            // Welcome Header Card
+            _buildWelcomeCard(context),
+            const SizedBox(height: 20),
+
+            // Key Metrics Grid (3-column layout)
+            _buildMetricsGrid(context, subData),
+            const SizedBox(height: 20),
+
+            // Client & Subscriptions Card
+            _buildClientSubscriptionCard(context, subData),
             const SizedBox(height: 16),
-            Text("Quick Actions",
-                style: _getTextStyle(context,
-                    fontSize: 18, fontWeight: FontWeight.bold)),
+
+            // Meal Plan Engagement Card
+            _buildMealPlanCard(context, mealData),
             const SizedBox(height: 16),
-            const PendingSubscriptionCard(),
-            const SizedBox(height: 24),
-            Align(
-              alignment: Alignment.center,
-              child: ElevatedButton.icon(
-                onPressed: () => Navigator.push(context,
-                    MaterialPageRoute(builder: (_) => const CreateMealPlanPage())),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _primaryColor,
-                  foregroundColor: _textColorOnPrimary,
-                  padding:
-                  const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                ),
-                icon: const Icon(Icons.post_add_rounded, size: 20),
-                label: Text("Create a New Meal Plan",
-                    style: _getTextStyle(context,
-                        color: _textColorOnPrimary,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600)),
-              ),
-            ),
+
+            // Appointments & Schedule Card
+            _buildAppointmentCard(context, apptData),
+            const SizedBox(height: 20),
+
+            // Quick Actions Section
+            _buildQuickActionsSection(context),
           ],
         );
       },
     );
   }
 
-  Widget _buildAnalyticsCard({
-    required BuildContext context,
-    required String title,
-    required IconData icon,
-    required List<Widget> children,
-  }) {
-    return Card(
-      elevation: 2,
-      margin: const EdgeInsets.only(bottom: 16),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      color: _cardBgColor(context),
+  Widget _buildWelcomeCard(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [_primaryColor, Color(0xFF45a049)],
+        ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: _primaryColor.withOpacity(0.3),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Welcome Back!',
+                        style: _getTextStyle(context,
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: _textColorOnPrimary),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Your practice is thriving. Keep it up!',
+                        style: _getTextStyle(context,
+                            fontSize: 13,
+                            color: _textColorOnPrimary.withOpacity(0.85)),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(
+                  Icons.trending_up_rounded,
+                  color: _textColorOnPrimary,
+                  size: 40,
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMetricsGrid(BuildContext context, Map<String, dynamic> subData) {
+    final metrics = [
+      {
+        'value': (subData['activeSubscriptions'] ?? 0).toString(),
+        'label': 'Active Clients',
+        'icon': Icons.people_rounded,
+        'color': const Color(0xFF4CAF50),
+      },
+      {
+        'value': '\$${(subData['totalRevenue'] ?? 0.0).toStringAsFixed(0)}',
+        'label': 'Total Revenue',
+        'icon': Icons.monetization_on_rounded,
+        'color': const Color(0xFF2196F3),
+      },
+      {
+        'value': (subData['newClientsThisMonth'] ?? 0).toString(),
+        'label': 'New This Month',
+        'icon': Icons.person_add_rounded,
+        'color': const Color(0xFFFF9800),
+      },
+    ];
+
+    return GridView.count(
+      crossAxisCount: 3,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      mainAxisSpacing: 12,
+      crossAxisSpacing: 12,
+      childAspectRatio: 0.95,
+      children: metrics.map((metric) {
+        return _buildMetricCard(
+          context,
+          value: metric['value'] as String,
+          label: metric['label'] as String,
+          icon: metric['icon'] as IconData,
+          color: metric['color'] as Color,
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildMetricCard(
+      BuildContext context, {
+        required String value,
+        required String label,
+        required IconData icon,
+        required Color color,
+      }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: _cardBgColor(context),
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+        border: Border.all(
+          color: color.withOpacity(0.2),
+          width: 1.5,
+        ),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.15),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: color, size: 20),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: _getTextStyle(context,
+                fontSize: 16, fontWeight: FontWeight.bold),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: _getTextStyle(context,
+                fontSize: 11, color: _textColorSecondary(context)),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildClientSubscriptionCard(
+      BuildContext context,
+      Map<String, dynamic> subData,
+      ) {
+    return Container(
+      decoration: BoxDecoration(
+        color: _cardBgColor(context),
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -641,44 +755,309 @@ class _AnalyticsDashboardState extends State<AnalyticsDashboard> {
           children: [
             Row(
               children: [
-                Icon(icon, color: _primaryColor, size: 22),
-                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: _primaryColor.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.group_rounded,
+                      color: _primaryColor, size: 20),
+                ),
+                const SizedBox(width: 12),
                 Text(
-                  title,
+                  'Client & Subscriptions',
                   style: _getTextStyle(context,
-                      fontSize: 18, fontWeight: FontWeight.bold),
+                      fontSize: 16, fontWeight: FontWeight.bold),
                 ),
               ],
             ),
-            const Divider(height: 24),
-            ...children,
+            const SizedBox(height: 16),
+            _buildDetailRow(context, 'Monthly Plans',
+                '${subData['monthlySubs'] ?? 0}', Colors.blue),
+            const SizedBox(height: 12),
+            _buildDetailRow(context, 'Yearly Plans',
+                '${subData['yearlySubs'] ?? 0}', Colors.purple),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildStatItem(BuildContext context, IconData icon, String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12.0),
-      child: Row(
-        children: [
-          Icon(icon, color: _textColorSecondary(context), size: 18),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              label,
-              style: _getTextStyle(context,
-                  fontSize: 14, color: _textColorSecondary(context)),
+  Widget _buildDetailRow(
+      BuildContext context,
+      String label,
+      String value,
+      Color accentColor,
+      ) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Row(
+          children: [
+            Container(
+              width: 3,
+              height: 16,
+              decoration: BoxDecoration(
+                color: accentColor,
+                borderRadius: BorderRadius.circular(1.5),
+              ),
             ),
-          ),
-          Text(
-            value,
-            style: _getTextStyle(context,
-                fontSize: 15, fontWeight: FontWeight.bold),
+            const SizedBox(width: 10),
+            Text(
+              label,
+              style: _getTextStyle(context, fontSize: 14),
+            ),
+          ],
+        ),
+        Text(
+          value,
+          style: _getTextStyle(context,
+              fontSize: 15, fontWeight: FontWeight.bold),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMealPlanCard(
+      BuildContext context,
+      Map<String, dynamic> mealData,
+      ) {
+    return Container(
+      decoration: BoxDecoration(
+        color: _cardBgColor(context),
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFF6F61).withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.restaurant_menu_rounded,
+                      color: Color(0xFFFF6F61), size: 20),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  'Meal Plan Engagement',
+                  style: _getTextStyle(context,
+                      fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            _buildStatRow(
+              context,
+              Icons.note_add_rounded,
+              'Plans Created',
+              mealData['plansCreated']?.toString() ?? '0',
+            ),
+            const SizedBox(height: 12),
+            if (mealData['mostPopularPlan'] != null &&
+                mealData['mostPopularPlanData'] != null &&
+                mealData['mostPopularPlanData'].isNotEmpty)
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Divider(color: _textColorSecondary(context).withOpacity(0.3)),
+                  const SizedBox(height: 12),
+                  _buildPopularPlanRow(context, mealData),
+                ],
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatRow(
+      BuildContext context,
+      IconData icon,
+      String label,
+      String value,
+      ) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Row(
+          children: [
+            Icon(icon, color: _primaryColor, size: 18),
+            const SizedBox(width: 10),
+            Text(
+              label,
+              style: _getTextStyle(context, fontSize: 14),
+            ),
+          ],
+        ),
+        Text(
+          value,
+          style: _getTextStyle(context,
+              fontSize: 15, fontWeight: FontWeight.bold),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPopularPlanRow(
+      BuildContext context,
+      Map<String, dynamic> mealData,
+      ) {
+    final planData = mealData['mostPopularPlanData'] as Map<String, dynamic>;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Most Popular Plan',
+              style: _getTextStyle(context,
+                  fontSize: 12, color: _textColorSecondary(context)),
+            ),
+            Row(
+              children: [
+                const Icon(Icons.favorite, color: Colors.red, size: 14),
+                const SizedBox(width: 4),
+                Text(
+                  (planData['likeCounts'] ?? 0).toString(),
+                  style: _getTextStyle(context,
+                      fontSize: 12, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Text(
+          mealData['mostPopularPlan'],
+          style: _getTextStyle(context,
+              fontSize: 14, fontWeight: FontWeight.bold),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAppointmentCard(
+      BuildContext context,
+      Map<String, dynamic> apptData,
+      ) {
+    return Container(
+      decoration: BoxDecoration(
+        color: _cardBgColor(context),
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF9C27B0).withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.calendar_today_rounded,
+                      color: Color(0xFF9C27B0), size: 20),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  'Appointments & Schedule',
+                  style: _getTextStyle(context,
+                      fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            _buildStatRow(
+              context,
+              Icons.event_available_rounded,
+              'This Month',
+              apptData['appointmentsThisMonth']?.toString() ?? '0',
+            ),
+            const SizedBox(height: 12),
+            _buildStatRow(
+              context,
+              Icons.person_rounded,
+              'Most Frequent Client',
+              apptData['mostFrequentClient'] ?? 'N/A',
+            ),
+            const SizedBox(height: 12),
+            _buildStatRow(
+              context,
+              Icons.date_range_rounded,
+              'Busiest Day',
+              apptData['busiestDay'] ?? 'N/A',
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQuickActionsSection(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Quick Actions',
+          style: _getTextStyle(context,
+              fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 12),
+        const PendingSubscriptionCard(),
+        const SizedBox(height: 12),
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton.icon(
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const CreateMealPlanPage()),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _primaryColor,
+              foregroundColor: _textColorOnPrimary,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              elevation: 2,
+            ),
+            icon: const Icon(Icons.post_add_rounded, size: 20),
+            label: Text(
+              'Create a New Meal Plan',
+              style: _getTextStyle(context,
+                  color: _textColorOnPrimary,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600),
+            ),
+          ),
+        ),
+        const SizedBox(height: 24),
+      ],
     );
   }
 
@@ -689,37 +1068,22 @@ class _AnalyticsDashboardState extends State<AnalyticsDashboard> {
       child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          _buildLoadingCard(itemCount: 4),
-          _buildLoadingCard(itemCount: 2),
-          _buildLoadingCard(itemCount: 3),
+          _buildLoadingCard(height: 120),
+          const SizedBox(height: 16),
+          _buildLoadingCard(height: 160),
+          const SizedBox(height: 16),
+          _buildLoadingCard(height: 140),
         ],
       ),
     );
   }
 
-  Widget _buildLoadingCard({required int itemCount}) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 16),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(width: 200, height: 24, color: Colors.white),
-            const SizedBox(height: 16),
-            for (int i = 0; i < itemCount; i++)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 8.0),
-                child: Row(
-                  children: [
-                    Container(width: 24, height: 24, color: Colors.white),
-                    const SizedBox(width: 8),
-                    Expanded(child: Container(height: 24, color: Colors.white)),
-                  ],
-                ),
-              ),
-          ],
-        ),
+  Widget _buildLoadingCard({required double height}) {
+    return Container(
+      height: height,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
       ),
     );
   }
@@ -1278,52 +1642,50 @@ class UsersListPage extends StatelessWidget {
             ),
             tabs: [
               const Tab(text: "CHATS"),
-              Tab(
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    const Text("NOTIFICATIONS"),
-                    Positioned(
-                      top: 8,
-                      right: -2,
-                      child: StreamBuilder<QuerySnapshot>(
-                        stream: FirebaseFirestore.instance
-                            .collection('Users')
-                            .doc(currentUserId)
-                            .collection('notifications')
-                            .where('isRead', isEqualTo: false)
-                            .snapshots(),
-                        builder: (context, snapshot) {
-                          if (!snapshot.hasData ||
-                              snapshot.data!.docs.isEmpty) {
-                            return const SizedBox.shrink();
-                          }
-                          int unreadCount = snapshot.data!.docs.length;
-                          return Container(
-                            padding: const EdgeInsets.all(4.0),
-                            decoration: BoxDecoration(
-                              color: Colors.redAccent,
-                              borderRadius: BorderRadius.circular(10.0),
-                            ),
-                            constraints: const BoxConstraints(
-                              minWidth: 18,
-                              minHeight: 18,
-                            ),
-                            child: Text(
-                              unreadCount > 99 ? '99+' : '$unreadCount',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
+              StreamBuilder<QuerySnapshot>(
+                stream: FirebaseFirestore.instance
+                    .collection('Users')
+                    .doc(currentUserId)
+                    .collection('notifications')
+                    .where('isRead', isEqualTo: false)
+                    .snapshots(),
+                builder: (context, snapshot) {
+                  int unreadCount = snapshot.hasData ? snapshot.data!.docs.length : 0;
+                  return Tab(
+                    child: Stack(
+                      alignment: Alignment.center,
+                      clipBehavior: Clip.none,
+                      children: [
+                        const Text("NOTIFICATIONS"),
+                        if (unreadCount > 0)
+                          Positioned(
+                            top: -8,
+                            right: -12,
+                            child: Container(
+                              padding: const EdgeInsets.all(4.0),
+                              decoration: BoxDecoration(
+                                color: Colors.redAccent,
+                                borderRadius: BorderRadius.circular(10.0),
                               ),
-                              textAlign: TextAlign.center,
+                              constraints: const BoxConstraints(
+                                minWidth: 20,
+                                minHeight: 20,
+                              ),
+                              child: Text(
+                                unreadCount > 99 ? '99+' : '$unreadCount',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
                             ),
-                          );
-                        },
-                      ),
-                    )
-                  ],
-                ),
+                          )
+                      ],
+                    ),
+                  );
+                },
               )
             ],
           ),
@@ -1331,96 +1693,257 @@ class UsersListPage extends StatelessWidget {
         body: TabBarView(
           children: [
             StreamBuilder<QuerySnapshot>(
-              stream:
-              FirebaseFirestore.instance.collection("Users").snapshots(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
+              stream: FirebaseFirestore.instance
+                  .collection("messages")
+                  .orderBy("timestamp", descending: true)
+                  .snapshots(),
+              builder: (context, messageSnapshot) {
+                if (messageSnapshot.connectionState == ConnectionState.waiting) {
                   return const Center(
                       child: CircularProgressIndicator(color: _primaryColor));
                 }
-                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                  return Center(
-                    child: Text(
-                      "No clients to chat with yet.",
-                      style: _getTextStyle(context,
-                          fontSize: 16, color: _textColorPrimary(context)),
-                    ),
-                  );
+
+                // Get unique users from messages sorted by most recent
+                final Map<String, dynamic> userChats = {};
+
+                if (messageSnapshot.hasData) {
+                  for (var doc in messageSnapshot.data!.docs) {
+                    final data = doc.data() as Map<String, dynamic>;
+                    final senderId = data["senderID"] as String?;
+                    final receiverId = data["receiverID"] as String?;
+                    final timestamp = data["timestamp"] as Timestamp?;
+
+                    if (senderId == currentUserId && receiverId != null && !userChats.containsKey(receiverId)) {
+                      userChats[receiverId] = {
+                        'lastMessage': data,
+                        'timestamp': timestamp,
+                      };
+                    } else if (receiverId == currentUserId && senderId != null && !userChats.containsKey(senderId)) {
+                      userChats[senderId] = {
+                        'lastMessage': data,
+                        'timestamp': timestamp,
+                      };
+                    }
+                  }
                 }
 
-                final users = snapshot.data!.docs;
-                return ListView.separated(
-                  padding: const EdgeInsets.symmetric(vertical: 8.0),
-                  itemCount: users.length,
-                  separatorBuilder: (context, index) =>
-                  const Divider(height: 0.5, indent: 88, endIndent: 16),
-                  itemBuilder: (context, index) {
-                    final userDoc = users[index];
-                    if (userDoc.id == currentUserId) {
-                      return const SizedBox.shrink();
+                // Get all users
+                return StreamBuilder<QuerySnapshot>(
+                  stream: FirebaseFirestore.instance.collection("Users").snapshots(),
+                  builder: (context, userSnapshot) {
+                    if (!userSnapshot.hasData || userSnapshot.data!.docs.isEmpty) {
+                      return Center(
+                        child: Text(
+                          "No clients to chat with yet.",
+                          style: _getTextStyle(context,
+                              fontSize: 16, color: _textColorPrimary(context)),
+                        ),
+                      );
                     }
 
-                    final data = userDoc.data() as Map<String, dynamic>;
-                    final senderName =
-                    "${data["firstName"] ?? ""} ${data["lastName"] ?? ""}"
-                        .trim();
-                    final chatRoomId =
-                    getChatRoomId(currentUserId, userDoc.id);
+                    // Filter and sort users by most recent message
+                    final users = userSnapshot.data!.docs.where((doc) => doc.id != currentUserId).toList();
+                    users.sort((a, b) {
+                      final aHasChat = userChats.containsKey(a.id);
+                      final bHasChat = userChats.containsKey(b.id);
 
-                    return FutureBuilder<Map<String, dynamic>>(
-                      future: getLastMessage(context, chatRoomId, senderName),
-                      builder: (context, snapshotMessage) {
+                      if (!aHasChat && !bHasChat) return 0;
+                      if (!aHasChat) return 1;
+                      if (!bHasChat) return -1;
+
+                      final aTime = userChats[a.id]?['timestamp'] as Timestamp?;
+                      final bTime = userChats[b.id]?['timestamp'] as Timestamp?;
+
+                      if (aTime == null || bTime == null) return 0;
+                      return bTime.compareTo(aTime);
+                    });
+
+                    return ListView.builder(
+                      padding: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 8.0),
+                      itemCount: users.length,
+                      itemBuilder: (context, index) {
+                        final userDoc = users[index];
+                        final data = userDoc.data() as Map<String, dynamic>;
+                        final senderName =
+                        "${data["firstName"] ?? ""} ${data["lastName"] ?? ""}"
+                            .trim();
+                        final chatData = userChats[userDoc.id];
+
                         String subtitleText = "No messages yet";
                         String timeText = "";
+                        bool isUnread = false;
 
-                        if (snapshotMessage.connectionState ==
-                            ConnectionState.done &&
-                            snapshotMessage.hasData) {
-                          final lastMsg = snapshotMessage.data!;
-                          final lastMessage = lastMsg["message"] ?? "";
-                          timeText = lastMsg["time"] ?? "";
+                        if (chatData != null) {
+                          final lastMessage = chatData['lastMessage'] as Map<String, dynamic>;
+                          final messageText = lastMessage["message"] ?? "";
+                          final isMe = lastMessage["senderID"] == currentUserId;
+                          final timestamp = chatData['timestamp'] as Timestamp?;
+                          final read = lastMessage["read"] ?? "false";
 
-                          if (lastMessage.isNotEmpty) {
-                            subtitleText = (lastMsg["isMe"] ?? false)
-                                ? "You: $lastMessage"
-                                : lastMessage;
+                          // Check if unread: message is from someone else and marked as unread
+                          isUnread = !isMe && read.toString().toLowerCase() == "false";
+
+                          if (messageText.isNotEmpty) {
+                            subtitleText = isMe ? "You: $messageText" : "${lastMessage["senderName"] ?? senderName}: $messageText";
+                          }
+
+                          if (timestamp != null) {
+                            final messageDate = timestamp.toDate();
+                            final now = DateTime.now();
+                            if (messageDate.year == now.year &&
+                                messageDate.month == now.month &&
+                                messageDate.day == now.day) {
+                              timeText = TimeOfDay.fromDateTime(messageDate).format(context);
+                            } else {
+                              timeText = DateFormat('MMM d').format(messageDate);
+                            }
                           }
                         }
 
-                        return ListTile(
-                          leading: CircleAvatar(
-                            backgroundImage: (data["profile"] != null &&
-                                data["profile"].toString().isNotEmpty)
-                                ? NetworkImage(data["profile"])
-                                : null,
-                            child: (data["profile"] == null ||
-                                data["profile"].toString().isEmpty)
-                                ? Icon(Icons.person_outline,
-                                color: _primaryColor)
-                                : null,
-                          ),
-                          title: Text(senderName, style: _getTextStyle(context)),
-                          subtitle: Text(subtitleText,
-                            maxLines: 1, overflow: TextOverflow.ellipsis,
-                            style: _getTextStyle(context, fontSize: 13, color: _textColorSecondary(context)),
-                          ),
-                          trailing: timeText.isNotEmpty
-                              ? Text(timeText,
-                              style: const TextStyle(fontSize: 12))
-                              : null,
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => MessagesPageDietitian(
-                                  currentUserId: currentUserId,
-                                  receiverId: userDoc.id,
-                                  receiverName: senderName,
-                                  receiverProfile: data["profile"] ?? "",
+                        return Container(
+                          margin: const EdgeInsets.symmetric(vertical: 6.0, horizontal: 4.0),
+                          child: Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(12),
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => MessagesPageDietitian(
+                                      currentUserId: currentUserId,
+                                      receiverId: userDoc.id,
+                                      receiverName: senderName,
+                                      receiverProfile: data["profile"] ?? "",
+                                    ),
+                                  ),
+                                );
+                              },
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: isUnread
+                                      ? _primaryColor.withOpacity(0.1)
+                                      : _cardBgColor(context),
+                                  borderRadius: BorderRadius.circular(12),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.04),
+                                      blurRadius: 4,
+                                      offset: const Offset(0, 1),
+                                    ),
+                                  ],
+                                  border: isUnread
+                                      ? Border.all(
+                                    color: _primaryColor.withOpacity(0.3),
+                                    width: 1.5,
+                                  )
+                                      : null,
+                                ),
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                child: Row(
+                                  children: [
+                                    Stack(
+                                      children: [
+                                        CircleAvatar(
+                                          radius: 24,
+                                          backgroundImage: (data["profile"] != null &&
+                                              data["profile"].toString().isNotEmpty)
+                                              ? NetworkImage(data["profile"])
+                                              : null,
+                                          backgroundColor: _primaryColor.withOpacity(0.2),
+                                          child: (data["profile"] == null ||
+                                              data["profile"].toString().isEmpty)
+                                              ? Icon(Icons.person_outline,
+                                              color: _primaryColor, size: 24)
+                                              : null,
+                                        ),
+                                        Positioned(
+                                          bottom: 0,
+                                          right: 0,
+                                          child: Container(
+                                            width: 14,
+                                            height: 14,
+                                            decoration: BoxDecoration(
+                                              color: Colors.green,
+                                              shape: BoxShape.circle,
+                                              border: Border.all(
+                                                color: _cardBgColor(context),
+                                                width: 2,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            senderName,
+                                            style: _getTextStyle(context,
+                                                fontSize: 15,
+                                                fontWeight: isUnread
+                                                    ? FontWeight.bold
+                                                    : FontWeight.w600),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            subtitleText,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: _getTextStyle(context,
+                                                fontSize: 13,
+                                                fontWeight: isUnread
+                                                    ? FontWeight.w600
+                                                    : FontWeight.w400,
+                                                color: isUnread
+                                                    ? _textColorPrimary(context)
+                                                    : _textColorSecondary(context)),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    if (timeText.isNotEmpty)
+                                      Padding(
+                                        padding: const EdgeInsets.only(left: 8.0),
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.end,
+                                          children: [
+                                            Text(
+                                              timeText,
+                                              style: _getTextStyle(context,
+                                                  fontSize: 12,
+                                                  fontWeight: isUnread
+                                                      ? FontWeight.w600
+                                                      : FontWeight.normal,
+                                                  color: isUnread
+                                                      ? _primaryColor
+                                                      : _textColorSecondary(context)),
+                                            ),
+                                            if (isUnread)
+                                              Padding(
+                                                padding: const EdgeInsets.only(top: 6.0),
+                                                child: Container(
+                                                  width: 10,
+                                                  height: 10,
+                                                  decoration: const BoxDecoration(
+                                                    color: Colors.redAccent,
+                                                    shape: BoxShape.circle,
+                                                  ),
+                                                ),
+                                              ),
+                                          ],
+                                        ),
+                                      ),
+                                  ],
                                 ),
                               ),
-                            );
-                          },
+                            ),
+                          ),
                         );
                       },
                     );
@@ -1440,14 +1963,29 @@ class UsersListPage extends StatelessWidget {
                   return const Center(child: CircularProgressIndicator());
 
                 final docs = snapshot.data!.docs;
-                if (docs.isEmpty) {
+
+                // Group notifications by senderId to show only the most recent per sender
+                final Map<String, DocumentSnapshot> notificationMap = {};
+                for (var doc in docs) {
+                  final data = doc.data() as Map<String, dynamic>;
+                  final senderId = data["senderId"] as String?;
+
+                  if (senderId != null && !notificationMap.containsKey(senderId)) {
+                    notificationMap[senderId] = doc;
+                  }
+                }
+
+                final uniqueNotifications = notificationMap.values.toList();
+
+                if (uniqueNotifications.isEmpty) {
                   return const Center(child: Text("No notifications"));
                 }
 
                 return ListView.builder(
-                  itemCount: docs.length,
+                  itemCount: uniqueNotifications.length,
+                  padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 8.0),
                   itemBuilder: (context, index) {
-                    final doc = docs[index];
+                    final doc = uniqueNotifications[index];
                     final data = doc.data() as Map<String, dynamic>;
                     final Timestamp? timestamp = data["timestamp"] as Timestamp?;
                     String formattedTime = "";
@@ -1475,107 +2013,117 @@ class UsersListPage extends StatelessWidget {
 
                     bool isRead = data["isRead"] == true;
 
-                    return Card(
-                      margin: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 4.0),
-                      elevation: 1.5,
-                      color: _cardBgColor(context),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12.0),
-                      ),
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(12.0),
-                        onTap: () async {
-                          if (!isRead) {
-                            await FirebaseFirestore.instance
-                                .collection("Users")
-                                .doc(currentUserId)
-                                .collection("notifications")
-                                .doc(doc.id)
-                                .update({"isRead": true});
-                          }
+                    return Container(
+                      margin: const EdgeInsets.symmetric(vertical: 6.0),
+                      child: Card(
+                        margin: EdgeInsets.zero,
+                        elevation: 1.5,
+                        color: isRead ? _cardBgColor(context) : _primaryColor.withOpacity(0.08),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12.0),
+                          side: isRead
+                              ? BorderSide.none
+                              : BorderSide(
+                            color: _primaryColor.withOpacity(0.3),
+                            width: 1.5,
+                          ),
+                        ),
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(12.0),
+                          onTap: () async {
+                            if (!isRead) {
+                              await FirebaseFirestore.instance
+                                  .collection("Users")
+                                  .doc(currentUserId)
+                                  .collection("notifications")
+                                  .doc(doc.id)
+                                  .update({"isRead": true});
+                            }
 
-                          if (data["type"] == "message" && data["senderId"] != null && data["senderName"] != null) {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => MessagesPageDietitian(
-                                  receiverId: data["senderId"],
-                                  receiverName: data["senderName"],
-                                  currentUserId: currentUserId,
-                                  receiverProfile: data["receiverProfile"] ?? "",
-                                ),
-                              ),
-                            );
-                          } else if (data["type"] == "appointment" || data["type"] == "appointment_update") {
-                            // You can add navigation to the schedule page here
-                            // For now, it just marks as read
-                          }
-                        },
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-                          child: Row(
-                            children: [
-                              if (!isRead)
-                                Container(
-                                  width: 10,
-                                  height: 10,
-                                  margin: const EdgeInsets.only(right: 12.0),
-                                  decoration: const BoxDecoration(
-                                    color: _primaryColor,
-                                    shape: BoxShape.circle,
-                                  ),
-                                )
-                              else
-                                const SizedBox(width: 10 + 12.0),
-
-                              Icon(
-                                notificationIcon,
-                                color: isRead ? _textColorSecondary(context).withOpacity(0.7) : iconColor,
-                                size: 26.0,
-                              ),
-                              const SizedBox(width: 14),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      data["title"] ?? "Notification",
-                                      style: _getTextStyle(
-                                        context,
-                                        fontSize: 15.5,
-                                        fontWeight: isRead ? FontWeight.w500 : FontWeight.bold,
-                                        color: _textColorPrimary(context),
-                                      ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      data["message"] ?? "",
-                                      style: _getTextStyle(
-                                        context,
-                                        fontSize: 13,
-                                        color: _textColorSecondary(context),
-                                      ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              if (formattedTime.isNotEmpty)
-                                Padding(
-                                  padding: const EdgeInsets.only(left: 8.0),
-                                  child: Text(
-                                    formattedTime,
-                                    style: _getTextStyle(
-                                      context,
-                                      fontSize: 11.5,
-                                      color: _textColorSecondary(context).withOpacity(0.8),
-                                    ),
+                            if (data["type"] == "message" && data["senderId"] != null && data["senderName"] != null) {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => MessagesPageDietitian(
+                                    receiverId: data["senderId"],
+                                    receiverName: data["senderName"],
+                                    currentUserId: currentUserId,
+                                    receiverProfile: data["receiverProfile"] ?? "",
                                   ),
                                 ),
-                            ],
+                              );
+                            }
+                          },
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 12.0),
+                            child: Row(
+                              children: [
+                                if (!isRead)
+                                  Container(
+                                    width: 10,
+                                    height: 10,
+                                    margin: const EdgeInsets.only(right: 12.0),
+                                    decoration: const BoxDecoration(
+                                      color: Colors.redAccent,
+                                      shape: BoxShape.circle,
+                                    ),
+                                  )
+                                else
+                                  const SizedBox(width: 10 + 12.0),
+
+                                Icon(
+                                  notificationIcon,
+                                  color: isRead ? _textColorSecondary(context).withOpacity(0.7) : iconColor,
+                                  size: 26.0,
+                                ),
+                                const SizedBox(width: 14),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        data["title"] ?? "Notification",
+                                        style: _getTextStyle(
+                                          context,
+                                          fontSize: 15.5,
+                                          fontWeight: isRead ? FontWeight.w500 : FontWeight.bold,
+                                          color: _textColorPrimary(context),
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        data["message"] ?? "",
+                                        style: _getTextStyle(
+                                          context,
+                                          fontSize: 13,
+                                          fontWeight: isRead ? FontWeight.w400 : FontWeight.w500,
+                                          color: _textColorSecondary(context),
+                                        ),
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                if (formattedTime.isNotEmpty)
+                                  Padding(
+                                    padding: const EdgeInsets.only(left: 8.0),
+                                    child: Text(
+                                      formattedTime,
+                                      style: _getTextStyle(
+                                        context,
+                                        fontSize: 11.5,
+                                        fontWeight: isRead ? FontWeight.normal : FontWeight.w600,
+                                        color: isRead
+                                            ? _textColorSecondary(context).withOpacity(0.8)
+                                            : _primaryColor,
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
                           ),
                         ),
                       ),

@@ -714,7 +714,7 @@ class _HomeState extends State<home> {
                           children: [
                             StreamBuilder<DocumentSnapshot>(
                               stream: FirebaseFirestore.instance
-                                  .collection("likes")
+                                  .collection("mealPlans")
                                   .doc("${currentUserId}_${doc.id}")
                                   .snapshots(),
                               builder: (context, likeSnapshot) {
