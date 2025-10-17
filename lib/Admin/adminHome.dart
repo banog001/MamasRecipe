@@ -3,6 +3,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:async/async.dart';
+import 'package:rxdart/rxdart.dart';
 
 const String _primaryFontFamily = 'PlusJakartaSans';
 const Color _primaryColor = Color(0xFF4CAF50);
@@ -492,11 +494,9 @@ class _AdminHomeState extends State<AdminHome> {
             const SizedBox(height: 16),
             _buildAppointmentAnalytics(),
             const SizedBox(height: 16),
-            _buildEngagementMetrics(),
-            const SizedBox(height: 16),
             _buildMealPlanPerformance(),
             const SizedBox(height: 16),
-            _buildUserRetentionChurn(),
+            _buildUserSubscriptionChurn(),
             const SizedBox(height: 16),
             _buildHealthGoalsDistribution(),
             const SizedBox(height: 16),
@@ -516,7 +516,6 @@ class _AdminHomeState extends State<AdminHome> {
               children: [
                 Expanded(child: _buildAppointmentAnalytics()),
                 const SizedBox(width: 16),
-                Expanded(child: _buildEngagementMetrics()),
               ],
             ),
             const SizedBox(height: 16),
@@ -525,7 +524,7 @@ class _AdminHomeState extends State<AdminHome> {
               children: [
                 Expanded(child: _buildMealPlanPerformance()),
                 const SizedBox(width: 16),
-                Expanded(child: _buildUserRetentionChurn()),
+                Expanded(child: _buildUserSubscriptionChurn()),
               ],
             ),
             const SizedBox(height: 16),
@@ -568,11 +567,11 @@ class _AdminHomeState extends State<AdminHome> {
                         color: _primaryColor.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: const Icon(Icons.trending_up, color: _primaryColor),
+                      child: const Icon(Icons.bar_chart, color: _primaryColor),
                     ),
                     const SizedBox(width: 12),
                     Text(
-                      "User Growth",
+                      "UserGrowth",
                       style: _getTextStyle(
                         context,
                         fontSize: 18,
@@ -606,51 +605,41 @@ class _AdminHomeState extends State<AdminHome> {
                   }
 
                   final users = snapshot.data!.docs;
-                  final chartData = _processUserCreationData(users);
+                  final chartData = _processUserCreationData(users, chartFilter);
 
-                  return LineChart(
-                    LineChartData(
+                  return BarChart(
+                    BarChartData(
+                      alignment: BarChartAlignment.spaceAround,
+                      maxY: (chartData['maxY'] as double) + 2,
+                      barGroups: List.generate(
+                        chartData['values'].length,
+                            (index) => BarChartGroupData(
+                          x: index,
+                          barRods: [
+                            BarChartRodData(
+                              toY: (chartData['values'][index] as int).toDouble(),
+                              color: _primaryColor,
+                              width: 32,
+                              borderRadius: BorderRadius.circular(4),
+                              backDrawRodData: BackgroundBarChartRodData(
+                                show: true,
+                                toY: (chartData['maxY'] as double) + 2,
+                                color: _cardBgColor(context).withOpacity(0.1),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                       gridData: FlGridData(
                         show: true,
-                        drawVerticalLine: true,
+                        drawHorizontalLine: true,
                         horizontalInterval: 1,
-                        verticalInterval: 1,
-                        getDrawingHorizontalLine: (value) {
-                          return FlLine(
-                            color: _textColorSecondary(context).withOpacity(0.1),
-                            strokeWidth: 1,
-                          );
-                        },
-                        getDrawingVerticalLine: (value) {
-                          return FlLine(
-                            color: _textColorSecondary(context).withOpacity(0.1),
-                            strokeWidth: 1,
-                          );
-                        },
+                        getDrawingHorizontalLine: (value) => FlLine(
+                          color: _textColorSecondary(context).withOpacity(0.1),
+                          strokeWidth: 1,
+                        ),
                       ),
                       titlesData: FlTitlesData(
-                        show: true,
-                        rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                        topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                        bottomTitles: AxisTitles(
-                          sideTitles: SideTitles(
-                            showTitles: true,
-                            reservedSize: 30,
-                            interval: 1,
-                            getTitlesWidget: (value, meta) {
-                              if (value.toInt() >= 0 && value.toInt() < chartData['labels'].length) {
-                                return Padding(
-                                  padding: const EdgeInsets.only(top: 8.0),
-                                  child: Text(
-                                    chartData['labels'][value.toInt()],
-                                    style: _getTextStyle(context, fontSize: 10),
-                                  ),
-                                );
-                              }
-                              return const Text('');
-                            },
-                          ),
-                        ),
                         leftTitles: AxisTitles(
                           sideTitles: SideTitles(
                             showTitles: true,
@@ -664,39 +653,33 @@ class _AdminHomeState extends State<AdminHome> {
                             },
                           ),
                         ),
+                        bottomTitles: AxisTitles(
+                          sideTitles: SideTitles(
+                            showTitles: true,
+                            reservedSize: 30,
+                            interval: 1,
+                            getTitlesWidget: (value, meta) {
+                              int index = value.toInt();
+                              if (index >= 0 && index < chartData['labels'].length) {
+                                return Padding(
+                                  padding: const EdgeInsets.only(top: 8.0),
+                                  child: Text(
+                                    chartData['labels'][index],
+                                    style: _getTextStyle(context, fontSize: 10),
+                                  ),
+                                );
+                              }
+                              return const Text('');
+                            },
+                          ),
+                        ),
+                        topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                        rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
                       ),
                       borderData: FlBorderData(
                         show: true,
                         border: Border.all(color: _textColorSecondary(context).withOpacity(0.2)),
                       ),
-                      minX: 0,
-                      maxX: (chartData['values'].length - 1).toDouble(),
-                      minY: 0,
-                      maxY: (chartData['maxY'] as double) + 2,
-                      lineBarsData: [
-                        LineChartBarData(
-                          spots: chartData['spots'],
-                          isCurved: true,
-                          color: _primaryColor,
-                          barWidth: 3,
-                          isStrokeCapRound: true,
-                          dotData: FlDotData(
-                            show: true,
-                            getDotPainter: (spot, percent, barData, index) {
-                              return FlDotCirclePainter(
-                                radius: 4,
-                                color: _primaryColor,
-                                strokeWidth: 2,
-                                strokeColor: _cardBgColor(context),
-                              );
-                            },
-                          ),
-                          belowBarData: BarAreaData(
-                            show: true,
-                            color: _primaryColor.withOpacity(0.1),
-                          ),
-                        ),
-                      ],
                     ),
                   );
                 },
@@ -707,6 +690,7 @@ class _AdminHomeState extends State<AdminHome> {
       ),
     );
   }
+
 
   Widget _buildChartFilterButton(String filter) {
     final isSelected = chartFilter == filter;
@@ -739,45 +723,54 @@ class _AdminHomeState extends State<AdminHome> {
     );
   }
 
-  Map<String, dynamic> _processUserCreationData(List<QueryDocumentSnapshot> users) {
+  Map<String, dynamic> _processUserCreationData(List<QueryDocumentSnapshot> users, String chartFilter) {
     final now = DateTime.now();
     Map<String, int> dateCounts = {};
+    List<String> dateKeys = [];
     List<String> labels = [];
 
+    // ─────────────── Generate keys and labels ───────────────
     if (chartFilter == "Week") {
       for (int i = 6; i >= 0; i--) {
         final date = now.subtract(Duration(days: i));
         final key = DateFormat('MM/dd').format(date);
         dateCounts[key] = 0;
-        labels.add(DateFormat('EEE').format(date));
+        dateKeys.add(key);
+        labels.add(DateFormat('EEE').format(date)); // Mon, Tue ...
       }
     } else if (chartFilter == "Month") {
-      for (int i = 29; i >= 0; i--) {
-        final date = now.subtract(Duration(days: i));
-        final key = DateFormat('MM/dd').format(date);
-        dateCounts[key] = 0;
-        if (i % 5 == 0) labels.add(DateFormat('MM/dd').format(date));
-      }
-    } else {
       for (int i = 11; i >= 0; i--) {
         final date = DateTime(now.year, now.month - i, 1);
-        final key = DateFormat('yyyy-MM').format(date);
+        final key = DateFormat('yyyy-MM').format(date); // align with counting
         dateCounts[key] = 0;
-        labels.add(DateFormat('MMM').format(date));
+        dateKeys.add(key);
+        labels.add(DateFormat('MMMM').format(date)); // January, February ...
+      }
+    } else { // Year
+      final startYear = 2024;
+      for (int i = 0; i < 7; i++) {
+        final year = startYear + i; // 2024, 2025, ...
+        final key = year.toString();
+        dateCounts[key] = 0;
+        dateKeys.add(key);
+        labels.add(year.toString());
       }
     }
 
+    // ─────────────── Count user creations ───────────────
     for (var doc in users) {
       final data = doc.data() as Map<String, dynamic>;
-      final timestamp = data['createdAt'] as Timestamp?;
+      final timestamp = data['creationDate'] as Timestamp?;
       if (timestamp != null) {
         final date = timestamp.toDate();
-        String key;
 
-        if (chartFilter == "Week" || chartFilter == "Month") {
+        String key;
+        if (chartFilter == "Week") {
           key = DateFormat('MM/dd').format(date);
-        } else {
-          key = DateFormat('yyyy-MM').format(date);
+        } else if (chartFilter == "Month") {
+          key = DateFormat('yyyy-MM').format(DateTime(date.year, date.month, 1));
+        } else { // Year
+          key = date.year.toString();
         }
 
         if (dateCounts.containsKey(key)) {
@@ -786,21 +779,18 @@ class _AdminHomeState extends State<AdminHome> {
       }
     }
 
-    final values = dateCounts.values.toList();
-    final maxY = values.isEmpty ? 10.0 : values.reduce((a, b) => a > b ? a : b).toDouble();
+    // ─────────────── Map values in correct order ───────────────
+    final values = dateKeys.map((k) => dateCounts[k]!).toList();
 
-    final spots = <FlSpot>[];
-    for (int i = 0; i < values.length; i++) {
-      spots.add(FlSpot(i.toDouble(), values[i].toDouble()));
-    }
+    final maxY = values.isEmpty ? 10.0 : values.reduce((a, b) => a > b ? a : b).toDouble();
 
     return {
       'labels': labels,
       'values': values,
-      'spots': spots,
       'maxY': maxY,
     };
   }
+
 
   Widget _buildQRApprovalPage() {
     return Container(
@@ -4521,100 +4511,6 @@ class _AdminHomeState extends State<AdminHome> {
     );
   }
 
-  Widget _buildEngagementMetrics() {
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      color: _cardBgColor(context),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.teal.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Icon(Icons.trending_up, color: Colors.teal),
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  "Engagement Metrics",
-                  style: _getTextStyle(
-                    context,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection('Users')
-                  .where('role', whereIn: ['user', 'dietitian'])
-                  .snapshots(),
-              builder: (context, snapshot) {
-                if (!snapshot.hasData) {
-                  return const Center(child: CircularProgressIndicator(color: _primaryColor));
-                }
-
-                final users = snapshot.data!.docs;
-                final now = DateTime.now();
-                final today = DateTime(now.year, now.month, now.day);
-                final weekAgo = today.subtract(const Duration(days: 7));
-                final monthAgo = today.subtract(const Duration(days: 30));
-
-                int dailyActive = 0, weeklyActive = 0, monthlyActive = 0;
-
-                for (var doc in users) {
-                  final data = doc.data() as Map<String, dynamic>;
-                  final lastActive = data['lastActive'] as Timestamp?;
-
-                  if (lastActive != null) {
-                    final lastActiveDate = lastActive.toDate();
-                    if (lastActiveDate.isAfter(today)) dailyActive++;
-                    if (lastActiveDate.isAfter(weekAgo)) weeklyActive++;
-                    if (lastActiveDate.isAfter(monthAgo)) monthlyActive++;
-                  }
-                }
-
-                return Column(
-                  children: [
-                    _buildStatCard(
-                      "Daily Active Users",
-                      dailyActive.toString(),
-                      Colors.teal,
-                      Icons.today,
-                    ),
-                    const SizedBox(height: 12),
-                    _buildStatCard(
-                      "Weekly Active Users",
-                      weeklyActive.toString(),
-                      Colors.cyan,
-                      Icons.date_range,
-                    ),
-                    const SizedBox(height: 12),
-                    _buildStatCard(
-                      "Monthly Active Users",
-                      monthlyActive.toString(),
-                      Colors.blue,
-                      Icons.calendar_month,
-                    ),
-                  ],
-                );
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildMealPlanPerformance() {
     return Card(
       elevation: 4,
@@ -4735,7 +4631,9 @@ class _AdminHomeState extends State<AdminHome> {
     );
   }
 
-  Widget _buildUserRetentionChurn() {
+   // add async package to pubspec.yaml
+
+  Widget _buildUserSubscriptionChurn() {
     return Card(
       elevation: 4,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -4753,11 +4651,11 @@ class _AdminHomeState extends State<AdminHome> {
                     color: Colors.indigo.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Icon(Icons.people_outline, color: Colors.indigo),
+                  child: const Icon(Icons.subscriptions, color: Colors.indigo),
                 ),
                 const SizedBox(width: 12),
                 Text(
-                  "User Retention & Churn",
+                  "Subscription Stats",
                   style: _getTextStyle(
                     context,
                     fontSize: 18,
@@ -4767,42 +4665,34 @@ class _AdminHomeState extends State<AdminHome> {
               ],
             ),
             const SizedBox(height: 16),
-            StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection('Users')
-                  .where('role', whereIn: ['user', 'dietitian'])
-                  .snapshots(),
+            StreamBuilder<List<QueryDocumentSnapshot>>(
+              stream: _subscribersStream(),
               builder: (context, snapshot) {
                 if (!snapshot.hasData) {
-                  return const Center(child: CircularProgressIndicator(color: _primaryColor));
+                  return const Center(
+                      child: CircularProgressIndicator(color: Colors.indigo));
                 }
 
-                final users = snapshot.data!.docs;
+                final subscribers = snapshot.data!;
+                int canceledSubscribers = 0;
                 final now = DateTime.now();
                 final monthAgo = now.subtract(const Duration(days: 30));
-                final weekAgo = now.subtract(const Duration(days: 7));
 
-                int newUsers = 0, returningUsers = 0;
+                // Count canceled subscribers in last 30 days
+                // for (var subDoc in subscribers) {
+                //   final cancelledAt = subDoc['cancelledAt'] as Timestamp?;
+                //   if (cancelledAt != null && cancelledAt.toDate().isAfter(monthAgo)) {
+                //     canceledSubscribers++;
+                //   }
+                // }
 
-                for (var doc in users) {
-                  final data = doc.data() as Map<String, dynamic>;
-                  final createdAt = data['createdAt'] as Timestamp?;
-                  final lastActive = data['lastActive'] as Timestamp?;
-
-                  if (createdAt != null) {
-                    final createdDate = createdAt.toDate();
-
-                    if (createdDate.isAfter(monthAgo)) {
-                      newUsers++;
-                    } else if (lastActive != null && lastActive.toDate().isAfter(weekAgo)) {
-                      returningUsers++;
-                    }
-                  }
-                }
-
-                final total = users.length;
-                final retentionRate = total > 0 ? (returningUsers / total * 100).toStringAsFixed(1) : '0.0';
-                final churnRate = total > 0 ? ((total - newUsers - returningUsers) / total * 100).toStringAsFixed(1) : '0.0';
+                final total = subscribers.length + canceledSubscribers;
+                final subscriberRate = total > 0
+                    ? ((subscribers.length / total) * 100).toStringAsFixed(1)
+                    : '0.0';
+                final canceledRate = total > 0
+                    ? ((canceledSubscribers / total) * 100).toStringAsFixed(1)
+                    : '0.0';
 
                 return Column(
                   children: [
@@ -4810,8 +4700,8 @@ class _AdminHomeState extends State<AdminHome> {
                       children: [
                         Expanded(
                           child: _buildStatCard(
-                            "New Users (30d)",
-                            newUsers.toString(),
+                            "Subscribers",
+                            subscribers.length.toString(),
                             Colors.green,
                             Icons.person_add,
                           ),
@@ -4819,10 +4709,10 @@ class _AdminHomeState extends State<AdminHome> {
                         const SizedBox(width: 12),
                         Expanded(
                           child: _buildStatCard(
-                            "Returning Users",
-                            returningUsers.toString(),
-                            Colors.blue,
-                            Icons.repeat,
+                            "Canceled Subscribers (30d)",
+                            canceledSubscribers.toString(),
+                            Colors.red,
+                            Icons.cancel,
                           ),
                         ),
                       ],
@@ -4840,11 +4730,12 @@ class _AdminHomeState extends State<AdminHome> {
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               Text(
-                                "Retention Rate",
-                                style: _getTextStyle(context, fontWeight: FontWeight.w600),
+                                "Subscriber Rate",
+                                style: _getTextStyle(
+                                    context, fontWeight: FontWeight.w600),
                               ),
                               Text(
-                                "$retentionRate%",
+                                "$subscriberRate%",
                                 style: _getTextStyle(
                                   context,
                                   fontSize: 20,
@@ -4859,11 +4750,12 @@ class _AdminHomeState extends State<AdminHome> {
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               Text(
-                                "Churn Rate",
-                                style: _getTextStyle(context, fontWeight: FontWeight.w600),
+                                "Canceled Subscriber Rate",
+                                style: _getTextStyle(
+                                    context, fontWeight: FontWeight.w600),
                               ),
                               Text(
-                                "$churnRate%",
+                                "$canceledRate%",
                                 style: _getTextStyle(
                                   context,
                                   fontSize: 20,
@@ -4885,6 +4777,35 @@ class _AdminHomeState extends State<AdminHome> {
       ),
     );
   }
+
+// Stream of all subscriber docs from each user's subscribeTo subcollection
+  Stream<List<QueryDocumentSnapshot>> _subscribersStream() async* {
+    final usersStream = FirebaseFirestore.instance
+        .collection('Users')
+        .where('role', whereIn: ['user', 'dietitian'])
+        .snapshots();
+
+    await for (final usersSnapshot in usersStream) {
+      final streams = usersSnapshot.docs.map((userDoc) {
+        return FirebaseFirestore.instance
+            .collection('Users')
+            .doc(userDoc.id)
+            .collection('subscribeTo')
+            .snapshots();
+      }).toList();
+
+      // Combine multiple subcollection streams into one
+      yield* StreamGroup.merge(streams).map((snapshot) => snapshot.docs).scan<List<QueryDocumentSnapshot>>(
+            (accumulated, current, index) => [...accumulated, ...current],
+        [],
+      );
+    }
+  }
+
+
+
+
+
 
   Widget _buildHealthGoalsDistribution() {
     return Card(
@@ -5078,31 +4999,6 @@ class _AdminHomeState extends State<AdminHome> {
                           _buildDemographicRow("Dietitians", dietitians, Colors.green),
                           const SizedBox(height: 8),
                           _buildDemographicRow("Admins", admins, Colors.orange),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: _scaffoldBgColor(context),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            "Authentication Method",
-                            style: _getTextStyle(
-                              context,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          _buildDemographicRow("Google Sign-In", googleAuth, Colors.red),
-                          const SizedBox(height: 8),
-                          _buildDemographicRow("Email/Password", emailAuth, Colors.purple),
                         ],
                       ),
                     ),

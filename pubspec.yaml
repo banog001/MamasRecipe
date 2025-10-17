@@ -50,6 +50,9 @@ dependencies:
   flutter_file_dialog: 3.0.2
   syncfusion_flutter_pdfviewer: ^31.1.19
   flutter_local_notifications: ^19.4.2
+  async: ^2.11.0
+  rxdart: ^0.28.0
+
 
 
 
