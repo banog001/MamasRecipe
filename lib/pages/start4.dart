@@ -3,6 +3,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 // No need for FirebaseAuth here if we pass userId directly to completeTutorial
 // import 'package:firebase_auth/firebase_auth.dart';
 import 'home.dart'; // Assuming home.dart is correctly set up
+import '../Dietitians/homePageDietitian.dart';
+
 
 class MealPlanningScreen4 extends StatelessWidget {
   final String userId; // 👈 Accept userId
@@ -11,23 +13,62 @@ class MealPlanningScreen4 extends StatelessWidget {
 
   // ✅ Mark tutorial as completed and update tutorialStep for the user
   // Now takes userId as a parameter
-  Future<void> _completeTutorial(String currentUserId) async {
-    if (currentUserId.isEmpty) return; // Basic check
+  Future<void> _completeTutorial(BuildContext context, String currentUserId) async {
+    if (currentUserId.isEmpty) return;
 
     try {
-      await FirebaseFirestore.instance
-          .collection('Users')
-          .doc(currentUserId) // Use the passed userId
-          .update({
-        'hasCompletedTutorial': true,
-        'tutorialStep': 4, // Mark tutorial step completed
-      });
-      print("Tutorial completed for user: $currentUserId");
+      final usersRef =
+      FirebaseFirestore.instance.collection('Users').doc(currentUserId);
+      final dietitianDoc = await FirebaseFirestore.instance
+          .collection('dietitianApproval')
+          .doc(currentUserId)
+          .get();
+
+      final isDietitian = dietitianDoc.exists;
+
+
+
+      final userSnap = await usersRef.get();
+
+      String role;
+      if (isDietitian) {
+        role = 'dietitian';
+      } else if (userSnap.exists) {
+        role = 'user';
+      } else {
+        print("⚠️ User not found in either collection.");
+        return;
+      }
+
+
+      // ✅ Update tutorial completion in Users collection (only if user)
+      if (role == 'user') {
+        await usersRef.update({
+          'hasCompletedTutorial': true,
+          'tutorialStep': 4,
+        });
+        print("✅ Tutorial completed for user: $currentUserId");
+      }
+
+      // ✅ Navigate based on collection/role
+      if (role == 'dietitian') {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+              builder: (context) => const HomePageDietitian(),
+          ),
+        );
+      } else {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const home()),
+        );
+      }
     } catch (e) {
-      print("Error completing tutorial for user $currentUserId: $e");
-      // Optionally show a SnackBar or error message to the user
+      print("❌ Error completing tutorial for $currentUserId: $e");
     }
   }
+
 
   void _showConfirmationDialog(BuildContext context, String currentUserId) {
     const String primaryFontFamily = 'PlusJakartaSans';
@@ -95,13 +136,10 @@ class MealPlanningScreen4 extends StatelessWidget {
                     elevation: 2,
                   ),
                   onPressed: () async {
-                    await _completeTutorial(currentUserId);
-                    Navigator.of(dialogContext).pop();
-                    Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(builder: (context) => const home()),
-                    );
+                    Navigator.of(dialogContext).pop(); // Close dialog first
+                    await _completeTutorial(context, currentUserId);
                   },
+
                   child: const Text(
                     'CONTINUE',
                     style: dialogButtonTextStyle,

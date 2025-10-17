@@ -52,6 +52,8 @@ dependencies:
   flutter_local_notifications: ^19.4.2
   async: ^2.11.0
   rxdart: ^0.28.0
+  firebase_storage: 12.4.10 # For file uploads to Firebase
+
 
 
 

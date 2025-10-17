@@ -248,6 +248,32 @@ class _LoginPageState extends State<LoginPageMobile> with TickerProviderStateMix
     );
   }
 
+  Future<String?> _askUserRoleDialog() async {
+    return showDialog<String>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text("Select Account Type"),
+          content: const Text("Are you signing in as a User or a Dietitian?"),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, "user"),
+              child: const Text("User"),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: _primaryColor),
+              onPressed: () => Navigator.pop(context, "dietitian"),
+              child: const Text("Dietitian"),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+
   // ==================== UI Widgets (TextFields, Buttons, etc) ====================
 
   Widget _buildTextField({
@@ -408,32 +434,100 @@ class _LoginPageState extends State<LoginPageMobile> with TickerProviderStateMix
   Future<void> _handlePostLogin(User user) async {
     await user.reload();
     user = FirebaseAuth.instance.currentUser!;
-    await _saveUserToFirestore(user);
 
-    final docRef = FirebaseFirestore.instance.collection("Users").doc(user.uid);
-    final docSnap = await docRef.get();
-    String role = docSnap.data()?['role'] ?? "user";
-    bool hasCompletedTutorial = docSnap.data()?['hasCompletedTutorial'] ?? false;
+    final usersRef = FirebaseFirestore.instance.collection("Users").doc(user.uid);
+    final userSnap = await usersRef.get();
 
-    if (hasCompletedTutorial) {
+    String role = "user";
+    bool hasCompletedTutorial = false;
+
+    // If user does NOT exist in Users collection yet, ask for role
+    if (!userSnap.exists) {
+      String? selectedRole = await _askUserRoleDialog();
+      if (selectedRole == null) return; // user closed dialog
+      role = selectedRole;
+
+      // Extract name parts
+      String displayName = user.displayName ?? "";
+      List<String> nameParts = displayName.split(" ");
+      String firstName = nameParts.isNotEmpty ? nameParts.first : "";
+      String lastName = nameParts.length > 1 ? nameParts.sublist(1).join(" ") : "";
+
+      // ✅ Save to Users collection
+      if(role == "user") {
+        await usersRef.set({
+          "email": user.email,
+          "firstName": firstName,
+          "lastName": lastName,
+          "status": "online",
+          "lastSeen": FieldValue.serverTimestamp(),
+          "age": null,
+          "goals": null,
+          "hasCompletedTutorial": false,
+          "tutorialStep": 0,
+          "role": role,
+          "qrapproved": false,
+          "creationDate": FieldValue.serverTimestamp(),
+        });
+      }
+
+      // ✅ If dietitian, also create record in DietitianApplications
       if (role == "dietitian") {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const HomePageDietitian()),
-        );
-      } else {
+        final dietitianRef = FirebaseFirestore.instance
+            .collection("dietitianApproval")
+            .doc(user.uid);
+
+        await dietitianRef.set({
+          "email": user.email ?? "",
+          "firstName": firstName,
+          "lastName": lastName,
+          "licenseNum": null,
+          "prcImageurl": null,
+          "status": "pending",
+          "role": "dietitian",
+          "createdAt": FieldValue.serverTimestamp(),
+        });
+      }
+
+    } else {
+      // Existing user
+      role = userSnap.data()?['role'] ?? "user";
+      hasCompletedTutorial = userSnap.data()?['hasCompletedTutorial'] ?? false;
+
+      // Update status
+      await usersRef.set({
+        "status": "online",
+        "lastSeen": FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    }
+
+    // 🔀 Navigate depending on role
+    if (role == "dietitian") {
+      final dietitianDocId = user.uid;
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => MealPlanningScreen(userId: dietitianDocId),
+        ),
+      );
+    } else {
+      if (hasCompletedTutorial) {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => const home()),
         );
+      } else {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => MealPlanningScreen(userId: user.uid),
+          ),
+        );
       }
-    } else {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => MealPlanningScreen(userId: user.uid)),
-      );
     }
   }
+
+
 
   Future<void> _handleLogin() async {
     String email = emailController.text.trim();
