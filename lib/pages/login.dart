@@ -436,25 +436,53 @@ class _LoginPageState extends State<LoginPageMobile> with TickerProviderStateMix
     user = FirebaseAuth.instance.currentUser!;
 
     final usersRef = FirebaseFirestore.instance.collection("Users").doc(user.uid);
-    final userSnap = await usersRef.get();
+    final dietitianRef = FirebaseFirestore.instance.collection("dietitianApproval").doc(user.uid);
+
+    DocumentSnapshot userSnap = await usersRef.get();
+    DocumentSnapshot dietitianSnap = await dietitianRef.get();
 
     String role = "user";
     bool hasCompletedTutorial = false;
 
-    // If user does NOT exist in Users collection yet, ask for role
-    if (!userSnap.exists) {
+    // ===================== CASE 1: USER ALREADY EXISTS =====================
+    if (userSnap.exists) {
+      final userData = userSnap.data() as Map<String, dynamic>?;
+
+      role = userData?['role'] ?? "user";
+      hasCompletedTutorial = userData?['hasCompletedTutorial'] ?? false;
+
+      if (role == "user") {
+        if (hasCompletedTutorial) {
+          // User completed tutorial → go to home
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const home()),
+          );
+        }
+      } else if (role == "dietitian") {
+        // Dietitian → go to dietitian homepage
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const HomePageDietitian()),
+        );
+      }
+      return; // Already handled, exit function
+    }
+
+    // ===================== CASE 2: FIRST-TIME LOGIN =====================
+    // Not in Users or dietitianApproval → ask role
+    if (!userSnap.exists && !dietitianSnap.exists) {
       String? selectedRole = await _askUserRoleDialog();
       if (selectedRole == null) return; // user closed dialog
       role = selectedRole;
 
-      // Extract name parts
       String displayName = user.displayName ?? "";
       List<String> nameParts = displayName.split(" ");
       String firstName = nameParts.isNotEmpty ? nameParts.first : "";
       String lastName = nameParts.length > 1 ? nameParts.sublist(1).join(" ") : "";
 
-      // ✅ Save to Users collection
-      if(role == "user") {
+      if (role == "user") {
+        // Add to Users collection
         await usersRef.set({
           "email": user.email,
           "firstName": firstName,
@@ -465,69 +493,109 @@ class _LoginPageState extends State<LoginPageMobile> with TickerProviderStateMix
           "goals": null,
           "hasCompletedTutorial": false,
           "tutorialStep": 0,
-          "role": role,
+          "role": "user",
           "qrapproved": false,
           "creationDate": FieldValue.serverTimestamp(),
         });
-      }
 
-      // ✅ If dietitian, also create record in DietitianApplications
-      if (role == "dietitian") {
-        final dietitianRef = FirebaseFirestore.instance
-            .collection("dietitianApproval")
-            .doc(user.uid);
-
+        // Go to start/tutorial
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) =>  MealPlanningScreen(userId: user.uid)),
+        );
+        return;
+      } else if (role == "dietitian") {
+        // Add to dietitianApproval collection
         await dietitianRef.set({
           "email": user.email ?? "",
           "firstName": firstName,
           "lastName": lastName,
           "licenseNum": null,
           "prcImageurl": null,
-          "status": "pending",
+          "status": "pending", // first-time dietitian still passes
           "role": "dietitian",
+          "hasCompletedTutorial": false,
+          "tutorialStep": 0,
           "createdAt": FieldValue.serverTimestamp(),
         });
+
+        // First-time dietitian → go to start/tutorial
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) =>  MealPlanningScreen(userId: user.uid)),
+        );
+        return;
       }
-
-    } else {
-      // Existing user
-      role = userSnap.data()?['role'] ?? "user";
-      hasCompletedTutorial = userSnap.data()?['hasCompletedTutorial'] ?? false;
-
-      // Update status
-      await usersRef.set({
-        "status": "online",
-        "lastSeen": FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
     }
 
-    // 🔀 Navigate depending on role
-    if (role == "dietitian") {
-      final dietitianDocId = user.uid;
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (_) => MealPlanningScreen(userId: dietitianDocId),
-        ),
-      );
-    } else {
-      if (hasCompletedTutorial) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const home()),
-        );
-      } else {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (_) => MealPlanningScreen(userId: user.uid),
+    // ===================== CASE 3: DIETITIAN ALREADY IN dietitianApproval =====================
+    if (!userSnap.exists && dietitianSnap.exists) {
+      final dietitianData = dietitianSnap.data() as Map<String, dynamic>?;
+
+      role = "dietitian";
+
+      if (dietitianData != null && dietitianData['status'] == 'pending') {
+        // Show modal: account under review
+        await showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (dialogContext) => AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.info_outline, size: 64, color: Colors.orange),
+                const SizedBox(height: 16),
+                const Text(
+                  'Account Review',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.orange),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 12),
+                const Text(
+                  'Your account will be reviewed by the admins. '
+                      'Please go back to login and wait for approval. Thank you!',
+                  style: TextStyle(fontSize: 14, color: Colors.black87, height: 1.4),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.orange,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    onPressed: () {
+                      Navigator.of(dialogContext).pop();
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(builder: (_) => const LoginPageMobile()),
+                      );
+                    },
+                    child: const Text(
+                      'OK',
+                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         );
+        return;
+      } else {
+        // Approved dietitian → go to dietitian homepage
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const HomePageDietitian()),
+        );
+        return;
       }
     }
   }
-
-
 
   Future<void> _handleLogin() async {
     String email = emailController.text.trim();
@@ -563,10 +631,16 @@ class _LoginPageState extends State<LoginPageMobile> with TickerProviderStateMix
   Future<bool> loginWithGoogle() async {
     try {
       final googleSignIn = GoogleSignIn();
+
+// Force account picker
+      await googleSignIn.signOut();
+
       final googleUser = await googleSignIn.signIn();
-      if (googleUser == null) return false;
+      if (googleUser == null) return false; // user canceled
+
       List<String> signInMethods =
       await FirebaseAuth.instance.fetchSignInMethodsForEmail(googleUser.email);
+
       if (signInMethods.contains('password')) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -575,13 +649,16 @@ class _LoginPageState extends State<LoginPageMobile> with TickerProviderStateMix
         );
         return false;
       }
+
       final googleAuth = await googleUser.authentication;
       final credential = GoogleAuthProvider.credential(
         idToken: googleAuth.idToken,
         accessToken: googleAuth.accessToken,
       );
+
       await FirebaseAuth.instance.signInWithCredential(credential);
       return FirebaseAuth.instance.currentUser != null;
+
     } catch (e) {
       print("Google Sign-In error: $e");
       ScaffoldMessenger.of(context).showSnackBar(

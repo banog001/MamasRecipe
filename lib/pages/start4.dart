@@ -4,7 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 // import 'package:firebase_auth/firebase_auth.dart';
 import 'home.dart'; // Assuming home.dart is correctly set up
 import '../Dietitians/homePageDietitian.dart';
-
+import 'login.dart';
 
 class MealPlanningScreen4 extends StatelessWidget {
   final String userId; // 👈 Accept userId
@@ -17,57 +17,116 @@ class MealPlanningScreen4 extends StatelessWidget {
     if (currentUserId.isEmpty) return;
 
     try {
-      final usersRef =
-      FirebaseFirestore.instance.collection('Users').doc(currentUserId);
-      final dietitianDoc = await FirebaseFirestore.instance
+      final dietitianRef = FirebaseFirestore.instance
           .collection('dietitianApproval')
-          .doc(currentUserId)
-          .get();
+          .doc(currentUserId);
+      final dietitianDoc = await dietitianRef.get();
 
-      final isDietitian = dietitianDoc.exists;
-
-
-
-      final userSnap = await usersRef.get();
-
-      String role;
-      if (isDietitian) {
-        role = 'dietitian';
-      } else if (userSnap.exists) {
-        role = 'user';
-      } else {
-        print("⚠️ User not found in either collection.");
-        return;
-      }
-
-
-      // ✅ Update tutorial completion in Users collection (only if user)
-      if (role == 'user') {
-        await usersRef.update({
+      if (dietitianDoc.exists) {
+        // ✅ Update tutorial step for dietitian
+        await dietitianRef.update({
           'hasCompletedTutorial': true,
           'tutorialStep': 4,
         });
-        print("✅ Tutorial completed for user: $currentUserId");
+
+        print("ℹ️ Dietitian tutorial completed: $currentUserId");
+
+        // ✅ Show modal before sending back to login
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (dialogContext) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              contentPadding: const EdgeInsets.symmetric(vertical: 24, horizontal: 20),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.info_outline, size: 64, color: Colors.orange),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Account Review',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.orange,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Your account will be reviewed by the admins. '
+                        'Please go back to login and wait for approval. Thank you!',
+                    style: TextStyle(fontSize: 14, color: Colors.black87, height: 1.4),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 24),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.orange,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      onPressed: () {
+                        Navigator.of(dialogContext).pop(); // Close dialog
+                        Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(builder: (context) => const LoginPageMobile()),
+                        );
+                      },
+                      child: const Text(
+                        'OK',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+
+        return; // Stop further execution
       }
 
-      // ✅ Navigate based on collection/role
-      if (role == 'dietitian') {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-              builder: (context) => const HomePageDietitian(),
-          ),
-        );
-      } else {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const home()),
-        );
+      // ----------------- User logic -----------------
+      final userRef = FirebaseFirestore.instance.collection('Users').doc(currentUserId);
+      final userSnap = await userRef.get();
+
+      if (!userSnap.exists) {
+        print("⚠️ User not found in Users collection: $currentUserId");
+        return;
       }
+
+      // ✅ Update tutorial for regular user
+      await userRef.update({
+        'hasCompletedTutorial': true,
+        'tutorialStep': 4,
+      });
+
+      print("✅ Tutorial completed for user: $currentUserId");
+
+      // Navigate user to home
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const home()),
+      );
+
     } catch (e) {
       print("❌ Error completing tutorial for $currentUserId: $e");
     }
   }
+
+
 
 
   void _showConfirmationDialog(BuildContext context, String currentUserId) {
