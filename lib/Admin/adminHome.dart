@@ -546,6 +546,8 @@ class _AdminHomeState extends State<AdminHome> {
     );
   }
 
+// Replace the _buildUserCreationChart() and _buildAreaChart() methods with this code
+
   Widget _buildUserCreationChart() {
     return Card(
       elevation: 4,
@@ -571,7 +573,7 @@ class _AdminHomeState extends State<AdminHome> {
                     ),
                     const SizedBox(width: 12),
                     Text(
-                      "UserGrowth",
+                      "User Growth Analytics",
                       style: _getTextStyle(
                         context,
                         fontSize: 18,
@@ -592,98 +594,63 @@ class _AdminHomeState extends State<AdminHome> {
               ],
             ),
             const SizedBox(height: 24),
-            SizedBox(
-              height: 300,
-              child: StreamBuilder<QuerySnapshot>(
-                stream: FirebaseFirestore.instance
-                    .collection('Users')
-                    .where('role', whereIn: ['user', 'dietitian'])
-                    .snapshots(),
-                builder: (context, snapshot) {
-                  if (!snapshot.hasData) {
-                    return const Center(child: CircularProgressIndicator(color: _primaryColor));
-                  }
+            StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('Users')
+                  .where('role', whereIn: ['user', 'dietitian'])
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (!snapshot.hasData) {
+                  return const Center(child: CircularProgressIndicator(color: _primaryColor));
+                }
 
-                  final users = snapshot.data!.docs;
-                  final chartData = _processUserCreationData(users, chartFilter);
+                final users = snapshot.data!.docs;
+                final totalUsers = users.length;
+                final chartData = _processUserCreationData(users, chartFilter);
+                final newUsersThisPeriod = _calculateNewUsersPeriod(users, chartFilter);
 
-                  return BarChart(
-                    BarChartData(
-                      alignment: BarChartAlignment.spaceAround,
-                      maxY: (chartData['maxY'] as double) + 2,
-                      barGroups: List.generate(
-                        chartData['values'].length,
-                            (index) => BarChartGroupData(
-                          x: index,
-                          barRods: [
-                            BarChartRodData(
-                              toY: (chartData['values'][index] as int).toDouble(),
-                              color: _primaryColor,
-                              width: 32,
-                              borderRadius: BorderRadius.circular(4),
-                              backDrawRodData: BackgroundBarChartRodData(
-                                show: true,
-                                toY: (chartData['maxY'] as double) + 2,
-                                color: _cardBgColor(context).withOpacity(0.1),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      gridData: FlGridData(
-                        show: true,
-                        drawHorizontalLine: true,
-                        horizontalInterval: 1,
-                        getDrawingHorizontalLine: (value) => FlLine(
-                          color: _textColorSecondary(context).withOpacity(0.1),
-                          strokeWidth: 1,
-                        ),
-                      ),
-                      titlesData: FlTitlesData(
-                        leftTitles: AxisTitles(
-                          sideTitles: SideTitles(
-                            showTitles: true,
-                            interval: 1,
-                            reservedSize: 42,
-                            getTitlesWidget: (value, meta) {
-                              return Text(
-                                value.toInt().toString(),
-                                style: _getTextStyle(context, fontSize: 10),
-                              );
-                            },
+                return Column(
+                  children: [
+                    // Summary Metrics
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildMetricCard(
+                            "Total Users",
+                            totalUsers.toString(),
+                            _primaryColor,
+                            Icons.people,
                           ),
                         ),
-                        bottomTitles: AxisTitles(
-                          sideTitles: SideTitles(
-                            showTitles: true,
-                            reservedSize: 30,
-                            interval: 1,
-                            getTitlesWidget: (value, meta) {
-                              int index = value.toInt();
-                              if (index >= 0 && index < chartData['labels'].length) {
-                                return Padding(
-                                  padding: const EdgeInsets.only(top: 8.0),
-                                  child: Text(
-                                    chartData['labels'][index],
-                                    style: _getTextStyle(context, fontSize: 10),
-                                  ),
-                                );
-                              }
-                              return const Text('');
-                            },
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: _buildMetricCard(
+                            "New Users (${chartFilter})",
+                            newUsersThisPeriod.toString(),
+                            Colors.blue,
+                            Icons.person_add,
                           ),
                         ),
-                        topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                        rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                      ),
-                      borderData: FlBorderData(
-                        show: true,
-                        border: Border.all(color: _textColorSecondary(context).withOpacity(0.2)),
-                      ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: _buildMetricCard(
+                            "Growth Trend",
+                            _calculateGrowthTrend(users, chartFilter),
+                            Colors.green,
+                            Icons.trending_up,
+                          ),
+                        ),
+                      ],
                     ),
-                  );
-                },
-              ),
+                    const SizedBox(height: 24),
+                    // Bar Chart
+                    SizedBox(
+                      height: 280,
+                      child: _buildBarChart(chartData),
+                    ),
+                  ],
+                );
+              },
             ),
           ],
         ),
@@ -691,6 +658,295 @@ class _AdminHomeState extends State<AdminHome> {
     );
   }
 
+// Metric Card Widget
+  Widget _buildMetricCard(String label, String value, Color color, IconData icon) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, color: color, size: 18),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  label,
+                  style: _getTextStyle(
+                    context,
+                    fontSize: 12,
+                    color: _textColorSecondary(context),
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            value,
+            style: _getTextStyle(
+              context,
+              fontSize: 28,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+
+// Bar Chart using fl_chart
+  Widget _buildBarChart(Map<String, dynamic> chartData) {
+    final labels = chartData['labels'] as List<String>;
+    final values = chartData['values'] as List<int>;
+    final maxY = chartData['maxY'] as double;
+
+    List<BarChartGroupData> barGroups = [];
+    for (int i = 0; i < values.length; i++) {
+      barGroups.add(
+        BarChartGroupData(
+          x: i,
+          barRods: [
+            BarChartRodData(
+              toY: values[i].toDouble(),
+              color: _primaryColor,
+              width: 74,
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(0),
+                topRight: Radius.circular(0),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return BarChart(
+      BarChartData(
+        barGroups: barGroups,
+        gridData: FlGridData(
+          show: true,
+          drawHorizontalLine: true,
+          drawVerticalLine: true,
+          horizontalInterval: (maxY / 5).ceil().toDouble(),
+          verticalInterval: 1,
+          getDrawingHorizontalLine: (value) => FlLine(
+            color: _textColorSecondary(context).withOpacity(0.1),
+            strokeWidth: 1,
+          ),
+          getDrawingVerticalLine: (value) => FlLine(
+            color: _textColorSecondary(context).withOpacity(0.1),
+            strokeWidth: 1,
+          ),
+        ),
+        titlesData: FlTitlesData(
+          leftTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              reservedSize: 40,
+              interval: (maxY / 5).ceil().toDouble(),
+              getTitlesWidget: (value, meta) {
+                return Text(
+                  value.toInt().toString(),
+                  style: _getTextStyle(context, fontSize: 10),
+                );
+              },
+            ),
+          ),
+          bottomTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              reservedSize: 30,
+              interval: 1,
+              getTitlesWidget: (value, meta) {
+                int index = value.toInt();
+                if (index >= 0 && index < labels.length) {
+                  return Padding(
+                    padding: const EdgeInsets.only(top: 8.0),
+                    child: Text(
+                      labels[index],
+                      style: _getTextStyle(context, fontSize: 10),
+                    ),
+                  );
+                }
+                return const Text('');
+              },
+            ),
+          ),
+          topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+        ),
+        borderData: FlBorderData(
+          show: true,
+          border: Border.all(
+            color: _textColorSecondary(context).withOpacity(0.2),
+          ),
+        ),
+        maxY: maxY + 1,
+        minY: 0,
+        barTouchData: BarTouchData(enabled: false),
+        groupsSpace: 8,
+      ),
+    );
+  }
+
+// Calculate new users in the current period
+  int _calculateNewUsersPeriod(List<QueryDocumentSnapshot> users, String period) {
+    final now = DateTime.now();
+    int count = 0;
+
+    for (var doc in users) {
+      final data = doc.data() as Map<String, dynamic>;
+      final timestamp = data['createdAt'] as Timestamp? ?? data['creationDate'] as Timestamp?;
+
+      if (timestamp != null) {
+        final date = timestamp.toDate();
+
+        if (period == "Week") {
+          final sevenDaysAgo = now.subtract(const Duration(days: 7));
+          if (date.isAfter(sevenDaysAgo)) count++;
+        } else if (period == "Month") {
+          final oneMonthAgo = DateTime(now.year, now.month - 1, now.day);
+          if (date.isAfter(oneMonthAgo)) count++;
+        } else if (period == "Year") {
+          final oneYearAgo = DateTime(now.year - 1, now.month, now.day);
+          if (date.isAfter(oneYearAgo)) count++;
+        }
+      }
+    }
+
+    return count;
+  }
+
+// Calculate growth trend percentage
+  String _calculateGrowthTrend(List<QueryDocumentSnapshot> users, String period) {
+    final now = DateTime.now();
+    int currentCount = 0;
+    int previousCount = 0;
+
+    for (var doc in users) {
+      final data = doc.data() as Map<String, dynamic>;
+      final timestamp = data['createdAt'] as Timestamp? ?? data['creationDate'] as Timestamp?;
+
+      if (timestamp != null) {
+        final date = timestamp.toDate();
+
+        if (period == "Week") {
+          final sevenDaysAgo = now.subtract(const Duration(days: 7));
+          final fourteenDaysAgo = now.subtract(const Duration(days: 14));
+
+          if (date.isAfter(sevenDaysAgo)) {
+            currentCount++;
+          } else if (date.isAfter(fourteenDaysAgo)) {
+            previousCount++;
+          }
+        } else if (period == "Month") {
+          final oneMonthAgo = DateTime(now.year, now.month - 1, now.day);
+          final twoMonthsAgo = DateTime(now.year, now.month - 2, now.day);
+
+          if (date.isAfter(oneMonthAgo)) {
+            currentCount++;
+          } else if (date.isAfter(twoMonthsAgo)) {
+            previousCount++;
+          }
+        } else if (period == "Year") {
+          final oneYearAgo = DateTime(now.year - 1, now.month, now.day);
+          final twoYearsAgo = DateTime(now.year - 2, now.month, now.day);
+
+          if (date.isAfter(oneYearAgo)) {
+            currentCount++;
+          } else if (date.isAfter(twoYearsAgo)) {
+            previousCount++;
+          }
+        }
+      }
+    }
+
+    if (previousCount == 0) return "New";
+
+    final trend = ((currentCount - previousCount) / previousCount * 100).toStringAsFixed(1);
+    return "$trend%";
+  }
+
+// Updated data processing - excludes today for Week view
+  Map<String, dynamic> _processUserCreationData(List<QueryDocumentSnapshot> users, String chartFilter) {
+    final now = DateTime.now();
+    Map<String, int> dateCounts = {};
+    List<String> dateKeys = [];
+    List<String> labels = [];
+
+    // Generate keys and labels
+    if (chartFilter == "Week") {
+      // Week: last 7 complete days (excluding today)
+      for (int i = 7; i >= 1; i--) {
+        final date = now.subtract(Duration(days: i));
+        final key = DateFormat('yyyy-MM-dd').format(date);
+        dateCounts[key] = 0;
+        dateKeys.add(key);
+        labels.add(DateFormat('EEE').format(date)); // Mon, Tue, etc
+      }
+    } else if (chartFilter == "Month") {
+      // Month: last 12 complete months
+      for (int i = 11; i >= 0; i--) {
+        final date = DateTime(now.year, now.month - i, 1);
+        final key = DateFormat('yyyy-MM').format(date);
+        dateCounts[key] = 0;
+        dateKeys.add(key);
+        labels.add(DateFormat('MMM').format(date)); // Jan, Feb, etc
+      }
+    } else {
+      // Year: last 7 years
+      final startYear = 2024;
+      for (int i = 0; i < 7; i++) {
+        final year = startYear + i;
+        final key = year.toString();
+        dateCounts[key] = 0;
+        dateKeys.add(key);
+        labels.add(year.toString());
+      }
+    }
+
+    // Count user creations
+    for (var doc in users) {
+      final data = doc.data() as Map<String, dynamic>;
+      final timestamp = data['createdAt'] as Timestamp? ?? data['creationDate'] as Timestamp?;
+
+      if (timestamp != null) {
+        final date = timestamp.toDate();
+
+        String key;
+        if (chartFilter == "Week") {
+          key = DateFormat('yyyy-MM-dd').format(date);
+        } else if (chartFilter == "Month") {
+          key = DateFormat('yyyy-MM').format(DateTime(date.year, date.month, 1));
+        } else {
+          key = date.year.toString();
+        }
+
+        if (dateCounts.containsKey(key)) {
+          dateCounts[key] = dateCounts[key]! + 1;
+        }
+      }
+    }
+
+    // Map values in correct order
+    final values = dateKeys.map((k) => dateCounts[k]!).toList();
+    final maxY = values.isEmpty ? 10.0 : values.reduce((a, b) => a > b ? a : b).toDouble();
+
+    return {
+      'labels': labels,
+      'values': values,
+      'maxY': maxY,
+    };
+  }
 
   Widget _buildChartFilterButton(String filter) {
     final isSelected = chartFilter == filter;
@@ -723,73 +979,6 @@ class _AdminHomeState extends State<AdminHome> {
     );
   }
 
-  Map<String, dynamic> _processUserCreationData(List<QueryDocumentSnapshot> users, String chartFilter) {
-    final now = DateTime.now();
-    Map<String, int> dateCounts = {};
-    List<String> dateKeys = [];
-    List<String> labels = [];
-
-    // ─────────────── Generate keys and labels ───────────────
-    if (chartFilter == "Week") {
-      for (int i = 6; i >= 0; i--) {
-        final date = now.subtract(Duration(days: i));
-        final key = DateFormat('MM/dd').format(date);
-        dateCounts[key] = 0;
-        dateKeys.add(key);
-        labels.add(DateFormat('EEE').format(date)); // Mon, Tue ...
-      }
-    } else if (chartFilter == "Month") {
-      for (int i = 11; i >= 0; i--) {
-        final date = DateTime(now.year, now.month - i, 1);
-        final key = DateFormat('yyyy-MM').format(date); // align with counting
-        dateCounts[key] = 0;
-        dateKeys.add(key);
-        labels.add(DateFormat('MMMM').format(date)); // January, February ...
-      }
-    } else { // Year
-      final startYear = 2024;
-      for (int i = 0; i < 7; i++) {
-        final year = startYear + i; // 2024, 2025, ...
-        final key = year.toString();
-        dateCounts[key] = 0;
-        dateKeys.add(key);
-        labels.add(year.toString());
-      }
-    }
-
-    // ─────────────── Count user creations ───────────────
-    for (var doc in users) {
-      final data = doc.data() as Map<String, dynamic>;
-      final timestamp = data['creationDate'] as Timestamp?;
-      if (timestamp != null) {
-        final date = timestamp.toDate();
-
-        String key;
-        if (chartFilter == "Week") {
-          key = DateFormat('MM/dd').format(date);
-        } else if (chartFilter == "Month") {
-          key = DateFormat('yyyy-MM').format(DateTime(date.year, date.month, 1));
-        } else { // Year
-          key = date.year.toString();
-        }
-
-        if (dateCounts.containsKey(key)) {
-          dateCounts[key] = dateCounts[key]! + 1;
-        }
-      }
-    }
-
-    // ─────────────── Map values in correct order ───────────────
-    final values = dateKeys.map((k) => dateCounts[k]!).toList();
-
-    final maxY = values.isEmpty ? 10.0 : values.reduce((a, b) => a > b ? a : b).toDouble();
-
-    return {
-      'labels': labels,
-      'values': values,
-      'maxY': maxY,
-    };
-  }
 
 
   Widget _buildQRApprovalPage() {
