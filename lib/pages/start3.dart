@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'start4.dart';
+import 'package:mamas_recipe/widget/custom_snackbar.dart';
 
 class MealPlanningScreen3 extends StatefulWidget {
   final String userId;
@@ -12,12 +13,21 @@ class MealPlanningScreen3 extends StatefulWidget {
 }
 
 class _MealPlanningScreen3State extends State<MealPlanningScreen3> {
-  final _formKey = GlobalKey<FormState>();
+  // MODIFIED: Removed _formKey as we are doing manual validation
+  // final _formKey = GlobalKey<FormState>();
 
-  // <CHANGE> Replaced age controller with birthday date
+  // GlobalKeys for scrolling to error sections
+  final _personalInfoKey = GlobalKey();
+  final _healthGoalKey = GlobalKey();
+  final _activityLevelKey = GlobalKey();
+
   DateTime? selectedBirthday;
   final TextEditingController _weightController = TextEditingController();
   final TextEditingController _heightController = TextEditingController();
+
+  // FocusNodes for weight and height fields
+  final FocusNode _weightFocusNode = FocusNode();
+  final FocusNode _heightFocusNode = FocusNode();
 
   String? selectedGender;
   int? selectedHealthGoalIndex;
@@ -27,26 +37,28 @@ class _MealPlanningScreen3State extends State<MealPlanningScreen3> {
     {"icon": Icons.person_remove_outlined, "text": "Weight Loss"},
     {"icon": Icons.person_add_alt_1_outlined, "text": "Weight Gain"},
     {"icon": Icons.health_and_safety_outlined, "text": "Health Recovery"},
-    {"icon": Icons.monitor_weight_outlined, "text": "Maintain Weight"},
+    {"icon":Icons.monitor_weight_outlined, "text": "Maintain Weight"},
     {"icon": Icons.fitness_center, "text": "Workout"},
   ];
 
-  // <CHANGE> Added descriptions for each activity level
   final List<Map<String, dynamic>> activityLevels = [
     {
       "icon": Icons.directions_walk,
       "text": "Lightly Active",
-      "description": "Minimal exercise, desk job, light walking or household chores"
+      "description":
+      "Minimal exercise, desk job, light walking or household chores"
     },
     {
       "icon": Icons.directions_run,
       "text": "Moderately Active",
-      "description": "Exercise 3-5 days/week, regular physical activities like jogging or cycling"
+      "description":
+      "Exercise 3-5 days/week, regular physical activities like jogging or cycling"
     },
     {
       "icon": Icons.pool,
       "text": "Very Active",
-      "description": "Exercise 6-7 days/week, sports training, or physically demanding job"
+      "description":
+      "Exercise 6-7 days/week, sports training, or physically demanding job"
     },
     {
       "icon": Icons.construction,
@@ -96,7 +108,6 @@ class _MealPlanningScreen3State extends State<MealPlanningScreen3> {
     );
   }
 
-  // <CHANGE> Added function to calculate age from birthday
   int _calculateAge(DateTime birthDate) {
     final today = DateTime.now();
     int age = today.year - birthDate.year;
@@ -107,95 +118,135 @@ class _MealPlanningScreen3State extends State<MealPlanningScreen3> {
     return age;
   }
 
+  double _calculateBMI(double weightKg, double heightCm) {
+    double heightM = heightCm / 100;
+    return weightKg / (heightM * heightM);
+  }
+
+  bool _isValidWeightHeightCombination(double weightKg, double heightCm) {
+    double bmi = _calculateBMI(weightKg, heightCm);
+    return bmi >= 10 && bmi <= 60;
+  }
+
+  // Helper function to scroll to a specific widget
+  void _scrollToKey(GlobalKey key) {
+    final context = key.currentContext;
+    if (context != null) {
+      Scrollable.ensureVisible(
+        context,
+        duration: const Duration(milliseconds: 500),
+        curve: Curves.easeInOut,
+        alignment: 0.1, // Align near the top
+      );
+    }
+  }
+
+  // NEW: Helper to show error snackbar
+  void _showErrorSnackBar(String message) {
+    CustomSnackBar.show(
+      context,
+      message,
+      backgroundColor: Colors.redAccent,
+      icon: Icons.error_outline,
+    );
+  }
+
   @override
   void dispose() {
     _weightController.dispose();
     _heightController.dispose();
+    _weightFocusNode.dispose();
+    _heightFocusNode.dispose();
     super.dispose();
   }
 
   Future<void> _saveUserData() async {
-    if (!(_formKey.currentState?.validate() ?? false)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              Icon(Icons.error_outline, color: _textColorOnPrimary),
-              const SizedBox(width: 12),
-              const Expanded(child: Text("Please correct the errors in the form")),
-            ],
-          ),
-          backgroundColor: Colors.redAccent,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          margin: const EdgeInsets.all(16),
-        ),
-      );
-      return;
-    }
+    // --- NEW: Manual Validation Logic ---
 
-    // <CHANGE> Validate birthday selection
+    final weightText = _weightController.text.trim();
+    final heightText = _heightController.text.trim();
+    final weight = double.tryParse(weightText);
+    final height = double.tryParse(heightText);
+
+    // 1. Check Birthday
     if (selectedBirthday == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              Icon(Icons.error_outline, color: _textColorOnPrimary),
-              const SizedBox(width: 12),
-              const Expanded(child: Text("Please select your birthday")),
-            ],
-          ),
-          backgroundColor: Colors.redAccent,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          margin: const EdgeInsets.all(16),
-        ),
-      );
+      _showErrorSnackBar("Please select your birthday");
+      _scrollToKey(_personalInfoKey);
       return;
     }
 
+    // 2. Check Gender
     if (selectedGender == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              Icon(Icons.error_outline, color: _textColorOnPrimary),
-              const SizedBox(width: 12),
-              const Expanded(child: Text("Please select your gender")),
-            ],
-          ),
-          backgroundColor: Colors.redAccent,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          margin: const EdgeInsets.all(16),
-        ),
-      );
+      _showErrorSnackBar("Please select your gender");
+      _scrollToKey(_personalInfoKey);
       return;
     }
 
-    if (selectedHealthGoalIndex == null || selectedActivityLevelIndex == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              Icon(Icons.error_outline, color: _textColorOnPrimary),
-              const SizedBox(width: 12),
-              const Expanded(child: Text("Please make all selections")),
-            ],
-          ),
-          backgroundColor: Colors.redAccent,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          margin: const EdgeInsets.all(16),
-        ),
-      );
+    // 3. Check Weight
+    if (weightText.isEmpty) {
+      _showErrorSnackBar("Please enter your weight");
+      _scrollToKey(_personalInfoKey);
+      _weightFocusNode.requestFocus();
+      return;
+    }
+    if (weight == null || weight <= 0) {
+      _showErrorSnackBar("Please enter a valid weight");
+      _scrollToKey(_personalInfoKey);
+      _weightFocusNode.requestFocus();
       return;
     }
 
-    // <CHANGE> Calculate age from birthday
+    // 4. Check Height
+    if (heightText.isEmpty) {
+      _showErrorSnackBar("Please enter your height");
+      _scrollToKey(_personalInfoKey);
+      _heightFocusNode.requestFocus();
+      return;
+    }
+    if (height == null || height <= 0) {
+      _showErrorSnackBar("Please enter a valid height");
+      _scrollToKey(_personalInfoKey);
+      _heightFocusNode.requestFocus();
+      return;
+    }
+    if (height < 50 || height > 250) {
+      _showErrorSnackBar("Height must be between 50-250 cm");
+      _scrollToKey(_personalInfoKey);
+      _heightFocusNode.requestFocus();
+      return;
+    }
+
+    // 5. Check Weight/Height Combination (BMI)
+    if (!_isValidWeightHeightCombination(weight, height)) {
+      final bmi = _calculateBMI(weight, height);
+      if (bmi < 10) {
+        _showErrorSnackBar("Weight seems too low for this height");
+      } else {
+        _showErrorSnackBar("Weight seems too high for this height");
+      }
+      _scrollToKey(_personalInfoKey);
+      _weightFocusNode.requestFocus(); // Default to focusing weight on BMI error
+      return;
+    }
+
+    // 6. Check Health Goal
+    if (selectedHealthGoalIndex == null) {
+      _showErrorSnackBar("Please select a health goal");
+      _scrollToKey(_healthGoalKey);
+      return;
+    }
+
+    // 7. Check Activity Level
+    if (selectedActivityLevelIndex == null) {
+      _showErrorSnackBar("Please select an activity level");
+      _scrollToKey(_activityLevelKey);
+      return;
+    }
+
+    // --- End of Validation ---
+
+    // All checks passed, proceed to save data
     final int age = _calculateAge(selectedBirthday!);
-    final String weight = _weightController.text.trim();
-    final String height = _heightController.text.trim();
     final String healthGoal = healthGoals[selectedHealthGoalIndex!]["text"];
     final String activityLevel =
     activityLevels[selectedActivityLevelIndex!]["text"];
@@ -207,8 +258,8 @@ class _MealPlanningScreen3State extends State<MealPlanningScreen3> {
           .set({
         "age": age,
         "gender": selectedGender,
-        "currentWeight": double.tryParse(weight) ?? 0.0,
-        "height": double.tryParse(height) ?? 0.0,
+        "currentWeight": weight, // MODIFIED: Save the parsed double
+        "height": height, // MODIFIED: Save the parsed double
         "goals": healthGoal,
         "activityLevel": activityLevel,
         "tutorialStep": 3,
@@ -224,26 +275,11 @@ class _MealPlanningScreen3State extends State<MealPlanningScreen3> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                Icon(Icons.error_outline, color: _textColorOnPrimary),
-                const SizedBox(width: 12),
-                Expanded(child: Text("Error saving data: $e")),
-              ],
-            ),
-            backgroundColor: Colors.redAccent,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            margin: const EdgeInsets.all(16),
-          ),
-        );
+        _showErrorSnackBar("Error saving data: $e");
       }
     }
   }
 
-  // <CHANGE> New birthday picker widget
   Widget _buildBirthdayPicker() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -310,7 +346,7 @@ class _MealPlanningScreen3State extends State<MealPlanningScreen3> {
                 Expanded(
                   child: Text(
                     selectedBirthday != null
-                        ? "${selectedBirthday!.day}/${selectedBirthday!.month}/${selectedBirthday!.year} (Age: ${_calculateAge(selectedBirthday!)})"
+                        ? "${selectedBirthday!.day}/${selectedBirthday!.month}/${selectedBirthday!.year} "
                         : "Select your birthday",
                     style: _getTextStyle(
                       context,
@@ -329,84 +365,6 @@ class _MealPlanningScreen3State extends State<MealPlanningScreen3> {
               ],
             ),
           ),
-        ),
-        const SizedBox(height: 16),
-      ],
-    );
-  }
-
-  Widget _buildTextField({
-    required TextEditingController controller,
-    required String labelText,
-    required String hintText,
-    TextInputType keyboardType = TextInputType.text,
-    bool isNumeric = false,
-    String? Function(String?)? validator,
-    IconData? prefixIcon,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          labelText,
-          style: _getTextStyle(
-            context,
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: _textColorSecondary(context),
-          ),
-        ),
-        const SizedBox(height: 8),
-        TextFormField(
-          controller: controller,
-          keyboardType: keyboardType,
-          style: _getTextStyle(context, fontSize: 16),
-          decoration: InputDecoration(
-            hintText: hintText,
-            hintStyle: _getTextStyle(
-              context,
-              fontSize: 14,
-              color: _textColorSecondary(context),
-            ),
-            filled: true,
-            fillColor: _scaffoldBgColor(context),
-            prefixIcon: prefixIcon != null
-                ? Icon(prefixIcon, color: _primaryColor, size: 20)
-                : null,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: Colors.grey.shade300),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: Colors.grey.shade300),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: _primaryColor, width: 2),
-            ),
-            errorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Colors.redAccent),
-            ),
-            focusedErrorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Colors.redAccent, width: 2),
-            ),
-            contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            isDense: true,
-          ),
-          validator: validator ??
-                  (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Please enter $labelText';
-                }
-                if (isNumeric && double.tryParse(value) == null) {
-                  return 'Please enter a valid number';
-                }
-                return null;
-              },
         ),
         const SizedBox(height: 16),
       ],
@@ -493,8 +451,10 @@ class _MealPlanningScreen3State extends State<MealPlanningScreen3> {
     required String title,
     required List<Widget> children,
     String? subtitle,
+    Key? key,
   }) {
     return Card(
+      key: key,
       elevation: 4,
       shadowColor: _primaryColor.withOpacity(0.1),
       shape: RoundedRectangleBorder(
@@ -572,7 +532,8 @@ class _MealPlanningScreen3State extends State<MealPlanningScreen3> {
                   children: [
                     Icon(
                       item["icon"],
-                      color: isItemSelected ? _primaryColor : Colors.grey.shade600,
+                      color:
+                      isItemSelected ? _primaryColor : Colors.grey.shade600,
                       size: 22,
                     ),
                     const SizedBox(width: 14),
@@ -591,10 +552,10 @@ class _MealPlanningScreen3State extends State<MealPlanningScreen3> {
                       ),
                     ),
                     if (isItemSelected)
-                      const Icon(Icons.check_circle, color: _primaryColor, size: 20),
+                      const Icon(Icons.check_circle,
+                          color: _primaryColor, size: 20),
                   ],
                 ),
-                // <CHANGE> Added description text for activity levels
                 if (item["description"] != null) ...[
                   const SizedBox(height: 6),
                   Padding(
@@ -622,283 +583,322 @@ class _MealPlanningScreen3State extends State<MealPlanningScreen3> {
     return Scaffold(
       backgroundColor: _scaffoldBgColor(context),
       body: SafeArea(
-        child: Form(
-          key: _formKey,
-          child: SingleChildScrollView(
-            physics: const BouncingScrollPhysics(),
-            padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const SizedBox(height: 12),
-                Container(
-                  width: 56,
-                  height: 56,
-                  decoration: BoxDecoration(
-                    color: _primaryColor,
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: _primaryColor.withOpacity(0.3),
-                        blurRadius: 15,
-                        offset: const Offset(0, 5),
+        // MODIFIED: Removed Form widget
+        child: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
+          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const SizedBox(height: 12),
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  color: _primaryColor,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: _primaryColor.withOpacity(0.3),
+                      blurRadius: 15,
+                      offset: const Offset(0, 5),
+                    ),
+                  ],
+                ),
+                child: const Icon(
+                  Icons.person_outline,
+                  color: _textColorOnPrimary,
+                  size: 28,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Tell Us About Yourself',
+                textAlign: TextAlign.center,
+                style: _getTextStyle(
+                  context,
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: _textColorPrimary(context),
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Step 3 of 4: Profile Details',
+                textAlign: TextAlign.center,
+                style: _getTextStyle(
+                  context,
+                  fontSize: 13,
+                  color: _textColorSecondary(context),
+                ),
+              ),
+              const SizedBox(height: 20),
+              _buildSectionContainer(
+                key: _personalInfoKey,
+                title: 'Personal Information',
+                children: [
+                  _buildBirthdayPicker(),
+                  _buildGenderSelection(),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              "Weight (kg)",
+                              style: _getTextStyle(
+                                context,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: _textColorSecondary(context),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            TextFormField(
+                              controller: _weightController,
+                              focusNode: _weightFocusNode,
+                              keyboardType: TextInputType.number,
+                              style: _getTextStyle(context, fontSize: 16),
+                              onFieldSubmitted: (_) {
+                                // This "soft warning" logic can remain
+                                final weightText =
+                                _weightController.text.trim();
+                                if (weightText.isNotEmpty) {
+                                  final weight = double.tryParse(weightText);
+                                  final heightText =
+                                  _heightController.text.trim();
+                                  final height = double.tryParse(heightText);
+
+                                  if (weight != null &&
+                                      height != null &&
+                                      weight > 0 &&
+                                      height > 0) {
+                                    if (!_isValidWeightHeightCombination(
+                                        weight, height)) {
+                                      final bmi =
+                                      _calculateBMI(weight, height);
+                                      if (bmi < 10) {
+                                        _showErrorSnackBar(
+                                            'Weight seems too low for this height (BMI: ${bmi.toStringAsFixed(1)})');
+                                      } else {
+                                        _showErrorSnackBar(
+                                            'Weight seems too high for this height (BMI: ${bmi.toStringAsFixed(1)})');
+                                      }
+                                    }
+                                  }
+                                }
+                              },
+                              decoration: InputDecoration(
+                                hintText: 'e.g., 70',
+                                hintStyle: _getTextStyle(
+                                  context,
+                                  fontSize: 14,
+                                  color: _textColorSecondary(context),
+                                ),
+                                filled: true,
+                                fillColor: _scaffoldBgColor(context),
+                                prefixIcon: const Icon(
+                                  Icons.monitor_weight_outlined,
+                                  color: _primaryColor,
+                                  size: 20,
+                                ),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide:
+                                  BorderSide(color: Colors.grey.shade300),
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide:
+                                  BorderSide(color: Colors.grey.shade300),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: const BorderSide(
+                                      color: _primaryColor, width: 2),
+                                ),
+                                // MODIFIED: Removed error borders
+                                errorBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: BorderSide(
+                                      color: Colors.grey.shade300),
+                                ),
+                                focusedErrorBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: const BorderSide(
+                                      color: _primaryColor, width: 2),
+                                ),
+                                contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 16, vertical: 14),
+                                isDense: true,
+                              ),
+                              // MODIFIED: Removed validator
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              "Height (cm)",
+                              style: _getTextStyle(
+                                context,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: _textColorSecondary(context),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            TextFormField(
+                              controller: _heightController,
+                              focusNode: _heightFocusNode,
+                              keyboardType: TextInputType.number,
+                              style: _getTextStyle(context, fontSize: 16),
+                              onFieldSubmitted: (_) {
+                                // This "soft warning" logic can remain
+                                final heightText =
+                                _heightController.text.trim();
+                                if (heightText.isNotEmpty) {
+                                  final height = double.tryParse(heightText);
+                                  final weightText =
+                                  _weightController.text.trim();
+                                  final weight = double.tryParse(weightText);
+
+                                  if (height != null &&
+                                      weight != null &&
+                                      height > 0 &&
+                                      weight > 0) {
+                                    if (height < 50 || height > 250) {
+                                      _showErrorSnackBar(
+                                          'Height must be between 50-250 cm');
+                                    } else if (!_isValidWeightHeightCombination(
+                                        weight, height)) {
+                                      final bmi =
+                                      _calculateBMI(weight, height);
+                                      if (bmi < 10) {
+                                        _showErrorSnackBar(
+                                            'Height seems too high for this weight (BMI: ${bmi.toStringAsFixed(1)})');
+                                      } else {
+                                        _showErrorSnackBar(
+                                            'Height seems too low for this weight (BMI: ${bmi.toStringAsFixed(1)})');
+                                      }
+                                    }
+                                  }
+                                }
+                              },
+                              decoration: InputDecoration(
+                                hintText: 'e.g., 175',
+                                hintStyle: _getTextStyle(
+                                  context,
+                                  fontSize: 14,
+                                  color: _textColorSecondary(context),
+                                ),
+                                filled: true,
+                                fillColor: _scaffoldBgColor(context),
+                                prefixIcon: const Icon(
+                                  Icons.height_outlined,
+                                  color: _primaryColor,
+                                  size: 20,
+                                ),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide:
+                                  BorderSide(color: Colors.grey.shade300),
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide:
+                                  BorderSide(color: Colors.grey.shade300),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: const BorderSide(
+                                      color: _primaryColor, width: 2),
+                                ),
+                                // MODIFIED: Removed error borders
+                                errorBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: BorderSide(
+                                      color: Colors.grey.shade300),
+                                ),
+                                focusedErrorBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: const BorderSide(
+                                      color: _primaryColor, width: 2),
+                                ),
+                                contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 16, vertical: 14),
+                                isDense: true,
+                              ),
+                              // MODIFIED: Removed validator
+                            ),
+                          ],
+                        ),
                       ),
                     ],
                   ),
-                  child: const Icon(
-                    Icons.person_outline,
-                    color: _textColorOnPrimary,
-                    size: 28,
+                ],
+              ),
+              _buildSectionContainer(
+                key: _healthGoalKey,
+                title: 'Health Goals',
+                subtitle: 'What would you like to achieve?',
+                children: [
+                  _buildSelectionList(
+                    items: healthGoals,
+                    selectedIndex: selectedHealthGoalIndex,
+                    onSelected: (index) {
+                      setState(() => selectedHealthGoalIndex = index);
+                    },
                   ),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  'Tell Us About Yourself',
-                  textAlign: TextAlign.center,
-                  style: _getTextStyle(
-                    context,
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                    color: _textColorPrimary(context),
+                ],
+              ),
+              _buildSectionContainer(
+                key: _activityLevelKey,
+                title: 'Activity & Lifestyle',
+                subtitle: 'How would you describe your activity level?',
+                children: [
+                  _buildSelectionList(
+                    items: activityLevels,
+                    selectedIndex: selectedActivityLevelIndex,
+                    onSelected: (index) {
+                      setState(() => selectedActivityLevelIndex = index);
+                    },
                   ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Step 3 of 4: Profile Details',
-                  textAlign: TextAlign.center,
-                  style: _getTextStyle(
-                    context,
-                    fontSize: 13,
-                    color: _textColorSecondary(context),
+                ],
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _primaryColor,
+                    foregroundColor: _textColorOnPrimary,
+                    elevation: 4,
+                    shadowColor: _primaryColor.withOpacity(0.4),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 20),
-
-                // Personal Information Section
-                _buildSectionContainer(
-                  title: 'Personal Information',
-                  children: [
-                    // <CHANGE> Replaced age input with birthday picker
-                    _buildBirthdayPicker(),
-                    _buildGenderSelection(),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                "Weight (kg)",
-                                style: _getTextStyle(
-                                  context,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                  color: _textColorSecondary(context),
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              TextFormField(
-                                controller: _weightController,
-                                keyboardType: TextInputType.number,
-                                style: _getTextStyle(context, fontSize: 16),
-                                decoration: InputDecoration(
-                                  hintText: 'e.g., 70',
-                                  hintStyle: _getTextStyle(
-                                    context,
-                                    fontSize: 14,
-                                    color: _textColorSecondary(context),
-                                  ),
-                                  filled: true,
-                                  fillColor: _scaffoldBgColor(context),
-                                  prefixIcon: const Icon(
-                                    Icons.monitor_weight_outlined,
-                                    color: _primaryColor,
-                                    size: 20,
-                                  ),
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                    borderSide:
-                                    BorderSide(color: Colors.grey.shade300),
-                                  ),
-                                  enabledBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                    borderSide:
-                                    BorderSide(color: Colors.grey.shade300),
-                                  ),
-                                  focusedBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                    borderSide: const BorderSide(
-                                        color: _primaryColor, width: 2),
-                                  ),
-                                  errorBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                    borderSide:
-                                    const BorderSide(color: Colors.redAccent),
-                                  ),
-                                  focusedErrorBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                    borderSide: const BorderSide(
-                                        color: Colors.redAccent, width: 2),
-                                  ),
-                                  contentPadding: const EdgeInsets.symmetric(
-                                      horizontal: 16, vertical: 14),
-                                  isDense: true,
-                                ),
-                                validator: (value) {
-                                  if (value == null || value.isEmpty) {
-                                    return 'Required';
-                                  }
-                                  if (double.tryParse(value) == null ||
-                                      double.parse(value) <= 0) {
-                                    return 'Invalid';
-                                  }
-                                  return null;
-                                },
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                "Height (cm)",
-                                style: _getTextStyle(
-                                  context,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                  color: _textColorSecondary(context),
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              TextFormField(
-                                controller: _heightController,
-                                keyboardType: TextInputType.number,
-                                style: _getTextStyle(context, fontSize: 16),
-                                decoration: InputDecoration(
-                                  hintText: 'e.g., 175',
-                                  hintStyle: _getTextStyle(
-                                    context,
-                                    fontSize: 14,
-                                    color: _textColorSecondary(context),
-                                  ),
-                                  filled: true,
-                                  fillColor: _scaffoldBgColor(context),
-                                  prefixIcon: const Icon(
-                                    Icons.height_outlined,
-                                    color: _primaryColor,
-                                    size: 20,
-                                  ),
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                    borderSide:
-                                    BorderSide(color: Colors.grey.shade300),
-                                  ),
-                                  enabledBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                    borderSide:
-                                    BorderSide(color: Colors.grey.shade300),
-                                  ),
-                                  focusedBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                    borderSide: const BorderSide(
-                                        color: _primaryColor, width: 2),
-                                  ),
-                                  errorBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                    borderSide:
-                                    const BorderSide(color: Colors.redAccent),
-                                  ),
-                                  focusedErrorBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                    borderSide: const BorderSide(
-                                        color: Colors.redAccent, width: 2),
-                                  ),
-                                  contentPadding: const EdgeInsets.symmetric(
-                                      horizontal: 16, vertical: 14),
-                                  isDense: true,
-                                ),
-                                validator: (value) {
-                                  if (value == null || value.isEmpty) {
-                                    return 'Required';
-                                  }
-                                  if (double.tryParse(value) == null ||
-                                      double.parse(value) <= 0) {
-                                    return 'Invalid';
-                                  }
-                                  return null;
-                                },
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-
-                // Health Goals Section
-                _buildSectionContainer(
-                  title: 'Health Goals',
-                  subtitle: 'What would you like to achieve?',
-                  children: [
-                    _buildSelectionList(
-                      items: healthGoals,
-                      selectedIndex: selectedHealthGoalIndex,
-                      onSelected: (index) {
-                        setState(() => selectedHealthGoalIndex = index);
-                      },
-                    ),
-                  ],
-                ),
-
-                // Activity Level Section
-                _buildSectionContainer(
-                  title: 'Activity & Lifestyle',
-                  subtitle: 'How would you describe your activity level?',
-                  children: [
-                    _buildSelectionList(
-                      items: activityLevels,
-                      selectedIndex: selectedActivityLevelIndex,
-                      onSelected: (index) {
-                        setState(() => selectedActivityLevelIndex = index);
-                      },
-                    ),
-                  ],
-                ),
-
-                // Next Button
-                const SizedBox(height: 8),
-                SizedBox(
-                  width: double.infinity,
-                  height: 48,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: _primaryColor,
-                      foregroundColor: _textColorOnPrimary,
-                      elevation: 4,
-                      shadowColor: _primaryColor.withOpacity(0.4),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    onPressed: _saveUserData,
-                    child: Text(
-                      'NEXT',
-                      style: _getTextStyle(
-                        context,
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: _textColorOnPrimary,
-                      ),
+                  onPressed: _saveUserData,
+                  child: Text(
+                    'NEXT',
+                    style: _getTextStyle(
+                      context,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: _textColorOnPrimary,
                     ),
                   ),
                 ),
-                const SizedBox(height: 16),
-              ],
-            ),
+              ),
+              const SizedBox(height: 16),
+            ],
           ),
         ),
       ),
