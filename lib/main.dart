@@ -12,7 +12,7 @@ import 'pages/start3.dart';
 import 'pages/start4.dart';
 import 'Dietitians/homePageDietitian.dart';
 
-import 'Admin/firebaseOption.dart'; // Firebase options
+import 'Admin/firebaseOption.dart';
 
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
 FlutterLocalNotificationsPlugin();
@@ -20,32 +20,128 @@ FlutterLocalNotificationsPlugin();
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Try to use existing Firebase app if it’s already initialized
+  // Initialize Firebase
   try {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
   } on FirebaseException catch (e) {
     if (e.code == 'duplicate-app') {
-      // App already initialized — just use existing instance
       Firebase.app();
     } else {
       rethrow;
     }
   }
 
+  // Initialize notifications BEFORE runApp
+  await _initializeNotifications();
 
-  // Initialize local notifications
-  const AndroidInitializationSettings initializationSettingsAndroid =
-  AndroidInitializationSettings('@mipmap/ic_launcher');
-  const InitializationSettings initializationSettings =
-  InitializationSettings(android: initializationSettingsAndroid);
-  await flutterLocalNotificationsPlugin.initialize(initializationSettings);
+  // Setup persistent listeners
+  _setupPersistentListeners();
 
   runApp(const MyApp());
 }
 
+/// Initialize local notifications
+Future<void> _initializeNotifications() async {
+  const AndroidInitializationSettings androidInitSettings =
+  AndroidInitializationSettings('@mipmap/ic_launcher');
+  const InitializationSettings initSettings =
+  InitializationSettings(android: androidInitSettings);
 
+  await flutterLocalNotificationsPlugin.initialize(initSettings);
+
+  // Notification permission is handled by AndroidManifest.xml for Android 13+
+  print("✅ Notifications initialized successfully");
+}
+
+/// Setup persistent listeners that survive navigation
+void _setupPersistentListeners() {
+  FirebaseAuth.instance.authStateChanges().listen((user) {
+    if (user != null) {
+      print("📡 User authenticated: ${user.uid}");
+      _setupMessageListener(user.uid);
+      _setupAppointmentListener(user.uid);
+    } else {
+      print("📡 User logged out");
+    }
+  });
+}
+
+/// Listen for new messages
+void _setupMessageListener(String userId) {
+  FirebaseFirestore.instance
+      .collection('messages')
+      .where('receiverID', isEqualTo: userId)
+      .orderBy('timestamp', descending: true)
+      .limit(1)
+      .snapshots()
+      .listen(
+        (snapshot) {
+      if (snapshot.docs.isNotEmpty) {
+        final msg = snapshot.docs.first.data();
+        print("📩 Message detected: ${msg['message']}");
+
+        flutterLocalNotificationsPlugin.show(
+          msg.hashCode,
+          "New message from ${msg['senderName']}",
+          msg['message'],
+          const NotificationDetails(
+            android: AndroidNotificationDetails(
+              'message_channel',
+              'Messages',
+              channelDescription: 'Notifications for new messages',
+              importance: Importance.max,
+              priority: Priority.high,
+              enableVibration: true,
+            ),
+          ),
+        );
+      }
+    },
+    onError: (error) {
+      print("❌ Error in message listener: $error");
+    },
+  );
+}
+
+/// Listen for new appointments
+void _setupAppointmentListener(String userId) {
+  FirebaseFirestore.instance
+      .collection('Users')
+      .doc(userId)
+      .collection('notifications')
+      .orderBy('timestamp', descending: true)
+      .limit(1)
+      .snapshots()
+      .listen(
+        (snapshot) {
+      if (snapshot.docs.isNotEmpty) {
+        final notif = snapshot.docs.first.data();
+        print("📅 Appointment notification detected: ${notif['message']}");
+
+        flutterLocalNotificationsPlugin.show(
+          notif.hashCode,
+          notif['title'] ?? 'New Notification',
+          notif['message'] ?? 'You have a new notification',
+          const NotificationDetails(
+            android: AndroidNotificationDetails(
+              'appointment_channel',
+              'Appointments',
+              channelDescription: 'Notifications for appointments',
+              importance: Importance.max,
+              priority: Priority.high,
+              enableVibration: true,
+            ),
+          ),
+        );
+      }
+    },
+    onError: (error) {
+      print("❌ Error in appointment listener: $error");
+    },
+  );
+}
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -53,7 +149,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Mama’s Recipe',
+      title: 'Mama\'s Recipe',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
@@ -72,91 +168,6 @@ class AuthCheck extends StatefulWidget {
 }
 
 class _AuthCheckState extends State<AuthCheck> {
-  @override
-  void initState() {
-    super.initState();
-    setupMessageListener();
-    setupAppointmentListener();
-  }
-
-  /// Listen for new messages and show local notification
-  void setupMessageListener() {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return; // user not logged in yet
-
-    FirebaseFirestore.instance
-        .collection('messages')
-        .where('receiverID', isEqualTo: user.uid)
-        .snapshots()
-        .listen((snapshot) {
-      print("📡 Firestore snapshot triggered: ${snapshot.docChanges.length} changes");
-
-      for (var change in snapshot.docChanges) {
-        print("🔍 Change type: ${change.type}");
-
-        if (change.type == DocumentChangeType.added) {
-          var msg = change.doc.data()!;
-          print("📩 Message detected: ${msg['message']}");
-
-          flutterLocalNotificationsPlugin.show(
-            msg.hashCode,
-            "New message from ${msg['senderName']}",
-            msg['message'],
-            NotificationDetails(
-              android: AndroidNotificationDetails(
-                'message_channel',
-                'Messages',
-                importance: Importance.max,
-                priority: Priority.high,
-              ),
-            ),
-          );
-        }
-      }
-    });
-  }
-
-  void setupAppointmentListener() {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
-
-    FirebaseFirestore.instance
-        .collection('Users')
-        .doc(user.uid)
-        .collection('notifications')
-        .snapshots()
-        .listen((snapshot) {
-      print("📡 Appointment snapshot triggered: ${snapshot.docChanges.length} changes");
-
-      for (var change in snapshot.docChanges) {
-        print("🔍 Appointment change type: ${change.type}");
-
-        if (change.type == DocumentChangeType.added) {
-          var notif = change.doc.data();
-          if (notif == null) continue;
-
-          print("📅 Appointment notification detected: ${notif['message']}");
-
-          flutterLocalNotificationsPlugin.show(
-            notif.hashCode,
-            notif['title'] ?? 'New Appointment',
-            notif['message'] ?? 'You have a new appointment.',
-            const NotificationDetails(
-              android: AndroidNotificationDetails(
-                'appointment_channel',
-                'Appointments',
-                importance: Importance.max,
-                priority: Priority.high,
-              ),
-            ),
-          );
-        }
-      }
-    });
-  }
-
-
-
   @override
   Widget build(BuildContext context) {
     User? user = FirebaseAuth.instance.currentUser;

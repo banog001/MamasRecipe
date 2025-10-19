@@ -57,22 +57,44 @@ class MealPlanPreviewPage extends StatelessWidget {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text("You must be logged in to post a meal plan.", style: _getTextStyle(context, color: _textColorOnPrimary)),
+          content: Text(
+            "You must be logged in to post a meal plan.",
+            style: _getTextStyle(context, color: _textColorOnPrimary),
+          ),
           backgroundColor: Colors.redAccent,
         ),
       );
       return;
     }
 
+    // helper to get the time string
+    String _getMealTimeString(String key) {
+      try {
+        final meal = meals.firstWhere((m) => m.name.toLowerCase() == key.toLowerCase());
+        return meal.time.format(context);
+      } catch (_) {
+        return "";
+      }
+    }
+
     try {
       await FirebaseFirestore.instance.collection("mealPlans").add({
         "planType": planType,
+        // meal items
         "breakfast": _getMealString("Breakfast"),
         "amSnack": _getMealString("AM Snack"),
         "lunch": _getMealString("Lunch"),
         "pmSnack": _getMealString("PM Snack"),
         "dinner": _getMealString("Dinner"),
         "midnightSnack": _getMealString("Midnight Snack"),
+        // meal times
+        "breakfastTime": _getMealTimeString("Breakfast"),
+        "amSnackTime": _getMealTimeString("AM Snack"),
+        "lunchTime": _getMealTimeString("Lunch"),
+        "pmSnackTime": _getMealTimeString("PM Snack"),
+        "dinnerTime": _getMealTimeString("Dinner"),
+        "midnightSnackTime": _getMealTimeString("Midnight Snack"),
+        // meta info
         "owner": user.uid,
         "timestamp": FieldValue.serverTimestamp(),
       });
@@ -81,7 +103,10 @@ class MealPlanPreviewPage extends StatelessWidget {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text("Meal Plan Posted Successfully!", style: _getTextStyle(context, color: _textColorOnPrimary)),
+          content: Text(
+            "Meal Plan Posted Successfully!",
+            style: _getTextStyle(context, color: _textColorOnPrimary),
+          ),
           backgroundColor: _primaryColor,
         ),
       );
@@ -95,12 +120,16 @@ class MealPlanPreviewPage extends StatelessWidget {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text("Error posting meal plan: $e", style: _getTextStyle(context, color: _textColorOnPrimary)),
+          content: Text(
+            "Error posting meal plan: $e",
+            style: _getTextStyle(context, color: _textColorOnPrimary),
+          ),
           backgroundColor: Colors.redAccent,
         ),
       );
     }
   }
+
 
   @override
   Widget build(BuildContext context) {

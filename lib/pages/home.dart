@@ -10,8 +10,13 @@ import 'UserProfile.dart';
 import 'package:shimmer/shimmer.dart';
 import 'subscription_model.dart';
 import 'subscription_service.dart';
-import 'subscription_page.dart';
 import 'subscription_widget.dart';
+import '../Dietitians/dietitianPublicProfile.dart';
+
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:intl/intl.dart';
+import 'package:flutter_file_dialog/flutter_file_dialog.dart';
 
 const String _primaryFontFamily = 'PlusJakartaSans';
 
@@ -370,8 +375,10 @@ class _HomeState extends State<home> {
       return const Center(child: Text("User not logged in"));
     }
 
-    const double w1 = 1.0;
-    const double alpha = 1.0;
+    // Weight configuration for scoring formula
+    const double w1 = 1.0;  // weight for likes
+    const double w2 = 1.5;  // weight for calendar adds (can adjust importance)
+    const double alpha = 1.0; // time decay factor
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -401,8 +408,7 @@ class _HomeState extends State<home> {
 
               bool isSubscribed = false;
               if (userSnapshot.hasData && userSnapshot.data!.exists) {
-                var userData =
-                userSnapshot.data!.data() as Map<String, dynamic>;
+                var userData = userSnapshot.data!.data() as Map<String, dynamic>;
                 isSubscribed = userData["isSubscribed"] ?? false;
               }
 
@@ -424,15 +430,12 @@ class _HomeState extends State<home> {
                     );
                   }
 
+                  // Filter valid meal plans
                   var docs = snapshot.data!.docs.where((doc) {
                     var data = doc.data() as Map<String, dynamic>?;
 
                     if (data == null) return false;
-
-                    if (data["owner"] == null ||
-                        data["owner"].toString().trim().isEmpty) {
-                      return false;
-                    }
+                    if ((data["owner"] ?? "").toString().trim().isEmpty) return false;
 
                     bool allMealsEmpty = [
                       data["breakfast"],
@@ -448,14 +451,10 @@ class _HomeState extends State<home> {
 
                     if (allMealsEmpty) return false;
 
-                    if (data["planType"] == null ||
-                        data["planType"].toString().trim().isEmpty) {
-                      return false;
-                    }
-
-                    return true;
+                    return (data["planType"] ?? "").toString().trim().isNotEmpty;
                   }).toList();
 
+                  // Apply search filtering
                   if (_searchQuery.isNotEmpty) {
                     docs = docs.where((doc) {
                       var data = doc.data() as Map<String, dynamic>;
@@ -484,27 +483,30 @@ class _HomeState extends State<home> {
                     );
                   }
 
+                  // Compute scores based on collaborative filtering formula
                   List<Map<String, dynamic>> scoredPlans = docs.map((doc) {
                     var data = doc.data() as Map<String, dynamic>;
+
                     int likes = data["likeCounts"] ?? 0;
+                    int calendarAdds = data["calendarAdds"] ?? 0;
 
                     DateTime publishedDate;
                     if (data["timestamp"] is Timestamp) {
-                      publishedDate =
-                          (data["timestamp"] as Timestamp).toDate();
+                      publishedDate = (data["timestamp"] as Timestamp).toDate();
                     } else if (data["timestamp"] is String) {
-                      publishedDate = DateTime.tryParse(data["timestamp"]) ??
-                          DateTime.now();
+                      publishedDate = DateTime.tryParse(data["timestamp"]) ?? DateTime.now();
                     } else {
                       publishedDate = DateTime.now();
                     }
 
                     int daysSincePublished =
                         DateTime.now().difference(publishedDate).inDays;
-                    if (daysSincePublished == 0) daysSincePublished = 1;
+                    if (daysSincePublished <= 0) daysSincePublished = 1;
 
+                    // Apply formula
                     double finalScore =
-                        (w1 * likes) / (alpha * daysSincePublished);
+                        ((w1 * likes) + (w2 * calendarAdds)) /
+                            (alpha * daysSincePublished);
 
                     return {"doc": doc, "data": data, "score": finalScore};
                   }).toList();
@@ -518,6 +520,7 @@ class _HomeState extends State<home> {
                     );
                   }
 
+                  // Sort by highest score and limit to 5
                   scoredPlans.sort((a, b) =>
                       (b["score"] as double).compareTo(a["score"] as double));
                   if (scoredPlans.length > 5) {
@@ -526,8 +529,7 @@ class _HomeState extends State<home> {
 
                   return ListView.builder(
                     scrollDirection: Axis.horizontal,
-                    padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     itemCount: scoredPlans.length,
                     itemBuilder: (context, index) {
                       final plan = scoredPlans[index];
@@ -553,6 +555,7 @@ class _HomeState extends State<home> {
       ],
     );
   }
+
 
   Widget _buildRecommendationCard(
       BuildContext context,
@@ -690,20 +693,21 @@ class _HomeState extends State<home> {
                         ),
                       const Divider(height: 20),
                       Table(
+                        columnWidths: const {
+                          0: FlexColumnWidth(1.5), // Meal type
+                          1: FlexColumnWidth(2.5), // Food
+                          2: FlexColumnWidth(1.2), // Time
+                        },
+                        border: TableBorder.symmetric(
+                          inside: BorderSide(color: Colors.grey.shade300),
+                        ),
                         children: [
-                          _buildMealRow("Breakfast", data["breakfast"], true,
-                              isCompact: true),
-                          _buildMealRow("AM Snack", data["amSnack"], isSubscribed,
-                              isCompact: true),
-                          _buildMealRow("Lunch", data["lunch"], isSubscribed,
-                              isCompact: true),
-                          _buildMealRow("PM Snack", data["pmSnack"], isSubscribed,
-                              isCompact: true),
-                          _buildMealRow("Dinner", data["dinner"], isSubscribed,
-                              isCompact: true),
-                          _buildMealRow("Midnight Snack", data["midnightSnack"],
-                              isSubscribed,
-                              isCompact: true),
+                          _buildMealRow3("Breakfast", data["breakfast"], data["breakfastTime"], true),
+                          _buildMealRow3("AM Snack", data["amSnack"], data["amSnackTime"], isSubscribed),
+                          _buildMealRow3("Lunch", data["lunch"], data["lunchTime"], isSubscribed),
+                          _buildMealRow3("PM Snack", data["pmSnack"], data["pmSnackTime"], isSubscribed),
+                          _buildMealRow3("Dinner", data["dinner"], data["dinnerTime"], isSubscribed),
+                          _buildMealRow3("Midnight Snack", data["midnightSnack"], data["midnightSnackTime"], isSubscribed),
                         ],
                       ),
                       const SizedBox(height: 10),
@@ -714,74 +718,150 @@ class _HomeState extends State<home> {
                           children: [
                             StreamBuilder<DocumentSnapshot>(
                               stream: FirebaseFirestore.instance
-                                  .collection("mealPlans")
+                                  .collection("likes")
                                   .doc("${currentUserId}_${doc.id}")
-                                  .snapshots(),
+                                  .snapshots(), // ✅ stream the correct like doc
                               builder: (context, likeSnapshot) {
-                                bool isLiked = likeSnapshot.hasData &&
-                                    likeSnapshot.data!.exists;
-                                int likeCount = data["likeCounts"] ?? 0;
+                                bool isLiked = likeSnapshot.hasData && likeSnapshot.data!.exists;
 
-                                return TextButton.icon(
-                                  onPressed: () async {
-                                    final likeDocRef = FirebaseFirestore.instance
-                                        .collection("likes")
-                                        .doc("${currentUserId}_${doc.id}");
-                                    final mealPlanDocRef = FirebaseFirestore
-                                        .instance
-                                        .collection("mealPlans")
-                                        .doc(doc.id);
+                                // ✅ listen to meal plan doc for likeCount updates
+                                return StreamBuilder<DocumentSnapshot>(
+                                  stream: FirebaseFirestore.instance
+                                      .collection("mealPlans")
+                                      .doc(doc.id)
+                                      .snapshots(),
+                                  builder: (context, mealSnapshot) {
+                                    if (!mealSnapshot.hasData) return const SizedBox();
 
-                                    if (isLiked) {
-                                      await likeDocRef.delete();
-                                      await mealPlanDocRef.update({
-                                        "likeCounts": FieldValue.increment(-1),
-                                      });
-                                    } else {
-                                      await likeDocRef.set({
-                                        "mealPlanID": doc.id,
-                                        "userID": currentUserId,
-                                        "timestamp":
-                                        FieldValue.serverTimestamp(),
-                                      });
-                                      await mealPlanDocRef.update({
-                                        "likeCounts": FieldValue.increment(1),
-                                      });
-                                    }
+                                    final mealData = mealSnapshot.data!.data() as Map<String, dynamic>;
+                                    int likeCount = mealData["likeCounts"] ?? 0;
+
+                                    return TextButton.icon(
+                                      onPressed: () async {
+                                        final likeDocRef = FirebaseFirestore.instance
+                                            .collection("likes")
+                                            .doc("${currentUserId}_${doc.id}");
+                                        final mealPlanDocRef = FirebaseFirestore.instance
+                                            .collection("mealPlans")
+                                            .doc(doc.id);
+
+                                        if (isLiked) {
+                                          await likeDocRef.delete();
+                                          await mealPlanDocRef.update({
+                                            "likeCounts": FieldValue.increment(-1),
+                                          });
+                                        } else {
+                                          await likeDocRef.set({
+                                            "mealPlanID": doc.id,
+                                            "userID": currentUserId,
+                                            "timestamp": FieldValue.serverTimestamp(),
+                                          });
+                                          await mealPlanDocRef.update({
+                                            "likeCounts": FieldValue.increment(1),
+                                          });
+                                        }
+                                      },
+                                      icon: Icon(
+                                        isLiked ? Icons.favorite : Icons.favorite_border,
+                                        color: Colors.redAccent,
+                                        size: 18,
+                                      ),
+                                      label: Text(
+                                        "$likeCount",
+                                        style: const TextStyle(
+                                          color: Colors.redAccent,
+                                          fontFamily: _primaryFontFamily,
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 13,
+                                        ),
+                                      ),
+                                      style: TextButton.styleFrom(
+                                        padding:
+                                        const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                                      ),
+                                    );
                                   },
-                                  icon: Icon(
-                                    isLiked
-                                        ? Icons.favorite
-                                        : Icons.favorite_border,
-                                    color: Colors.redAccent,
-                                    size: 18,
-                                  ),
-                                  label: Text(
-                                    "$likeCount",
-                                    style: const TextStyle(
-                                      color: Colors.redAccent,
-                                      fontFamily: _primaryFontFamily,
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 13,
-                                    ),
-                                  ),
-                                  style: TextButton.styleFrom(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 6, vertical: 3),
-                                  ),
                                 );
                               },
                             ),
                             const SizedBox(width: 8),
                             TextButton.icon(
-                              onPressed: () {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text(
-                                        "Meal plan downloaded for offline use."),
-                                    duration: Duration(seconds: 2),
-                                  ),
-                                );
+                              onPressed: () async {
+                                final firestore = FirebaseFirestore.instance;
+
+                                final subscribeToRef = firestore
+                                    .collection("Users")
+                                    .doc(currentUserId)
+                                    .collection("subscribeTo")
+                                    .doc(ownerId); // client → dietitian
+
+                                final subscriberRef = firestore
+                                    .collection("Users")
+                                    .doc(ownerId) // dietitian → client
+                                    .collection("subscriber")
+                                    .doc(currentUserId);
+
+                                try {
+                                  final results = await Future.wait([
+                                    subscribeToRef.get(),
+                                    subscriberRef.get(),
+                                  ]);
+
+                                  bool isSubscribed = false;
+
+                                  // Check if either document exists AND has status "approved"
+                                  if (results[0].exists) {
+                                    final data = results[0].data() as Map<String, dynamic>;
+                                    if (data["status"] == "approved") isSubscribed = true;
+                                  }
+
+                                  if (results[1].exists) {
+                                    final data = results[1].data() as Map<String, dynamic>;
+                                    if (data["status"] == "approved") isSubscribed = true;
+                                  }
+
+                                  if (isSubscribed) {
+                                    final ownerSnapshot = await FirebaseFirestore.instance
+                                        .collection("Users")
+                                        .doc(ownerId)
+                                        .get();
+
+                                    String ownerName = "Unknown Chef";
+                                    if (ownerSnapshot.exists) {
+                                      var ownerData = ownerSnapshot.data() as Map<String, dynamic>;
+                                      ownerName = "${ownerData["firstName"] ?? ""} ${ownerData["lastName"] ?? ""}".trim();
+                                      if (ownerName.isEmpty) ownerName = "Unknown Chef";
+                                    }
+
+                                    // Call the download function
+                                    await _downloadMealPlanAsPdf(context, data, ownerName, doc.id);
+                                    // ✅ User has approved subscription
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text("Meal plan downloaded for offline use."),
+                                        duration: Duration(seconds: 2),
+                                      ),
+                                    );
+
+                                    // TODO: Add your actual download logic here
+                                  } else {
+                                    // ❌ Subscription not approved or missing
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text("You must have an approved subscription to this dietitian to download this meal plan."),
+                                        backgroundColor: Colors.redAccent,
+                                        duration: Duration(seconds: 3),
+                                      ),
+                                    );
+                                  }
+                                } catch (e) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text("Error checking subscription: $e"),
+                                      backgroundColor: Colors.redAccent,
+                                    ),
+                                  );
+                                }
                               },
                               icon: const Icon(
                                 Icons.download_rounded,
@@ -798,13 +878,12 @@ class _HomeState extends State<home> {
                                 ),
                               ),
                               style: TextButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 6, vertical: 3),
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                               ),
                             ),
                           ],
                         ),
-                      ),
+                      )
                     ],
                   ),
                 ),
@@ -889,47 +968,67 @@ class _HomeState extends State<home> {
 
                   return Padding(
                     padding: const EdgeInsets.only(right: 16),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Container(
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(
-                                color: _primaryColor.withOpacity(0.3),
-                                blurRadius: 8,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
-                          ),
-                          child: CircleAvatar(
-                            radius: 32,
-                            backgroundColor: _primaryColor.withOpacity(0.2),
-                            backgroundImage: (profileUrl.isNotEmpty)
-                                ? NetworkImage(profileUrl)
-                                : null,
-                            child: (profileUrl.isEmpty)
-                                ? const Icon(Icons.person,
-                                size: 32, color: _primaryColor)
-                                : null,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        SizedBox(
-                          width: 90,
-                          child: Text(
-                            name,
-                            overflow: TextOverflow.ellipsis,
-                            textAlign: TextAlign.center,
-                            maxLines: 2,
-                            style: _cardBodyTextStyle(context).copyWith(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
+                    child: GestureDetector(
+                      onTap: () {
+                        // Get the dietitian ID
+                        String dietitianId = dietitians[index].id;
+                        String name = "${dietitianData["firstName"] ?? ""} ${dietitianData["lastName"] ?? ""}".trim();
+                        if (name.isEmpty) name = "Dietitian";
+                        String profileUrl = dietitianData["profile"] ?? "";
+
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => DietitianPublicProfile(
+                              dietitianId: dietitianId,
+                              dietitianName: name,
+                              dietitianProfile: profileUrl,
                             ),
                           ),
-                        ),
-                      ],
+                        );
+                      },
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: _primaryColor.withOpacity(0.3),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: CircleAvatar(
+                              radius: 32,
+                              backgroundColor: _primaryColor.withOpacity(0.2),
+                              backgroundImage: (profileUrl.isNotEmpty)
+                                  ? NetworkImage(profileUrl)
+                                  : null,
+                              child: (profileUrl.isEmpty)
+                                  ? const Icon(Icons.person,
+                                  size: 32, color: _primaryColor)
+                                  : null,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          SizedBox(
+                            width: 90,
+                            child: Text(
+                              name,
+                              overflow: TextOverflow.ellipsis,
+                              textAlign: TextAlign.center,
+                              maxLines: 2,
+                              style: _cardBodyTextStyle(context).copyWith(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   );
                 },
@@ -963,7 +1062,7 @@ class _HomeState extends State<home> {
           String userGoal = userData["goals"] ?? "";
           bool isSubscribed = userData["isSubscribed"] ?? false;
 
-          if (userGoal.isEmpty) {
+          if (userGoal.isEmpty && _searchFilter != "Meal Plans") {
             return Center(
               child: Text(
                 "Set your health goal to see meal plans!",
@@ -980,12 +1079,14 @@ class _HomeState extends State<home> {
                 child: Text(
                   _searchQuery.isNotEmpty
                       ? "Search Results for '$_searchQuery'"
+                      : _searchFilter == "Meal Plans"
+                      ? "All Meal Plans"
                       : "Meal Plans for: $userGoal",
                   style: _sectionTitleStyle(context),
                 ),
               ),
               StreamBuilder<QuerySnapshot>(
-                stream: _searchQuery.isNotEmpty
+                stream: _searchFilter == "Meal Plans" || _searchQuery.isNotEmpty
                     ? FirebaseFirestore.instance
                     .collection("mealPlans")
                     .snapshots()
@@ -1000,21 +1101,49 @@ class _HomeState extends State<home> {
                     );
                   var plans = snapshot.data!.docs;
 
+                  // Filter out empty/invalid documents first
+                  plans = plans.where((doc) {
+                    var data = doc.data() as Map<String, dynamic>;
+
+                    // Check if document has required fields
+                    final ownerId = data["ownerId"] ?? data["owner"] ?? "";
+                    if (ownerId.isEmpty) return false;
+
+                    // Check if at least one meal field has data
+                    final hasMealData = [
+                      data["breakfast"],
+                      data["amSnack"],
+                      data["lunch"],
+                      data["pmSnack"],
+                      data["dinner"],
+                      data["midnightSnack"],
+                    ].any((meal) => meal != null && meal.toString().trim().isNotEmpty);
+
+                    return hasMealData;
+                  }).toList();
+
+                  // Enhanced search logic for Meal Plans filter
                   if (_searchQuery.isNotEmpty) {
+                    final query = _searchQuery.toLowerCase();
+
                     plans = plans.where((doc) {
                       var data = doc.data() as Map<String, dynamic>;
-                      String planName =
-                      (data["planName"] ?? "").toString().toLowerCase();
-                      String planType =
-                      (data["planType"] ?? "").toString().toLowerCase();
-                      String description =
-                      (data["description"] ?? "").toString().toLowerCase();
-                      if (_searchFilter == "Health Goals") {
-                        return planType.contains(_searchQuery);
-                      }
-                      return planName.contains(_searchQuery) ||
-                          planType.contains(_searchQuery) ||
-                          description.contains(_searchQuery);
+
+                      // Search in all meal fields
+                      final mealFields = [
+                        data["breakfast"]?.toString().toLowerCase() ?? "",
+                        data["amSnack"]?.toString().toLowerCase() ?? "",
+                        data["lunch"]?.toString().toLowerCase() ?? "",
+                        data["pmSnack"]?.toString().toLowerCase() ?? "",
+                        data["dinner"]?.toString().toLowerCase() ?? "",
+                        data["midnightSnack"]?.toString().toLowerCase() ?? "",
+                        data["planName"]?.toString().toLowerCase() ?? "",
+                        data["planType"]?.toString().toLowerCase() ?? "",
+                        data["description"]?.toString().toLowerCase() ?? "",
+                      ];
+
+                      // Check if any field contains the search query
+                      return mealFields.any((field) => field.contains(query));
                     }).toList();
                   }
 
@@ -1022,8 +1151,8 @@ class _HomeState extends State<home> {
                     return Center(
                       child: Text(
                         _searchQuery.isNotEmpty
-                            ? "No meal plans found for '$_searchQuery'"
-                            : "No $userGoal meal plans available yet.",
+                            ? "No meal plans found containing '$_searchQuery'"
+                            : "No meal plans available.",
                         style: _cardBodyTextStyle(context),
                       ),
                     );
@@ -1140,23 +1269,23 @@ class _HomeState extends State<home> {
                     ),
                   const Divider(height: 20),
                   Table(
+                    columnWidths: const {
+                      0: FlexColumnWidth(1.2), // Meal type
+                      1: FlexColumnWidth(2.5), // Food
+                      2: FlexColumnWidth(1.2), // Time
+                    },
+                    border: TableBorder.symmetric(
+                      inside: BorderSide(color: Colors.grey.shade300),
+                    ),
                     children: [
-                      _buildMealRow("Breakfast", data["breakfast"], isSubscribed,
-                          isCompact: true),
-                      _buildMealRow("AM Snack", data["amSnack"], isSubscribed,
-                          isCompact: true),
-                      _buildMealRow("Lunch", data["lunch"], isSubscribed,
-                          isCompact: true),
-                      _buildMealRow("PM Snack", data["pmSnack"], isSubscribed,
-                          isCompact: true),
-                      _buildMealRow("Dinner", data["dinner"], isSubscribed,
-                          isCompact: true),
-                      _buildMealRow("Midnight Snack", data["midnightSnack"],
-                          isSubscribed,
-                          isCompact: true),
+                      _buildMealRow3("Breakfast", data["breakfast"], data["breakfastTime"], true),
+                      _buildMealRow3("AM Snack", data["amSnack"], data["amSnackTime"], isSubscribed),
+                      _buildMealRow3("Lunch", data["lunch"], data["lunchTime"], isSubscribed),
+                      _buildMealRow3("PM Snack", data["pmSnack"], data["pmSnackTime"], isSubscribed),
+                      _buildMealRow3("Dinner", data["dinner"], data["dinnerTime"], isSubscribed),
+                      _buildMealRow3("Midnight Snack", data["midnightSnack"], data["midnightSnackTime"], isSubscribed),
                     ],
                   ),
-                  const SizedBox(height: 10),
                   const SizedBox(height: 10),
                   Align(
                     alignment: Alignment.centerRight,
@@ -1218,12 +1347,82 @@ class _HomeState extends State<home> {
                         const SizedBox(width: 8),
                         TextButton.icon(
                           onPressed: () async {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text("Meal plan downloaded for offline use."),
-                                duration: Duration(seconds: 2),
-                              ),
-                            );
+                            final firestore = FirebaseFirestore.instance;
+
+                            final subscribeToRef = firestore
+                                .collection("Users")
+                                .doc(currentUserId)
+                                .collection("subscribeTo")
+                                .doc(ownerId); // client → dietitian
+
+                            final subscriberRef = firestore
+                                .collection("Users")
+                                .doc(ownerId) // dietitian → client
+                                .collection("subscriber")
+                                .doc(currentUserId);
+
+                            try {
+                              final results = await Future.wait([
+                                subscribeToRef.get(),
+                                subscriberRef.get(),
+                              ]);
+
+                              bool isSubscribed = false;
+
+                              // Check if either document exists AND has status "approved"
+                              if (results[0].exists) {
+                                final data = results[0].data() as Map<String, dynamic>;
+                                if (data["status"] == "approved") isSubscribed = true;
+                              }
+
+                              if (results[1].exists) {
+                                final data = results[1].data() as Map<String, dynamic>;
+                                if (data["status"] == "approved") isSubscribed = true;
+                              }
+
+                              if (isSubscribed) {
+
+                                final ownerSnapshot = await FirebaseFirestore.instance
+                                    .collection("Users")
+                                    .doc(ownerId)
+                                    .get();
+
+                                String ownerName = "Unknown Chef";
+                                if (ownerSnapshot.exists) {
+                                  var ownerData = ownerSnapshot.data() as Map<String, dynamic>;
+                                  ownerName = "${ownerData["firstName"] ?? ""} ${ownerData["lastName"] ?? ""}".trim();
+                                  if (ownerName.isEmpty) ownerName = "Unknown Chef";
+                                }
+
+                                // Call the download function
+                                await _downloadMealPlanAsPdf(context, data, ownerName, doc.id);
+                                // ✅ User has approved subscription
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text("Meal plan downloaded for offline use."),
+                                    duration: Duration(seconds: 2),
+                                  ),
+                                );
+
+                                // TODO: Add your actual download logic here
+                              } else {
+                                // ❌ Subscription not approved or missing
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text("You must have an approved subscription to this dietitian to download this meal plan."),
+                                    backgroundColor: Colors.redAccent,
+                                    duration: Duration(seconds: 3),
+                                  ),
+                                );
+                              }
+                            } catch (e) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text("Error checking subscription: $e"),
+                                  backgroundColor: Colors.redAccent,
+                                ),
+                              );
+                            }
                           },
                           icon: const Icon(
                             Icons.download_rounded,
@@ -1255,48 +1454,143 @@ class _HomeState extends State<home> {
     );
   }
 
-  TableRow _buildMealRow(
-      String time,
-      String? meal,
-      bool isSubscribed, {
-        bool isCompact = false,
-      }) {
+
+  Future<void> _downloadMealPlanAsPdf(
+      BuildContext context,
+      Map<String, dynamic> mealPlanData,
+      String ownerName,
+      String docId,
+      ) async {
+    try {
+      final pdf = pw.Document();
+
+      pdf.addPage(
+        pw.Page(
+          pageFormat: PdfPageFormat.a4,
+          margin: pw.EdgeInsets.all(40),
+          build: (pw.Context context) {
+            return pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Text(
+                  'Meal Plan',
+                  style: pw.TextStyle(
+                    fontSize: 28,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
+                ),
+                pw.SizedBox(height: 8),
+                pw.Text(
+                  'Chef: $ownerName',
+                  style: pw.TextStyle(fontSize: 14),
+                ),
+                pw.Text(
+                  'Plan Type: ${mealPlanData["planType"] ?? "Meal Plan"}',
+                  style: pw.TextStyle(fontSize: 14),
+                ),
+                if (mealPlanData["timestamp"] != null)
+                  pw.Text(
+                    'Created: ${DateFormat('MMM dd, yyyy – hh:mm a').format((mealPlanData["timestamp"] as Timestamp).toDate())}',
+                    style: pw.TextStyle(fontSize: 14),
+                  ),
+                pw.SizedBox(height: 20),
+                pw.Divider(),
+                pw.SizedBox(height: 10),
+                pw.TableHelper.fromTextArray(
+                  headers: ['Meal Type', 'Food', 'Time'],
+                  data: [
+                    ['Breakfast', mealPlanData["breakfast"] ?? '', mealPlanData["breakfastTime"] ?? ''],
+                    ['AM Snack', mealPlanData["amSnack"] ?? '', mealPlanData["amSnackTime"] ?? ''],
+                    ['Lunch', mealPlanData["lunch"] ?? '', mealPlanData["lunchTime"] ?? ''],
+                    ['PM Snack', mealPlanData["pmSnack"] ?? '', mealPlanData["pmSnackTime"] ?? ''],
+                    ['Dinner', mealPlanData["dinner"] ?? '', mealPlanData["dinnerTime"] ?? ''],
+                    ['Midnight Snack', mealPlanData["midnightSnack"] ?? '', mealPlanData["midnightSnackTime"] ?? ''],
+                  ],
+                  border: pw.TableBorder.all(),
+                  headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                  cellHeight: 30,
+                  cellAlignment: pw.Alignment.centerLeft,
+                ),
+              ],
+            );
+          },
+        ),
+      );
+
+      final bytes = await pdf.save();
+      final now = DateTime.now();
+      final filename = 'MealPlan_${now.year}${now.month}${now.day}_${now.hour}${now.minute}.pdf';
+
+      final params = SaveFileDialogParams(
+        data: bytes,
+        fileName: filename,
+      );
+
+      final savedFilePath = await FlutterFileDialog.saveFile(params: params);
+
+      if (savedFilePath != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Meal plan downloaded: $filename'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Download canceled by user'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error generating PDF: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  TableRow _buildMealRow3(
+      String label,
+      dynamic value,
+      dynamic time,
+      bool isSubscribed,
+      ) {
+    final textStyle = TextStyle(
+      fontSize: 14,
+      fontFamily: _primaryFontFamily,
+      color: Colors.black87,
+    );
+
+    final greyStyle = textStyle.copyWith(color: Colors.grey.shade600);
+
     return TableRow(
       children: [
         Padding(
-          padding: EdgeInsets.symmetric(
-            vertical: isCompact ? 4.0 : 6.0,
-            horizontal: 6.0,
-          ),
+          padding: const EdgeInsets.symmetric(vertical: 6),
+          child: Text(label, style: greyStyle.copyWith(fontWeight: FontWeight.w600)),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 6),
           child: Text(
-            time,
-            style: _tableHeaderStyle(context).copyWith(
-              fontSize: isCompact ? 13 : 14,
-              color: _textColorPrimary(context),
-            ),
+            isSubscribed ? (value ?? "—") : "•••••••",
+            style: textStyle,
           ),
         ),
         Padding(
-          padding: EdgeInsets.symmetric(
-            vertical: isCompact ? 4.0 : 6.0,
-            horizontal: 6.0,
-          ),
+          padding: const EdgeInsets.symmetric(vertical: 6),
           child: Text(
-            isSubscribed ? (meal ?? "Not specified") : "🔒 Locked",
-            style: isSubscribed
-                ? _cardBodyTextStyle(
-              context,
-            ).copyWith(fontSize: isCompact ? 13 : 14)
-                : _lockedTextStyle(
-              context,
-            ).copyWith(fontSize: isCompact ? 13 : 14),
-            maxLines: isCompact ? 1 : 2,
-            overflow: TextOverflow.ellipsis,
+            time ?? "—",
+            style: greyStyle,
           ),
         ),
       ],
     );
   }
+
 
   Future<void> _updateGooglePhotoURL() async {
     if (firebaseUser == null) return;
@@ -1743,6 +2037,9 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
   String lastName = "";
   bool _isUserNameLoading = true;
 
+  Map<String, Map<String, dynamic>?> _weeklySchedule = {};
+  bool _isLoadingSchedule = false;
+
   @override
   void initState() {
     super.initState();
@@ -1822,9 +2119,7 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
         final appointmentDateStr = data['appointmentDate'] as String?;
         if (appointmentDateStr != null) {
           try {
-            final appointmentDateTime = DateFormat(
-              'yyyy-MM-dd HH:mm',
-            ).parse(appointmentDateStr);
+            final appointmentDateTime = DateFormat('yyyy-MM-dd HH:mm').parse(appointmentDateStr);
             final dateOnly = DateTime.utc(
               appointmentDateTime.year,
               appointmentDateTime.month,
@@ -1867,10 +2162,7 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
     }
   }
 
-  Future<void> _updateAppointmentStatus(
-      String appointmentId,
-      String newStatus,
-      ) async {
+  Future<void> _updateAppointmentStatus(String appointmentId, String newStatus) async {
     try {
       await FirebaseFirestore.instance
           .collection('schedules')
@@ -1900,15 +2192,172 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
     }
   }
 
+  Future<List<Map<String, dynamic>>> _fetchLikedMealPlansWithOwners(String? userId) async {
+    if (userId == null) return [];
+
+    final firestore = FirebaseFirestore.instance;
+    final likesSnapshot = await firestore
+        .collection('likes')
+        .where('userID', isEqualTo: userId)
+        .get();
+
+    if (likesSnapshot.docs.isEmpty) return [];
+
+    final mealPlanIDs = likesSnapshot.docs.map((doc) => doc['mealPlanID'] as String).toList();
+    final List<Map<String, dynamic>> mealPlans = [];
+
+    for (String id in mealPlanIDs) {
+      final mealPlanDoc = await firestore.collection('mealPlans').doc(id).get();
+      if (mealPlanDoc.exists) {
+        final planData = mealPlanDoc.data()!;
+        planData['planId'] = id;
+        String ownerId = planData['owner'] ?? '';
+        String ownerName = 'Unknown';
+
+        if (ownerId.isNotEmpty) {
+          final userDoc = await firestore.collection('Users').doc(ownerId).get();
+          if (userDoc.exists) {
+            final userData = userDoc.data()!;
+            if (userData['role'] == 'dietitian') {
+              ownerName = "${userData['firstName'] ?? ''} ${userData['lastName'] ?? ''}".trim();
+              if (ownerName.isEmpty) {
+                ownerName = userData['name'] ?? userData['fullName'] ?? userData['displayName'] ?? ownerId;
+              }
+            }
+          }
+        }
+
+        planData['ownerName'] = ownerName;
+        mealPlans.add(planData);
+      }
+    }
+
+    return mealPlans;
+  }
+
+  Future<void> _loadScheduledMealPlans() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    setState(() {
+      _isLoadingSchedule = true;
+    });
+
+    try {
+      final now = DateTime.now();
+      final daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+      Map<String, Map<String, dynamic>?> loadedSchedule = {
+        for (var day in daysOfWeek) day: null,
+      };
+
+      for (int i = 0; i < 7; i++) {
+        final date = now.add(Duration(days: i));
+        final dateStr = DateFormat('yyyy-MM-dd').format(date);
+        final dayName = daysOfWeek[date.weekday - 1];
+
+        final doc = await FirebaseFirestore.instance
+            .collection('Users')
+            .doc(user.uid)
+            .collection('scheduledMealPlans')
+            .doc(dateStr)
+            .get();
+
+        if (doc.exists) {
+          loadedSchedule[dayName] = doc.data();
+        }
+      }
+
+      setState(() {
+        _weeklySchedule = loadedSchedule;
+        _isLoadingSchedule = false;
+      });
+    } catch (e) {
+      print('Error loading scheduled meal plans: $e');
+      setState(() {
+        _isLoadingSchedule = false;
+      });
+    }
+  }
+
+  Future<void> _deleteMealPlanFromSchedule(String day, DateTime date) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    final dateStr = DateFormat('yyyy-MM-dd').format(date);
+
+    try {
+      await FirebaseFirestore.instance
+          .collection('Users')
+          .doc(user.uid)
+          .collection('scheduledMealPlans')
+          .doc(dateStr)
+          .delete();
+
+      setState(() {
+        _weeklySchedule[day] = null;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Meal plan removed')),
+      );
+    } catch (e) {
+      print('Error deleting meal plan: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to delete meal plan')),
+      );
+    }
+  }
+
+  Future<void> _saveMealPlanToSchedule(String day, DateTime date, Map<String, dynamic> plan) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    final dateStr = DateFormat('yyyy-MM-dd').format(date);
+
+    try {
+      await FirebaseFirestore.instance
+          .collection('Users')
+          .doc(user.uid)
+          .collection('scheduledMealPlans')
+          .doc(dateStr)
+          .set({
+        'date': Timestamp.fromDate(date),
+        'dayOfWeek': day,
+        'planType': plan['planType'],
+        'planId': plan['planId'],
+        'ownerName': plan['ownerName'],
+        'breakfast': plan['breakfast'],
+        'amSnack': plan['amSnack'],
+        'lunch': plan['lunch'],
+        'pmSnack': plan['pmSnack'],
+        'dinner': plan['dinner'],
+        'midnightSnack': plan['midnightSnack'],
+        'scheduledAt': FieldValue.serverTimestamp(),
+      });
+
+      setState(() {
+        _weeklySchedule[day] = plan;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Meal plan scheduled!')),
+      );
+    } catch (e) {
+      print('Error saving meal plan: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to schedule meal plan')),
+      );
+    }
+  }
+
   Widget _buildAppointmentsTab() {
     return Column(
       children: [
         Card(
           margin: const EdgeInsets.all(12.0),
           elevation: 2.0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           color: _cardBgColor(context),
           child: Padding(
             padding: const EdgeInsets.only(bottom: 8.0),
@@ -1923,32 +2372,12 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
               eventLoader: _getEventsForDay,
               calendarStyle: CalendarStyle(
                 outsideDaysVisible: false,
-                selectedDecoration: BoxDecoration(
-                  color: _primaryColor,
-                  shape: BoxShape.circle,
-                ),
-                selectedTextStyle: _getTextStyle(
-                  context,
-                  color: _textColorOnPrimary,
-                  fontWeight: FontWeight.bold,
-                ),
-                todayDecoration: BoxDecoration(
-                  color: _primaryColor.withOpacity(0.5),
-                  shape: BoxShape.circle,
-                ),
-                todayTextStyle: _getTextStyle(
-                  context,
-                  color: _textColorOnPrimary,
-                  fontWeight: FontWeight.bold,
-                ),
-                weekendTextStyle: _getTextStyle(
-                  context,
-                  color: _primaryColor.withOpacity(0.8),
-                ),
-                defaultTextStyle: _getTextStyle(
-                  context,
-                  color: _textColorPrimary(context),
-                ),
+                selectedDecoration: BoxDecoration(color: _primaryColor, shape: BoxShape.circle),
+                selectedTextStyle: _getTextStyle(context, color: _textColorOnPrimary, fontWeight: FontWeight.bold),
+                todayDecoration: BoxDecoration(color: _primaryColor.withOpacity(0.5), shape: BoxShape.circle),
+                todayTextStyle: _getTextStyle(context, color: _textColorOnPrimary, fontWeight: FontWeight.bold),
+                weekendTextStyle: _getTextStyle(context, color: _primaryColor.withOpacity(0.8)),
+                defaultTextStyle: _getTextStyle(context, color: _textColorPrimary(context)),
               ),
               calendarBuilders: CalendarBuilders(
                 markerBuilder: (context, day, events) {
@@ -1958,18 +2387,8 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
                       top: 1,
                       child: Container(
                         padding: const EdgeInsets.all(4.0),
-                        decoration: const BoxDecoration(
-                          color: Colors.redAccent,
-                          shape: BoxShape.circle,
-                        ),
-                        child: Text(
-                          '${events.length}',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
+                        decoration: const BoxDecoration(color: Colors.redAccent, shape: BoxShape.circle),
+                        child: Text('${events.length}', style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
                       ),
                     );
                   }
@@ -1979,28 +2398,11 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
               headerStyle: HeaderStyle(
                 formatButtonVisible: true,
                 titleCentered: true,
-                titleTextStyle: _getTextStyle(
-                  context,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: _textColorPrimary(context),
-                ),
-                formatButtonTextStyle: _getTextStyle(
-                  context,
-                  color: _textColorOnPrimary,
-                ),
-                formatButtonDecoration: BoxDecoration(
-                  color: _primaryColor,
-                  borderRadius: BorderRadius.circular(20.0),
-                ),
-                leftChevronIcon: Icon(
-                  Icons.chevron_left,
-                  color: _textColorPrimary(context),
-                ),
-                rightChevronIcon: Icon(
-                  Icons.chevron_right,
-                  color: _textColorPrimary(context),
-                ),
+                titleTextStyle: _getTextStyle(context, fontSize: 18, fontWeight: FontWeight.bold, color: _textColorPrimary(context)),
+                formatButtonTextStyle: _getTextStyle(context, color: _textColorOnPrimary),
+                formatButtonDecoration: BoxDecoration(color: _primaryColor, borderRadius: BorderRadius.circular(20.0)),
+                leftChevronIcon: Icon(Icons.chevron_left, color: _textColorPrimary(context)),
+                rightChevronIcon: Icon(Icons.chevron_right, color: _textColorPrimary(context)),
               ),
               onDaySelected: _onDaySelected,
               onFormatChanged: (format) {
@@ -2021,26 +2423,18 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
         if (_isLoadingEvents)
           const Padding(
             padding: EdgeInsets.all(16.0),
-            child: Center(
-              child: CircularProgressIndicator(color: _primaryColor),
-            ),
+            child: Center(child: CircularProgressIndicator(color: _primaryColor)),
           )
         else if (_selectedDay != null)
           Expanded(
             child: SingleChildScrollView(
-              padding:
-              const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     "My Appointments for ${DateFormat.yMMMMd().format(_selectedDay!)}:",
-                    style: _getTextStyle(
-                      context,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: _textColorPrimary(context),
-                    ),
+                    style: _getTextStyle(context, fontSize: 18, fontWeight: FontWeight.bold, color: _textColorPrimary(context)),
                   ),
                   const SizedBox(height: 10),
                   _buildScheduledAppointmentsList(_selectedDay!),
@@ -2056,10 +2450,7 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
                   padding: const EdgeInsets.all(16.0),
                   child: Text(
                     "Select a day to see your appointments.",
-                    style: _getTextStyle(
-                      context,
-                      color: _textColorSecondary(context),
-                    ),
+                    style: _getTextStyle(context, color: _textColorSecondary(context)),
                     textAlign: TextAlign.center,
                   ),
                 ),
@@ -2071,6 +2462,16 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
 
   @override
   Widget build(BuildContext context) {
+    final user = FirebaseAuth.instance.currentUser;
+    final now = DateTime.now();
+    final daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+    final orderedDays = List.generate(7, (i) {
+      final date = now.add(Duration(days: i));
+      final weekdayName = daysOfWeek[date.weekday - 1];
+      return {'label': weekdayName, 'date': date};
+    });
+
     return DefaultTabController(
       length: 2,
       child: Scaffold(
@@ -2097,19 +2498,193 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
         body: TabBarView(
           children: [
             _buildAppointmentsTab(),
-            MealPlanSchedulerPage(userId: widget.currentUserId),
+            FutureBuilder<List<Map<String, dynamic>>>(
+              future: _fetchLikedMealPlansWithOwners(user?.uid),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                  return const Center(
+                    child: Text("You haven't liked any meal plans yet.", style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
+                  );
+                }
+
+                final mealPlans = snapshot.data!;
+
+                if (_weeklySchedule.isEmpty && !_isLoadingSchedule) {
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    _loadScheduledMealPlans();
+                  });
+                }
+
+                return SingleChildScrollView(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(color: Colors.green.shade50, borderRadius: BorderRadius.circular(10)),
+                        child: const Row(
+                          children: [
+                            Icon(Icons.info_outline, color: Colors.green),
+                            SizedBox(width: 8),
+                            Expanded(
+                              child: Text("Drag and drop meal plans to schedule your week", style: TextStyle(color: Colors.green, fontWeight: FontWeight.w600)),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      const Text("Your Meal Plans", style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+                      const SizedBox(height: 10),
+                      Wrap(
+                        spacing: 12,
+                        runSpacing: 12,
+                        children: mealPlans.map((plan) {
+                          return LongPressDraggable<Map<String, dynamic>>(
+                            data: plan,
+                            feedback: Material(color: Colors.transparent, child: _planCard(plan, isDragging: true)),
+                            childWhenDragging: Opacity(opacity: 0.5, child: _planCard(plan)),
+                            child: _planCard(plan),
+                          );
+                        }).toList(),
+                      ),
+                      const SizedBox(height: 30),
+                      const Text("Weekly Schedule", style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+                      const SizedBox(height: 10),
+                      if (_isLoadingSchedule)
+                        const Center(child: Padding(padding: EdgeInsets.all(40.0), child: CircularProgressIndicator()))
+                      else
+                        SizedBox(
+                          height: 240,
+                          child: ListView.builder(
+                            scrollDirection: Axis.horizontal,
+                            itemCount: orderedDays.length,
+                            itemBuilder: (context, index) {
+                              final dayInfo = orderedDays[index];
+                              final day = dayInfo['label'] as String;
+                              final date = dayInfo['date'] as DateTime;
+                              final formattedDate = "${_monthAbbrev(date.month)} ${date.day}";
+                              final plan = _weeklySchedule[day];
+
+                              return DragTarget<Map<String, dynamic>>(
+                                onAccept: (receivedPlan) {
+                                  _saveMealPlanToSchedule(day, date, receivedPlan);
+                                },
+                                builder: (context, candidateData, rejectedData) {
+                                  return Container(
+                                    width: 250,
+                                    margin: const EdgeInsets.only(right: 12),
+                                    child: Card(
+                                      elevation: 2,
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                      child: Padding(
+                                        padding: const EdgeInsets.all(12.0),
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(day, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                                            Text(formattedDate, style: const TextStyle(color: Colors.grey, fontSize: 13)),
+                                            const SizedBox(height: 10),
+                                            if (plan == null)
+                                              const Expanded(
+                                                child: Center(child: Text("Drop plan here", style: TextStyle(fontSize: 13, color: Colors.grey))),
+                                              )
+                                            else
+                                              Expanded(
+                                                child: SingleChildScrollView(
+                                                  child: Column(
+                                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                                    children: [
+                                                      Row(
+                                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                                        children: [
+                                                          Text(plan['planType'] ?? 'Meal Plan', style: const TextStyle(fontWeight: FontWeight.w600)),
+                                                          IconButton(
+                                                            icon: const Icon(Icons.close, color: Colors.red, size: 20),
+                                                            onPressed: () {
+                                                              _deleteMealPlanFromSchedule(day, date);
+                                                            },
+                                                          ),
+                                                        ],
+                                                      ),
+                                                      const Divider(),
+                                                      _mealRow("Breakfast", plan['breakfast']),
+                                                      _mealRow("AM Snack", plan['amSnack']),
+                                                      _mealRow("Lunch", plan['lunch']),
+                                                      _mealRow("PM Snack", plan['pmSnack']),
+                                                      _mealRow("Dinner", plan['dinner']),
+                                                      _mealRow("Midnight Snack", plan['midnightSnack']),
+                                                    ],
+                                                  ),
+                                                ),
+                                              ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                },
+                              );
+                            },
+                          ),
+                        ),
+                    ],
+                  ),
+                );
+              },
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildScheduledAppointmentsList(DateTime selectedDate) {
-    final normalizedSelectedDate = DateTime.utc(
-      selectedDate.year,
-      selectedDate.month,
-      selectedDate.day,
+  Widget _planCard(Map<String, dynamic> plan, {bool isDragging = false}) {
+    return Container(
+      width: 160,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [if (!isDragging) BoxShadow(color: Colors.black12, blurRadius: 4, offset: const Offset(2, 2))],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.restaurant_menu, color: Colors.green),
+          const SizedBox(height: 8),
+          Text(plan['planType'] ?? 'Meal Plan', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+          const SizedBox(height: 6),
+          Text(plan['ownerName'] ?? 'Unknown Owner', style: const TextStyle(fontSize: 12, color: Colors.black54)),
+        ],
+      ),
     );
+  }
+
+  Widget _mealRow(String label, String? value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(width: 90, child: Text("$label:")),
+          Expanded(child: Text(value ?? '-', style: const TextStyle(fontWeight: FontWeight.w500))),
+        ],
+      ),
+    );
+  }
+
+  String _monthAbbrev(int month) {
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return months[month - 1];
+  }
+
+  Widget _buildScheduledAppointmentsList(DateTime selectedDate) {
+    final normalizedSelectedDate = DateTime.utc(selectedDate.year, selectedDate.month, selectedDate.day);
     final dayEvents = _events[normalizedSelectedDate] ?? [];
 
     if (dayEvents.isEmpty) {
@@ -2120,13 +2695,7 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
         child: Padding(
           padding: const EdgeInsets.all(16.0),
           child: Center(
-            child: Text(
-              "No appointments scheduled for this day yet.",
-              style: _getTextStyle(
-                context,
-                color: _textColorSecondary(context),
-              ),
-            ),
+            child: Text("No appointments scheduled for this day yet.", style: _getTextStyle(context, color: _textColorSecondary(context))),
           ),
         ),
       );
@@ -2134,12 +2703,8 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
 
     dayEvents.sort((a, b) {
       try {
-        final dateA = DateFormat(
-          'yyyy-MM-dd HH:mm',
-        ).parse(a['appointmentDate']);
-        final dateB = DateFormat(
-          'yyyy-MM-dd HH:mm',
-        ).parse(b['appointmentDate']);
+        final dateA = DateFormat('yyyy-MM-dd HH:mm').parse(a['appointmentDate']);
+        final dateB = DateFormat('yyyy-MM-dd HH:mm').parse(b['appointmentDate']);
         return dateA.compareTo(dateB);
       } catch (e) {
         return 0;
@@ -2150,23 +2715,18 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
       children: dayEvents.map<Widget>((data) {
         DateTime appointmentDateTime;
         try {
-          appointmentDateTime = DateFormat(
-            'yyyy-MM-dd HH:mm',
-          ).parse(data['appointmentDate']);
+          appointmentDateTime = DateFormat('yyyy-MM-dd HH:mm').parse(data['appointmentDate']);
         } catch (e) {
           print("Error parsing appointment date: $e");
           return const SizedBox.shrink();
         }
         final formattedTime = DateFormat.jm().format(appointmentDateTime);
         final status = data['status'] ?? 'scheduled';
-        final appointmentId = data['id'] ?? '';
 
         return Card(
           margin: const EdgeInsets.only(bottom: 12),
           elevation: 8,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           color: _cardBgColor(context),
           child: Padding(
             padding: const EdgeInsets.all(16.0),
@@ -2179,31 +2739,15 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
                     Expanded(
                       child: Text(
                         data['dietitianName'] ?? 'Unknown Dietitian',
-                        style: _getTextStyle(
-                          context,
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: _textColorPrimary(context),
-                        ),
+                        style: _getTextStyle(context, fontSize: 18, fontWeight: FontWeight.bold, color: _textColorPrimary(context)),
                       ),
                     ),
                     Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: _getStatusColor(status),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(color: _getStatusColor(status), borderRadius: BorderRadius.circular(20)),
                       child: Text(
                         _getStatusDisplayText(status),
-                        style: _getTextStyle(
-                          context,
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
+                        style: _getTextStyle(context, fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
                       ),
                     ),
                   ],
@@ -2213,39 +2757,17 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
                   children: [
                     Icon(Icons.access_time, size: 16, color: _primaryColor),
                     const SizedBox(width: 8),
-                    Text(
-                      formattedTime,
-                      style: _getTextStyle(
-                        context,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: _textColorPrimary(context),
-                      ),
-                    ),
+                    Text(formattedTime, style: _getTextStyle(context, fontSize: 16, fontWeight: FontWeight.w600, color: _textColorPrimary(context))),
                   ],
                 ),
-                if (data['notes'] != null &&
-                    data['notes'].toString().isNotEmpty) ...[
+                if (data['notes'] != null && data['notes'].toString().isNotEmpty) ...[
                   const SizedBox(height: 8),
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(
-                        Icons.note_alt_outlined,
-                        size: 16,
-                        color: _primaryColor,
-                      ),
+                      Icon(Icons.note_alt_outlined, size: 16, color: _primaryColor),
                       const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          data['notes'],
-                          style: _getTextStyle(
-                            context,
-                            fontSize: 14,
-                            color: _textColorSecondary(context),
-                          ),
-                        ),
-                      ),
+                      Expanded(child: Text(data['notes'], style: _getTextStyle(context, fontSize: 14, color: _textColorSecondary(context)))),
                     ],
                   ),
                 ],
@@ -2259,31 +2781,21 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
 
   String _getStatusDisplayText(String status) {
     switch (status.toLowerCase()) {
-      case 'proposed_by_dietitian':
-        return 'Scheduled';
-      case 'confirmed':
-        return 'Confirmed';
-      case 'declined':
-        return 'Declined';
-      case 'completed':
-        return 'Completed';
-      default:
-        return 'Scheduled';
+      case 'proposed_by_dietitian': return 'Scheduled';
+      case 'confirmed': return 'Confirmed';
+      case 'declined': return 'Declined';
+      case 'completed': return 'Completed';
+      default: return 'Scheduled';
     }
   }
 
   Color _getStatusColor(String status) {
     switch (status.toLowerCase()) {
-      case 'confirmed':
-        return Colors.green;
-      case 'declined':
-        return Colors.red;
-      case 'proposed_by_dietitian':
-        return Colors.orange;
-      case 'completed':
-        return Colors.blue;
-      default:
-        return _primaryColor;
+      case 'confirmed': return Colors.green;
+      case 'declined': return Colors.red;
+      case 'proposed_by_dietitian': return Colors.orange;
+      case 'completed': return Colors.blue;
+      default: return _primaryColor;
     }
   }
 }
@@ -2614,520 +3126,3 @@ class UsersListPage extends StatelessWidget {
   }
 }
 
-class MealPlanSchedulerPage extends StatefulWidget {
-  final String userId;
-  const MealPlanSchedulerPage({super.key, required this.userId});
-
-  @override
-  State<MealPlanSchedulerPage> createState() => _MealPlanSchedulerPageState();
-}
-
-class _MealPlanSchedulerPageState extends State<MealPlanSchedulerPage> {
-  Map<String, Map<String, dynamic>?> weeklySchedule = {
-    'Monday': null,
-    'Tuesday': null,
-    'Wednesday': null,
-    'Thursday': null,
-    'Friday': null,
-    'Saturday': null,
-    'Sunday': null,
-  };
-
-  List<Map<String, dynamic>> subscribedMealPlans = [];
-  bool _isLoading = true;
-  DateTime currentWeekStart = DateTime.now();
-
-  @override
-  void initState() {
-    super.initState();
-    _loadSubscribedMealPlans();
-    _loadWeeklySchedule();
-  }
-
-  Future<void> _loadSubscribedMealPlans() async {
-    setState(() => _isLoading = true);
-
-    try {
-      await Future.delayed(const Duration(seconds: 1));
-      setState(() {
-        subscribedMealPlans = [
-          {
-            'id': 'plan1',
-            'planName': 'Weight Loss Plan',
-            'planType': 'Weight Loss',
-            'dietitianName': 'Dr. Smith',
-          },
-          {
-            'id': 'plan2',
-            'planName': 'Muscle Gain Plan',
-            'planType': 'Muscle Gain',
-            'dietitianName': 'Dr. Johnson',
-          },
-        ];
-        _isLoading = false;
-      });
-    } catch (e) {
-      print("Error loading subscribed meal plans: $e");
-      setState(() => _isLoading = false);
-    }
-  }
-
-  Future<void> _loadWeeklySchedule() async {
-    try {
-      await Future.delayed(const Duration(milliseconds: 500));
-    } catch (e) {
-      print("Error loading weekly schedule: $e");
-    }
-  }
-
-  String _getWeekId(DateTime date) {
-    int weekNumber = ((date.difference(DateTime(date.year, 1, 1)).inDays) / 7).ceil();
-    return '${date.year}-W${weekNumber.toString().padLeft(2, '0')}';
-  }
-
-  Future<void> _saveScheduleToFirebase(String day, Map<String, dynamic>? mealPlan) async {
-    try {
-      print("BACKEND TODO: Save schedule for $day: ${mealPlan?['planName'] ?? 'removed'}");
-    } catch (e) {
-      print("Error saving schedule: $e");
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error saving schedule: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
-
-  void _assignMealPlanToDay(String day, Map<String, dynamic> mealPlan) {
-    setState(() {
-      weeklySchedule[day] = mealPlan;
-    });
-    _saveScheduleToFirebase(day, mealPlan);
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('${mealPlan['planName']} assigned to $day'),
-        backgroundColor: _primaryColor,
-        duration: const Duration(seconds: 2),
-      ),
-    );
-  }
-
-  void _removeMealPlanFromDay(String day) {
-    setState(() {
-      weeklySchedule[day] = null;
-    });
-    _saveScheduleToFirebase(day, null);
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Meal plan removed from $day'),
-        backgroundColor: Colors.orange,
-        duration: const Duration(seconds: 2),
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: _scaffoldBgColor(context),
-      body: _isLoading
-          ? const Center(
-        child: CircularProgressIndicator(color: _primaryColor),
-      )
-          : subscribedMealPlans.isEmpty
-          ? _buildEmptyState()
-          : _buildSchedulerContent(),
-    );
-  }
-
-  Widget _buildEmptyState() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.restaurant_menu_outlined,
-              size: 80,
-              color: Colors.grey[400],
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'No Meal Plans Available',
-              style: _sectionTitleStyle(context).copyWith(
-                color: Colors.grey[600],
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Subscribe to a dietitian to get meal plans and start scheduling your weekly meals',
-              style: _cardSubtitleStyle(context),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton.icon(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const DietitiansListPage(),
-                  ),
-                );
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: _primaryColor,
-                foregroundColor: _textColorOnPrimary,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 12,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              icon: const Icon(Icons.person_search_rounded),
-              label: const Text('Browse Dietitians'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSchedulerContent() {
-    return Column(
-      children: [
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          margin: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-          decoration: BoxDecoration(
-            color: _primaryColor.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: _primaryColor.withOpacity(0.3)),
-          ),
-          child: Row(
-            children: [
-              Icon(Icons.info_outline, color: _primaryColor, size: 20),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  'Drag and drop meal plans to schedule your week',
-                  style: _cardBodyTextStyle(context).copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: _primaryColor,
-                    fontSize: 13,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          child: Text(
-            'Your Meal Plans',
-            style: _sectionTitleStyle(context).copyWith(fontSize: 16),
-          ),
-        ),
-        const SizedBox(height: 6),
-        SizedBox(
-          height: 150,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            itemCount: subscribedMealPlans.length,
-            itemBuilder: (context, index) {
-              return _buildDraggableMealPlan(subscribedMealPlans[index]);
-            },
-          ),
-        ),
-        const SizedBox(height: 12),
-        Expanded(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Weekly Schedule',
-                  style: _sectionTitleStyle(context).copyWith(fontSize: 16),
-                ),
-                const SizedBox(height: 8),
-                ...weeklySchedule.keys.map((day) {
-                  return _buildDayDropZone(day, weeklySchedule[day]);
-                }).toList(),
-                const SizedBox(height: 16),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildDraggableMealPlan(Map<String, dynamic> mealPlan) {
-    return Draggable<Map<String, dynamic>>(
-      data: mealPlan,
-      feedback: Material(
-        elevation: 8,
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          width: 160,
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: _primaryColor,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                mealPlan['planName'] ?? 'Meal Plan',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14,
-                  fontFamily: _primaryFontFamily,
-                ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 3),
-              Text(
-                mealPlan['planType'] ?? '',
-                style: const TextStyle(
-                  color: Colors.white70,
-                  fontSize: 11,
-                  fontFamily: _primaryFontFamily,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-      childWhenDragging: Opacity(
-        opacity: 0.3,
-        child: _buildMealPlanCard(mealPlan),
-      ),
-      child: _buildMealPlanCard(mealPlan),
-    );
-  }
-
-  Widget _buildMealPlanCard(Map<String, dynamic> mealPlan) {
-    return Container(
-      width: 160,
-      margin: const EdgeInsets.only(right: 10),
-      child: Card(
-        elevation: 4,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
-        color: _cardBgColor(context),
-        child: Padding(
-          padding: const EdgeInsets.all(5),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                Icons.restaurant_menu,
-                color: _primaryColor,
-                size: 24,
-              ),
-              const SizedBox(height: 6),
-              Text(
-                mealPlan['planName'] ?? 'Meal Plan',
-                style: _cardTitleStyle(context).copyWith(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 3),
-              Text(
-                mealPlan['planType'] ?? '',
-                style: _cardSubtitleStyle(context).copyWith(fontSize: 11),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                'by ${mealPlan['dietitianName'] ?? 'Dietitian'}',
-                style: _cardSubtitleStyle(context).copyWith(fontSize: 10),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDayDropZone(String day, Map<String, dynamic>? assignedPlan) {
-    return DragTarget<Map<String, dynamic>>(
-      onWillAccept: (data) => true,
-      onAccept: (mealPlan) {
-        _assignMealPlanToDay(day, mealPlan);
-      },
-      builder: (context, candidateData, rejectedData) {
-        bool isHovering = candidateData.isNotEmpty;
-
-        return Card(
-          elevation: isHovering ? 8 : 4,
-          margin: const EdgeInsets.only(bottom: 8),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-            side: BorderSide(
-              color: isHovering ? _primaryColor : Colors.transparent,
-              width: 2,
-            ),
-          ),
-          color: isHovering
-              ? _primaryColor.withOpacity(0.1)
-              : _cardBgColor(context),
-          child: Padding(
-            padding: const EdgeInsets.all(12),
-            child: Row(
-              children: [
-                SizedBox(
-                  width: 85,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        day,
-                        style: _cardTitleStyle(context).copyWith(
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      Text(
-                        _getDateForDay(day),
-                        style: _cardSubtitleStyle(context).copyWith(
-                          fontSize: 11,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: assignedPlan != null
-                      ? _buildAssignedPlanDisplay(day, assignedPlan)
-                      : _buildEmptyDaySlot(isHovering),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildAssignedPlanDisplay(String day, Map<String, dynamic> plan) {
-    return Container(
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: _primaryColor.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: _primaryColor.withOpacity(0.3)),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.restaurant_menu, color: _primaryColor, size: 18),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  plan['planName'] ?? 'Meal Plan',
-                  style: _cardTitleStyle(context).copyWith(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                Text(
-                  plan['planType'] ?? '',
-                  style: _cardSubtitleStyle(context).copyWith(fontSize: 11),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.close, size: 18),
-            color: Colors.red,
-            onPressed: () => _removeMealPlanFromDay(day),
-            tooltip: 'Remove meal plan',
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildEmptyDaySlot(bool isHovering) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: isHovering
-            ? _primaryColor.withOpacity(0.05)
-            : Colors.grey.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: isHovering
-              ? _primaryColor.withOpacity(0.5)
-              : Colors.grey.withOpacity(0.2),
-          width: 2,
-          style: BorderStyle.solid,
-        ),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            isHovering ? Icons.add_circle : Icons.add_circle_outline,
-            color: isHovering ? _primaryColor : Colors.grey,
-            size: 18,
-          ),
-          const SizedBox(width: 6),
-          Text(
-            'Drop meal plan here',
-            style: TextStyle(
-              color: isHovering ? _primaryColor : Colors.grey,
-              fontSize: 12,
-              fontFamily: _primaryFontFamily,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  String _getDateForDay(String day) {
-    final now = DateTime.now();
-    final weekStart = now.subtract(Duration(days: now.weekday - 1));
-    final daysMap = {
-      'Monday': 0,
-      'Tuesday': 1,
-      'Wednesday': 2,
-      'Thursday': 3,
-      'Friday': 4,
-      'Saturday': 5,
-      'Sunday': 6,
-    };
-    final date = weekStart.add(Duration(days: daysMap[day] ?? 0));
-    return DateFormat('MMM d').format(date);
-  }
-}

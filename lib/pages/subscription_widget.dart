@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'subscription_model.dart';
 import 'subscription_service.dart';
-import 'subscription_page.dart';
+import '../Dietitians/dietitianPublicProfile.dart';
 
 const String _primaryFontFamily = 'PlusJakartaSans';
 const Color _primaryColor = Color(0xFF4CAF50);
@@ -269,14 +269,17 @@ class DietitiansListPage extends StatelessWidget {
                   borderRadius: BorderRadius.circular(20),
                 ),
                 color: _cardBgColor(context),
-                child: InkWell(
+                child: // Replace the InkWell onTap in DietitiansListPage with this:
+
+                InkWell(
                   onTap: () {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => SubscriptionPage(
+                        builder: (context) => DietitianPublicProfile(
                           dietitianId: dietitianId,
-                          dietitianName: name.isEmpty ? "Dietitian" : name,
+                          dietitianName: name,
+                          dietitianProfile: profileUrl,
                         ),
                       ),
                     );
@@ -360,7 +363,7 @@ class DietitiansListPage extends StatelessWidget {
                       ],
                     ),
                   ),
-                ),
+                )
               );
             },
           );
@@ -370,9 +373,9 @@ class DietitiansListPage extends StatelessWidget {
   }
 }
 
+//My Subscription Page
 class MySubscriptionsPage extends StatefulWidget {
   final String userId;
-
   const MySubscriptionsPage({super.key, required this.userId});
 
   @override
@@ -380,35 +383,79 @@ class MySubscriptionsPage extends StatefulWidget {
 }
 
 class _MySubscriptionsPageState extends State<MySubscriptionsPage> {
-  final SubscriptionService _subscriptionService = SubscriptionService();
-  List<UserSubscription> _subscriptions = [];
-  bool _isLoading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadSubscriptions();
-  }
-
-  Future<void> _loadSubscriptions() async {
+  Future<void> _cancelSubscription(String subscriptionId, String dietitianId) async {
     try {
-      final subscriptions = await _subscriptionService.getUserSubscriptions(
-        widget.userId,
-      );
-      setState(() {
-        _subscriptions = subscriptions;
-        _isLoading = false;
+      // Update both sides atomically
+      final userRef = FirebaseFirestore.instance
+          .collection('Users')
+          .doc(widget.userId)
+          .collection('subscribeTo')
+          .doc(subscriptionId);
+
+      final dietitianRef = FirebaseFirestore.instance
+          .collection('Users')
+          .doc(dietitianId)
+          .collection('subscriber')
+          .doc(widget.userId);
+
+      await FirebaseFirestore.instance.runTransaction((transaction) async {
+        transaction.update(userRef, {'status': 'cancelled'});
+        transaction.update(dietitianRef, {'status': 'cancelled'});
       });
-    } catch (e) {
-      setState(() {
-        _isLoading = false;
-      });
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error loading subscriptions: $e')),
+          const SnackBar(
+            content: Text('Subscription cancelled successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        print('$e');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to cancel: $e'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }
+  }
+
+  void _showCancelDialog(String subscriptionId, String dietitianId) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: _cardBgColor(context),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Text('Cancel Subscription', style: _sectionTitleStyle(context)),
+          content: Text(
+            'Are you sure you want to cancel this subscription?\nYou will lose access to premium meal plans.',
+            style: _cardBodyTextStyle(context),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('No', style: TextStyle(color: _textColorSecondary(context))),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () async {
+                Navigator.pop(context);
+                await _cancelSubscription(subscriptionId, dietitianId);
+              },
+              child: const Text('Yes, Cancel'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -421,268 +468,171 @@ class _MySubscriptionsPageState extends State<MySubscriptionsPage> {
         foregroundColor: _textColorOnPrimary,
         elevation: 1,
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: _primaryColor))
-          : _subscriptions.isEmpty
-          ? _buildEmptyState()
-          : _buildSubscriptionsList(),
-    );
-  }
+      body: StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection("Users")
+            .doc(widget.userId)
+            .collection("subscribeTo")
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator(color: _primaryColor));
+          }
 
-  Widget _buildEmptyState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.subscriptions_outlined, size: 80, color: Colors.grey[400]),
-          const SizedBox(height: 16),
-          Text(
-            'No Active Subscriptions',
-            style: _sectionTitleStyle(
-              context,
-            ).copyWith(color: Colors.grey[600]),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Subscribe to a dietitian to get personalized meal plans',
-            style: _cardSubtitleStyle(context),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 24),
-          ElevatedButton.icon(
-            onPressed: () {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const DietitiansListPage(),
-                ),
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: _primaryColor,
-              foregroundColor: _textColorOnPrimary,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            icon: const Icon(Icons.person_search_rounded),
-            label: const Text('Browse Dietitians'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSubscriptionsList() {
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: _subscriptions.length,
-      itemBuilder: (context, index) {
-        final subscription = _subscriptions[index];
-        return _buildSubscriptionCard(subscription);
-      },
-    );
-  }
-
-  Widget _buildSubscriptionCard(UserSubscription subscription) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 16),
-      elevation: 8,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      color: _cardBgColor(context),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: FutureBuilder<DocumentSnapshot>(
-                    future: FirebaseFirestore.instance
-                        .collection("Users")
-                        .doc(subscription.dietitianId)
-                        .get(),
-                    builder: (context, snapshot) {
-                      String dietitianName = "Unknown Dietitian";
-                      if (snapshot.hasData && snapshot.data!.exists) {
-                        var data =
-                        snapshot.data!.data() as Map<String, dynamic>;
-                        dietitianName =
-                            "${data["firstName"] ?? ""} ${data["lastName"] ?? ""}"
-                                .trim();
-                        if (dietitianName.isEmpty) dietitianName = "Dietitian";
-                      }
-                      return Text(
-                        "Dr. $dietitianName",
-                        style: _cardTitleStyle(context).copyWith(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      );
-                    },
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: _getSubscriptionStatusColor(
-                      subscription.status,
-                    ).withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    subscription.status.toUpperCase(),
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: _getSubscriptionStatusColor(subscription.status),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Icon(
-                  Icons.calendar_today,
-                  size: 16,
-                  color: _textColorSecondary(context),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  'Started: ${DateFormat('MMM dd, yyyy').format(subscription.startDate)}',
-                  style: _cardSubtitleStyle(context),
-                ),
-              ],
-            ),
-            if (subscription.endDate != null) ...[
-              const SizedBox(height: 4),
-              Row(
+          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(
-                    Icons.event_busy,
-                    size: 16,
-                    color: _textColorSecondary(context),
-                  ),
-                  const SizedBox(width: 8),
+                  Icon(Icons.subscriptions_outlined, size: 80, color: Colors.grey[400]),
+                  const SizedBox(height: 16),
                   Text(
-                    'Ends: ${DateFormat('MMM dd, yyyy').format(subscription.endDate!)}',
+                    'No Active Subscriptions',
+                    style: _sectionTitleStyle(context).copyWith(color: Colors.grey[600]),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Subscribe to a dietitian to get personalized meal plans',
                     style: _cardSubtitleStyle(context),
+                    textAlign: TextAlign.center,
                   ),
                 ],
               ),
-            ],
-            const SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                TextButton.icon(
-                  onPressed: () {},
-                  icon: const Icon(Icons.restaurant_menu, size: 18),
-                  label: const Text('View Meal Plans'),
-                  style: TextButton.styleFrom(foregroundColor: _primaryColor),
-                ),
-                if (subscription.status == 'active')
-                  TextButton.icon(
-                    onPressed: () => _showCancelDialog(subscription),
-                    icon: const Icon(Icons.cancel_outlined, size: 18),
-                    label: const Text('Cancel'),
-                    style: TextButton.styleFrom(foregroundColor: Colors.red),
-                  ),
-              ],
-            ),
-          ],
-        ),
+            );
+          }
+
+          final subscriptions = snapshot.data!.docs;
+          return ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: subscriptions.length,
+            itemBuilder: (context, index) {
+              final subData = subscriptions[index].data() as Map<String, dynamic>;
+              final subscriptionId = subscriptions[index].id;
+              final dietitianId = subData["dietitianId"];
+              final expirationDate =
+              (subData["expirationDate"] as Timestamp).toDate();
+              final planType = subData["planType"] ?? "";
+              final price = subData["price"] ?? "";
+              final status = subData["status"] ?? "";
+
+              return FutureBuilder<DocumentSnapshot>(
+                future: FirebaseFirestore.instance
+                    .collection("Users")
+                    .doc(dietitianId)
+                    .get(),
+                builder: (context, dietitianSnap) {
+                  if (dietitianSnap.connectionState == ConnectionState.waiting) {
+                    return const SizedBox(
+                      height: 100,
+                      child: Center(
+                          child: CircularProgressIndicator(color: _primaryColor)),
+                    );
+                  }
+
+                  if (!dietitianSnap.hasData || !dietitianSnap.data!.exists) {
+                    return const SizedBox();
+                  }
+
+                  final dietitianData =
+                  dietitianSnap.data!.data() as Map<String, dynamic>;
+                  final name =
+                  "${dietitianData["firstName"] ?? ""} ${dietitianData["lastName"] ?? ""}"
+                      .trim();
+                  final profileUrl = dietitianData["profile"] ?? "";
+                  final now = DateTime.now();
+                  final daysLeft =
+                  expirationDate.difference(now).inDays.clamp(0, 9999);
+
+                  return Card(
+                    margin: const EdgeInsets.only(bottom: 16),
+                    elevation: 8,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                    color: _cardBgColor(context),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          // Profile
+                          CircleAvatar(
+                            radius: 32,
+                            backgroundColor: _primaryColor.withOpacity(0.2),
+                            backgroundImage: profileUrl.isNotEmpty
+                                ? NetworkImage(profileUrl)
+                                : null,
+                            child: profileUrl.isEmpty
+                                ? const Icon(Icons.person,
+                                color: _primaryColor, size: 32)
+                                : null,
+                          ),
+                          const SizedBox(width: 16),
+
+                          // Dietitian info
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  "Dr. ${name.isEmpty ? "Dietitian" : name}",
+                                  style: _cardTitleStyle(context).copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text("Plan: $planType", style: _cardSubtitleStyle(context)),
+                                Text("Price: $price", style: _cardSubtitleStyle(context)),
+                                const SizedBox(height: 6),
+                                Text(
+                                  "Status: $status",
+                                  style: _cardSubtitleStyle(context).copyWith(
+                                    color: status == "approved"
+                                        ? Colors.green
+                                        : status == "cancelled"
+                                        ? Colors.red
+                                        : Colors.orange,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                if (status != "cancelled")
+                                  TextButton.icon(
+                                    onPressed: () => _showCancelDialog(subscriptionId, dietitianId),
+                                    icon: const Icon(Icons.cancel_outlined, color: Colors.red),
+                                    label: const Text("Cancel",
+                                        style: TextStyle(color: Colors.red)),
+                                  ),
+                              ],
+                            ),
+                          ),
+
+                          // Countdown
+                          Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(Icons.timer, color: _primaryColor),
+                              const SizedBox(height: 6),
+                              Text(
+                                daysLeft > 0 ? "$daysLeft days left" : "Expired",
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: daysLeft > 0 ? _primaryColor : Colors.red,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              );
+            },
+          );
+        },
       ),
     );
   }
-
-  Color _getSubscriptionStatusColor(String status) {
-    switch (status.toLowerCase()) {
-      case 'active':
-        return Colors.green;
-      case 'cancelled':
-        return Colors.red;
-      case 'past_due':
-        return Colors.orange;
-      default:
-        return _primaryColor;
-    }
-  }
-
-  void _showCancelDialog(UserSubscription subscription) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          backgroundColor: _cardBgColor(context),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          title: Text(
-            'Cancel Subscription',
-            style: _sectionTitleStyle(context),
-          ),
-          content: Text(
-            'Are you sure you want to cancel this subscription? You will lose access to premium meal plans.',
-            style: _cardBodyTextStyle(context),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: Text(
-                'Keep Subscription',
-                style: TextStyle(color: _textColorSecondary(context)),
-              ),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                Navigator.of(context).pop();
-                await _cancelSubscription(subscription);
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-              child: const Text('Cancel Subscription'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Future<void> _cancelSubscription(UserSubscription subscription) async {
-    try {
-      await _subscriptionService.cancelSubscription(subscription.id);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Subscription cancelled successfully'),
-            backgroundColor: Colors.green,
-          ),
-        );
-        _loadSubscriptions();
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error cancelling subscription: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
 }
+
+

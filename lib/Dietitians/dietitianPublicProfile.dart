@@ -132,7 +132,7 @@ class _DietitianPublicProfileState extends State<DietitianPublicProfile> {
   Future<void> _getUploadCount() async {
     final snapshot = await _firestore
         .collection('mealPlans')
-        .where('ownerId', isEqualTo: widget.dietitianId)
+        .where('owner', isEqualTo: widget.dietitianId)
         .get();
 
     setState(() {
@@ -264,7 +264,7 @@ class _DietitianPublicProfileState extends State<DietitianPublicProfile> {
                             ),
                           ),
                           const Text(
-                            "uploads",
+                            "Uploads",
                             style: TextStyle(
                               fontFamily: _fontFamily,
                               fontSize: 13,
