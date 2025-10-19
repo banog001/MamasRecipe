@@ -7,27 +7,33 @@ import 'package:async/async.dart';
 import 'package:rxdart/rxdart.dart';
 
 const String _primaryFontFamily = 'PlusJakartaSans';
-const Color _primaryColor = Color(0xFF4CAF50);
+
+
+const Color _backgroundColor = Color(0xFF121212); // Deep charcoal background
+const Color _surfaceColor = Color(0xFF1E1E1E); // Slightly lighter for cards
+const Color _primaryColor = Color(0xFF0D63F5); // Professional vibrant blue (was green #4CAF50)
 const Color _textColorOnPrimary = Colors.white;
+const Color _hintColor = Color(0xFFAAAAAA); // Subtle grey for hints
+const Color _errorColor = Color(0xFFCF6679); // Material Design error color for dark themes
 
 Color _scaffoldBgColor(BuildContext context) =>
     Theme.of(context).brightness == Brightness.dark
-        ? Colors.grey.shade900
+        ? const Color(0xFF121212) // Deep charcoal (was Colors.grey.shade900)
         : Colors.grey.shade100;
 
 Color _cardBgColor(BuildContext context) =>
     Theme.of(context).brightness == Brightness.dark
-        ? Colors.grey.shade800
+        ? const Color(0xFF1E1E1E) // Slightly lighter surface (was Colors.grey.shade800)
         : Colors.white;
 
 Color _textColorPrimary(BuildContext context) =>
     Theme.of(context).brightness == Brightness.dark
-        ? Colors.white70
+        ? Colors.white
         : Colors.black87;
 
 Color _textColorSecondary(BuildContext context) =>
     Theme.of(context).brightness == Brightness.dark
-        ? Colors.white54
+        ? const Color(0xFFAAAAAA) // Subtle grey (was Colors.white54)
         : Colors.black54;
 
 TextStyle _getTextStyle(
