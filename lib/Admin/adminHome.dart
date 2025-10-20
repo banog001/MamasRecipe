@@ -80,6 +80,98 @@ class _AdminHomeState extends State<AdminHome> {
   final ScrollController _scrollController = ScrollController();
   final TextEditingController _messageController = TextEditingController();
 
+
+  // Add this method inside the _AdminHomeState class
+
+// REPLACE the logout code in _handleLogout() with this simpler version:
+
+  Future<void> _handleLogout() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.orange.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(Icons.logout, color: Colors.orange),
+            ),
+            const SizedBox(width: 12),
+            const Text(
+              "Confirm Logout",
+              style: TextStyle(fontFamily: _primaryFontFamily),
+            ),
+          ],
+        ),
+        content: const Text(
+          "Are you sure you want to logout?",
+          style: TextStyle(fontFamily: _primaryFontFamily),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text("Cancel", style: TextStyle(fontFamily: _primaryFontFamily)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.orange,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text("Logout", style: TextStyle(fontFamily: _primaryFontFamily)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      try {
+        await FirebaseAuth.instance.signOut();
+
+        if (mounted) {
+          // Pop all routes and return to the first screen (your login screen)
+          Navigator.of(context).pushNamedAndRemoveUntil(
+            '/', // Replace with your LOGIN screen's route name
+                (route) => false,
+          );
+
+          // Alternative: If the above doesn't work, try this instead:
+          // Navigator.of(context).pop();
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(Icons.error_outline, color: Colors.white),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      "Error: $e",
+                      style: const TextStyle(fontFamily: _primaryFontFamily),
+                    ),
+                  ),
+                ],
+              ),
+              backgroundColor: Colors.red,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+          );
+        }
+      }
+    }
+  }
+
+
   @override
   void dispose() {
     _scrollController.dispose();
@@ -144,7 +236,7 @@ class _AdminHomeState extends State<AdminHome> {
                           const SizedBox(width: 12),
                           const Expanded(
                             child: Text(
-                              "Admin Panel",
+                              "Papa's Panel",
                               style: TextStyle(
                                 color: _textColorOnPrimary,
                                 fontWeight: FontWeight.bold,
@@ -162,11 +254,43 @@ class _AdminHomeState extends State<AdminHome> {
                   _buildSidebarItem(Icons.settings_outlined, Icons.settings, "CRUD", isTablet),
                   _buildSidebarItem(Icons.check_circle_outlined, Icons.check_circle, "QR Approval", isTablet),
                   _buildSidebarItem(Icons.message_outlined, Icons.message, "Messages", isTablet),
-                  _buildSidebarItem(Icons.bar_chart_outlined, Icons.bar_chart, "Sales", isTablet),
                   const Spacer(),
                   const Divider(indent: 16, endIndent: 16),
-                  _buildSidebarItem(Icons.logout_outlined, Icons.logout, "Logout", isTablet),
-                  const SizedBox(height: 20),
+                  Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: _handleLogout,
+                      borderRadius: BorderRadius.circular(12),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                        decoration: BoxDecoration(
+                          color: Colors.transparent,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.transparent, width: 1),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.logout,
+                              color: Colors.red,
+                              size: 22,
+                            ),
+                            if (!isTablet) ...[
+                              const SizedBox(width: 12),
+                              const Text(
+                                "Logout",
+                                style: TextStyle(
+                                  fontFamily: _primaryFontFamily,
+                                  fontWeight: FontWeight.normal,
+                                  color: Colors.redAccent,
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ),
+                  )
                 ],
               ),
             ),
@@ -211,11 +335,6 @@ class _AdminHomeState extends State<AdminHome> {
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
-                              if (!isMobile)
-                                Text(
-                                  _getPageSubtitle(),
-                                  style: _cardSubtitleStyle(context),
-                                ),
                             ],
                           ),
                         ],
@@ -246,7 +365,7 @@ class _AdminHomeState extends State<AdminHome> {
                             if (!isMobile) ...[
                               const SizedBox(width: 10),
                               Text(
-                                "Admin User",
+                                "PAPA",
                                 style: _getTextStyle(
                                   context,
                                   fontWeight: FontWeight.w600,
@@ -315,16 +434,12 @@ class _AdminHomeState extends State<AdminHome> {
                     color: Colors.white.withOpacity(0.2),
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: const Icon(
-                    Icons.admin_panel_settings,
-                    color: _textColorOnPrimary,
-                    size: 28,
-                  ),
+                  child: const Icon(Icons.admin_panel_settings, color: _textColorOnPrimary, size: 28,),
                 ),
                 const SizedBox(width: 12),
                 const Expanded(
                   child: Text(
-                    "Admin Panel",
+                    "Papa's Panel",
                     style: TextStyle(
                       color: _textColorOnPrimary,
                       fontWeight: FontWeight.bold,
@@ -341,11 +456,43 @@ class _AdminHomeState extends State<AdminHome> {
           _buildSidebarItem(Icons.settings_outlined, Icons.settings, "CRUD", false),
           _buildSidebarItem(Icons.check_circle_outlined, Icons.check_circle, "QR Approval", false),
           _buildSidebarItem(Icons.message_outlined, Icons.message, "Messages", false),
-          _buildSidebarItem(Icons.bar_chart_outlined, Icons.bar_chart, "Sales", false),
           const Spacer(),
           const Divider(indent: 16, endIndent: 16),
-          _buildSidebarItem(Icons.logout_outlined, Icons.logout, "Logout", false),
-          const SizedBox(height: 20),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: _handleLogout,
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  decoration: BoxDecoration(
+                    color: Colors.transparent,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.logout,
+                        color: Colors.red,
+                        size: 22,
+                      ),
+                      const SizedBox(width: 12),
+                      const Text(
+                        "Logout",
+                        style: TextStyle(
+                          fontFamily: _primaryFontFamily,
+                          fontWeight: FontWeight.normal,
+                          color: Colors.red,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          )
         ],
       ),
     );
@@ -356,13 +503,40 @@ class _AdminHomeState extends State<AdminHome> {
       return SingleChildScrollView(
         child: Column(
           children: [
+            _buildSectionHeader("Key Metrics"),
+            const SizedBox(height: 12),
             SizedBox(
               height: 300,
-              child: _buildDietitianPanel(),
+              child: _buildUserCreationChart(),
             ),
+            const SizedBox(height: 16),
+            _buildAppointmentAnalytics(),
+            const SizedBox(height: 16),
+            _buildSectionHeader("Performance"),
+            const SizedBox(height: 12),
             SizedBox(
               height: 300,
-              child: _buildUsersPanel(),
+              child: _buildMealPlanPerformance(),
+            ),
+            const SizedBox(height: 16),
+            _buildUserSubscriptionChurn(),
+            const SizedBox(height: 16),
+            _buildSectionHeader("Insights"),
+            const SizedBox(height: 12),
+            _buildHealthGoalsDistribution(),
+            const SizedBox(height: 16),
+            _buildUserDemographics(),
+            const SizedBox(height: 16),
+            _buildSectionHeader("Activity"),
+            const SizedBox(height: 12),
+            SizedBox(
+              height: 300,
+              child: _buildDietitianActivityHistory(),
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              height: 300,
+              child: _buildMealPlansWithLikes(),
             ),
           ],
         ),
@@ -372,22 +546,7 @@ class _AdminHomeState extends State<AdminHome> {
     }
   }
 
-  String _getPageSubtitle() {
-    switch (selectedPage) {
-      case "Home":
-        return "Overview and statistics";
-      case "CRUD":
-        return "Manage users and data";
-      case "QR Approval":
-        return "Approve QR codes";
-      case "Messages":
-        return "Chat with users and dietitians";
-      case "Sales":
-        return "Sales analytics";
-      default:
-        return "";
-    }
-  }
+
 
   Widget _buildSidebarItem(IconData outlinedIcon, IconData filledIcon, String title, bool isCompact) {
     final isSelected = selectedPage == title;
@@ -450,43 +609,13 @@ class _AdminHomeState extends State<AdminHome> {
       return _buildQRApprovalPage();
     } else if (selectedPage == "Messages") {
       return _buildMessagesPage();
-    } else if (selectedPage == "Sales") {
-      return Container(
-        color: _scaffoldBgColor(context),
-        padding: const EdgeInsets.all(24),
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                Icons.analytics_outlined,
-                size: 80,
-                color: _primaryColor.withOpacity(0.3),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                "Sales Analytics",
-                style: _getTextStyle(
-                  context,
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                "Sales data coming soon",
-                style: _cardSubtitleStyle(context),
-              ),
-            ],
-          ),
-        ),
-      );
     }
     return Container();
   }
 
   Widget _buildHomeDashboard() {
     final isMobile = MediaQuery.of(context).size.width < 768;
+    final isTablet = MediaQuery.of(context).size.width >= 768 && MediaQuery.of(context).size.width < 1024;
 
     return Container(
       color: _scaffoldBgColor(context),
@@ -496,18 +625,29 @@ class _AdminHomeState extends State<AdminHome> {
             ? Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            _buildSectionHeader("Key Metrics"),
+            const SizedBox(height: 12),
             _buildUserCreationChart(),
             const SizedBox(height: 16),
             _buildAppointmentAnalytics(),
             const SizedBox(height: 16),
+
+            _buildSectionHeader("Performance"),
+            const SizedBox(height: 12),
             _buildMealPlanPerformance(),
             const SizedBox(height: 16),
             _buildUserSubscriptionChurn(),
             const SizedBox(height: 16),
+
+            _buildSectionHeader("Insights"),
+            const SizedBox(height: 12),
             _buildHealthGoalsDistribution(),
             const SizedBox(height: 16),
             _buildUserDemographics(),
             const SizedBox(height: 16),
+
+            _buildSectionHeader("Activity"),
+            const SizedBox(height: 12),
             _buildDietitianActivityHistory(),
             const SizedBox(height: 16),
             _buildMealPlansWithLikes(),
@@ -515,37 +655,52 @@ class _AdminHomeState extends State<AdminHome> {
         )
             : Column(
           children: [
+            // Key Metrics Section
+            _buildSectionHeader("Key Metrics"),
+            const SizedBox(height: 12),
             _buildUserCreationChart(),
             const SizedBox(height: 16),
+
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(child: _buildAppointmentAnalytics()),
+                Expanded(
+                  flex: isTablet ? 1 : 1,
+                  child: _buildAppointmentAnalytics(),
+                ),
                 const SizedBox(width: 16),
+                Expanded(
+                  flex: isTablet ? 1 : 1,
+                  child: _buildMealPlanPerformance(),
+                ),
               ],
             ),
             const SizedBox(height: 16),
+
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(child: _buildMealPlanPerformance()),
-                const SizedBox(width: 16),
                 Expanded(child: _buildUserSubscriptionChurn()),
+                const SizedBox(width: 16),
+                Expanded(child: _buildHealthGoalsDistribution()),
               ],
             ),
             const SizedBox(height: 16),
+
+            _buildUserDemographics(),
+            const SizedBox(height: 16),
+
+            _buildSectionHeader("Activity"),
+            const SizedBox(height: 12),
+
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(child: _buildHealthGoalsDistribution()),
+                Expanded(child: _buildDietitianActivityHistory()),
                 const SizedBox(width: 16),
-                Expanded(child: _buildUserDemographics()),
+                Expanded(child: _buildMealPlansWithLikes()),
               ],
             ),
-            const SizedBox(height: 16),
-            _buildDietitianActivityHistory(),
-            const SizedBox(height: 16),
-            _buildMealPlansWithLikes(),
           ],
         ),
       ),
@@ -710,10 +865,16 @@ class _AdminHomeState extends State<AdminHome> {
 
 
 // Bar Chart using fl_chart
+  // REPLACE your _buildBarChart method with this fixed version:
+
   Widget _buildBarChart(Map<String, dynamic> chartData) {
     final labels = chartData['labels'] as List<String>;
     final values = chartData['values'] as List<int>;
     final maxY = chartData['maxY'] as double;
+
+    // Calculate interval ensuring it's never zero or too small
+    final interval = (maxY / 5).ceil().toDouble();
+    final safeInterval = interval < 1.0 ? 1.0 : interval;
 
     List<BarChartGroupData> barGroups = [];
     for (int i = 0; i < values.length; i++) {
@@ -742,7 +903,7 @@ class _AdminHomeState extends State<AdminHome> {
           show: true,
           drawHorizontalLine: true,
           drawVerticalLine: true,
-          horizontalInterval: (maxY / 5).ceil().toDouble(),
+          horizontalInterval: safeInterval, // Use the safe interval here
           verticalInterval: 1,
           getDrawingHorizontalLine: (value) => FlLine(
             color: _textColorSecondary(context).withOpacity(0.1),
@@ -758,7 +919,7 @@ class _AdminHomeState extends State<AdminHome> {
             sideTitles: SideTitles(
               showTitles: true,
               reservedSize: 40,
-              interval: (maxY / 5).ceil().toDouble(),
+              interval: safeInterval, // Use the safe interval here too
               getTitlesWidget: (value, meta) {
                 return Text(
                   value.toInt().toString(),
@@ -883,6 +1044,8 @@ class _AdminHomeState extends State<AdminHome> {
   }
 
 // Updated data processing - excludes today for Week view
+// REPLACE your _processUserCreationData method with this corrected version:
+
   Map<String, dynamic> _processUserCreationData(List<QueryDocumentSnapshot> users, String chartFilter) {
     final now = DateTime.now();
     Map<String, int> dateCounts = {};
@@ -909,10 +1072,10 @@ class _AdminHomeState extends State<AdminHome> {
         labels.add(DateFormat('MMM').format(date)); // Jan, Feb, etc
       }
     } else {
-      // Year: last 7 years
-      final startYear = 2024;
-      for (int i = 0; i < 7; i++) {
-        final year = startYear + i;
+      // Year: last 7 years - FIXED to use current year as reference
+      final currentYear = now.year;
+      for (int i = 6; i >= 0; i--) {
+        final year = currentYear - i;
         final key = year.toString();
         dateCounts[key] = 0;
         dateKeys.add(key);
@@ -932,6 +1095,7 @@ class _AdminHomeState extends State<AdminHome> {
         if (chartFilter == "Week") {
           key = DateFormat('yyyy-MM-dd').format(date);
         } else if (chartFilter == "Month") {
+          // FIXED: Corrected DateTime constructor order
           key = DateFormat('yyyy-MM').format(DateTime(date.year, date.month, 1));
         } else {
           key = date.year.toString();
@@ -1911,7 +2075,7 @@ class _AdminHomeState extends State<AdminHome> {
                 const Icon(Icons.message, color: _primaryColor),
                 const SizedBox(width: 12),
                 Text(
-                  "Recent Messages",
+                  "Conversations",
                   style: _getTextStyle(
                     context,
                     fontWeight: FontWeight.bold,
@@ -1926,7 +2090,7 @@ class _AdminHomeState extends State<AdminHome> {
               stream: FirebaseFirestore.instance
                   .collection('messages')
                   .orderBy('timestamp', descending: true)
-                  .limit(50)
+                  .limit(100)
                   .snapshots(),
               builder: (context, snapshot) {
                 if (!snapshot.hasData) {
@@ -1934,21 +2098,29 @@ class _AdminHomeState extends State<AdminHome> {
                 }
 
                 final messages = snapshot.data!.docs;
-                Map<String, Map<String, dynamic>> latestMessages = {};
+                final currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
+
+                Map<String, Map<String, dynamic>> uniqueConversations = {};
 
                 for (var doc in messages) {
                   final data = doc.data() as Map<String, dynamic>;
-                  final chatRoomId = data['chatRoomID'] ?? '';
+                  final senderId = data['senderID'] ?? '';
+                  final receiverId = data['receiverID'] ?? '';
 
-                  if (chatRoomId.isNotEmpty && !latestMessages.containsKey(chatRoomId)) {
-                    latestMessages[chatRoomId] = {
+                  // Determine the "other user" (not the current admin)
+                  final otherUserId = senderId == currentUserId ? receiverId : senderId;
+
+                  // Only add if we haven't seen this user before (ensures no duplicates)
+                  if (otherUserId.isNotEmpty && !uniqueConversations.containsKey(otherUserId)) {
+                    uniqueConversations[otherUserId] = {
                       ...data,
+                      'otherUserId': otherUserId,
                       'docId': doc.id,
                     };
                   }
                 }
 
-                final sortedChats = latestMessages.values.toList()
+                final sortedChats = uniqueConversations.values.toList()
                   ..sort((a, b) {
                     final aTime = a['timestamp'] as Timestamp?;
                     final bTime = b['timestamp'] as Timestamp?;
@@ -1961,7 +2133,7 @@ class _AdminHomeState extends State<AdminHome> {
                     child: Padding(
                       padding: const EdgeInsets.all(32.0),
                       child: Text(
-                        "No messages yet",
+                        "No conversations yet",
                         style: _cardSubtitleStyle(context),
                       ),
                     ),
@@ -1973,14 +2145,12 @@ class _AdminHomeState extends State<AdminHome> {
                   itemCount: sortedChats.length,
                   itemBuilder: (context, index) {
                     final messageData = sortedChats[index];
-                    final currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
                     final senderId = messageData['senderID'] ?? '';
-                    final receiverId = messageData['receiverID'] ?? '';
                     final senderName = messageData['senderName'] ?? 'Unknown';
                     final message = messageData['message'] ?? '';
                     final timestamp = messageData['timestamp'] as Timestamp?;
+                    final otherUserId = messageData['otherUserId'] ?? '';
 
-                    final otherUserId = senderId == currentUserId ? receiverId : senderId;
                     final displayName = senderId == currentUserId
                         ? messageData['receiverName'] ?? 'Unknown'
                         : senderName;
@@ -3638,7 +3808,7 @@ class _AdminHomeState extends State<AdminHome> {
 
                 try {
                   final docRef = FirebaseFirestore.instance.collection("Users").doc();
-                  final userId = docRef.id;
+                  final userId = docRef.id; // Changed this to docId, assuming it's passed correctly
 
                   await docRef.set({
                     "uid": userId,
@@ -4826,7 +4996,7 @@ class _AdminHomeState extends State<AdminHome> {
     );
   }
 
-   // add async package to pubspec.yaml
+  // add async package to pubspec.yaml
 
   Widget _buildUserSubscriptionChurn() {
     return Card(
@@ -5287,6 +5457,21 @@ class _AdminHomeState extends State<AdminHome> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildSectionHeader(String title) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      child: Text(
+        title,
+        style: _getTextStyle(
+          context,
+          fontSize: 16,
+          fontWeight: FontWeight.bold,
+          color: _primaryColor,
+        ),
+      ),
     );
   }
 }
