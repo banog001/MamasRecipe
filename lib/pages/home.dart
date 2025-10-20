@@ -1576,7 +1576,7 @@ class _HomeState extends State<home> {
         Padding(
           padding: const EdgeInsets.symmetric(vertical: 6),
           child: Text(
-            isSubscribed ? (value ?? "—") : "•••••••",
+            isSubscribed ? (value ?? "—") : "Locked 🔒",
             style: textStyle,
           ),
         ),

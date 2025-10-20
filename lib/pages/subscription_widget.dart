@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'subscription_model.dart';
 import 'subscription_service.dart';
 import '../Dietitians/dietitianPublicProfile.dart';
+import 'dart:async';
 
 const String _primaryFontFamily = 'PlusJakartaSans';
 const Color _primaryColor = Color(0xFF4CAF50);
@@ -86,47 +87,6 @@ void showSubscriptionOptions(BuildContext context, String userId) {
 
                 return Container(
                   padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: isSubscribed
-                        ? _primaryColor.withOpacity(0.1)
-                        : Colors.orange.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: isSubscribed ? _primaryColor : Colors.orange,
-                      width: 1,
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        isSubscribed ? Icons.check_circle : Icons.info_outline,
-                        color: isSubscribed ? _primaryColor : Colors.orange,
-                        size: 24,
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              isSubscribed ? 'Premium Member' : 'Free Member',
-                              style: _cardTitleStyle(context).copyWith(
-                                color: isSubscribed
-                                    ? _primaryColor
-                                    : Colors.orange,
-                              ),
-                            ),
-                            Text(
-                              isSubscribed
-                                  ? 'You have access to all meal plans'
-                                  : 'Upgrade to unlock all meal plans',
-                              style: _cardSubtitleStyle(context),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
                 );
               },
             ),
@@ -383,6 +343,59 @@ class MySubscriptionsPage extends StatefulWidget {
 }
 
 class _MySubscriptionsPageState extends State<MySubscriptionsPage> {
+  Timer? _expireTimer;
+
+  Future<void> _updateExpiredSubscriptions() async {
+    try {
+      final now = DateTime.now();
+      print('Current device time: $now');
+
+      final userSubsSnapshot = await FirebaseFirestore.instance
+          .collection('Users')
+          .doc(widget.userId)
+          .collection('subscribeTo')
+          .get();
+
+      for (var doc in userSubsSnapshot.docs) {
+        final subData = doc.data();
+        final expirationDate = (subData["expirationDate"] as Timestamp).toDate();
+        final status = subData["status"] ?? "";
+
+        print('Subscription ${doc.id} - Expiration date: $expirationDate, Status: $status');
+        print('Is expired: ${expirationDate.isBefore(now)}');
+
+        if (expirationDate.isBefore(now) && status != "expired") {
+          final dietitianId = subData["dietitianId"];
+
+          try {
+            final userRef = FirebaseFirestore.instance
+                .collection('Users')
+                .doc(widget.userId)
+                .collection('subscribeTo')
+                .doc(doc.id);
+
+            final dietitianRef = FirebaseFirestore.instance
+                .collection('Users')
+                .doc(dietitianId)
+                .collection('subscriber')
+                .doc(widget.userId);
+
+            await FirebaseFirestore.instance.runTransaction((transaction) async {
+              transaction.update(userRef, {'status': 'expired'});
+              transaction.update(dietitianRef, {'status': 'expired'});
+            });
+
+            print('Updated subscription ${doc.id} to expired');
+          } catch (e) {
+            print('Error updating single subscription: $e');
+          }
+        }
+      }
+    } catch (e) {
+      print('Error updating expired subscriptions: $e');
+    }
+  }
+
   Future<void> _cancelSubscription(String subscriptionId, String dietitianId) async {
     try {
       // Update both sides atomically
@@ -459,6 +472,24 @@ class _MySubscriptionsPageState extends State<MySubscriptionsPage> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    _updateExpiredSubscriptions();
+    // Check every 10 seconds for expired subscriptions
+    _expireTimer = Timer.periodic(const Duration(seconds: 10), (_) {
+      if (mounted) {
+        _updateExpiredSubscriptions();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _expireTimer?.cancel();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: _scaffoldBgColor(context),
@@ -513,7 +544,16 @@ class _MySubscriptionsPageState extends State<MySubscriptionsPage> {
               (subData["expirationDate"] as Timestamp).toDate();
               final planType = subData["planType"] ?? "";
               final price = subData["price"] ?? "";
-              final status = subData["status"] ?? "";
+              var status = subData["status"] ?? "";
+
+              final now = DateTime.now();
+              final daysLeft =
+              expirationDate.difference(now).inDays.clamp(0, 9999);
+
+              // Auto-update status if expired
+              if (expirationDate.isBefore(now) && status != "expired") {
+                status = "expired";
+              }
 
               return FutureBuilder<DocumentSnapshot>(
                 future: FirebaseFirestore.instance
@@ -539,9 +579,6 @@ class _MySubscriptionsPageState extends State<MySubscriptionsPage> {
                   "${dietitianData["firstName"] ?? ""} ${dietitianData["lastName"] ?? ""}"
                       .trim();
                   final profileUrl = dietitianData["profile"] ?? "";
-                  final now = DateTime.now();
-                  final daysLeft =
-                  expirationDate.difference(now).inDays.clamp(0, 9999);
 
                   return Card(
                     margin: const EdgeInsets.only(bottom: 16),
@@ -590,12 +627,14 @@ class _MySubscriptionsPageState extends State<MySubscriptionsPage> {
                                         ? Colors.green
                                         : status == "cancelled"
                                         ? Colors.red
+                                        : status == "expired"
+                                        ? Colors.grey
                                         : Colors.orange,
                                     fontWeight: FontWeight.w600,
                                   ),
                                 ),
                                 const SizedBox(height: 6),
-                                if (status != "cancelled")
+                                if (status != "cancelled" && status != "expired")
                                   TextButton.icon(
                                     onPressed: () => _showCancelDialog(subscriptionId, dietitianId),
                                     icon: const Icon(Icons.cancel_outlined, color: Colors.red),
@@ -634,5 +673,4 @@ class _MySubscriptionsPageState extends State<MySubscriptionsPage> {
     );
   }
 }
-
 

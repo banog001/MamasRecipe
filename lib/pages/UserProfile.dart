@@ -71,6 +71,115 @@ class _UserProfileState extends State<UserProfile> {
     return snapshot.data();
   }
 
+  Future<List<Map<String, dynamic>>> _getFavoriteMealPlans(String userId) async {
+    try {
+      final firestore = FirebaseFirestore.instance;
+
+      // Get all likes for this user
+      final likesSnapshot = await firestore
+          .collection('likes')
+          .where('userID', isEqualTo: userId)
+          .get();
+
+      if (likesSnapshot.docs.isEmpty) return [];
+
+      final mealPlanIDs = likesSnapshot.docs.map((doc) => doc['mealPlanID'] as String).toList();
+      final List<Map<String, dynamic>> mealPlans = [];
+
+      // Get meal plan details for each liked meal plan
+      for (String id in mealPlanIDs) {
+        final mealPlanDoc = await firestore.collection('mealPlans').doc(id).get();
+        if (mealPlanDoc.exists) {
+          final planData = mealPlanDoc.data()!;
+          planData['planId'] = id;
+
+          String ownerId = planData['owner'] ?? '';
+          String ownerName = 'Unknown Chef';
+
+          if (ownerId.isNotEmpty) {
+            final userDoc = await firestore.collection('Users').doc(ownerId).get();
+            if (userDoc.exists) {
+              final userData = userDoc.data()!;
+              ownerName = "${userData['firstName'] ?? ''} ${userData['lastName'] ?? ''}".trim();
+              if (ownerName.isEmpty) ownerName = 'Unknown Chef';
+            }
+          }
+
+          planData['ownerName'] = ownerName;
+          mealPlans.add(planData);
+        }
+      }
+
+      return mealPlans;
+    } catch (e) {
+      print('Error fetching favorite meal plans: $e');
+      return [];
+    }
+  }
+
+  Future<bool> _checkSubscriptionToDietitian(String userId, String dietitianId) async {
+    if (dietitianId.isEmpty) return false;
+
+    try {
+      final firestore = FirebaseFirestore.instance;
+
+      final subscriptionDoc = await firestore
+          .collection('Users')
+          .doc(userId)
+          .collection('subscribeTo')
+          .doc(dietitianId)
+          .get();
+
+      if (subscriptionDoc.exists) {
+        final subData = subscriptionDoc.data() as Map<String, dynamic>;
+        return subData['status'] == 'approved';
+      }
+
+      return false;
+    } catch (e) {
+      print('Error checking subscription: $e');
+      return false;
+    }
+  }
+
+  TableRow _buildMealRow3(
+      String label,
+      dynamic value,
+      dynamic time,
+      bool isSubscribed,
+      ) {
+    final textStyle = TextStyle(
+      fontSize: 14,
+      fontFamily: _primaryFontFamily,
+      color: Colors.black87,
+    );
+
+    final greyStyle = textStyle.copyWith(color: Colors.grey.shade600);
+
+    return TableRow(
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 6),
+          child: Text(label, style: greyStyle.copyWith(fontWeight: FontWeight.w600)),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 6),
+          child: Text(
+            isSubscribed ? (value ?? "—") : "Locked 🔒",
+            style: textStyle,
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 6),
+          child: Text(
+            time ?? "—",
+            style: greyStyle,
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
@@ -401,21 +510,104 @@ class _UserProfileState extends State<UserProfile> {
                                 ],
                               ),
                               const SizedBox(height: 16),
-                              Container(
-                                height: 120,
-                                alignment: Alignment.center,
-                                child: Text(
-                                  _isFavoritesActive
-                                      ? "Displaying Favorite Meal Plans..."
-                                      : "Displaying Your Created Meal Plans...",
-                                  style: _getTextStyle(
-                                    context,
-                                    fontSize: 14,
-                                    color: _textColorSecondary(context),
+                              if (_isFavoritesActive)
+                                FutureBuilder<List<Map<String, dynamic>>>(
+                                  future: _getFavoriteMealPlans(user.uid),
+                                  builder: (context, snapshot) {
+                                    if (snapshot.connectionState == ConnectionState.waiting) {
+                                      return const Center(
+                                        child: CircularProgressIndicator(color: _primaryColor),
+                                      );
+                                    }
+
+                                    if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                                      return Container(
+                                        height: 120,
+                                        alignment: Alignment.center,
+                                        child: Text(
+                                          "No favorite meal plans yet",
+                                          style: _getTextStyle(
+                                            context,
+                                            fontSize: 14,
+                                            color: _textColorSecondary(context),
+                                          ),
+                                          textAlign: TextAlign.center,
+                                        ),
+                                      );
+                                    }
+
+                                    final mealPlans = snapshot.data!;
+
+                                    return Column(
+                                      children: mealPlans.map((plan) {
+                                        final dietitianId = plan['owner'] ?? '';
+
+                                        return FutureBuilder<bool>(
+                                          future: _checkSubscriptionToDietitian(user.uid, dietitianId),
+                                          builder: (context, subSnapshot) {
+                                            bool isSubscribed = subSnapshot.data ?? false;
+
+                                            return Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                Padding(
+                                                  padding: const EdgeInsets.only(bottom: 8.0),
+                                                  child: Column(
+                                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                                    children: [
+                                                      Text(
+                                                        "Dietitian name: ${plan['ownerName'] ?? 'Unknown'}",
+                                                        style: _getTextStyle(context, fontSize: 14, fontWeight: FontWeight.bold),
+                                                      ),
+                                                      const SizedBox(height: 4),
+                                                      Text(
+                                                        "Meal plan type: ${plan['planType'] ?? 'N/A'}",
+                                                        style: _getTextStyle(context, fontSize: 13),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                                Table(
+                                                  columnWidths: const {
+                                                    0: FlexColumnWidth(1.5),
+                                                    1: FlexColumnWidth(2.5),
+                                                    2: FlexColumnWidth(1.2),
+                                                  },
+                                                  border: TableBorder.symmetric(
+                                                    inside: BorderSide(color: Colors.grey.shade300),
+                                                  ),
+                                                  children: [
+                                                    _buildMealRow3("Breakfast", plan['breakfast'], plan['breakfastTime'], true),
+                                                    _buildMealRow3("AM Snack", plan['amSnack'], plan['amSnackTime'], isSubscribed),
+                                                    _buildMealRow3("Lunch", plan['lunch'], plan['lunchTime'], isSubscribed),
+                                                    _buildMealRow3("PM Snack", plan['pmSnack'], plan['pmSnackTime'], isSubscribed),
+                                                    _buildMealRow3("Dinner", plan['dinner'], plan['dinnerTime'], isSubscribed),
+                                                    _buildMealRow3("Midnight Snack", plan['midnightSnack'], plan['midnightSnackTime'], isSubscribed),
+                                                  ],
+                                                ),
+                                                const SizedBox(height: 16),
+                                              ],
+                                            );
+                                          },
+                                        );
+                                      }).toList(),
+                                    );
+                                  },
+                                )
+                              else
+                                Container(
+                                  height: 120,
+                                  alignment: Alignment.center,
+                                  child: Text(
+                                    "Your created meal plans will appear here",
+                                    style: _getTextStyle(
+                                      context,
+                                      fontSize: 14,
+                                      color: _textColorSecondary(context),
+                                    ),
+                                    textAlign: TextAlign.center,
                                   ),
-                                  textAlign: TextAlign.center,
                                 ),
-                              ),
                             ],
                           ),
                         ),
