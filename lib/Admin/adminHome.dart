@@ -81,9 +81,8 @@ class _AdminHomeState extends State<AdminHome> {
   final TextEditingController _messageController = TextEditingController();
 
 
-  // Add this method inside the _AdminHomeState class
 
-// REPLACE the logout code in _handleLogout() with this simpler version:
+  // Add this method inside the _AdminHomeState class
 
   Future<void> _handleLogout() async {
     final confirm = await showDialog<bool>(
@@ -178,6 +177,7 @@ class _AdminHomeState extends State<AdminHome> {
     _messageController.dispose();
     super.dispose();
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -605,6 +605,10 @@ class _AdminHomeState extends State<AdminHome> {
       return _buildHomeDashboard();
     } else if (selectedPage == "CRUD") {
       return _buildCrudTable();
+    } else if (selectedPage == "User Verification") {
+      return _buildUserVerificationPage();
+    } else if (selectedPage == "Dietitian Verification") {
+      return _buildDietitianVerificationPage();
     } else if (selectedPage == "QR Approval") {
       return _buildQRApprovalPage();
     } else if (selectedPage == "Messages") {
@@ -612,7 +616,6 @@ class _AdminHomeState extends State<AdminHome> {
     }
     return Container();
   }
-
   Widget _buildHomeDashboard() {
     final isMobile = MediaQuery.of(context).size.width < 768;
     final isTablet = MediaQuery.of(context).size.width >= 768 && MediaQuery.of(context).size.width < 1024;
@@ -2523,6 +2526,8 @@ class _AdminHomeState extends State<AdminHome> {
     }
   }
 
+// Replace your _buildCrudTable() method with this updated version that includes Verification tabs
+
   Widget _buildCrudTable() {
     final isMobile = MediaQuery.of(context).size.width < 768;
 
@@ -2545,9 +2550,8 @@ class _AdminHomeState extends State<AdminHome> {
                       const SizedBox(width: 8),
                       _buildFilterButton("Dietitians"),
                       const SizedBox(width: 8),
-                      _buildFilterButton("Verifications"),
-                      const SizedBox(width: 8),
                       _buildFilterButton("Meal Plans"),
+                      // Removed "User Verification" and "Dietitian Verification" from here
                     ],
                   ),
                 ),
@@ -2555,7 +2559,59 @@ class _AdminHomeState extends State<AdminHome> {
               const SizedBox(width: 16),
               Row(
                 children: [
-                  if (isMultiSelectMode && selectedUserIds.isNotEmpty)
+                  // Button to navigate to User Verification page
+                  ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue,
+                      foregroundColor: _textColorOnPrimary,
+                      elevation: 2,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: isMobile ? 12 : 16,
+                        vertical: 14,
+                      ),
+                    ),
+                    onPressed: () => setState(() => selectedPage = "User Verification"),
+                    icon: const Icon(Icons.verified_user, size: 18),
+                    label: Text(
+                      isMobile ? "User Ver." : "User Verification",
+                      style: const TextStyle(
+                        fontFamily: _primaryFontFamily,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  // Button to navigate to Dietitian Verification page
+                  ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.orange,
+                      foregroundColor: _textColorOnPrimary,
+                      elevation: 2,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: isMobile ? 12 : 16,
+                        vertical: 14,
+                      ),
+                    ),
+                    onPressed: () => setState(() => selectedPage = "Dietitian Verification"),
+                    icon: const Icon(Icons.health_and_safety, size: 18),
+                    label: Text(
+                      isMobile ? "Diet. Ver." : "Dietitian Verification",
+                      style: const TextStyle(
+                        fontFamily: _primaryFontFamily,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                  if (isMultiSelectMode && selectedUserIds.isNotEmpty) ...[
+                    const SizedBox(width: 8),
                     ElevatedButton.icon(
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.red,
@@ -2580,50 +2636,49 @@ class _AdminHomeState extends State<AdminHome> {
                         ),
                       ),
                     ),
+                  ],
                   if (isMultiSelectMode && selectedUserIds.isNotEmpty)
                     const SizedBox(width: 8),
-                  if (crudFilter != "Meal Plans" && crudFilter != "Verifications")
-                    IconButton(
-                      icon: Icon(
-                        isMultiSelectMode ? Icons.close : Icons.checklist,
-                        color: isMultiSelectMode ? Colors.red : _primaryColor,
-                      ),
-                      onPressed: () {
-                        setState(() {
-                          isMultiSelectMode = !isMultiSelectMode;
-                          if (!isMultiSelectMode) {
-                            selectedUserIds.clear();
-                          }
-                        });
-                      },
-                      tooltip: isMultiSelectMode ? "Cancel" : "Multi-select",
+                  IconButton(
+                    icon: Icon(
+                      isMultiSelectMode ? Icons.close : Icons.checklist,
+                      color: isMultiSelectMode ? Colors.red : _primaryColor,
                     ),
+                    onPressed: () {
+                      setState(() {
+                        isMultiSelectMode = !isMultiSelectMode;
+                        if (!isMultiSelectMode) {
+                          selectedUserIds.clear();
+                        }
+                      });
+                    },
+                    tooltip: isMultiSelectMode ? "Cancel" : "Multi-select",
+                  ),
                   const SizedBox(width: 8),
-                  if (crudFilter != "Meal Plans" && crudFilter != "Verifications")
-                    ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: _primaryColor,
-                        foregroundColor: _textColorOnPrimary,
-                        elevation: 2,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        padding: EdgeInsets.symmetric(
-                          horizontal: isMobile ? 12 : 20,
-                          vertical: 14,
-                        ),
+                  ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _primaryColor,
+                      foregroundColor: _textColorOnPrimary,
+                      elevation: 2,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                      onPressed: () => _showAddUserDialog(),
-                      icon: const Icon(Icons.person_add, size: 20),
-                      label: Text(
-                        isMobile ? "Add" : "Add User",
-                        style: const TextStyle(
-                          fontFamily: _primaryFontFamily,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 15,
-                        ),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: isMobile ? 12 : 20,
+                        vertical: 14,
                       ),
                     ),
+                    onPressed: () => _showAddUserDialog(),
+                    icon: const Icon(Icons.person_add, size: 20),
+                    label: Text(
+                      isMobile ? "Add" : "Add User",
+                      style: const TextStyle(
+                        fontFamily: _primaryFontFamily,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 15,
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ],
@@ -2675,12 +2730,858 @@ class _AdminHomeState extends State<AdminHome> {
     );
   }
 
+// REPLACE your _buildUserVerificationPage() with this:
+
+  Widget _buildUserVerificationPage() {
+    final isMobile = MediaQuery.of(context).size.width < 768;
+
+    return Container(
+      color: _scaffoldBgColor(context),
+      padding: EdgeInsets.all(isMobile ? 16 : 24),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                "User Verification",
+                style: _getTextStyle(
+                  context,
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _primaryColor,
+                  foregroundColor: _textColorOnPrimary,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                onPressed: () => setState(() => selectedPage = "CRUD"),
+                icon: const Icon(Icons.arrow_back, size: 20),
+                label: const Text("Back to CRUD"),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              "Review and verify pending user accounts from notVerifiedUsers",
+              style: _cardSubtitleStyle(context),
+            ),
+          ),
+          const SizedBox(height: 24),
+          Expanded(
+            child: StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('notVerifiedUsers')
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(
+                    child: CircularProgressIndicator(color: _primaryColor),
+                  );
+                }
+
+                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.verified_outlined,
+                          size: 80,
+                          color: _primaryColor.withOpacity(0.3),
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          "No unverified users pending",
+                          style: _getTextStyle(context, fontSize: 18),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                return _buildUserVerificationsTable(snapshot.data!.docs);
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+// REPLACE your _buildDietitianVerificationPage() with this:
+
+  Widget _buildDietitianVerificationPage() {
+    final isMobile = MediaQuery.of(context).size.width < 768;
+
+    return Container(
+      color: _scaffoldBgColor(context),
+      padding: EdgeInsets.all(isMobile ? 16 : 24),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                "Dietitian Verification",
+                style: _getTextStyle(
+                  context,
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _primaryColor,
+                  foregroundColor: _textColorOnPrimary,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                onPressed: () => setState(() => selectedPage = "CRUD"),
+                icon: const Icon(Icons.arrow_back, size: 20),
+                label: const Text("Back to CRUD"),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              "Review and verify pending dietitian accounts",
+              style: _cardSubtitleStyle(context),
+            ),
+          ),
+          const SizedBox(height: 24),
+          Expanded(
+            child: StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('dietitianApproval')
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(
+                    child: CircularProgressIndicator(color: _primaryColor),
+                  );
+                }
+
+                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.verified_outlined,
+                          size: 80,
+                          color: Colors.orange.withOpacity(0.3),
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          "No unverified dietitians pending",
+                          style: _getTextStyle(context, fontSize: 18),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                return _buildDietitianVerificationsTable(snapshot.data!.docs);
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+// Fixed: Dietitian Verification Table with Move Logic
+  Widget _buildDietitianVerificationsTable(
+      List<QueryDocumentSnapshot> dietitians) {
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
+      color: _cardBgColor(context),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: DataTable(
+              headingRowColor: MaterialStateProperty.all(
+                Colors.orange.withOpacity(0.1),
+              ),
+              headingRowHeight: 56,
+              dataRowHeight: 64,
+              columns: [
+                DataColumn(
+                  label: Text(
+                    "First Name",
+                    style: _getTextStyle(
+                      context,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.orange,
+                    ),
+                  ),
+                ),
+                DataColumn(
+                  label: Text(
+                    "Last Name",
+                    style: _getTextStyle(
+                      context,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.orange,
+                    ),
+                  ),
+                ),
+                DataColumn(
+                  label: Text(
+                    "Email",
+                    style: _getTextStyle(
+                      context,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.orange,
+                    ),
+                  ),
+                ),
+                DataColumn(
+                  label: Text(
+                    "License Number",
+                    style: _getTextStyle(
+                      context,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.orange,
+                    ),
+                  ),
+                ),
+                DataColumn(
+                  label: Text(
+                    "Actions",
+                    style: _getTextStyle(
+                      context,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.orange,
+                    ),
+                  ),
+                ),
+              ],
+              rows: dietitians.map((doc) {
+                final data = doc.data() as Map<String, dynamic>;
+                final docId = doc.id;
+                final firstName = data['firstName'] ?? "No first name";
+                final lastName = data['lastName'] ?? "No last name";
+                final email = data['email'] ?? "No email";
+                final licenseNum = (data['licenseNum'] ?? "N/A").toString();
+                final profileUrl = data['prcImageUrl'] ?? data['profile'] ?? '';
+
+                return DataRow(cells: [
+                  DataCell(Text(
+                    firstName,
+                    style: _getTextStyle(context),
+                  )),
+                  DataCell(Text(
+                    lastName,
+                    style: _getTextStyle(context),
+                  )),
+                  DataCell(Text(
+                    email,
+                    style: _getTextStyle(context, fontSize: 14),
+                  )),
+                  DataCell(Text(
+                    licenseNum,
+                    style: _getTextStyle(context, fontSize: 14),
+                  )),
+                  DataCell(
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green,
+                            foregroundColor: _textColorOnPrimary,
+                            elevation: 2,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 10,
+                            ),
+                          ),
+                          onPressed: () async {
+                            final confirm = await showDialog<bool>(
+                              context: context,
+                              builder: (context) => AlertDialog(
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                title: Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(8),
+                                      decoration: BoxDecoration(
+                                        color: Colors.green.withOpacity(0.1),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: const Icon(
+                                        Icons.check_circle,
+                                        color: Colors.green,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    const Text(
+                                      "Verify Dietitian",
+                                      style: TextStyle(
+                                          fontFamily: _primaryFontFamily),
+                                    ),
+                                  ],
+                                ),
+                                content: Text(
+                                  "Verify $firstName $lastName as a dietitian?",
+                                  style: const TextStyle(
+                                      fontFamily: _primaryFontFamily),
+                                ),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () =>
+                                        Navigator.pop(context, false),
+                                    child: const Text(
+                                      "Cancel",
+                                      style: TextStyle(
+                                          fontFamily: _primaryFontFamily),
+                                    ),
+                                  ),
+                                  ElevatedButton(
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.green,
+                                      foregroundColor: Colors.white,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                    ),
+                                    onPressed: () =>
+                                        Navigator.pop(context, true),
+                                    child: const Text(
+                                      "Verify",
+                                      style: TextStyle(
+                                          fontFamily: _primaryFontFamily),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+
+                            if (confirm == true) {
+                              try {
+                                // Prepare the data to move to Users collection
+                                final newDietitianData = {
+                                  'uid': docId,
+                                  'firstName': firstName,
+                                  'lastName': lastName,
+                                  'email': email,
+                                  'role': 'dietitian',
+                                  'status': 'offline',
+                                  'profile': profileUrl,
+                                  'licenseNum': licenseNum,
+                                  'createdAt': FieldValue.serverTimestamp(),
+                                };
+
+                                // Step 1: Add to Users collection
+                                await FirebaseFirestore.instance
+                                    .collection('Users')
+                                    .doc(docId)
+                                    .set(newDietitianData);
+
+                                // Step 2: Delete from dietitianApproval collection
+                                await FirebaseFirestore.instance
+                                    .collection('dietitianApproval')
+                                    .doc(docId)
+                                    .delete();
+
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Row(
+                                        children: [
+                                          const Icon(Icons.check_circle,
+                                              color: Colors.white),
+                                          const SizedBox(width: 8),
+                                          Text(
+                                            "$firstName $lastName verified as dietitian!",
+                                            style: const TextStyle(
+                                                fontFamily: _primaryFontFamily),
+                                          ),
+                                        ],
+                                      ),
+                                      backgroundColor: Colors.green,
+                                      behavior: SnackBarBehavior.floating,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                    ),
+                                  );
+                                }
+                              } catch (e) {
+                                print("Error during dietitian verification: $e");
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Row(
+                                        children: [
+                                          const Icon(Icons.error_outline,
+                                              color: Colors.white),
+                                          const SizedBox(width: 8),
+                                          Expanded(
+                                            child: Text(
+                                              "Error: $e",
+                                              style: const TextStyle(
+                                                  fontFamily: _primaryFontFamily),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      backgroundColor: Colors.red,
+                                      behavior: SnackBarBehavior.floating,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                    ),
+                                  );
+                                }
+                              }
+                            }
+                          },
+                          icon: const Icon(Icons.check, size: 18),
+                          label: const Text(
+                            "Accept",
+                            style: TextStyle(
+                              fontFamily: _primaryFontFamily,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        IconButton(
+                          icon: const Icon(Icons.delete_outline, color: Colors.red),
+                          onPressed: () =>
+                              _showDeleteDietitianVerificationConfirmation(
+                                  docId, firstName),
+                          tooltip: "Delete unverified dietitian",
+                        ),
+                      ],
+                    ),
+                  ),
+                ]);
+              }).toList(),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+// Delete Dietitian Verification Confirmation
+  void _showDeleteDietitianVerificationConfirmation(String docId, String firstName) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.red.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(Icons.warning_amber_rounded, color: Colors.red),
+            ),
+            const SizedBox(width: 12),
+            const Text(
+              "Confirm Delete",
+              style: TextStyle(fontFamily: _primaryFontFamily),
+            ),
+          ],
+        ),
+        content: Text(
+          "Are you sure you want to delete $firstName from unverified dietitians? This action cannot be undone.",
+          style: const TextStyle(fontFamily: _primaryFontFamily),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancel", style: TextStyle(fontFamily: _primaryFontFamily)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            onPressed: () async {
+              try {
+                await FirebaseFirestore.instance
+                    .collection("dietitianApproval")
+                    .doc(docId)
+                    .delete();
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: const Row(
+                      children: [
+                        Icon(Icons.check_circle, color: Colors.white),
+                        SizedBox(width: 8),
+                        Text("Unverified dietitian deleted successfully",
+                            style: TextStyle(fontFamily: _primaryFontFamily)),
+                      ],
+                    ),
+                    backgroundColor: Colors.red,
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                );
+              } catch (e) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: const Row(
+                      children: [
+                        Icon(Icons.error_outline, color: Colors.white),
+                        SizedBox(width: 8),
+                        Text("Failed to delete dietitian",
+                            style: TextStyle(fontFamily: _primaryFontFamily)),
+                      ],
+                    ),
+                    backgroundColor: Colors.red,
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                );
+              }
+            },
+            child: const Text("Delete", style: TextStyle(fontFamily: _primaryFontFamily)),
+          ),
+        ],
+      ),
+    );
+  }
+
+// NEW METHOD: User Verifications Table
+  Widget _buildUserVerificationsTable(List<QueryDocumentSnapshot> users) {
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
+      color: _cardBgColor(context),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: DataTable(
+              headingRowColor: MaterialStateProperty.all(
+                _primaryColor.withOpacity(0.1),
+              ),
+              headingRowHeight: 56,
+              dataRowHeight: 64,
+              columns: [
+                DataColumn(
+                  label: Text(
+                    "First Name",
+                    style: _getTextStyle(
+                      context,
+                      fontWeight: FontWeight.bold,
+                      color: _primaryColor,
+                    ),
+                  ),
+                ),
+                DataColumn(
+                  label: Text(
+                    "Last Name",
+                    style: _getTextStyle(
+                      context,
+                      fontWeight: FontWeight.bold,
+                      color: _primaryColor,
+                    ),
+                  ),
+                ),
+                DataColumn(
+                  label: Text(
+                    "Email",
+                    style: _getTextStyle(
+                      context,
+                      fontWeight: FontWeight.bold,
+                      color: _primaryColor,
+                    ),
+                  ),
+                ),
+                DataColumn(
+                  label: Text(
+                    "Actions",
+                    style: _getTextStyle(
+                      context,
+                      fontWeight: FontWeight.bold,
+                      color: _primaryColor,
+                    ),
+                  ),
+                ),
+              ],
+              rows: users.map((doc) {
+                final user = doc.data() as Map<String, dynamic>;
+                final docId = doc.id;
+                final firstName = user['firstName'] ?? "No first name";
+                final lastName = user['lastName'] ?? "No last name";
+                final email = user['email'] ?? "No email";
+
+                return DataRow(cells: [
+                  DataCell(Text(
+                    firstName,
+                    style: _getTextStyle(context),
+                  )),
+                  DataCell(Text(
+                    lastName,
+                    style: _getTextStyle(context),
+                  )),
+                  DataCell(Text(
+                    email,
+                    style: _getTextStyle(context, fontSize: 14),
+                  )),
+                  DataCell(
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green,
+                            foregroundColor: _textColorOnPrimary,
+                            elevation: 2,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 10,
+                            ),
+                          ),
+                          onPressed: () async {
+                            final confirm = await showDialog<bool>(
+                              context: context,
+                              builder: (context) => AlertDialog(
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                title: Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(8),
+                                      decoration: BoxDecoration(
+                                        color: Colors.green.withOpacity(0.1),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: const Icon(
+                                        Icons.check_circle,
+                                        color: Colors.green,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    const Text(
+                                      "Verify User",
+                                      style: TextStyle(
+                                          fontFamily: _primaryFontFamily),
+                                    ),
+                                  ],
+                                ),
+                                content: Text(
+                                  "Verify $firstName $lastName as a user?",
+                                  style: const TextStyle(
+                                      fontFamily: _primaryFontFamily),
+                                ),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () =>
+                                        Navigator.pop(context, false),
+                                    child: const Text(
+                                      "Cancel",
+                                      style: TextStyle(
+                                          fontFamily: _primaryFontFamily),
+                                    ),
+                                  ),
+                                  ElevatedButton(
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.green,
+                                      foregroundColor: Colors.white,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                    ),
+                                    onPressed: () =>
+                                        Navigator.pop(context, true),
+                                    child: const Text(
+                                      "Verify",
+                                      style: TextStyle(
+                                          fontFamily: _primaryFontFamily),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+
+                            if (confirm == true) {
+                              try {
+                                // Move user from notVerifiedUsers to Users
+                                final newUserData = {
+                                  ...user,
+                                  'uid': docId,
+                                  'role': 'user',
+                                  'status': 'offline',
+                                  'createdAt': FieldValue.serverTimestamp(),
+                                };
+
+                                // Add to Users collection
+                                await FirebaseFirestore.instance
+                                    .collection('Users')
+                                    .doc(docId)
+                                    .set(newUserData);
+
+                                // Delete from notVerifiedUsers
+                                await FirebaseFirestore.instance
+                                    .collection('notVerifiedUsers')
+                                    .doc(docId)
+                                    .delete();
+
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Row(
+                                        children: [
+                                          const Icon(Icons.check_circle,
+                                              color: Colors.white),
+                                          const SizedBox(width: 8),
+                                          Text(
+                                            "$firstName $lastName verified!",
+                                            style: const TextStyle(
+                                                fontFamily: _primaryFontFamily),
+                                          ),
+                                        ],
+                                      ),
+                                      backgroundColor: Colors.green,
+                                      behavior: SnackBarBehavior.floating,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                    ),
+                                  );
+                                }
+                              } catch (e) {
+                                print("Error verifying user: $e");
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Row(
+                                        children: [
+                                          const Icon(Icons.error_outline,
+                                              color: Colors.white),
+                                          const SizedBox(width: 8),
+                                          Expanded(
+                                            child: Text(
+                                              "Error: $e",
+                                              style: const TextStyle(
+                                                  fontFamily: _primaryFontFamily),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      backgroundColor: Colors.red,
+                                      behavior: SnackBarBehavior.floating,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                    ),
+                                  );
+                                }
+                              }
+                            }
+                          },
+                          icon: const Icon(Icons.check, size: 18),
+                          label: const Text(
+                            "Accept",
+                            style: TextStyle(
+                              fontFamily: _primaryFontFamily,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        IconButton(
+                          icon: const Icon(Icons.delete_outline, color: Colors.red),
+                          onPressed: () =>
+                              _showDeleteUserVerificationConfirmation(
+                                  docId, firstName),
+                          tooltip: "Delete unverified user",
+                        ),
+                      ],
+                    ),
+                  ),
+                ]);
+              }).toList(),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+// Dietitian Verification Tab
+  Widget _buildDietitianVerificationTab(bool isMobile) {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('dietitianApproval')
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator(color: _primaryColor));
+        }
+
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.verified_outlined, size: 80, color: Colors.orange.withOpacity(0.3)),
+                const SizedBox(height: 16),
+                Text(
+                  "No unverified dietitians pending",
+                  style: _getTextStyle(context, fontSize: 18),
+                ),
+              ],
+            ),
+          );
+        }
+
+        return _buildDietitianVerificationsTable(snapshot.data!.docs);
+      },
+    );
+  }
+
+
+
   IconData _getEmptyIcon() {
     switch (crudFilter) {
       case "Meal Plans":
         return Icons.restaurant_menu_outlined;
-      case "Verifications":
-        return Icons.verified_user_outlined;
+      case "User Verification":
+        return Icons.person_outline;
+      case "Dietitian Verification":
+        return Icons.health_and_safety;
       default:
         return Icons.people_outline;
     }
@@ -3060,10 +3961,175 @@ class _AdminHomeState extends State<AdminHome> {
                     ),
                   ),
                   DataCell(
-                    IconButton(
-                      icon: const Icon(Icons.delete_outline, color: Colors.red),
-                      onPressed: () => _showDeleteVerificationConfirmation(doc.id, firstName),
-                      tooltip: "Delete unverified user",
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green,
+                            foregroundColor: _textColorOnPrimary,
+                            elevation: 2,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 10,
+                            ),
+                          ),
+                          onPressed: () async {
+                            final confirm = await showDialog<bool>(
+                              context: context,
+                              builder: (context) => AlertDialog(
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                title: Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(8),
+                                      decoration: BoxDecoration(
+                                        color: Colors.green.withOpacity(0.1),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: const Icon(
+                                        Icons.check_circle,
+                                        color: Colors.green,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    const Text(
+                                      "Confirm Verification",
+                                      style: TextStyle(fontFamily: _primaryFontFamily),
+                                    ),
+                                  ],
+                                ),
+                                content: Text(
+                                  "Accept and move $firstName $lastName to verified users?",
+                                  style: const TextStyle(fontFamily: _primaryFontFamily),
+                                ),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(context, false),
+                                    child: const Text(
+                                      "Cancel",
+                                      style: TextStyle(fontFamily: _primaryFontFamily),
+                                    ),
+                                  ),
+                                  ElevatedButton(
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.green,
+                                      foregroundColor: Colors.white,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                    ),
+                                    onPressed: () => Navigator.pop(context, true),
+                                    child: const Text(
+                                      "Accept",
+                                      style: TextStyle(fontFamily: _primaryFontFamily),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+
+                            if (confirm == true) {
+                              try {
+                                // Prepare user data with all required fields
+                                final newUserData = {
+                                  ...user,
+                                  'role': role.isNotEmpty ? role : 'user', // Ensure role exists
+                                  'status': user['status'] ?? 'offline',
+                                  'profile': user['profile'] ?? '',
+                                  'email': email,
+                                  'firstName': firstName,
+                                  'lastName': lastName,
+                                  'createdAt': FieldValue.serverTimestamp(),
+                                  'uid': doc.id,
+                                };
+
+                                // Add user to Users collection
+                                await FirebaseFirestore.instance
+                                    .collection('Users')
+                                    .doc(doc.id)
+                                    .set(newUserData);
+
+                                // Remove from notVerifiedUsers collection
+                                await FirebaseFirestore.instance
+                                    .collection('notVerifiedUsers')
+                                    .doc(doc.id)
+                                    .delete();
+
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Row(
+                                        children: [
+                                          const Icon(Icons.check_circle,
+                                              color: Colors.white),
+                                          const SizedBox(width: 8),
+                                          Text(
+                                            "$firstName $lastName verified!",
+                                            style: const TextStyle(
+                                                fontFamily: _primaryFontFamily),
+                                          ),
+                                        ],
+                                      ),
+                                      backgroundColor: Colors.green,
+                                      behavior: SnackBarBehavior.floating,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                    ),
+                                  );
+                                }
+                              } catch (e) {
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Row(
+                                        children: [
+                                          const Icon(Icons.error_outline,
+                                              color: Colors.white),
+                                          const SizedBox(width: 8),
+                                          Expanded(
+                                            child: Text(
+                                              "Error: $e",
+                                              style: const TextStyle(
+                                                  fontFamily: _primaryFontFamily),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      backgroundColor: Colors.red,
+                                      behavior: SnackBarBehavior.floating,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                    ),
+                                  );
+                                }
+                              }
+                            }
+                          },
+                          icon: const Icon(Icons.check, size: 18),
+                          label: const Text(
+                            "Accept",
+                            style: TextStyle(
+                              fontFamily: _primaryFontFamily,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        IconButton(
+                          icon: const Icon(Icons.delete_outline, color: Colors.red),
+                          onPressed: () =>
+                              _showDeleteUserVerificationConfirmation(doc.id, firstName),
+                          tooltip: "Delete unverified user",
+                        ),
+                      ],
                     ),
                   ),
                 ]);
@@ -3116,7 +4182,7 @@ class _AdminHomeState extends State<AdminHome> {
                 ),
                 DataColumn(
                   label: Text(
-                    "Date Created",
+                    "Date & Time Created",
                     style: _getTextStyle(
                       context,
                       fontWeight: FontWeight.bold,
@@ -3140,8 +4206,8 @@ class _AdminHomeState extends State<AdminHome> {
                 final planType = mealPlan['planType'] ?? "Unknown";
                 final ownerId = mealPlan['owner'] ?? "";
                 final timestamp = mealPlan['timestamp'] as Timestamp?;
-                final dateCreated = timestamp != null
-                    ? DateFormat('MMM dd, yyyy').format(timestamp.toDate())
+                final dateTimeCreated = timestamp != null
+                    ? DateFormat('MMM dd, yyyy - hh:mm a').format(timestamp.toDate())
                     : "Unknown";
 
                 return DataRow(cells: [
@@ -3191,7 +4257,7 @@ class _AdminHomeState extends State<AdminHome> {
                     ),
                   ),
                   DataCell(Text(
-                    dateCreated,
+                    dateTimeCreated,
                     style: _getTextStyle(context, fontSize: 14),
                   )),
                   DataCell(
@@ -3239,6 +4305,7 @@ class _AdminHomeState extends State<AdminHome> {
     );
   }
 
+// Update your _buildFilterButton to handle new verification pages
   Widget _buildFilterButton(String filter) {
     final isSelected = crudFilter == filter;
     IconData icon;
@@ -3253,7 +4320,10 @@ class _AdminHomeState extends State<AdminHome> {
       case "Dietitians":
         icon = Icons.health_and_safety;
         break;
-      case "Verifications":
+      case "User Verification":
+        icon = Icons.verified_user;
+        break;
+      case "Dietitian Verification":
         icon = Icons.verified_user;
         break;
       case "Meal Plans":
@@ -3316,12 +4386,75 @@ class _AdminHomeState extends State<AdminHome> {
     );
   }
 
+// New method: Show verification menu
+  void _showVerificationMenu() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(16),
+          topRight: Radius.circular(16),
+        ),
+      ),
+      builder: (context) => Container(
+        color: _cardBgColor(context),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                "Select Verification Type",
+                style: _getTextStyle(
+                  context,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 16),
+              ListTile(
+                leading: const Icon(Icons.person_add_outlined, color: Colors.blue),
+                title: Text(
+                  "User Verification",
+                  style: _getTextStyle(context, fontWeight: FontWeight.w600),
+                ),
+                subtitle: Text(
+                  "Verify pending user accounts",
+                  style: _cardSubtitleStyle(context),
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  setState(() => selectedPage = "User Verification");
+                },
+              ),
+              const SizedBox(height: 8),
+              ListTile(
+                leading: const Icon(Icons.health_and_safety, color: Colors.orange),
+                title: Text(
+                  "Dietitian Verification",
+                  style: _getTextStyle(context, fontWeight: FontWeight.w600),
+                ),
+                subtitle: Text(
+                  "Verify pending dietitian accounts",
+                  style: _cardSubtitleStyle(context),
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  setState(() => selectedPage = "Dietitian Verification");
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+
+// REPLACE your _getFilteredStream() method with this corrected version:
+
   Stream<QuerySnapshot> _getFilteredStream() {
-    if (crudFilter == "Verifications") {
-      return FirebaseFirestore.instance
-          .collection('notVerifiedUsers')
-          .snapshots();
-    } else if (crudFilter == "Meal Plans") {
+    if (crudFilter == "Meal Plans") {
       return FirebaseFirestore.instance
           .collection('mealPlans')
           .orderBy('timestamp', descending: true)
@@ -3481,7 +4614,8 @@ class _AdminHomeState extends State<AdminHome> {
     );
   }
 
-  void _showDeleteVerificationConfirmation(String docId, String firstName) {
+// NEW METHOD: Delete confirmation for user verification
+  void _showDeleteUserVerificationConfirmation(String docId, String firstName) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -3527,35 +4661,43 @@ class _AdminHomeState extends State<AdminHome> {
                     .doc(docId)
                     .delete();
                 Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: const Row(
-                      children: [
-                        Icon(Icons.check_circle, color: Colors.white),
-                        SizedBox(width: 8),
-                        Text("Unverified user deleted successfully", style: TextStyle(fontFamily: _primaryFontFamily)),
-                      ],
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: const Row(
+                        children: [
+                          Icon(Icons.check_circle, color: Colors.white),
+                          SizedBox(width: 8),
+                          Text("Unverified user deleted successfully",
+                              style: TextStyle(fontFamily: _primaryFontFamily)),
+                        ],
+                      ),
+                      backgroundColor: Colors.red,
+                      behavior: SnackBarBehavior.floating,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10)),
                     ),
-                    backgroundColor: Colors.red,
-                    behavior: SnackBarBehavior.floating,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  ),
-                );
+                  );
+                }
               } catch (e) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: const Row(
-                      children: [
-                        Icon(Icons.error_outline, color: Colors.white),
-                        SizedBox(width: 8),
-                        Text("Failed to delete user", style: TextStyle(fontFamily: _primaryFontFamily)),
-                      ],
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: const Row(
+                        children: [
+                          Icon(Icons.error_outline, color: Colors.white),
+                          SizedBox(width: 8),
+                          Text("Failed to delete user",
+                              style: TextStyle(fontFamily: _primaryFontFamily)),
+                        ],
+                      ),
+                      backgroundColor: Colors.red,
+                      behavior: SnackBarBehavior.floating,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10)),
                     ),
-                    backgroundColor: Colors.red,
-                    behavior: SnackBarBehavior.floating,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  ),
-                );
+                  );
+                }
               }
             },
             child: const Text("Delete", style: TextStyle(fontFamily: _primaryFontFamily)),
