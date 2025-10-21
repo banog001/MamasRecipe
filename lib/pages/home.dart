@@ -2852,6 +2852,22 @@ class UsersListPage extends StatelessWidget {
     };
   }
 
+  /// ✅ Get list of followed dietitians from 'following' subcollection
+  Future<List<String>> getFollowedDietitianIds() async {
+    try {
+      final followingSnapshot = await FirebaseFirestore.instance
+          .collection('Users')
+          .doc(currentUserId)
+          .collection('following')
+          .get();
+
+      return followingSnapshot.docs.map((doc) => doc.id).toList();
+    } catch (e) {
+      print('Error fetching followed dietitians: $e');
+      return [];
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final bool isDarkMode = Theme.of(context).brightness == Brightness.dark;
@@ -2932,107 +2948,147 @@ class UsersListPage extends StatelessWidget {
         ),
         body: TabBarView(
           children: [
-            StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection("Users")
-                  .snapshots(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
+            // 🔹 CHATS TAB - Filtered to show only followed dietitians and admins
+            FutureBuilder<List<String>>(
+              future: getFollowedDietitianIds(),
+              builder: (context, followingSnapshot) {
+                if (followingSnapshot.connectionState == ConnectionState.waiting) {
                   return const Center(
                     child: CircularProgressIndicator(color: _primaryColor),
                   );
                 }
-                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                  return Center(
-                    child: Text(
-                      "No dietitians to chat with yet.",
-                      style: _getTextStyle(
-                        context,
-                        fontSize: 16,
-                        color: _textColorPrimary(context),
-                      ),
-                    ),
-                  );
-                }
 
-                final users = snapshot.data!.docs;
-                return ListView.separated(
-                  padding: const EdgeInsets.symmetric(vertical: 8.0),
-                  itemCount: users.length,
-                  separatorBuilder: (context, index) =>
-                  const Divider(height: 0.5, indent: 88, endIndent: 16),
-                  itemBuilder: (context, index) {
-                    final userDoc = users[index];
-                    if (userDoc.id == currentUserId) {
-                      return const SizedBox.shrink();
+                final followedDietitianIds = followingSnapshot.data ?? [];
+
+                return StreamBuilder<QuerySnapshot>(
+                  stream: FirebaseFirestore.instance
+                      .collection("Users")
+                      .snapshots(),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(
+                        child: CircularProgressIndicator(color: _primaryColor),
+                      );
+                    }
+                    if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                      return Center(
+                        child: Text(
+                          "No dietitians to chat with yet.",
+                          style: _getTextStyle(
+                            context,
+                            fontSize: 16,
+                            color: _textColorPrimary(context),
+                          ),
+                        ),
+                      );
                     }
 
-                    final data = userDoc.data() as Map<String, dynamic>;
-                    final senderName =
-                    "${data["firstName"] ?? ""} ${data["lastName"] ?? ""}"
-                        .trim();
-                    final chatRoomId = getChatRoomId(currentUserId, userDoc.id);
+                    final users = snapshot.data!.docs;
 
-                    return FutureBuilder<Map<String, dynamic>>(
-                      future: getLastMessage(context, chatRoomId, senderName),
-                      builder: (context, snapshotMessage) {
-                        String subtitleText = "No messages yet";
-                        String timeText = "";
+                    // 🔹 Filter users: Only admin and dietitians that current user follows
+                    final filteredUsers = users.where((userDoc) {
+                      if (userDoc.id == currentUserId) return false;
 
-                        if (snapshotMessage.connectionState ==
-                            ConnectionState.done &&
-                            snapshotMessage.hasData) {
-                          final lastMsg = snapshotMessage.data!;
-                          final lastMessage = lastMsg["message"] ?? "";
-                          final lastSenderName = lastMsg["senderName"] ?? "";
-                          timeText = lastMsg["time"] ?? "";
+                      final data = userDoc.data() as Map<String, dynamic>;
+                      final role = data["role"]?.toString().toLowerCase() ?? "";
 
-                          if (lastMessage.isNotEmpty) {
-                            if (lastMsg["isMe"] ?? false) {
-                              subtitleText = "Me: $lastMessage";
-                            } else {
-                              subtitleText = "$lastSenderName: $lastMessage";
+                      // Show if user is admin OR if dietitian and current user follows them
+                      if (role == "admin") return true;
+                      if (role == "dietitian" && followedDietitianIds.contains(userDoc.id)) {
+                        return true;
+                      }
+
+                      return false;
+                    }).toList();
+
+                    if (filteredUsers.isEmpty) {
+                      return Center(
+                        child: Text(
+                          "Follow dietitians to chat with them.",
+                          style: _getTextStyle(
+                            context,
+                            fontSize: 16,
+                            color: _textColorPrimary(context),
+                          ),
+                        ),
+                      );
+                    }
+
+                    return ListView.separated(
+                      padding: const EdgeInsets.symmetric(vertical: 8.0),
+                      itemCount: filteredUsers.length,
+                      separatorBuilder: (context, index) =>
+                      const Divider(height: 0.5, indent: 88, endIndent: 16),
+                      itemBuilder: (context, index) {
+                        final userDoc = filteredUsers[index];
+                        final data = userDoc.data() as Map<String, dynamic>;
+                        final senderName =
+                        "${data["firstName"] ?? ""} ${data["lastName"] ?? ""}"
+                            .trim();
+                        final chatRoomId = getChatRoomId(currentUserId, userDoc.id);
+
+                        return FutureBuilder<Map<String, dynamic>>(
+                          future: getLastMessage(context, chatRoomId, senderName),
+                          builder: (context, snapshotMessage) {
+                            String subtitleText = "No messages yet";
+                            String timeText = "";
+
+                            if (snapshotMessage.connectionState ==
+                                ConnectionState.done &&
+                                snapshotMessage.hasData) {
+                              final lastMsg = snapshotMessage.data!;
+                              final lastMessage = lastMsg["message"] ?? "";
+                              final lastSenderName = lastMsg["senderName"] ?? "";
+                              timeText = lastMsg["time"] ?? "";
+
+                              if (lastMessage.isNotEmpty) {
+                                if (lastMsg["isMe"] ?? false) {
+                                  subtitleText = "Me: $lastMessage";
+                                } else {
+                                  subtitleText = "$lastSenderName: $lastMessage";
+                                }
+                              }
                             }
-                          }
-                        }
 
-                        return ListTile(
-                          leading: CircleAvatar(
-                            backgroundImage: (data["profile"] != null &&
-                                data["profile"].toString().isNotEmpty)
-                                ? NetworkImage(data["profile"])
-                                : null,
-                            child: (data["profile"] == null ||
-                                data["profile"].toString().isEmpty)
-                                ? Icon(
-                              Icons.person_outline,
-                              color: _primaryColor,
-                            )
-                                : null,
-                          ),
-                          title: Text(senderName),
-                          subtitle: Text(
-                            subtitleText,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          trailing: timeText.isNotEmpty
-                              ? Text(
-                            timeText,
-                            style: const TextStyle(fontSize: 12),
-                          )
-                              : null,
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => MessagesPage(
-                                  currentUserId: currentUserId,
-                                  receiverId: userDoc.id,
-                                  receiverName: senderName,
-                                  receiverProfile: data["profile"] ?? "",
-                                ),
+                            return ListTile(
+                              leading: CircleAvatar(
+                                backgroundImage: (data["profile"] != null &&
+                                    data["profile"].toString().isNotEmpty)
+                                    ? NetworkImage(data["profile"])
+                                    : null,
+                                child: (data["profile"] == null ||
+                                    data["profile"].toString().isEmpty)
+                                    ? Icon(
+                                  Icons.person_outline,
+                                  color: _primaryColor,
+                                )
+                                    : null,
                               ),
+                              title: Text(senderName),
+                              subtitle: Text(
+                                subtitleText,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              trailing: timeText.isNotEmpty
+                                  ? Text(
+                                timeText,
+                                style: const TextStyle(fontSize: 12),
+                              )
+                                  : null,
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => MessagesPage(
+                                      currentUserId: currentUserId,
+                                      receiverId: userDoc.id,
+                                      receiverName: senderName,
+                                      receiverProfile: data["profile"] ?? "",
+                                    ),
+                                  ),
+                                );
+                              },
                             );
                           },
                         );
@@ -3042,6 +3098,8 @@ class UsersListPage extends StatelessWidget {
                 );
               },
             ),
+
+            // 🔹 NOTIFICATIONS TAB
             StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance
                   .collection("Users")

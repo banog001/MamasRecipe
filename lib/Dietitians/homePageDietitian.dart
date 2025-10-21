@@ -1609,6 +1609,22 @@ class UsersListPage extends StatelessWidget {
     };
   }
 
+  /// ✅ Get followers of current dietitian
+  Future<List<String>> getFollowerIds() async {
+    try {
+      final followersSnapshot = await FirebaseFirestore.instance
+          .collection('Users')
+          .doc(currentUserId)
+          .collection('followers')
+          .get();
+
+      return followersSnapshot.docs.map((doc) => doc.id).toList();
+    } catch (e) {
+      print('Error fetching followers: $e');
+      return [];
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final bool isDarkMode = Theme.of(context).brightness == Brightness.dark;
@@ -1692,258 +1708,294 @@ class UsersListPage extends StatelessWidget {
         ),
         body: TabBarView(
           children: [
-            StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection("messages")
-                  .orderBy("timestamp", descending: true)
-                  .snapshots(),
-              builder: (context, messageSnapshot) {
-                if (messageSnapshot.connectionState == ConnectionState.waiting) {
+            // ✅ CHATS TAB - Filtered to show only admin and followers
+            FutureBuilder<List<String>>(
+              future: getFollowerIds(),
+              builder: (context, followerSnapshot) {
+                if (followerSnapshot.connectionState == ConnectionState.waiting) {
                   return const Center(
-                      child: CircularProgressIndicator(color: _primaryColor));
+                    child: CircularProgressIndicator(color: _primaryColor),
+                  );
                 }
 
-                // Get unique users from messages sorted by most recent
-                final Map<String, dynamic> userChats = {};
+                final followerIds = followerSnapshot.data ?? [];
 
-                if (messageSnapshot.hasData) {
-                  for (var doc in messageSnapshot.data!.docs) {
-                    final data = doc.data() as Map<String, dynamic>;
-                    final senderId = data["senderID"] as String?;
-                    final receiverId = data["receiverID"] as String?;
-                    final timestamp = data["timestamp"] as Timestamp?;
-
-                    if (senderId == currentUserId && receiverId != null && !userChats.containsKey(receiverId)) {
-                      userChats[receiverId] = {
-                        'lastMessage': data,
-                        'timestamp': timestamp,
-                      };
-                    } else if (receiverId == currentUserId && senderId != null && !userChats.containsKey(senderId)) {
-                      userChats[senderId] = {
-                        'lastMessage': data,
-                        'timestamp': timestamp,
-                      };
-                    }
-                  }
-                }
-
-                // Get all users
                 return StreamBuilder<QuerySnapshot>(
-                  stream: FirebaseFirestore.instance.collection("Users").snapshots(),
-                  builder: (context, userSnapshot) {
-                    if (!userSnapshot.hasData || userSnapshot.data!.docs.isEmpty) {
-                      return Center(
-                        child: Text(
-                          "No clients to chat with yet.",
-                          style: _getTextStyle(context,
-                              fontSize: 16, color: _textColorPrimary(context)),
-                        ),
-                      );
+                  stream: FirebaseFirestore.instance
+                      .collection("messages")
+                      .orderBy("timestamp", descending: true)
+                      .snapshots(),
+                  builder: (context, messageSnapshot) {
+                    if (messageSnapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(
+                          child: CircularProgressIndicator(color: _primaryColor));
                     }
 
-                    // Filter and sort users by most recent message
-                    final users = userSnapshot.data!.docs.where((doc) => doc.id != currentUserId).toList();
-                    users.sort((a, b) {
-                      final aHasChat = userChats.containsKey(a.id);
-                      final bHasChat = userChats.containsKey(b.id);
+                    // Get unique users from messages sorted by most recent
+                    final Map<String, dynamic> userChats = {};
 
-                      if (!aHasChat && !bHasChat) return 0;
-                      if (!aHasChat) return 1;
-                      if (!bHasChat) return -1;
+                    if (messageSnapshot.hasData) {
+                      for (var doc in messageSnapshot.data!.docs) {
+                        final data = doc.data() as Map<String, dynamic>;
+                        final senderId = data["senderID"] as String?;
+                        final receiverId = data["receiverID"] as String?;
+                        final timestamp = data["timestamp"] as Timestamp?;
 
-                      final aTime = userChats[a.id]?['timestamp'] as Timestamp?;
-                      final bTime = userChats[b.id]?['timestamp'] as Timestamp?;
+                        if (senderId == currentUserId && receiverId != null && !userChats.containsKey(receiverId)) {
+                          userChats[receiverId] = {
+                            'lastMessage': data,
+                            'timestamp': timestamp,
+                          };
+                        } else if (receiverId == currentUserId && senderId != null && !userChats.containsKey(senderId)) {
+                          userChats[senderId] = {
+                            'lastMessage': data,
+                            'timestamp': timestamp,
+                          };
+                        }
+                      }
+                    }
 
-                      if (aTime == null || bTime == null) return 0;
-                      return bTime.compareTo(aTime);
-                    });
-
-                    return ListView.builder(
-                      padding: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 8.0),
-                      itemCount: users.length,
-                      itemBuilder: (context, index) {
-                        final userDoc = users[index];
-                        final data = userDoc.data() as Map<String, dynamic>;
-                        final senderName =
-                        "${data["firstName"] ?? ""} ${data["lastName"] ?? ""}"
-                            .trim();
-                        final chatData = userChats[userDoc.id];
-
-                        String subtitleText = "No messages yet";
-                        String timeText = "";
-                        bool isUnread = false;
-
-                        if (chatData != null) {
-                          final lastMessage = chatData['lastMessage'] as Map<String, dynamic>;
-                          final messageText = lastMessage["message"] ?? "";
-                          final isMe = lastMessage["senderID"] == currentUserId;
-                          final timestamp = chatData['timestamp'] as Timestamp?;
-                          final read = lastMessage["read"] ?? "false";
-
-                          // Check if unread: message is from someone else and marked as unread
-                          isUnread = !isMe && read.toString().toLowerCase() == "false";
-
-                          if (messageText.isNotEmpty) {
-                            subtitleText = isMe ? "You: $messageText" : "${lastMessage["senderName"] ?? senderName}: $messageText";
-                          }
-
-                          if (timestamp != null) {
-                            final messageDate = timestamp.toDate();
-                            final now = DateTime.now();
-                            if (messageDate.year == now.year &&
-                                messageDate.month == now.month &&
-                                messageDate.day == now.day) {
-                              timeText = TimeOfDay.fromDateTime(messageDate).format(context);
-                            } else {
-                              timeText = DateFormat('MMM d').format(messageDate);
-                            }
-                          }
+                    // Get all users
+                    return StreamBuilder<QuerySnapshot>(
+                      stream: FirebaseFirestore.instance.collection("Users").snapshots(),
+                      builder: (context, userSnapshot) {
+                        if (!userSnapshot.hasData || userSnapshot.data!.docs.isEmpty) {
+                          return Center(
+                            child: Text(
+                              "No clients to chat with yet.",
+                              style: _getTextStyle(context,
+                                  fontSize: 16, color: _textColorPrimary(context)),
+                            ),
+                          );
                         }
 
-                        return Container(
-                          margin: const EdgeInsets.symmetric(vertical: 6.0, horizontal: 4.0),
-                          child: Material(
-                            color: Colors.transparent,
-                            child: InkWell(
-                              borderRadius: BorderRadius.circular(12),
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => MessagesPageDietitian(
-                                      currentUserId: currentUserId,
-                                      receiverId: userDoc.id,
-                                      receiverName: senderName,
-                                      receiverProfile: data["profile"] ?? "",
-                                    ),
-                                  ),
-                                );
-                              },
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  color: isUnread
-                                      ? _primaryColor.withOpacity(0.1)
-                                      : _cardBgColor(context),
+                        // ✅ Filter users: Only admin and followers
+                        final filteredUsers = userSnapshot.data!.docs.where((doc) {
+                          if (doc.id == currentUserId) return false;
+
+                          final userData = doc.data() as Map<String, dynamic>;
+                          final role = userData["role"]?.toString().toLowerCase() ?? "";
+
+                          // Show if user is admin OR if user is in followers list
+                          if (role == "admin") return true;
+                          if (followerIds.contains(doc.id)) return true;
+
+                          return false;
+                        }).toList();
+
+                        // Sort by most recent message
+                        filteredUsers.sort((a, b) {
+                          final aHasChat = userChats.containsKey(a.id);
+                          final bHasChat = userChats.containsKey(b.id);
+
+                          if (!aHasChat && !bHasChat) return 0;
+                          if (!aHasChat) return 1;
+                          if (!bHasChat) return -1;
+
+                          final aTime = userChats[a.id]?['timestamp'] as Timestamp?;
+                          final bTime = userChats[b.id]?['timestamp'] as Timestamp?;
+
+                          if (aTime == null || bTime == null) return 0;
+                          return bTime.compareTo(aTime);
+                        });
+
+                        if (filteredUsers.isEmpty) {
+                          return Center(
+                            child: Text(
+                              "No clients following you yet.",
+                              style: _getTextStyle(context,
+                                  fontSize: 16, color: _textColorPrimary(context)),
+                            ),
+                          );
+                        }
+
+                        return ListView.builder(
+                          padding: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 8.0),
+                          itemCount: filteredUsers.length,
+                          itemBuilder: (context, index) {
+                            final userDoc = filteredUsers[index];
+                            final data = userDoc.data() as Map<String, dynamic>;
+                            final senderName =
+                            "${data["firstName"] ?? ""} ${data["lastName"] ?? ""}"
+                                .trim();
+                            final chatData = userChats[userDoc.id];
+
+                            String subtitleText = "No messages yet";
+                            String timeText = "";
+                            bool isUnread = false;
+
+                            if (chatData != null) {
+                              final lastMessage = chatData['lastMessage'] as Map<String, dynamic>;
+                              final messageText = lastMessage["message"] ?? "";
+                              final isMe = lastMessage["senderID"] == currentUserId;
+                              final timestamp = chatData['timestamp'] as Timestamp?;
+                              final read = lastMessage["read"] ?? "false";
+
+                              isUnread = !isMe && read.toString().toLowerCase() == "false";
+
+                              if (messageText.isNotEmpty) {
+                                subtitleText = isMe ? "You: $messageText" : "${lastMessage["senderName"] ?? senderName}: $messageText";
+                              }
+
+                              if (timestamp != null) {
+                                final messageDate = timestamp.toDate();
+                                final now = DateTime.now();
+                                if (messageDate.year == now.year &&
+                                    messageDate.month == now.month &&
+                                    messageDate.day == now.day) {
+                                  timeText = TimeOfDay.fromDateTime(messageDate).format(context);
+                                } else {
+                                  timeText = DateFormat('MMM d').format(messageDate);
+                                }
+                              }
+                            }
+
+                            return Container(
+                              margin: const EdgeInsets.symmetric(vertical: 6.0, horizontal: 4.0),
+                              child: Material(
+                                color: Colors.transparent,
+                                child: InkWell(
                                   borderRadius: BorderRadius.circular(12),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withOpacity(0.04),
-                                      blurRadius: 4,
-                                      offset: const Offset(0, 1),
-                                    ),
-                                  ],
-                                  border: isUnread
-                                      ? Border.all(
-                                    color: _primaryColor.withOpacity(0.3),
-                                    width: 1.5,
-                                  )
-                                      : null,
-                                ),
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                                child: Row(
-                                  children: [
-                                    Stack(
-                                      children: [
-                                        CircleAvatar(
-                                          radius: 24,
-                                          backgroundImage: (data["profile"] != null &&
-                                              data["profile"].toString().isNotEmpty)
-                                              ? NetworkImage(data["profile"])
-                                              : null,
-                                          backgroundColor: _primaryColor.withOpacity(0.2),
-                                          child: (data["profile"] == null ||
-                                              data["profile"].toString().isEmpty)
-                                              ? Icon(Icons.person_outline,
-                                              color: _primaryColor, size: 24)
-                                              : null,
+                                  onTap: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => MessagesPageDietitian(
+                                          currentUserId: currentUserId,
+                                          receiverId: userDoc.id,
+                                          receiverName: senderName,
+                                          receiverProfile: data["profile"] ?? "",
                                         ),
-                                        Positioned(
-                                          bottom: 0,
-                                          right: 0,
-                                          child: Container(
-                                            width: 14,
-                                            height: 14,
-                                            decoration: BoxDecoration(
-                                              color: Colors.green,
-                                              shape: BoxShape.circle,
-                                              border: Border.all(
-                                                color: _cardBgColor(context),
-                                                width: 2,
-                                              ),
-                                            ),
-                                          ),
+                                      ),
+                                    );
+                                  },
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      color: isUnread
+                                          ? _primaryColor.withOpacity(0.1)
+                                          : _cardBgColor(context),
+                                      borderRadius: BorderRadius.circular(12),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withOpacity(0.04),
+                                          blurRadius: 4,
+                                          offset: const Offset(0, 1),
                                         ),
                                       ],
+                                      border: isUnread
+                                          ? Border.all(
+                                        color: _primaryColor.withOpacity(0.3),
+                                        width: 1.5,
+                                      )
+                                          : null,
                                     ),
-                                    const SizedBox(width: 12),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            senderName,
-                                            style: _getTextStyle(context,
-                                                fontSize: 15,
-                                                fontWeight: isUnread
-                                                    ? FontWeight.bold
-                                                    : FontWeight.w600),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                          const SizedBox(height: 4),
-                                          Text(
-                                            subtitleText,
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                            style: _getTextStyle(context,
-                                                fontSize: 13,
-                                                fontWeight: isUnread
-                                                    ? FontWeight.w600
-                                                    : FontWeight.w400,
-                                                color: isUnread
-                                                    ? _textColorPrimary(context)
-                                                    : _textColorSecondary(context)),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    if (timeText.isNotEmpty)
-                                      Padding(
-                                        padding: const EdgeInsets.only(left: 8.0),
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.end,
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                    child: Row(
+                                      children: [
+                                        Stack(
                                           children: [
-                                            Text(
-                                              timeText,
-                                              style: _getTextStyle(context,
-                                                  fontSize: 12,
-                                                  fontWeight: isUnread
-                                                      ? FontWeight.w600
-                                                      : FontWeight.normal,
-                                                  color: isUnread
-                                                      ? _primaryColor
-                                                      : _textColorSecondary(context)),
+                                            CircleAvatar(
+                                              radius: 24,
+                                              backgroundImage: (data["profile"] != null &&
+                                                  data["profile"].toString().isNotEmpty)
+                                                  ? NetworkImage(data["profile"])
+                                                  : null,
+                                              backgroundColor: _primaryColor.withOpacity(0.2),
+                                              child: (data["profile"] == null ||
+                                                  data["profile"].toString().isEmpty)
+                                                  ? Icon(Icons.person_outline,
+                                                  color: _primaryColor, size: 24)
+                                                  : null,
                                             ),
-                                            if (isUnread)
-                                              Padding(
-                                                padding: const EdgeInsets.only(top: 6.0),
-                                                child: Container(
-                                                  width: 10,
-                                                  height: 10,
-                                                  decoration: const BoxDecoration(
-                                                    color: Colors.redAccent,
-                                                    shape: BoxShape.circle,
+                                            Positioned(
+                                              bottom: 0,
+                                              right: 0,
+                                              child: Container(
+                                                width: 14,
+                                                height: 14,
+                                                decoration: BoxDecoration(
+                                                  color: Colors.green,
+                                                  shape: BoxShape.circle,
+                                                  border: Border.all(
+                                                    color: _cardBgColor(context),
+                                                    width: 2,
                                                   ),
                                                 ),
                                               ),
+                                            ),
                                           ],
                                         ),
-                                      ),
-                                  ],
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                senderName,
+                                                style: _getTextStyle(context,
+                                                    fontSize: 15,
+                                                    fontWeight: isUnread
+                                                        ? FontWeight.bold
+                                                        : FontWeight.w600),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                              const SizedBox(height: 4),
+                                              Text(
+                                                subtitleText,
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: _getTextStyle(context,
+                                                    fontSize: 13,
+                                                    fontWeight: isUnread
+                                                        ? FontWeight.w600
+                                                        : FontWeight.w400,
+                                                    color: isUnread
+                                                        ? _textColorPrimary(context)
+                                                        : _textColorSecondary(context)),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        if (timeText.isNotEmpty)
+                                          Padding(
+                                            padding: const EdgeInsets.only(left: 8.0),
+                                            child: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.end,
+                                              children: [
+                                                Text(
+                                                  timeText,
+                                                  style: _getTextStyle(context,
+                                                      fontSize: 12,
+                                                      fontWeight: isUnread
+                                                          ? FontWeight.w600
+                                                          : FontWeight.normal,
+                                                      color: isUnread
+                                                          ? _primaryColor
+                                                          : _textColorSecondary(context)),
+                                                ),
+                                                if (isUnread)
+                                                  Padding(
+                                                    padding: const EdgeInsets.only(top: 6.0),
+                                                    child: Container(
+                                                      width: 10,
+                                                      height: 10,
+                                                      decoration: const BoxDecoration(
+                                                        color: Colors.redAccent,
+                                                        shape: BoxShape.circle,
+                                                      ),
+                                                    ),
+                                                  ),
+                                              ],
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                  ),
                                 ),
                               ),
-                            ),
-                          ),
+                            );
+                          },
                         );
                       },
                     );
@@ -1951,6 +2003,8 @@ class UsersListPage extends StatelessWidget {
                 );
               },
             ),
+
+            // ✅ NOTIFICATIONS TAB (unchanged)
             StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance
                   .collection("Users")
@@ -1964,7 +2018,6 @@ class UsersListPage extends StatelessWidget {
 
                 final docs = snapshot.data!.docs;
 
-                // Group notifications by senderId to show only the most recent per sender
                 final Map<String, DocumentSnapshot> notificationMap = {};
                 for (var doc in docs) {
                   final data = doc.data() as Map<String, dynamic>;
@@ -2256,13 +2309,39 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
     List<DocumentSnapshot> clients = [];
 
     try {
-      QuerySnapshot clientSnapshot = await FirebaseFirestore.instance
-          .collection('Users')
-          .where('role', isEqualTo: 'user')
+      // ✅ Fetch only clients with pending appointment requests
+      QuerySnapshot appointmentRequestSnapshot = await FirebaseFirestore.instance
+          .collection('appointmentRequest')
+          .where('dietitianId', isEqualTo: currentDietitian.uid)
+          .where('status', isEqualTo: 'pending')
           .get();
-      clients = clientSnapshot.docs;
+
+      Set<String> pendingClientIds = {};
+      for (var doc in appointmentRequestSnapshot.docs) {
+        final data = doc.data() as Map<String, dynamic>;
+        pendingClientIds.add(data['clientId'] as String);
+      }
+
+      if (pendingClientIds.isEmpty && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('No pending appointment requests from clients.')),
+        );
+        return;
+      }
+
+      // Fetch user data for pending clients
+      QuerySnapshot userSnapshot = await FirebaseFirestore.instance
+          .collection('Users')
+          .get();
+
+      for (var doc in userSnapshot.docs) {
+        if (pendingClientIds.contains(doc.id)) {
+          clients.add(doc);
+        }
+      }
     } catch (e) {
-      print("Error fetching clients: $e");
+      print("Error fetching clients with pending requests: $e");
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error fetching clients: $e')),
       );
@@ -2272,8 +2351,7 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
     if (clients.isEmpty && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-            content:
-            Text('No clients found to schedule an appointment with.')),
+            content: Text('No clients found with pending appointment requests.')),
       );
       return;
     }
@@ -2416,13 +2494,13 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
                   ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
                         backgroundColor: _primaryColor,
-                        foregroundColor: _textColorOnPrimary,
+                        foregroundColor: Colors.white,
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(8))),
                     icon: const Icon(Icons.send_rounded, size: 18),
                     label: Text('Send Schedule',
                         style: _getTextStyle(dialogContext,
-                            color: _textColorOnPrimary,
+                            color: Colors.white,
                             fontWeight: FontWeight.bold)),
                     onPressed: () {
                       if (selectedClientId == null) {
@@ -2470,7 +2548,7 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
                         clientName: selectedClientName,
                         appointmentDateTime: finalAppointmentDateTime,
                         notes: notesController.text.trim(),
-                        status: 'proposed_by_dietitian',
+                        status: 'Waiting for client response.',
                         contextForSnackBar: this.context,
                       );
                       Navigator.of(dialogContext).pop();
@@ -2491,14 +2569,29 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
     required DateTime appointmentDateTime,
     required String notes,
     required String status,
-    required BuildContext contextForSnackBar, }) async {
-
+    required BuildContext contextForSnackBar,
+  }) async {
     try {
       final String appointmentDateStr =
       DateFormat('yyyy-MM-dd HH:mm').format(appointmentDateTime);
       final String createdAtStr =
       DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now());
 
+      // ✅ Update appointmentRequest status to approved
+      final appointmentRequestSnapshot = await FirebaseFirestore.instance
+          .collection('appointmentRequest')
+          .where('clientId', isEqualTo: clientId)
+          .where('dietitianId', isEqualTo: dietitianId)
+          .where('status', isEqualTo: 'pending')
+          .get();
+
+      if (appointmentRequestSnapshot.docs.isNotEmpty) {
+        for (var doc in appointmentRequestSnapshot.docs) {
+          await doc.reference.update({'status': 'approved'});
+        }
+      }
+
+      // ✅ Create schedule
       await FirebaseFirestore.instance.collection('schedules').add({
         'dietitianID': dietitianId,
         'dietitianName': dietitianName,
@@ -2516,7 +2609,7 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
           .collection("notifications")
           .add({
         "isRead": false,
-        "title": "New Appointment",
+        "title": "Appointment Scheduled",
         "message":
         "$dietitianName scheduled an appointment with you on ${DateFormat
             .yMMMMd().format(appointmentDateTime)} at ${DateFormat.jm().format(
@@ -2532,7 +2625,7 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
       if (!mounted) return;
       ScaffoldMessenger.of(contextForSnackBar).showSnackBar(
         SnackBar(
-          content: Text('Schedule proposed to $clientName successfully!'),
+          content: Text('Appointment scheduled with $clientName successfully!'),
           backgroundColor: _primaryColor,
         ),
       );
@@ -2577,13 +2670,13 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
                     selectedDecoration: const BoxDecoration(
                         color: _primaryColor, shape: BoxShape.circle),
                     selectedTextStyle: _getTextStyle(context,
-                        color: _textColorOnPrimary,
+                        color: Colors.white,
                         fontWeight: FontWeight.bold),
                     todayDecoration: BoxDecoration(
                         color: _primaryColor.withOpacity(0.5),
                         shape: BoxShape.circle),
                     todayTextStyle: _getTextStyle(context,
-                        color: _textColorOnPrimary,
+                        color: Colors.white,
                         fontWeight: FontWeight.bold),
                     weekendTextStyle: _getTextStyle(context,
                         color: _primaryColor.withOpacity(0.8)),
@@ -2601,7 +2694,7 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
                       fontWeight: FontWeight.bold,
                       color: _textColorPrimary(context)),
                   formatButtonTextStyle:
-                  _getTextStyle(context, color: _textColorOnPrimary),
+                  _getTextStyle(context, color: Colors.white),
                   formatButtonDecoration: BoxDecoration(
                       color: _primaryColor,
                       borderRadius: BorderRadius.circular(20.0)),
@@ -2655,13 +2748,13 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
                         child: ElevatedButton.icon(
                           style: ElevatedButton.styleFrom(
                               backgroundColor: _primaryColor,
-                              foregroundColor: _textColorOnPrimary,
+                              foregroundColor: Colors.white,
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 20, vertical: 12),
                               textStyle: _getTextStyle(context,
                                   fontSize: 16,
                                   fontWeight: FontWeight.w600,
-                                  color: _textColorOnPrimary)),
+                                  color: Colors.white)),
                           icon: const Icon(Icons.add_circle_outline_rounded),
                           label: const Text("Schedule New Appointment"),
                           onPressed: () {

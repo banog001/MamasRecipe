@@ -26,6 +26,9 @@ class _MessagesPageState extends State<MessagesPage> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   String currentUserName = "";
+  String currentUserEmail = "";
+  bool _isSubmittingRequest = false;
+  bool _hasPendingAppointment = false;
 
   static const String _primaryFontFamily = 'PlusJakartaSans';
   static const TextStyle _appBarTitleStyle = TextStyle(
@@ -49,6 +52,7 @@ class _MessagesPageState extends State<MessagesPage> {
   void initState() {
     super.initState();
     fetchCurrentUserName();
+    _checkPendingAppointment();
   }
 
   void fetchCurrentUserName() async {
@@ -57,7 +61,28 @@ class _MessagesPageState extends State<MessagesPage> {
       final data = doc.data()!;
       setState(() {
         currentUserName = "${data["firstName"] ?? ""} ${data["lastName"] ?? ""}".trim();
+        currentUserEmail = data["email"] ?? "";
       });
+    }
+  }
+
+  /// ✅ Check if user has pending appointment request
+  Future<void> _checkPendingAppointment() async {
+    try {
+      final snapshot = await _firestore
+          .collection('appointmentRequest')
+          .where('clientId', isEqualTo: widget.currentUserId)
+          .where('dietitianId', isEqualTo: widget.receiverId)
+          .where('status', isEqualTo: 'pending')
+          .get();
+
+      if (mounted) {
+        setState(() {
+          _hasPendingAppointment = snapshot.docs.isNotEmpty;
+        });
+      }
+    } catch (e) {
+      print('Error checking pending appointment: $e');
     }
   }
 
@@ -107,14 +132,85 @@ class _MessagesPageState extends State<MessagesPage> {
       print("❌ Error adding notification: $e");
     }
 
-
-
     if (_scrollController.hasClients) {
       _scrollController.animateTo(
         0.0,
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeOut,
       );
+    }
+  }
+
+  /// ✅ Request appointment from dietitian
+  Future<void> _requestAppointment() async {
+    if (currentUserName.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('User data not loaded yet')),
+      );
+      return;
+    }
+
+    if (mounted) {
+      setState(() {
+        _isSubmittingRequest = true;
+      });
+    }
+
+    try {
+      // Add to appointmentRequest collection
+      await _firestore.collection('appointmentRequest').add({
+        'clientId': widget.currentUserId,
+        'clientName': currentUserName,
+        'clientEmail': currentUserEmail,
+        'dietitianId': widget.receiverId,
+        'dietitianName': widget.receiverName,
+        'status': 'pending',
+        'requestDate': FieldValue.serverTimestamp(),
+        'message': '',
+      });
+
+      // Add notification to dietitian
+      await _firestore
+          .collection('Users')
+          .doc(widget.receiverId)
+          .collection('notifications')
+          .add({
+        'title': 'Appointment Request',
+        'message': '$currentUserName requested an appointment with you',
+        'senderId': widget.currentUserId,
+        'senderName': currentUserName,
+        'type': 'appointmentRequest',
+        'isRead': false,
+        'timestamp': FieldValue.serverTimestamp(),
+      });
+
+      if (mounted) {
+        setState(() {
+          _isSubmittingRequest = false;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Appointment request sent successfully!'),
+            backgroundColor: Color(0xFF4CAF50),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      print('Error requesting appointment: $e');
+      if (mounted) {
+        setState(() {
+          _isSubmittingRequest = false;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
     }
   }
 
@@ -152,7 +248,7 @@ class _MessagesPageState extends State<MessagesPage> {
                     child: Text(
                       widget.receiverName,
                       style: _appBarTitleStyle,
-                      overflow: TextOverflow.ellipsis, // prevents overflow
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                   const SizedBox(width: 4),
@@ -183,6 +279,20 @@ class _MessagesPageState extends State<MessagesPage> {
                             ),
                             ElevatedButton(
                               style: ElevatedButton.styleFrom(
+                                backgroundColor: _hasPendingAppointment ? Colors.grey : Colors.blue,
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                              onPressed: _hasPendingAppointment ? null : () {
+                                Navigator.pop(context);
+                                _requestAppointment();
+                              },
+                              child: Text(_hasPendingAppointment ? "Your appointment is still pending" : "Request Appointment"),
+                            ),
+                            ElevatedButton(
+                              style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.green,
                                 foregroundColor: Colors.white,
                                 shape: RoundedRectangleBorder(
@@ -190,7 +300,7 @@ class _MessagesPageState extends State<MessagesPage> {
                                 ),
                               ),
                               onPressed: () {
-                                Navigator.pop(context); // close dialog
+                                Navigator.pop(context);
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
@@ -327,5 +437,12 @@ class _MessagesPageState extends State<MessagesPage> {
         ],
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _messageController.dispose();
+    _scrollController.dispose();
+    super.dispose();
   }
 }

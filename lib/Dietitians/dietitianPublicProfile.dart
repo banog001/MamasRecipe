@@ -44,108 +44,165 @@ class _DietitianPublicProfileState extends State<DietitianPublicProfile> {
     _getDietitianBio();
   }
 
+  /// ✅ Check if current user is following this dietitian
   Future<void> _checkIfFollowing() async {
     final user = _auth.currentUser;
     if (user == null) return;
 
-    final doc = await _firestore
-        .collection('Users')
-        .doc(user.uid)
-        .collection('following')
-        .doc(widget.dietitianId)
-        .get();
+    try {
+      final doc = await _firestore
+          .collection('Users')
+          .doc(user.uid)
+          .collection('following')
+          .doc(widget.dietitianId)
+          .get();
 
-    setState(() {
-      _isFollowing = doc.exists;
-    });
-  }
-
-  Future<void> _getFollowerCount() async {
-    final dietitianDoc =
-    await _firestore.collection('Users').doc(widget.dietitianId).get();
-    if (dietitianDoc.exists) {
-      setState(() {
-        _followerCount = dietitianDoc.data()?['followerCount'] ?? 0;
-      });
+      if (mounted) {
+        setState(() {
+          _isFollowing = doc.exists;
+        });
+      }
+    } catch (e) {
+      print('Error checking following status: $e');
     }
   }
 
+  /// ✅ Get follower count for this dietitian
+  Future<void> _getFollowerCount() async {
+    try {
+      final dietitianDoc =
+      await _firestore.collection('Users').doc(widget.dietitianId).get();
+      if (dietitianDoc.exists) {
+        if (mounted) {
+          setState(() {
+            _followerCount = dietitianDoc.data()?['followerCount'] ?? 0;
+          });
+        }
+      }
+    } catch (e) {
+      print('Error fetching follower count: $e');
+    }
+  }
+
+  /// ✅ Toggle follow/unfollow with atomic batch operation
   Future<void> _toggleFollow() async {
     final user = _auth.currentUser;
-    if (user == null) return;
-
-    final userRef = _firestore.collection('Users').doc(user.uid);
-    final dietitianRef = _firestore.collection('Users').doc(widget.dietitianId);
-
-    final followingRef =
-    userRef.collection('following').doc(widget.dietitianId);
-    final followerRef =
-    dietitianRef.collection('followers').doc(user.uid);
-
-    final batch = _firestore.batch();
-
-    if (_isFollowing) {
-      // 🔹 Unfollow
-      batch.delete(followingRef);
-      batch.delete(followerRef);
-
-      batch.update(userRef, {
-        'followingCount': FieldValue.increment(-1),
-      });
-      batch.update(dietitianRef, {
-        'followerCount': FieldValue.increment(-1),
-      });
-
-      setState(() {
-        _isFollowing = false;
-        _followerCount--;
-      });
-    } else {
-      // 🔹 Follow
-      batch.set(followingRef, {
-        'dietitianId': widget.dietitianId,
-        'dietitianName': widget.dietitianName,
-        'timestamp': FieldValue.serverTimestamp(),
-      });
-
-      batch.set(followerRef, {
-        'userId': user.uid,
-        'timestamp': FieldValue.serverTimestamp(),
-      });
-
-      batch.update(userRef, {
-        'followingCount': FieldValue.increment(1),
-      });
-      batch.update(dietitianRef, {
-        'followerCount': FieldValue.increment(1),
-      });
-
-      setState(() {
-        _isFollowing = true;
-        _followerCount++;
-      });
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please log in to follow dietitians')),
+      );
+      return;
     }
 
-    await batch.commit();
+    // Prevent duplicate taps
+    if (user.uid == widget.dietitianId) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('You cannot follow yourself')),
+      );
+      return;
+    }
+
+    try {
+      final userRef = _firestore.collection('Users').doc(user.uid);
+      final dietitianRef =
+      _firestore.collection('Users').doc(widget.dietitianId);
+
+      final followingRef =
+      userRef.collection('following').doc(widget.dietitianId);
+      final followerRef = dietitianRef.collection('followers').doc(user.uid);
+
+      final batch = _firestore.batch();
+
+      if (_isFollowing) {
+        // 🔹 Unfollow
+        batch.delete(followingRef);
+        batch.delete(followerRef);
+
+        batch.update(userRef, {
+          'followingCount': FieldValue.increment(-1),
+        });
+        batch.update(dietitianRef, {
+          'followerCount': FieldValue.increment(-1),
+        });
+
+        if (mounted) {
+          setState(() {
+            _isFollowing = false;
+            _followerCount--;
+          });
+        }
+      } else {
+        // 🔹 Follow
+        batch.set(followingRef, {
+          'dietitianId': widget.dietitianId,
+          'dietitianName': widget.dietitianName,
+          'timestamp': FieldValue.serverTimestamp(),
+        });
+
+        batch.set(followerRef, {
+          'userId': user.uid,
+          'timestamp': FieldValue.serverTimestamp(),
+        });
+
+        batch.update(userRef, {
+          'followingCount': FieldValue.increment(1),
+        });
+        batch.update(dietitianRef, {
+          'followerCount': FieldValue.increment(1),
+        });
+
+        if (mounted) {
+          setState(() {
+            _isFollowing = true;
+            _followerCount++;
+          });
+        }
+      }
+
+      await batch.commit();
+    } catch (e) {
+      print('Error toggling follow: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e')),
+      );
+    }
   }
 
+  /// ✅ Get meal plan upload count
   Future<void> _getUploadCount() async {
-    final snapshot = await _firestore
-        .collection('mealPlans')
-        .where('owner', isEqualTo: widget.dietitianId)
-        .get();
+    try {
+      final snapshot = await _firestore
+          .collection('mealPlans')
+          .where('ownerId', isEqualTo: widget.dietitianId)
+          .count()
+          .get();
 
-    setState(() {
-      _uploadCount = snapshot.docs.length;
-    });
+      if (mounted) {
+        setState(() {
+          _uploadCount = snapshot.count ?? 0;
+        });
+      }
+    } catch (e) {
+      print('Error fetching upload count: $e');
+    }
   }
 
+  /// ✅ Get dietitian bio
   Future<void> _getDietitianBio() async {
-    final doc = await _firestore.collection('Users').doc(widget.dietitianId).get();
-    if (doc.exists) {
-      setState(() {
-        _bio = doc.data()?['bio'] ?? 'No bio available';
-      });
+    try {
+      final doc = await _firestore
+          .collection('Users')
+          .doc(widget.dietitianId)
+          .get();
+      if (doc.exists) {
+        if (mounted) {
+          setState(() {
+            _bio = doc.data()?['bio'] ?? 'No bio available';
+          });
+        }
+      }
+    } catch (e) {
+      print('Error fetching bio: $e');
     }
   }
 
@@ -209,7 +266,6 @@ class _DietitianPublicProfileState extends State<DietitianPublicProfile> {
       ),
     );
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -319,26 +375,41 @@ class _DietitianPublicProfileState extends State<DietitianPublicProfile> {
                       const SizedBox(width: 12),
                       ElevatedButton(
                         onPressed: () async {
-                          final doc = await FirebaseFirestore.instance
-                              .collection('Users')
-                              .doc(widget.dietitianId)
-                              .get();
+                          try {
+                            final doc = await FirebaseFirestore.instance
+                                .collection('Users')
+                                .doc(widget.dietitianId)
+                                .get();
 
-                          if (!doc.exists) return;
+                            if (!doc.exists) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                    content: Text('Dietitian not found')),
+                              );
+                              return;
+                            }
 
-                          final data = doc.data()!;
-                          final dietitianEmail = data['email'] ?? 'No email';
+                            final data = doc.data()!;
+                            final dietitianEmail = data['email'] ?? 'No email';
 
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => ChoosePlanPage(
-                                dietitianName: widget.dietitianName,
-                                dietitianEmail: dietitianEmail,
-                                dietitianProfile: widget.dietitianProfile,
-                              ),
-                            ),
-                          );
+                            if (mounted) {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => ChoosePlanPage(
+                                    dietitianName: widget.dietitianName,
+                                    dietitianEmail: dietitianEmail,
+                                    dietitianProfile: widget.dietitianProfile,
+                                  ),
+                                ),
+                              );
+                            }
+                          } catch (e) {
+                            print('Error navigating to choose plan: $e');
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Error: $e')),
+                            );
+                          }
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: _primaryColor,
@@ -380,16 +451,19 @@ class _DietitianPublicProfileState extends State<DietitianPublicProfile> {
                             .orderBy('timestamp', descending: true)
                             .snapshots(),
                         builder: (context, snapshot) {
-                          if (snapshot.connectionState == ConnectionState.waiting) {
+                          if (snapshot.connectionState ==
+                              ConnectionState.waiting) {
                             return const Center(
                               child: Padding(
                                 padding: EdgeInsets.symmetric(vertical: 40),
-                                child: CircularProgressIndicator(color: _primaryColor),
+                                child: CircularProgressIndicator(
+                                    color: _primaryColor),
                               ),
                             );
                           }
 
-                          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                          if (!snapshot.hasData ||
+                              snapshot.data!.docs.isEmpty) {
                             return const Padding(
                               padding: EdgeInsets.symmetric(vertical: 30),
                               child: Text(
@@ -403,7 +477,8 @@ class _DietitianPublicProfileState extends State<DietitianPublicProfile> {
                             );
                           }
 
-                          final currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
+                          final currentUserId =
+                              FirebaseAuth.instance.currentUser?.uid ?? '';
 
                           return Column(
                             children: snapshot.data!.docs.map((doc) {
@@ -415,7 +490,7 @@ class _DietitianPublicProfileState extends State<DietitianPublicProfile> {
                                 data,
                                 ownerId,
                                 currentUserId,
-                                false, // dietitian public profile → not showing locked items
+                                false,
                               );
                             }).toList(),
                           );
@@ -429,7 +504,6 @@ class _DietitianPublicProfileState extends State<DietitianPublicProfile> {
           ],
         ),
       ),
-
       bottomNavigationBar: ClipRRect(
         borderRadius: const BorderRadius.only(
           topLeft: Radius.circular(20),

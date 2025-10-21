@@ -73,6 +73,7 @@ void _setupMessageListener(String userId) {
   FirebaseFirestore.instance
       .collection('messages')
       .where('receiverID', isEqualTo: userId)
+      .where('isRead', isEqualTo: false)  // Only unread messages
       .orderBy('timestamp', descending: true)
       .limit(1)
       .snapshots()
@@ -80,7 +81,7 @@ void _setupMessageListener(String userId) {
         (snapshot) {
       if (snapshot.docs.isNotEmpty) {
         final msg = snapshot.docs.first.data();
-        print("📩 Message detected: ${msg['message']}");
+        print("📩 Unread message detected: ${msg['message']}");
 
         flutterLocalNotificationsPlugin.show(
           msg.hashCode,
@@ -111,6 +112,7 @@ void _setupAppointmentListener(String userId) {
       .collection('Users')
       .doc(userId)
       .collection('notifications')
+      .where('isRead', isEqualTo: false)  // Only unread notifications
       .orderBy('timestamp', descending: true)
       .limit(1)
       .snapshots()
@@ -118,7 +120,7 @@ void _setupAppointmentListener(String userId) {
         (snapshot) {
       if (snapshot.docs.isNotEmpty) {
         final notif = snapshot.docs.first.data();
-        print("📅 Appointment notification detected: ${notif['message']}");
+        print("📅 Unread appointment notification detected: ${notif['message']}");
 
         flutterLocalNotificationsPlugin.show(
           notif.hashCode,
