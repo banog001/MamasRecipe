@@ -1678,6 +1678,7 @@ class _UsersListPageState extends State<UsersListPage> {
     final bool isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final Color currentScaffoldBg =
     isDarkMode ? Colors.grey.shade900 : Colors.grey.shade50;
+    final Color currentAppBarBg = isDarkMode ? Colors.grey.shade800 : Colors.white;
     final Color currentTabLabel = _textColorPrimary(context);
     final Color currentIndicator = _primaryColor;
 
@@ -1686,8 +1687,8 @@ class _UsersListPageState extends State<UsersListPage> {
       child: Scaffold(
         backgroundColor: currentScaffoldBg,
         appBar: AppBar(
-          backgroundColor: _cardBgColor(context),
-          elevation: 1,
+          backgroundColor: currentAppBarBg,
+          elevation: 0.5,
           automaticallyImplyLeading: false,
           title: TabBar(
             labelColor: currentTabLabel,
@@ -1706,57 +1707,53 @@ class _UsersListPageState extends State<UsersListPage> {
             ),
             tabs: [
               const Tab(text: "CHATS"),
-              StreamBuilder<QuerySnapshot>(
-                stream: FirebaseFirestore.instance
-                    .collection('Users')
-                    .doc(currentUserId)
-                    .collection('notifications')
-                    .where('isRead', isEqualTo: false)
-                    .snapshots(),
-                builder: (context, snapshot) {
-                  int unreadCount = snapshot.hasData ? snapshot.data!.docs.length : 0;
-                  return Tab(
-                    child: Stack(
-                      alignment: Alignment.center,
-                      clipBehavior: Clip.none,
-                      children: [
-                        const Text("NOTIFICATIONS"),
-                        if (unreadCount > 0)
-                          Positioned(
-                            top: -8,
-                            right: -12,
-                            child: Container(
-                              padding: const EdgeInsets.all(4.0),
-                              decoration: BoxDecoration(
-                                color: Colors.redAccent,
-                                borderRadius: BorderRadius.circular(10.0),
-                              ),
-                              constraints: const BoxConstraints(
-                                minWidth: 20,
-                                minHeight: 20,
-                              ),
-                              child: Text(
-                                unreadCount > 99 ? '99+' : '$unreadCount',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                                textAlign: TextAlign.center,
+              Tab(
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    const Text("NOTIFICATIONS"),
+                    Positioned(
+                      top: -1,
+                      right: -1,
+                      child: StreamBuilder<QuerySnapshot>(
+                        stream: FirebaseFirestore.instance
+                            .collection('Users')
+                            .doc(currentUserId)
+                            .collection('notifications')
+                            .where('isRead', isEqualTo: false)
+                            .snapshots(),
+                        builder: (context, snapshot) {
+                          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                            return const SizedBox.shrink();
+                          }
+                          final unreadCount = snapshot.data!.docs.length;
+                          return Container(
+                            padding: const EdgeInsets.all(4.0),
+                            decoration: const BoxDecoration(
+                              color: Colors.red,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Text(
+                              unreadCount > 99 ? '99+' : '$unreadCount',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
-                          )
-                      ],
+                          );
+                        },
+                      ),
                     ),
-                  );
-                },
-              )
+                  ],
+                ),
+              ),
             ],
           ),
         ),
         body: TabBarView(
           children: [
-            // ✅ CHATS TAB - Filtered to show only admin and followers
+            // CHATS TAB - Modern Card Design
             FutureBuilder<List<String>>(
               future: getFollowerIds(),
               builder: (context, followerSnapshot) {
@@ -1770,130 +1767,87 @@ class _UsersListPageState extends State<UsersListPage> {
 
                 return StreamBuilder<QuerySnapshot>(
                   stream: FirebaseFirestore.instance
-                      .collection("messages")
-                      .orderBy("timestamp", descending: true)
+                      .collection("Users")
                       .snapshots(),
-                  builder: (context, messageSnapshot) {
-                    if (messageSnapshot.connectionState == ConnectionState.waiting) {
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
                       return const Center(
-                          child: CircularProgressIndicator(color: _primaryColor));
+                        child: CircularProgressIndicator(color: _primaryColor),
+                      );
+                    }
+                    if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                      return Center(
+                        child: Text(
+                          "No clients to chat with yet.",
+                          style: _getTextStyle(
+                            context,
+                            fontSize: 16,
+                            color: _textColorPrimary(context),
+                          ),
+                        ),
+                      );
                     }
 
-                    // Get unique users from messages sorted by most recent
-                    final Map<String, dynamic> userChats = {};
+                    final users = snapshot.data!.docs;
 
-                    if (messageSnapshot.hasData) {
-                      for (var doc in messageSnapshot.data!.docs) {
-                        final data = doc.data() as Map<String, dynamic>;
-                        final senderId = data["senderID"] as String?;
-                        final receiverId = data["receiverID"] as String?;
-                        final timestamp = data["timestamp"] as Timestamp?;
+                    // Filter users: Only admin and followers
+                    final filteredUsers = users.where((userDoc) {
+                      if (userDoc.id == currentUserId) return false;
 
-                        if (senderId == currentUserId && receiverId != null && !userChats.containsKey(receiverId)) {
-                          userChats[receiverId] = {
-                            'lastMessage': data,
-                            'timestamp': timestamp,
-                          };
-                        } else if (receiverId == currentUserId && senderId != null && !userChats.containsKey(senderId)) {
-                          userChats[senderId] = {
-                            'lastMessage': data,
-                            'timestamp': timestamp,
-                          };
-                        }
+                      final data = userDoc.data() as Map<String, dynamic>;
+                      final role = data["role"]?.toString().toLowerCase() ?? "";
+
+                      if (role == "admin") return true;
+                      if (followerIds.contains(userDoc.id)) {
+                        return true;
                       }
+
+                      return false;
+                    }).toList();
+
+                    if (filteredUsers.isEmpty) {
+                      return Center(
+                        child: Text(
+                          "No clients following you yet.",
+                          style: _getTextStyle(
+                            context,
+                            fontSize: 16,
+                            color: _textColorPrimary(context),
+                          ),
+                        ),
+                      );
                     }
 
-                    // Get all users
-                    return StreamBuilder<QuerySnapshot>(
-                      stream: FirebaseFirestore.instance.collection("Users").snapshots(),
-                      builder: (context, userSnapshot) {
-                        if (!userSnapshot.hasData || userSnapshot.data!.docs.isEmpty) {
-                          return Center(
-                            child: Text(
-                              "No clients to chat with yet.",
-                              style: _getTextStyle(context,
-                                  fontSize: 16, color: _textColorPrimary(context)),
-                            ),
-                          );
-                        }
+                    return ListView.builder(
+                      padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 8.0),
+                      itemCount: filteredUsers.length,
+                      itemBuilder: (context, index) {
+                        final userDoc = filteredUsers[index];
+                        final data = userDoc.data() as Map<String, dynamic>;
+                        final senderName =
+                        "${data["firstName"] ?? ""} ${data["lastName"] ?? ""}"
+                            .trim();
+                        final chatRoomId = getChatRoomId(currentUserId, userDoc.id);
 
-                        // ✅ Filter users: Only admin and followers
-                        final filteredUsers = userSnapshot.data!.docs.where((doc) {
-                          if (doc.id == currentUserId) return false;
-
-                          final userData = doc.data() as Map<String, dynamic>;
-                          final role = userData["role"]?.toString().toLowerCase() ?? "";
-
-                          // Show if user is admin OR if user is in followers list
-                          if (role == "admin") return true;
-                          if (followerIds.contains(doc.id)) return true;
-
-                          return false;
-                        }).toList();
-
-                        // Sort by most recent message
-                        filteredUsers.sort((a, b) {
-                          final aHasChat = userChats.containsKey(a.id);
-                          final bHasChat = userChats.containsKey(b.id);
-
-                          if (!aHasChat && !bHasChat) return 0;
-                          if (!aHasChat) return 1;
-                          if (!bHasChat) return -1;
-
-                          final aTime = userChats[a.id]?['timestamp'] as Timestamp?;
-                          final bTime = userChats[b.id]?['timestamp'] as Timestamp?;
-
-                          if (aTime == null || bTime == null) return 0;
-                          return bTime.compareTo(aTime);
-                        });
-
-                        if (filteredUsers.isEmpty) {
-                          return Center(
-                            child: Text(
-                              "No clients following you yet.",
-                              style: _getTextStyle(context,
-                                  fontSize: 16, color: _textColorPrimary(context)),
-                            ),
-                          );
-                        }
-
-                        return ListView.builder(
-                          padding: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 8.0),
-                          itemCount: filteredUsers.length,
-                          itemBuilder: (context, index) {
-                            final userDoc = filteredUsers[index];
-                            final data = userDoc.data() as Map<String, dynamic>;
-                            final senderName =
-                            "${data["firstName"] ?? ""} ${data["lastName"] ?? ""}"
-                                .trim();
-                            final chatData = userChats[userDoc.id];
-
+                        return FutureBuilder<Map<String, dynamic>>(
+                          future: getLastMessage(context, chatRoomId, senderName),
+                          builder: (context, snapshotMessage) {
                             String subtitleText = "No messages yet";
                             String timeText = "";
-                            bool isUnread = false;
 
-                            if (chatData != null) {
-                              final lastMessage = chatData['lastMessage'] as Map<String, dynamic>;
-                              final messageText = lastMessage["message"] ?? "";
-                              final isMe = lastMessage["senderID"] == currentUserId;
-                              final timestamp = chatData['timestamp'] as Timestamp?;
-                              final read = lastMessage["read"] ?? "false";
+                            if (snapshotMessage.connectionState ==
+                                ConnectionState.done &&
+                                snapshotMessage.hasData) {
+                              final lastMsg = snapshotMessage.data!;
+                              final lastMessage = lastMsg["message"] ?? "";
+                              final lastSenderName = lastMsg["senderName"] ?? "";
+                              timeText = lastMsg["time"] ?? "";
 
-                              isUnread = !isMe && read.toString().toLowerCase() == "false";
-
-                              if (messageText.isNotEmpty) {
-                                subtitleText = isMe ? "You: $messageText" : "${lastMessage["senderName"] ?? senderName}: $messageText";
-                              }
-
-                              if (timestamp != null) {
-                                final messageDate = timestamp.toDate();
-                                final now = DateTime.now();
-                                if (messageDate.year == now.year &&
-                                    messageDate.month == now.month &&
-                                    messageDate.day == now.day) {
-                                  timeText = TimeOfDay.fromDateTime(messageDate).format(context);
+                              if (lastMessage.isNotEmpty) {
+                                if (lastMsg["isMe"] ?? false) {
+                                  subtitleText = "You: $lastMessage";
                                 } else {
-                                  timeText = DateFormat('MMM d').format(messageDate);
+                                  subtitleText = "$lastSenderName: $lastMessage";
                                 }
                               }
                             }
@@ -1905,7 +1859,7 @@ class _UsersListPageState extends State<UsersListPage> {
                                 child: InkWell(
                                   borderRadius: BorderRadius.circular(12),
                                   onTap: () async {
-                                    // ✅ Mark all messages and notifications as read before navigating
+                                    // Mark messages as read before navigating
                                     final chatRoomId = getChatRoomId(currentUserId, userDoc.id);
                                     await markMessagesAsRead(chatRoomId, userDoc.id);
 
@@ -1925,9 +1879,7 @@ class _UsersListPageState extends State<UsersListPage> {
                                   },
                                   child: Container(
                                     decoration: BoxDecoration(
-                                      color: isUnread
-                                          ? _primaryColor.withOpacity(0.1)
-                                          : _cardBgColor(context),
+                                      color: _cardBgColor(context),
                                       borderRadius: BorderRadius.circular(12),
                                       boxShadow: [
                                         BoxShadow(
@@ -1936,25 +1888,20 @@ class _UsersListPageState extends State<UsersListPage> {
                                           offset: const Offset(0, 1),
                                         ),
                                       ],
-                                      border: isUnread
-                                          ? Border.all(
-                                        color: _primaryColor.withOpacity(0.3),
-                                        width: 1.5,
-                                      )
-                                          : null,
                                     ),
                                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                                     child: Row(
                                       children: [
+                                        // Avatar with online indicator
                                         Stack(
                                           children: [
                                             CircleAvatar(
                                               radius: 24,
+                                              backgroundColor: _primaryColor.withOpacity(0.2),
                                               backgroundImage: (data["profile"] != null &&
                                                   data["profile"].toString().isNotEmpty)
                                                   ? NetworkImage(data["profile"])
                                                   : null,
-                                              backgroundColor: _primaryColor.withOpacity(0.2),
                                               child: (data["profile"] == null ||
                                                   data["profile"].toString().isEmpty)
                                                   ? Icon(Icons.person_outline,
@@ -1980,6 +1927,7 @@ class _UsersListPageState extends State<UsersListPage> {
                                           ],
                                         ),
                                         const SizedBox(width: 12),
+                                        // Chat info
                                         Expanded(
                                           child: Column(
                                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1988,9 +1936,7 @@ class _UsersListPageState extends State<UsersListPage> {
                                                 senderName,
                                                 style: _getTextStyle(context,
                                                     fontSize: 15,
-                                                    fontWeight: isUnread
-                                                        ? FontWeight.bold
-                                                        : FontWeight.w600),
+                                                    fontWeight: FontWeight.w600),
                                                 maxLines: 1,
                                                 overflow: TextOverflow.ellipsis,
                                               ),
@@ -2001,46 +1947,21 @@ class _UsersListPageState extends State<UsersListPage> {
                                                 overflow: TextOverflow.ellipsis,
                                                 style: _getTextStyle(context,
                                                     fontSize: 13,
-                                                    fontWeight: isUnread
-                                                        ? FontWeight.w600
-                                                        : FontWeight.w400,
-                                                    color: isUnread
-                                                        ? _textColorPrimary(context)
-                                                        : _textColorSecondary(context)),
+                                                    fontWeight: FontWeight.w400,
+                                                    color: _textColorSecondary(context)),
                                               ),
                                             ],
                                           ),
                                         ),
+                                        // Time
                                         if (timeText.isNotEmpty)
                                           Padding(
                                             padding: const EdgeInsets.only(left: 8.0),
-                                            child: Column(
-                                              crossAxisAlignment: CrossAxisAlignment.end,
-                                              children: [
-                                                Text(
-                                                  timeText,
-                                                  style: _getTextStyle(context,
-                                                      fontSize: 12,
-                                                      fontWeight: isUnread
-                                                          ? FontWeight.w600
-                                                          : FontWeight.normal,
-                                                      color: isUnread
-                                                          ? _primaryColor
-                                                          : _textColorSecondary(context)),
-                                                ),
-                                                if (isUnread)
-                                                  Padding(
-                                                    padding: const EdgeInsets.only(top: 6.0),
-                                                    child: Container(
-                                                      width: 10,
-                                                      height: 10,
-                                                      decoration: const BoxDecoration(
-                                                        color: Colors.redAccent,
-                                                        shape: BoxShape.circle,
-                                                      ),
-                                                    ),
-                                                  ),
-                                              ],
+                                            child: Text(
+                                              timeText,
+                                              style: _getTextStyle(context,
+                                                  fontSize: 12,
+                                                  color: _textColorSecondary(context)),
                                             ),
                                           ),
                                       ],
@@ -2058,7 +1979,7 @@ class _UsersListPageState extends State<UsersListPage> {
               },
             ),
 
-            // ✅ NOTIFICATIONS TAB
+            // NOTIFICATIONS TAB - Premium Design
             StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance
                   .collection("Users")
@@ -2068,31 +1989,32 @@ class _UsersListPageState extends State<UsersListPage> {
                   .snapshots(),
               builder: (context, snapshot) {
                 if (!snapshot.hasData)
-                  return const Center(child: CircularProgressIndicator());
+                  return const Center(child: CircularProgressIndicator(color: _primaryColor));
 
                 final docs = snapshot.data!.docs;
-
-                final Map<String, DocumentSnapshot> notificationMap = {};
-                for (var doc in docs) {
-                  final data = doc.data() as Map<String, dynamic>;
-                  final senderId = data["senderId"] as String?;
-
-                  if (senderId != null && !notificationMap.containsKey(senderId)) {
-                    notificationMap[senderId] = doc;
-                  }
-                }
-
-                final uniqueNotifications = notificationMap.values.toList();
-
-                if (uniqueNotifications.isEmpty) {
-                  return const Center(child: Text("No notifications"));
+                if (docs.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.notifications_off_outlined,
+                            size: 64, color: _primaryColor.withOpacity(0.3)),
+                        const SizedBox(height: 16),
+                        Text("No notifications yet",
+                            style: _getTextStyle(context,
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: _textColorPrimary(context))),
+                      ],
+                    ),
+                  );
                 }
 
                 return ListView.builder(
-                  itemCount: uniqueNotifications.length,
-                  padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 8.0),
+                  itemCount: docs.length,
+                  padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 12.0),
                   itemBuilder: (context, index) {
-                    final doc = uniqueNotifications[index];
+                    final doc = docs[index];
                     final data = doc.data() as Map<String, dynamic>;
                     final Timestamp? timestamp = data["timestamp"] as Timestamp?;
                     String formattedTime = "";
@@ -2102,41 +2024,57 @@ class _UsersListPageState extends State<UsersListPage> {
                       final now = DateTime.now();
                       if (date.year == now.year && date.month == now.month && date.day == now.day) {
                         formattedTime = DateFormat.jm().format(date);
-                      } else if (date.year == now.year && date.month == now.month && date.day == now.day -1) {
+                      } else if (date.year == now.year && date.month == now.month && date.day == now.day - 1) {
                         formattedTime = "Yesterday";
                       } else {
                         formattedTime = DateFormat('MMM d').format(date);
                       }
                     }
 
-                    IconData notificationIcon = Icons.notifications_none;
-                    Color iconColor = _primaryColor;
+                    bool isRead = data["isRead"] == true;
+
+                    // Determine icon and color based on type
+                    IconData notificationIcon = Icons.notifications_rounded;
+                    Color iconBgColor = _primaryColor;
 
                     if (data["type"] == "message") {
                       notificationIcon = Icons.chat_bubble_outline_rounded;
+                      iconBgColor = const Color(0xFF2196F3);
                     } else if (data["type"] == "appointment" || data["type"] == "appointment_update") {
                       notificationIcon = Icons.event_available_outlined;
+                      iconBgColor = const Color(0xFFFF9800);
                     }
 
-                    bool isRead = data["isRead"] == true;
-
                     return Container(
-                      margin: const EdgeInsets.symmetric(vertical: 6.0),
+                      margin: const EdgeInsets.only(bottom: 10.0),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(14),
+                        gradient: isRead
+                            ? null
+                            : LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            iconBgColor.withOpacity(0.08),
+                            iconBgColor.withOpacity(0.03),
+                          ],
+                        ),
+                      ),
                       child: Card(
                         margin: EdgeInsets.zero,
-                        elevation: 1.5,
-                        color: isRead ? _cardBgColor(context) : _primaryColor.withOpacity(0.08),
+                        elevation: isRead ? 0.5 : 2,
+                        color: isRead ? _cardBgColor(context) : _cardBgColor(context),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12.0),
+                          borderRadius: BorderRadius.circular(14),
                           side: isRead
-                              ? BorderSide.none
+                              ? BorderSide(color: Colors.grey.shade300, width: 0.5)
                               : BorderSide(
-                            color: _primaryColor.withOpacity(0.3),
+                            color: iconBgColor.withOpacity(0.4),
                             width: 1.5,
                           ),
                         ),
                         child: InkWell(
-                          borderRadius: BorderRadius.circular(12.0),
+                          borderRadius: BorderRadius.circular(14),
                           onTap: () async {
                             if (!isRead) {
                               await FirebaseFirestore.instance
@@ -2148,66 +2086,83 @@ class _UsersListPageState extends State<UsersListPage> {
                             }
 
                             if (data["type"] == "message" && data["senderId"] != null && data["senderName"] != null) {
-                              if (mounted) {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => MessagesPageDietitian(
-                                      receiverId: data["senderId"],
-                                      receiverName: data["senderName"],
-                                      currentUserId: currentUserId,
-                                      receiverProfile: data["receiverProfile"] ?? "",
-                                    ),
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => MessagesPageDietitian(
+                                    receiverId: data["senderId"],
+                                    receiverName: data["senderName"],
+                                    currentUserId: currentUserId,
+                                    receiverProfile: data["receiverProfile"] ?? "",
                                   ),
-                                );
-                              }
+                                ),
+                              );
                             }
                           },
                           child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 12.0),
+                            padding: const EdgeInsets.all(14.0),
                             child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.center,
                               children: [
-                                if (!isRead)
-                                  Container(
-                                    width: 10,
-                                    height: 10,
-                                    margin: const EdgeInsets.only(right: 12.0),
-                                    decoration: const BoxDecoration(
-                                      color: Colors.redAccent,
-                                      shape: BoxShape.circle,
+                                // Icon with colored background
+                                Container(
+                                  width: 48,
+                                  height: 48,
+                                  decoration: BoxDecoration(
+                                    color: iconBgColor.withOpacity(0.15),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: iconBgColor.withOpacity(0.2),
+                                      width: 1.5,
                                     ),
-                                  )
-                                else
-                                  const SizedBox(width: 10 + 12.0),
-
-                                Icon(
-                                  notificationIcon,
-                                  color: isRead ? _textColorSecondary(context).withOpacity(0.7) : iconColor,
-                                  size: 26.0,
+                                  ),
+                                  child: Icon(
+                                    notificationIcon,
+                                    color: iconBgColor,
+                                    size: 24,
+                                  ),
                                 ),
-                                const SizedBox(width: 14),
+                                const SizedBox(width: 12),
+                                // Title and message
                                 Expanded(
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      Text(
-                                        data["title"] ?? "Notification",
-                                        style: _getTextStyle(
-                                          context,
-                                          fontSize: 15.5,
-                                          fontWeight: isRead ? FontWeight.w500 : FontWeight.bold,
-                                          color: _textColorPrimary(context),
-                                        ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
+                                      Row(
+                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Expanded(
+                                            child: Text(
+                                              data["title"] ?? "Notification",
+                                              style: _getTextStyle(
+                                                context,
+                                                fontSize: 15,
+                                                fontWeight: isRead ? FontWeight.w600 : FontWeight.bold,
+                                                color: _textColorPrimary(context),
+                                              ),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                          if (!isRead)
+                                            Container(
+                                              width: 8,
+                                              height: 8,
+                                              margin: const EdgeInsets.only(left: 8.0),
+                                              decoration: BoxDecoration(
+                                                color: iconBgColor,
+                                                shape: BoxShape.circle,
+                                              ),
+                                            ),
+                                        ],
                                       ),
-                                      const SizedBox(height: 2),
+                                      const SizedBox(height: 6),
                                       Text(
                                         data["message"] ?? "",
                                         style: _getTextStyle(
                                           context,
                                           fontSize: 13,
-                                          fontWeight: isRead ? FontWeight.w400 : FontWeight.w500,
+                                          fontWeight: FontWeight.w400,
                                           color: _textColorSecondary(context),
                                         ),
                                         maxLines: 2,
@@ -2218,17 +2173,22 @@ class _UsersListPageState extends State<UsersListPage> {
                                 ),
                                 if (formattedTime.isNotEmpty)
                                   Padding(
-                                    padding: const EdgeInsets.only(left: 8.0),
-                                    child: Text(
-                                      formattedTime,
-                                      style: _getTextStyle(
-                                        context,
-                                        fontSize: 11.5,
-                                        fontWeight: isRead ? FontWeight.normal : FontWeight.w600,
-                                        color: isRead
-                                            ? _textColorSecondary(context).withOpacity(0.8)
-                                            : _primaryColor,
-                                      ),
+                                    padding: const EdgeInsets.only(left: 12.0),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.end,
+                                      children: [
+                                        Text(
+                                          formattedTime,
+                                          style: _getTextStyle(
+                                            context,
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w500,
+                                            color: isRead
+                                                ? _textColorSecondary(context)
+                                                : iconBgColor,
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ),
                               ],
