@@ -3011,6 +3011,8 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
   }
 }
 
+// REPLACE the entire UsersListPage class in your home.dart with this code
+
 class UsersListPage extends StatelessWidget {
   final String currentUserId;
   const UsersListPage({super.key, required this.currentUserId});
@@ -3063,7 +3065,7 @@ class UsersListPage extends StatelessWidget {
     };
   }
 
-  /// ✅ Get list of followed dietitians from 'following' subcollection
+  /// Get list of followed dietitians from 'following' subcollection
   Future<List<String>> getFollowedDietitianIds() async {
     try {
       final followingSnapshot = await FirebaseFirestore.instance
@@ -3159,7 +3161,7 @@ class UsersListPage extends StatelessWidget {
         ),
         body: TabBarView(
           children: [
-            // 🔹 CHATS TAB - Filtered to show only followed dietitians and admins
+            // CHATS TAB - Modern Card Design
             FutureBuilder<List<String>>(
               future: getFollowedDietitianIds(),
               builder: (context, followingSnapshot) {
@@ -3196,14 +3198,13 @@ class UsersListPage extends StatelessWidget {
 
                     final users = snapshot.data!.docs;
 
-                    // 🔹 Filter users: Only admin and dietitians that current user follows
+                    // Filter users: Only admin and dietitians that current user follows
                     final filteredUsers = users.where((userDoc) {
                       if (userDoc.id == currentUserId) return false;
 
                       final data = userDoc.data() as Map<String, dynamic>;
                       final role = data["role"]?.toString().toLowerCase() ?? "";
 
-                      // Show if user is admin OR if dietitian and current user follows them
                       if (role == "admin") return true;
                       if (role == "dietitian" && followedDietitianIds.contains(userDoc.id)) {
                         return true;
@@ -3225,11 +3226,9 @@ class UsersListPage extends StatelessWidget {
                       );
                     }
 
-                    return ListView.separated(
-                      padding: const EdgeInsets.symmetric(vertical: 8.0),
+                    return ListView.builder(
+                      padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 8.0),
                       itemCount: filteredUsers.length,
-                      separatorBuilder: (context, index) =>
-                      const Divider(height: 0.5, indent: 88, endIndent: 16),
                       itemBuilder: (context, index) {
                         final userDoc = filteredUsers[index];
                         final data = userDoc.data() as Map<String, dynamic>;
@@ -3254,52 +3253,124 @@ class UsersListPage extends StatelessWidget {
 
                               if (lastMessage.isNotEmpty) {
                                 if (lastMsg["isMe"] ?? false) {
-                                  subtitleText = "Me: $lastMessage";
+                                  subtitleText = "You: $lastMessage";
                                 } else {
                                   subtitleText = "$lastSenderName: $lastMessage";
                                 }
                               }
                             }
 
-                            return ListTile(
-                              leading: CircleAvatar(
-                                backgroundImage: (data["profile"] != null &&
-                                    data["profile"].toString().isNotEmpty)
-                                    ? NetworkImage(data["profile"])
-                                    : null,
-                                child: (data["profile"] == null ||
-                                    data["profile"].toString().isEmpty)
-                                    ? Icon(
-                                  Icons.person_outline,
-                                  color: _primaryColor,
-                                )
-                                    : null,
-                              ),
-                              title: Text(senderName),
-                              subtitle: Text(
-                                subtitleText,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              trailing: timeText.isNotEmpty
-                                  ? Text(
-                                timeText,
-                                style: const TextStyle(fontSize: 12),
-                              )
-                                  : null,
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => MessagesPage(
-                                      currentUserId: currentUserId,
-                                      receiverId: userDoc.id,
-                                      receiverName: senderName,
-                                      receiverProfile: data["profile"] ?? "",
+                            return Container(
+                              margin: const EdgeInsets.symmetric(vertical: 6.0, horizontal: 4.0),
+                              child: Material(
+                                color: Colors.transparent,
+                                child: InkWell(
+                                  borderRadius: BorderRadius.circular(12),
+                                  onTap: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => MessagesPage(
+                                          currentUserId: currentUserId,
+                                          receiverId: userDoc.id,
+                                          receiverName: senderName,
+                                          receiverProfile: data["profile"] ?? "",
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      color: _cardBgColor(context),
+                                      borderRadius: BorderRadius.circular(12),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withOpacity(0.04),
+                                          blurRadius: 4,
+                                          offset: const Offset(0, 1),
+                                        ),
+                                      ],
+                                    ),
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                    child: Row(
+                                      children: [
+                                        // Avatar with online indicator
+                                        Stack(
+                                          children: [
+                                            CircleAvatar(
+                                              radius: 24,
+                                              backgroundColor: _primaryColor.withOpacity(0.2),
+                                              backgroundImage: (data["profile"] != null &&
+                                                  data["profile"].toString().isNotEmpty)
+                                                  ? NetworkImage(data["profile"])
+                                                  : null,
+                                              child: (data["profile"] == null ||
+                                                  data["profile"].toString().isEmpty)
+                                                  ? Icon(Icons.person_outline,
+                                                  color: _primaryColor, size: 24)
+                                                  : null,
+                                            ),
+                                            Positioned(
+                                              bottom: 0,
+                                              right: 0,
+                                              child: Container(
+                                                width: 14,
+                                                height: 14,
+                                                decoration: BoxDecoration(
+                                                  color: Colors.green,
+                                                  shape: BoxShape.circle,
+                                                  border: Border.all(
+                                                    color: _cardBgColor(context),
+                                                    width: 2,
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(width: 12),
+                                        // Chat info
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                senderName,
+                                                style: _getTextStyle(context,
+                                                    fontSize: 15,
+                                                    fontWeight: FontWeight.w600),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                              const SizedBox(height: 4),
+                                              Text(
+                                                subtitleText,
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: _getTextStyle(context,
+                                                    fontSize: 13,
+                                                    fontWeight: FontWeight.w400,
+                                                    color: _textColorSecondary(context)),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        // Time
+                                        if (timeText.isNotEmpty)
+                                          Padding(
+                                            padding: const EdgeInsets.only(left: 8.0),
+                                            child: Text(
+                                              timeText,
+                                              style: _getTextStyle(context,
+                                                  fontSize: 12,
+                                                  color: _textColorSecondary(context)),
+                                            ),
+                                          ),
+                                      ],
                                     ),
                                   ),
-                                );
-                              },
+                                ),
+                              ),
                             );
                           },
                         );
@@ -3310,7 +3381,7 @@ class UsersListPage extends StatelessWidget {
               },
             ),
 
-            // 🔹 NOTIFICATIONS TAB
+            // NOTIFICATIONS TAB - Premium Design
             StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance
                   .collection("Users")
@@ -3320,74 +3391,218 @@ class UsersListPage extends StatelessWidget {
                   .snapshots(),
               builder: (context, snapshot) {
                 if (!snapshot.hasData)
-                  return const Center(child: CircularProgressIndicator());
+                  return const Center(child: CircularProgressIndicator(color: _primaryColor));
 
                 final docs = snapshot.data!.docs;
                 if (docs.isEmpty) {
-                  return const Center(child: Text("No notifications"));
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.notifications_off_outlined,
+                            size: 64, color: _primaryColor.withOpacity(0.3)),
+                        const SizedBox(height: 16),
+                        Text("No notifications yet",
+                            style: _getTextStyle(context,
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: _textColorPrimary(context))),
+                      ],
+                    ),
+                  );
                 }
 
-                return MediaQuery.removePadding(
-                  context: context,
-                  removeTop: true,
-                  child: ListView.builder(
-                    itemCount: docs.length,
-                    itemBuilder: (context, index) {
-                      final doc = docs[index];
-                      final data = doc.data() as Map<String, dynamic>;
+                return ListView.builder(
+                  itemCount: docs.length,
+                  padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 12.0),
+                  itemBuilder: (context, index) {
+                    final doc = docs[index];
+                    final data = doc.data() as Map<String, dynamic>;
+                    final Timestamp? timestamp = data["timestamp"] as Timestamp?;
+                    String formattedTime = "";
 
-                      return ListTile(
-                        title: Text(data["title"] ?? "Notification"),
-                        subtitle: Text(data["message"] ?? ""),
-                        trailing: data["isRead"] == false
-                            ? Container(
-                          width: 20,
-                          height: 20,
-                          decoration: const BoxDecoration(
-                            color: Colors.red,
-                            shape: BoxShape.circle,
+                    if (timestamp != null) {
+                      final date = timestamp.toDate();
+                      final now = DateTime.now();
+                      if (date.year == now.year && date.month == now.month && date.day == now.day) {
+                        formattedTime = DateFormat.jm().format(date);
+                      } else if (date.year == now.year && date.month == now.month && date.day == now.day - 1) {
+                        formattedTime = "Yesterday";
+                      } else {
+                        formattedTime = DateFormat('MMM d').format(date);
+                      }
+                    }
+
+                    bool isRead = data["isRead"] == true;
+
+                    // Determine icon and color based on type
+                    IconData notificationIcon = Icons.notifications_rounded;
+                    Color iconBgColor = _primaryColor;
+
+                    if (data["type"] == "message") {
+                      notificationIcon = Icons.chat_bubble_outline_rounded;
+                      iconBgColor = const Color(0xFF2196F3);
+                    } else if (data["type"] == "appointment" || data["type"] == "appointment_update") {
+                      notificationIcon = Icons.event_available_outlined;
+                      iconBgColor = const Color(0xFFFF9800);
+                    }
+
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 10.0),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(14),
+                        gradient: isRead
+                            ? null
+                            : LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            iconBgColor.withOpacity(0.08),
+                            iconBgColor.withOpacity(0.03),
+                          ],
+                        ),
+                      ),
+                      child: Card(
+                        margin: EdgeInsets.zero,
+                        elevation: isRead ? 0.5 : 2,
+                        color: isRead ? _cardBgColor(context) : _cardBgColor(context),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          side: isRead
+                              ? BorderSide(color: Colors.grey.shade300, width: 0.5)
+                              : BorderSide(
+                            color: iconBgColor.withOpacity(0.4),
+                            width: 1.5,
                           ),
-                          child: const Center(
-                            child: Text(
-                              '!',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                              ),
+                        ),
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(14),
+                          onTap: () async {
+                            if (!isRead) {
+                              await FirebaseFirestore.instance
+                                  .collection("Users")
+                                  .doc(currentUserId)
+                                  .collection("notifications")
+                                  .doc(doc.id)
+                                  .update({"isRead": true});
+                            }
+
+                            if (data["type"] == "message" && data["senderId"] != null && data["senderName"] != null) {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => MessagesPage(
+                                    receiverId: data["senderId"],
+                                    receiverName: data["senderName"],
+                                    currentUserId: currentUserId,
+                                    receiverProfile: data["receiverProfile"] ?? "",
+                                  ),
+                                ),
+                              );
+                            }
+                          },
+                          child: Padding(
+                            padding: const EdgeInsets.all(14.0),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                // Icon with colored background
+                                Container(
+                                  width: 48,
+                                  height: 48,
+                                  decoration: BoxDecoration(
+                                    color: iconBgColor.withOpacity(0.15),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: iconBgColor.withOpacity(0.2),
+                                      width: 1.5,
+                                    ),
+                                  ),
+                                  child: Icon(
+                                    notificationIcon,
+                                    color: iconBgColor,
+                                    size: 24,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                // Title and message
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Expanded(
+                                            child: Text(
+                                              data["title"] ?? "Notification",
+                                              style: _getTextStyle(
+                                                context,
+                                                fontSize: 15,
+                                                fontWeight: isRead ? FontWeight.w600 : FontWeight.bold,
+                                                color: _textColorPrimary(context),
+                                              ),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                          if (!isRead)
+                                            Container(
+                                              width: 8,
+                                              height: 8,
+                                              margin: const EdgeInsets.only(left: 8.0),
+                                              decoration: BoxDecoration(
+                                                color: iconBgColor,
+                                                shape: BoxShape.circle,
+                                              ),
+                                            ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 6),
+                                      Text(
+                                        data["message"] ?? "",
+                                        style: _getTextStyle(
+                                          context,
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w400,
+                                          color: _textColorSecondary(context),
+                                        ),
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                if (formattedTime.isNotEmpty)
+                                  Padding(
+                                    padding: const EdgeInsets.only(left: 12.0),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.end,
+                                      children: [
+                                        Text(
+                                          formattedTime,
+                                          style: _getTextStyle(
+                                            context,
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w500,
+                                            color: isRead
+                                                ? _textColorSecondary(context)
+                                                : iconBgColor,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                              ],
                             ),
                           ),
-                        )
-                            : null,
-                        onTap: () async {
-                          await FirebaseFirestore.instance
-                              .collection("Users")
-                              .doc(currentUserId)
-                              .collection("notifications")
-                              .doc(doc.id)
-                              .update({"isRead": true});
-
-                          if (data["type"] == "message") {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => MessagesPage(
-                                  receiverId: data["senderId"],
-                                  receiverName: data["senderName"],
-                                  currentUserId: currentUserId,
-                                  receiverProfile:
-                                  data["receiverProfile"] ?? "",
-                                ),
-                              ),
-                            );
-                          }
-                        },
-                      );
-                    },
-                  ),
+                        ),
+                      ),
+                    );
+                  },
                 );
               },
-            ),
+            )
           ],
         ),
       ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'start4.dart';
 import 'package:mamas_recipe/widget/custom_snackbar.dart';
+import 'package:intl/intl.dart';
 
 class MealPlanningScreen3 extends StatefulWidget {
   final String userId;
@@ -11,6 +12,345 @@ class MealPlanningScreen3 extends StatefulWidget {
   @override
   State<MealPlanningScreen3> createState() => _MealPlanningScreen3State();
 }
+
+
+
+class CustomBirthdayPicker extends StatefulWidget {
+  final DateTime initialDate;
+  final Function(DateTime) onDateSelected;
+
+  const CustomBirthdayPicker({
+    super.key,
+    required this.initialDate,
+    required this.onDateSelected,
+  });
+
+  @override
+  State<CustomBirthdayPicker> createState() => _CustomBirthdayPickerState();
+}
+
+class _CustomBirthdayPickerState extends State<CustomBirthdayPicker> {
+  static const Color _primaryColor = Color(0xFF4CAF50);
+  static const Color _textColorOnPrimary = Colors.white;
+  static const String _primaryFontFamily = 'PlusJakartaSans';
+
+  late DateTime _selectedDate;
+  late int _selectedYear;
+  late int _selectedMonth;
+  late int _selectedDay;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedDate = widget.initialDate;
+    _selectedYear = _selectedDate.year;
+    _selectedMonth = _selectedDate.month;
+    _selectedDay = _selectedDate.day;
+  }
+
+  void _updateDate() {
+    _selectedDate = DateTime(_selectedYear, _selectedMonth, _selectedDay);
+  }
+
+  int _getDaysInMonth(int month, int year) {
+    if (month == DateTime.february) {
+      final isLeap = (year % 4 == 0 && year % 100 != 0) || (year % 400 == 0);
+      return isLeap ? 29 : 28;
+    }
+    const daysInMonth = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+    return daysInMonth[month - 1];
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgColor = isDark ? Colors.grey.shade900 : Colors.grey.shade100;
+    final cardColor = isDark ? Colors.grey.shade800 : Colors.white;
+    final textColor = isDark ? Colors.white70 : Colors.black87;
+    final secondaryText = isDark ? Colors.white54 : Colors.black54;
+
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      backgroundColor: cardColor,
+      // CHANGE THIS: Adjust the dialog width (0.85 = 85% of screen width)
+      insetPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 24),
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Header
+            Text(
+              'Select Your Birthday',
+              style: TextStyle(
+                fontFamily: _primaryFontFamily,
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: textColor,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              DateFormat('EEEE, MMMM d, yyyy').format(_selectedDate),
+              style: TextStyle(
+                fontFamily: _primaryFontFamily,
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: _primaryColor,
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            // Month and Year Row
+            Row(
+              children: [
+                Expanded(
+                  flex: 2,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Month',
+                        style: TextStyle(
+                          fontFamily: _primaryFontFamily,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: secondaryText,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Container(
+                        decoration: BoxDecoration(
+                          color: bgColor,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.grey.shade300, width: 1.5),
+                        ),
+                        child: DropdownButton<int>(
+                          value: _selectedMonth,
+                          isExpanded: true,
+                          underline: const SizedBox.shrink(),
+                          style: TextStyle(
+                            fontFamily: _primaryFontFamily,
+                            fontSize: 14,
+                            color: textColor,
+                          ),
+                          items: List.generate(12, (index) {
+                            return DropdownMenuItem(
+                              value: index + 1,
+                              alignment: Alignment.center,
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 12),
+                                child: Text(
+                                  DateFormat('MMMM').format(DateTime(2000, index + 1)),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                            );
+                          }),
+                          onChanged: (value) {
+                            if (value != null) {
+                              setState(() {
+                                _selectedMonth = value;
+                                final maxDay = _getDaysInMonth(_selectedMonth, _selectedYear);
+                                if (_selectedDay > maxDay) {
+                                  _selectedDay = maxDay;
+                                }
+                                _updateDate();
+                              });
+                            }
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  flex: 1,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Day',
+                        style: TextStyle(
+                          fontFamily: _primaryFontFamily,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: secondaryText,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Container(
+                        decoration: BoxDecoration(
+                          color: bgColor,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.grey.shade300, width: 1.5),
+                        ),
+                        child: DropdownButton<int>(
+                          value: _selectedDay,
+                          isExpanded: true,
+                          underline: const SizedBox.shrink(),
+                          style: TextStyle(
+                            fontFamily: _primaryFontFamily,
+                            fontSize: 14,
+                            color: textColor,
+                          ),
+                          items: List.generate(
+                            _getDaysInMonth(_selectedMonth, _selectedYear),
+                                (index) => DropdownMenuItem(
+                              value: index + 1,
+                              alignment: Alignment.center,
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 12),
+                                child: Text(
+                                  '${index + 1}',
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                            ),
+                          ),
+                          onChanged: (value) {
+                            if (value != null) {
+                              setState(() {
+                                _selectedDay = value;
+                                _updateDate();
+                              });
+                            }
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  flex: 2,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Year',
+                        style: TextStyle(
+                          fontFamily: _primaryFontFamily,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: secondaryText,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Container(
+                        decoration: BoxDecoration(
+                          color: bgColor,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.grey.shade300, width: 1.5),
+                        ),
+                        child: DropdownButton<int>(
+                          value: _selectedYear,
+                          isExpanded: true,
+                          underline: const SizedBox.shrink(),
+                          style: TextStyle(
+                            fontFamily: _primaryFontFamily,
+                            fontSize: 14,
+                            color: textColor,
+                          ),
+                          items: List.generate(
+                            DateTime.now().year - 1900 + 1,
+                                (index) {
+                              final year = 1900 + index;
+                              return DropdownMenuItem(
+                                value: year,
+                                alignment: Alignment.center,
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                                  child: Text(
+                                    '$year',
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ),
+                              );
+                            },
+                          ).toList()
+                            ..sort((a, b) => (b.value as int).compareTo(a.value as int)),
+                          onChanged: (value) {
+                            if (value != null) {
+                              setState(() {
+                                _selectedYear = value;
+                                final maxDay = _getDaysInMonth(_selectedMonth, _selectedYear);
+                                if (_selectedDay > maxDay) {
+                                  _selectedDay = maxDay;
+                                }
+                                _updateDate();
+                              });
+                            }
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+
+            // Buttons
+            Row(
+              children: [
+                Expanded(
+                  child: TextButton(
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        side: BorderSide(color: Colors.grey.shade400),
+                      ),
+                    ),
+                    onPressed: () => Navigator.pop(context),
+                    child: Text(
+                      'CANCEL',
+                      style: TextStyle(
+                        fontFamily: _primaryFontFamily,
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: secondaryText,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _primaryColor,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    onPressed: () {
+                      widget.onDateSelected(_selectedDate);
+                      Navigator.pop(context);
+                    },
+                    child: const Text(
+                      'SELECT',
+                      style: TextStyle(
+                        fontFamily: _primaryFontFamily,
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: _textColorOnPrimary,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+
 
 class _MealPlanningScreen3State extends State<MealPlanningScreen3> {
   // MODIFIED: Removed _formKey as we are doing manual validation
@@ -295,31 +635,20 @@ class _MealPlanningScreen3State extends State<MealPlanningScreen3> {
         ),
         const SizedBox(height: 8),
         GestureDetector(
-          onTap: () async {
-            final DateTime? picked = await showDatePicker(
+          onTap: () {
+            showDialog(
               context: context,
-              initialDate: selectedBirthday ?? DateTime(2000, 1, 1),
-              firstDate: DateTime(1900),
-              lastDate: DateTime.now(),
-              builder: (context, child) {
-                return Theme(
-                  data: Theme.of(context).copyWith(
-                    colorScheme: const ColorScheme.light(
-                      primary: _primaryColor,
-                      onPrimary: _textColorOnPrimary,
-                      surface: Colors.white,
-                      onSurface: Colors.black87,
-                    ),
-                  ),
-                  child: child!,
+              builder: (BuildContext context) {
+                return CustomBirthdayPicker(
+                  initialDate: selectedBirthday ?? DateTime(2000, 1, 1),
+                  onDateSelected: (DateTime date) {
+                    setState(() {
+                      selectedBirthday = date;
+                    });
+                  },
                 );
               },
             );
-            if (picked != null) {
-              setState(() {
-                selectedBirthday = picked;
-              });
-            }
           },
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
