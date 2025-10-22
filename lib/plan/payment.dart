@@ -8,13 +8,16 @@ import 'dart:convert';
 import '../email/paymentNotifDietitian.dart';
 import '../pages/home.dart';
 
-
 class PaymentPage extends StatefulWidget {
   final String planType;
   final String planPrice;
   final String dietitianName;
   final String dietitianEmail;
   final String dietitianProfile;
+  // NEW PARAMETERS
+  final String? dietitianId;
+  final double? priceAmount;
+  final int? durationDays;
 
   const PaymentPage({
     super.key,
@@ -23,6 +26,9 @@ class PaymentPage extends StatefulWidget {
     required this.dietitianName,
     required this.dietitianEmail,
     required this.dietitianProfile,
+    this.dietitianId, // Optional for backward compatibility
+    this.priceAmount, // Optional for backward compatibility
+    this.durationDays, // Optional for backward compatibility
   });
 
   @override
@@ -33,6 +39,9 @@ class _PaymentPageState extends State<PaymentPage> {
   String? _qrPicUrl;
   bool _isLoading = true;
   String? _uploadedReceiptUrl;
+  String? _resolvedDietitianId;
+  double? _resolvedPriceAmount;
+  int? _resolvedDurationDays;
 
   final _firestore = FirebaseFirestore.instance;
   final _auth = FirebaseAuth.instance;
@@ -40,10 +49,69 @@ class _PaymentPageState extends State<PaymentPage> {
   @override
   void initState() {
     super.initState();
-    _fetchDietitianQrPic();
+    _initializePaymentData();
   }
 
-  // 🔹 Fetch dietitian's qrpic
+  // Initialize and resolve payment data
+  Future<void> _initializePaymentData() async {
+    setState(() => _isLoading = true);
+
+    // If dietitianId is already provided, use it
+    if (widget.dietitianId != null) {
+      _resolvedDietitianId = widget.dietitianId;
+      _resolvedPriceAmount = widget.priceAmount;
+      _resolvedDurationDays = widget.durationDays;
+    } else {
+      // Fetch dietitianId from email (backward compatibility)
+      await _fetchDietitianId();
+
+      // Parse price and duration from planType if not provided
+      _resolvePlanDetails();
+    }
+
+    await _fetchDietitianQrPic();
+  }
+
+  // Fetch dietitian ID from email
+  Future<void> _fetchDietitianId() async {
+    try {
+      final query = await _firestore
+          .collection('Users')
+          .where('email', isEqualTo: widget.dietitianEmail)
+          .limit(1)
+          .get();
+
+      if (query.docs.isNotEmpty) {
+        _resolvedDietitianId = query.docs.first.id;
+      }
+    } catch (e) {
+      debugPrint("Error fetching dietitian ID: $e");
+    }
+  }
+
+  // Resolve plan details from planType string (backward compatibility)
+  void _resolvePlanDetails() {
+    // Extract price from planPrice string (e.g., "₱ 250.00" -> 250.0)
+    final priceString = widget.planPrice.replaceAll(RegExp(r'[^0-9.]'), '');
+    _resolvedPriceAmount = double.tryParse(priceString) ?? 0.0;
+
+    // Determine duration from planType
+    switch (widget.planType.toLowerCase()) {
+      case 'weekly':
+        _resolvedDurationDays = 7;
+        break;
+      case 'monthly':
+        _resolvedDurationDays = 30;
+        break;
+      case 'yearly':
+        _resolvedDurationDays = 365;
+        break;
+      default:
+        _resolvedDurationDays = 30; // Default to monthly
+    }
+  }
+
+  // Fetch dietitian's qrpic
   Future<void> _fetchDietitianQrPic() async {
     try {
       final query = await _firestore
@@ -64,7 +132,7 @@ class _PaymentPageState extends State<PaymentPage> {
     }
   }
 
-  // 🔹 Upload image to Cloudinary
+  // Upload image to Cloudinary
   Future<String?> _uploadImageToCloudinary(File imageFile) async {
     const cloudName = 'dbc77ko88';
     const uploadPreset = 'receipts';
@@ -86,7 +154,7 @@ class _PaymentPageState extends State<PaymentPage> {
     }
   }
 
-  // 🔹 Pick image from gallery (≤ 10MB)
+  // Pick image from gallery (≤ 10MB)
   Future<void> _pickAndUploadImage() async {
     final picker = ImagePicker();
     final pickedFile = await picker.pickImage(source: ImageSource.gallery);
@@ -97,7 +165,11 @@ class _PaymentPageState extends State<PaymentPage> {
 
     if (fileSizeMB > 10) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Image too large (${fileSizeMB.toStringAsFixed(2)} MB). Max allowed is 10 MB.")),
+        SnackBar(
+          content: Text(
+            "Image too large (${fileSizeMB.toStringAsFixed(2)} MB). Max allowed is 10 MB.",
+          ),
+        ),
       );
       return;
     }
@@ -121,7 +193,7 @@ class _PaymentPageState extends State<PaymentPage> {
     setState(() => _isLoading = false);
   }
 
-  // 🔹 Save receipt data to Firestore
+  // Save receipt data and create subscription
   Future<void> _saveReceiptData() async {
     final user = _auth.currentUser;
     if (user == null) {
@@ -138,26 +210,39 @@ class _PaymentPageState extends State<PaymentPage> {
       return;
     }
 
+    if (_resolvedDietitianId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Error: Dietitian information not found.")),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
     try {
-      final dietitianQuery = await _firestore
-          .collection('Users')
-          .where('email', isEqualTo: widget.dietitianEmail)
-          .limit(1)
-          .get();
+      // Calculate subscription dates
+      final now = DateTime.now();
+      final durationDays = _resolvedDurationDays ?? 30;
+      final endDate = now.add(Duration(days: durationDays));
 
-      if (dietitianQuery.docs.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Dietitian not found.")),
-        );
-        return;
-      }
+      // Create subscription document
+      final subscriptionRef = await _firestore.collection('subscriptions').add({
+        'dietitianId': _resolvedDietitianId,
+        'userId': user.uid,
+        'subscriptionType': widget.planType,
+        'status': 'pending', // Will be 'active' after admin approval
+        'price': _resolvedPriceAmount ?? 0.0,
+        'startDate': Timestamp.fromDate(now),
+        'endDate': Timestamp.fromDate(endDate),
+        'createdAt': FieldValue.serverTimestamp(),
+        'cancelledAt': null,
+      });
 
-      final dietitianID = dietitianQuery.docs.first.id;
-
-      // 🔹 Save to Firestore
+      // Save receipt with subscription reference
       await _firestore.collection('receipts').add({
         'clientID': user.uid,
-        'dietitianID': dietitianID,
+        'dietitianID': _resolvedDietitianId,
+        'subscriptionId': subscriptionRef.id,
         'planPrice': widget.planPrice,
         'planType': widget.planType,
         'receiptImg': _uploadedReceiptUrl,
@@ -165,7 +250,7 @@ class _PaymentPageState extends State<PaymentPage> {
         'timeStamp': FieldValue.serverTimestamp(),
       });
 
-      // 🔹 Send Gmail email to the dietitian
+      // Send email notification to dietitian
       await EmailSender.sendPaymentNotification(
         toEmail: widget.dietitianEmail,
         clientName: user.displayName ?? "A client",
@@ -174,25 +259,98 @@ class _PaymentPageState extends State<PaymentPage> {
         receiptUrl: _uploadedReceiptUrl!,
       );
 
+      // Update dietitian's subscriber count temporarily
+      await _updateDietitianStats();
+
+      if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Receipt submitted successfully.")),
+        const SnackBar(
+          content: Text(
+            "Receipt submitted successfully. Your subscription will be activated after approval.",
+          ),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 3),
+        ),
       );
 
-      // 🔹 Navigate to Home.dart
-      Navigator.pushReplacement(
+      // Navigate to Home
+      Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(builder: (context) => const home()),
+            (route) => false,
       );
-
     } catch (e) {
       debugPrint("Error saving receipt: $e");
+      if (!mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error: $e")),
+        SnackBar(
+          content: Text("Error: $e"),
+          backgroundColor: Colors.red,
+        ),
       );
+    } finally {
+      setState(() => _isLoading = false);
     }
   }
 
+  // Update dietitian statistics
+  Future<void> _updateDietitianStats() async {
+    if (_resolvedDietitianId == null) return;
+
+    try {
+      // Fetch all active subscriptions for this dietitian
+      final subscriptions = await _firestore
+          .collection('subscriptions')
+          .where('dietitianId', isEqualTo: _resolvedDietitianId)
+          .get();
+
+      double totalRevenue = 0;
+      int activeCount = 0;
+      int weeklyCount = 0;
+      int monthlyCount = 0;
+      int yearlyCount = 0;
+
+      for (var doc in subscriptions.docs) {
+        final data = doc.data();
+        final price = (data['price'] as num?)?.toDouble() ?? 0.0;
+        final type = data['subscriptionType'];
+        final status = data['status'];
+
+        totalRevenue += price;
+
+        if (status == 'active' || status == 'pending') activeCount++;
+
+        switch (type) {
+          case 'weekly':
+            weeklyCount++;
+            break;
+          case 'monthly':
+            monthlyCount++;
+            break;
+          case 'yearly':
+            yearlyCount++;
+            break;
+        }
+      }
+
+      // Update dietitian document
+      await _firestore.collection('Users').doc(_resolvedDietitianId).update({
+        'activeSubscriptions': activeCount,
+        'totalRevenue': totalRevenue,
+        'totalCommission': totalRevenue * 0.10,
+        'subscriptionBreakdown': {
+          'weekly': weeklyCount,
+          'monthly': monthlyCount,
+          'yearly': yearlyCount,
+        },
+        'clientCount': activeCount, // Update client count
+      });
+    } catch (e) {
+      debugPrint('Error updating dietitian stats: $e');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -264,6 +422,15 @@ class _PaymentPageState extends State<PaymentPage> {
                 color: Colors.black87,
               ),
             ),
+            const SizedBox(height: 10),
+            Text(
+              "Duration: ${_resolvedDurationDays ?? 30} days",
+              style: const TextStyle(
+                fontFamily: fontFamily,
+                fontSize: 14,
+                color: Colors.grey,
+              ),
+            ),
             const SizedBox(height: 30),
             const Divider(),
             const SizedBox(height: 20),
@@ -294,7 +461,7 @@ class _PaymentPageState extends State<PaymentPage> {
               ),
             const SizedBox(height: 30),
             ElevatedButton.icon(
-              onPressed: _pickAndUploadImage,
+              onPressed: _isLoading ? null : _pickAndUploadImage,
               icon: const Icon(Icons.upload),
               label: const Text("Upload Receipt"),
               style: ElevatedButton.styleFrom(
@@ -312,9 +479,18 @@ class _PaymentPageState extends State<PaymentPage> {
             ],
             const SizedBox(height: 25),
             ElevatedButton.icon(
-              onPressed: _saveReceiptData,
-              icon: const Icon(Icons.check_circle_outline),
-              label: const Text("Mark as Paid"),
+              onPressed: _isLoading ? null : _saveReceiptData,
+              icon: _isLoading
+                  ? const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  color: Colors.white,
+                  strokeWidth: 2,
+                ),
+              )
+                  : const Icon(Icons.check_circle_outline),
+              label: Text(_isLoading ? "Processing..." : "Mark as Paid"),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.teal,
                 foregroundColor: Colors.white,
