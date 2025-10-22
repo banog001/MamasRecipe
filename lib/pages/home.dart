@@ -2192,6 +2192,179 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
     }
   }
 
+  Future<void> _confirmAppointment(String appointmentId) async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('schedules')
+          .doc(appointmentId)
+          .update({
+        'status': 'confirmed',
+        'confirmedAt': FieldValue.serverTimestamp(),
+      });
+
+      _loadAppointmentsForCalendar();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Appointment confirmed successfully!'),
+            backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+        );
+      }
+    } catch (e) {
+      print("Error confirming appointment: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error confirming appointment: $e'),
+            backgroundColor: Colors.redAccent,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+        );
+      }
+    }
+  }
+
+  void _showCancelConfirmationDialog(String appointmentId, Map<String, dynamic> appointmentData) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Text('Cancel Appointment?', style: TextStyle(fontWeight: FontWeight.bold)),
+          content: const Text('Are you sure you want to cancel this appointment? This action cannot be undone.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('No, Keep It'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _showCancellationReasonDialog(appointmentId, appointmentData);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              child: const Text('Yes, Cancel'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showCancellationReasonDialog(String appointmentId, Map<String, dynamic> appointmentData) {
+    final TextEditingController reasonController = TextEditingController();
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Text('Cancellation Reason', style: TextStyle(fontWeight: FontWeight.bold)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Please provide a reason for cancelling this appointment:'),
+              const SizedBox(height: 16),
+              TextField(
+                controller: reasonController,
+                maxLines: 4,
+                decoration: InputDecoration(
+                  hintText: 'Enter your reason here...',
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  filled: true,
+                  fillColor: Colors.grey[100],
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                reasonController.dispose();
+                Navigator.of(context).pop();
+              },
+              child: const Text('Back'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                if (reasonController.text.trim().isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: const Text('Please provide a reason for cancellation'),
+                      backgroundColor: Colors.orange,
+                      behavior: SnackBarBehavior.floating,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                  );
+                  return;
+                }
+                Navigator.of(context).pop();
+                _cancelAppointment(appointmentId, reasonController.text.trim(), appointmentData);
+                reasonController.dispose();
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              child: const Text('Submit'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _cancelAppointment(String appointmentId, String reason, Map<String, dynamic> appointmentData) async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('schedules')
+          .doc(appointmentId)
+          .update({
+        'status': 'cancelled',
+        'cancellationReason': reason,
+        'cancelledBy': 'client',
+        'cancelledAt': FieldValue.serverTimestamp(),
+      });
+
+      _loadAppointmentsForCalendar();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Appointment cancelled successfully'),
+            backgroundColor: Colors.orange,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+        );
+      }
+    } catch (e) {
+      print("Error cancelling appointment: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error cancelling appointment: $e'),
+            backgroundColor: Colors.redAccent,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+        );
+      }
+    }
+  }
+
   Future<List<Map<String, dynamic>>> _fetchLikedMealPlansWithOwners(String? userId) async {
     if (userId == null) return [];
 
@@ -2722,6 +2895,7 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
         }
         final formattedTime = DateFormat.jm().format(appointmentDateTime);
         final status = data['status'] ?? 'scheduled';
+        final appointmentId = data['id'];
 
         return Card(
           margin: const EdgeInsets.only(bottom: 12),
@@ -2771,6 +2945,41 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
                     ],
                   ),
                 ],
+                // Show buttons only for proposed_by_dietitian status
+                if (status == 'Waiting for client response.') ...[
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: () => _confirmAppointment(appointmentId),
+                          icon: const Icon(Icons.check_circle, size: 18),
+                          label: const Text('Confirm'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: () => _showCancelConfirmationDialog(appointmentId, data),
+                          icon: const Icon(Icons.cancel, size: 18),
+                          label: const Text('Cancel'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.red,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ],
             ),
           ),
@@ -2781,9 +2990,10 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
 
   String _getStatusDisplayText(String status) {
     switch (status.toLowerCase()) {
-      case 'proposed_by_dietitian': return 'Scheduled';
+      case 'proposed_by_dietitian': return 'Pending';
       case 'confirmed': return 'Confirmed';
       case 'declined': return 'Declined';
+      case 'cancelled': return 'Cancelled';
       case 'completed': return 'Completed';
       default: return 'Scheduled';
     }
@@ -2793,8 +3003,9 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
     switch (status.toLowerCase()) {
       case 'confirmed': return Colors.green;
       case 'declined': return Colors.red;
-      case 'proposed_by_dietitian': return Colors.orange;
-      case 'completed': return Colors.blue;
+      case 'cancelled': return Colors.orange;
+      case 'proposed_by_dietitian': return Colors.blue;
+      case 'completed': return Colors.grey;
       default: return _primaryColor;
     }
   }

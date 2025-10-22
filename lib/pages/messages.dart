@@ -52,7 +52,7 @@ class _MessagesPageState extends State<MessagesPage> {
   void initState() {
     super.initState();
     fetchCurrentUserName();
-    _checkPendingAppointment();
+    _listenToPendingAppointment();
   }
 
   void fetchCurrentUserName() async {
@@ -66,24 +66,21 @@ class _MessagesPageState extends State<MessagesPage> {
     }
   }
 
-  /// ✅ Check if user has pending appointment request
-  Future<void> _checkPendingAppointment() async {
-    try {
-      final snapshot = await _firestore
-          .collection('appointmentRequest')
-          .where('clientId', isEqualTo: widget.currentUserId)
-          .where('dietitianId', isEqualTo: widget.receiverId)
-          .where('status', isEqualTo: 'pending')
-          .get();
-
+  /// ✅ Listen to pending appointment status in real-time
+  void _listenToPendingAppointment() {
+    _firestore
+        .collection('appointmentRequest')
+        .where('clientId', isEqualTo: widget.currentUserId)
+        .where('dietitianId', isEqualTo: widget.receiverId)
+        .where('status', isEqualTo: 'pending')
+        .snapshots()
+        .listen((snapshot) {
       if (mounted) {
         setState(() {
           _hasPendingAppointment = snapshot.docs.isNotEmpty;
         });
       }
-    } catch (e) {
-      print('Error checking pending appointment: $e');
-    }
+    });
   }
 
   String getChatRoomId(String userA, String userB) {

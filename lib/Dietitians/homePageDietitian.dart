@@ -11,6 +11,7 @@ import '../pages/login.dart';
 import 'messagesDietitian.dart';
 import 'createMealPlan.dart';
 import 'dietitianProfile.dart';
+import '../email/appointmentEmail.dart';
 
 // --- THEME & STYLING CONSTANTS (Available to the whole file) ---
 const String _primaryFontFamily = 'PlusJakartaSans';
@@ -647,7 +648,7 @@ class _AnalyticsDashboardState extends State<AnalyticsDashboard> {
         'color': const Color(0xFF4CAF50),
       },
       {
-        'value': '\$${(subData['totalRevenue'] ?? 0.0).toStringAsFixed(0)}',
+        'value': '\₱${(subData['totalRevenue'] ?? 0.0).toStringAsFixed(0)}',
         'label': 'Total Revenue',
         'icon': Icons.monetization_on_rounded,
         'color': const Color(0xFF2196F3),
@@ -1560,9 +1561,16 @@ class _SubscriptionRequestsState extends State<SubscriptionRequests> {
   }
 }
 
-class UsersListPage extends StatelessWidget {
+class UsersListPage extends StatefulWidget {
   final String currentUserId;
   const UsersListPage({super.key, required this.currentUserId});
+
+  @override
+  State<UsersListPage> createState() => _UsersListPageState();
+}
+
+class _UsersListPageState extends State<UsersListPage> {
+  String get currentUserId => widget.currentUserId;
 
   String getChatRoomId(String userA, String userB) {
     if (userA.compareTo(userB) > 0) {
@@ -1622,6 +1630,46 @@ class UsersListPage extends StatelessWidget {
     } catch (e) {
       print('Error fetching followers: $e');
       return [];
+    }
+  }
+
+  /// ✅ Mark all messages as read for a specific chat
+  Future<void> markMessagesAsRead(String chatRoomId, String receiverId) async {
+    try {
+      final unreadMessages = await FirebaseFirestore.instance
+          .collection("messages")
+          .where("chatRoomID", isEqualTo: chatRoomId)
+          .where("receiverID", isEqualTo: currentUserId)
+          .where("read", isEqualTo: "false")
+          .get();
+
+      for (var doc in unreadMessages.docs) {
+        await doc.reference.update({"read": "true"});
+      }
+
+      // ✅ Also mark related notifications as read
+      await markNotificationsAsRead(receiverId);
+    } catch (e) {
+      print('Error marking messages as read: $e');
+    }
+  }
+
+  /// ✅ Mark notifications from a specific sender as read
+  Future<void> markNotificationsAsRead(String senderId) async {
+    try {
+      final unreadNotifications = await FirebaseFirestore.instance
+          .collection("Users")
+          .doc(currentUserId)
+          .collection("notifications")
+          .where("senderId", isEqualTo: senderId)
+          .where("isRead", isEqualTo: false)
+          .get();
+
+      for (var doc in unreadNotifications.docs) {
+        await doc.reference.update({"isRead": true});
+      }
+    } catch (e) {
+      print('Error marking notifications as read: $e');
     }
   }
 
@@ -1856,18 +1904,24 @@ class UsersListPage extends StatelessWidget {
                                 color: Colors.transparent,
                                 child: InkWell(
                                   borderRadius: BorderRadius.circular(12),
-                                  onTap: () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) => MessagesPageDietitian(
-                                          currentUserId: currentUserId,
-                                          receiverId: userDoc.id,
-                                          receiverName: senderName,
-                                          receiverProfile: data["profile"] ?? "",
+                                  onTap: () async {
+                                    // ✅ Mark all messages and notifications as read before navigating
+                                    final chatRoomId = getChatRoomId(currentUserId, userDoc.id);
+                                    await markMessagesAsRead(chatRoomId, userDoc.id);
+
+                                    if (mounted) {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) => MessagesPageDietitian(
+                                            currentUserId: currentUserId,
+                                            receiverId: userDoc.id,
+                                            receiverName: senderName,
+                                            receiverProfile: data["profile"] ?? "",
+                                          ),
                                         ),
-                                      ),
-                                    );
+                                      );
+                                    }
                                   },
                                   child: Container(
                                     decoration: BoxDecoration(
@@ -2004,7 +2058,7 @@ class UsersListPage extends StatelessWidget {
               },
             ),
 
-            // ✅ NOTIFICATIONS TAB (unchanged)
+            // ✅ NOTIFICATIONS TAB
             StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance
                   .collection("Users")
@@ -2094,17 +2148,19 @@ class UsersListPage extends StatelessWidget {
                             }
 
                             if (data["type"] == "message" && data["senderId"] != null && data["senderName"] != null) {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => MessagesPageDietitian(
-                                    receiverId: data["senderId"],
-                                    receiverName: data["senderName"],
-                                    currentUserId: currentUserId,
-                                    receiverProfile: data["receiverProfile"] ?? "",
+                              if (mounted) {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => MessagesPageDietitian(
+                                      receiverId: data["senderId"],
+                                      receiverName: data["senderName"],
+                                      currentUserId: currentUserId,
+                                      receiverProfile: data["receiverProfile"] ?? "",
+                                    ),
                                   ),
-                                ),
-                              );
+                                );
+                              }
                             }
                           },
                           child: Padding(
@@ -2305,6 +2361,7 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
     TimeOfDay? selectedTime = TimeOfDay.now();
     String? selectedClientId;
     String selectedClientName = "Select Client";
+    String? selectedClientEmail;
     TextEditingController notesController = TextEditingController();
     List<DocumentSnapshot> clients = [];
 
@@ -2365,9 +2422,9 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
               return AlertDialog(
                 title: Text(
                     'Schedule for ${DateFormat.yMMMMd().format(selectedDate)}',
-                    style: _getTextStyle(dialogContext,
+                    style: const TextStyle(
                         fontWeight: FontWeight.bold, fontSize: 18)),
-                backgroundColor: _cardBgColor(dialogContext),
+                backgroundColor: Colors.white,
                 shape:
                 RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
                 content: SingleChildScrollView(
@@ -2377,22 +2434,19 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
                         DropdownButtonFormField<String>(
                           decoration: InputDecoration(
                             labelText: 'Select Client',
-                            labelStyle: _getTextStyle(dialogContext,
-                                color: _textColorSecondary(dialogContext)),
+                            labelStyle: const TextStyle(fontSize: 14),
                             border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(8)),
                             filled: true,
-                            fillColor: _scaffoldBgColor(dialogContext),
+                            fillColor: Colors.grey.shade100,
                             contentPadding: const EdgeInsets.symmetric(
                                 horizontal: 12, vertical: 10),
                           ),
                           value: selectedClientId,
                           hint: Text(selectedClientName,
-                              style: _getTextStyle(dialogContext,
-                                  color: selectedClientId == null
-                                      ? _textColorSecondary(dialogContext)
-                                      : _textColorPrimary(dialogContext))),
-                          dropdownColor: _cardBgColor(dialogContext),
+                              style: const TextStyle(
+                                  color: Colors.grey, fontSize: 14)),
+                          dropdownColor: Colors.white,
                           items: clients.map((DocumentSnapshot document) {
                             Map<String, dynamic> data =
                             document.data()! as Map<String, dynamic>;
@@ -2405,9 +2459,7 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
                             }
                             return DropdownMenuItem<String>(
                               value: document.id,
-                              child: Text(name,
-                                  style: _getTextStyle(dialogContext,
-                                      color: _textColorPrimary(dialogContext))),
+                              child: Text(name, style: const TextStyle(fontSize: 14)),
                             );
                           }).toList(),
                           onChanged: (String? newValue) {
@@ -2422,11 +2474,13 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
                                     "${clientData['firstName'] ??
                                         ''} ${clientData['lastName'] ?? ''}"
                                         .trim();
+                                selectedClientEmail = clientData['email'] ?? '';
                                 if (selectedClientName.isEmpty) {
                                   selectedClientName = "Client ID: ${newValue.substring(0, 5)}";
                                 }
                               } else {
                                 selectedClientName = "Select Client";
+                                selectedClientEmail = null;
                               }
                             });
                           },
@@ -2434,17 +2488,16 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
                           value == null ? 'Please select a client' : null,
                         )
                       else
-                        Text("No clients available.",
-                            style: _getTextStyle(dialogContext)),
+                        const Text("No clients available.", style: TextStyle(fontSize: 14)),
                       const SizedBox(height: 15),
                       ListTile(
                         contentPadding: EdgeInsets.zero,
-                        leading: Icon(Icons.access_time_filled_rounded,
-                            color: _primaryColor),
+                        leading: const Icon(Icons.access_time_filled_rounded,
+                            color: Color(0xFF4CAF50)),
                         title: Text(
                             'Time: ${selectedTime?.format(dialogContext) ??
                                 'Tap to select'}',
-                            style: _getTextStyle(dialogContext)),
+                            style: const TextStyle(fontSize: 14)),
                         onTap: () async {
                           final TimeOfDay? pickedTime = await showTimePicker(
                             context: dialogContext,
@@ -2462,20 +2515,17 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
                         controller: notesController,
                         decoration: InputDecoration(
                           labelText: 'Notes (Optional)',
-                          labelStyle: _getTextStyle(dialogContext,
-                              color: _textColorSecondary(dialogContext)),
+                          labelStyle: const TextStyle(fontSize: 14),
                           hintText: 'Details for this appointment?',
-                          hintStyle: _getTextStyle(dialogContext,
-                              color: _textColorSecondary(dialogContext)
-                                  .withOpacity(0.7)),
+                          hintStyle: const TextStyle(fontSize: 14, color: Colors.grey),
                           border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(8)),
                           filled: true,
-                          fillColor: _scaffoldBgColor(dialogContext),
+                          fillColor: Colors.grey.shade100,
                           contentPadding: const EdgeInsets.symmetric(
                               horizontal: 12, vertical: 10),
                         ),
-                        style: _getTextStyle(dialogContext),
+                        style: const TextStyle(fontSize: 14),
                         maxLines: 3,
                         textCapitalization: TextCapitalization.sentences,
                       ),
@@ -2484,24 +2534,24 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
                 ),
                 actions: <Widget>[
                   TextButton(
-                    child: Text('Cancel',
-                        style: _getTextStyle(dialogContext,
-                            color: _textColorSecondary(dialogContext))),
+                    child: const Text('Cancel',
+                        style: TextStyle(color: Colors.grey, fontSize: 14)),
                     onPressed: () {
                       Navigator.of(dialogContext).pop();
                     },
                   ),
                   ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
-                        backgroundColor: _primaryColor,
+                        backgroundColor: const Color(0xFF4CAF50),
                         foregroundColor: Colors.white,
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(8))),
                     icon: const Icon(Icons.send_rounded, size: 18),
-                    label: Text('Send Schedule',
-                        style: _getTextStyle(dialogContext,
+                    label: const Text('Send Schedule',
+                        style: TextStyle(
                             color: Colors.white,
-                            fontWeight: FontWeight.bold)),
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14)),
                     onPressed: () {
                       if (selectedClientId == null) {
                         ScaffoldMessenger.of(dialogContext).showSnackBar(
@@ -2546,6 +2596,7 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
                         dietitianName: dietitianDisplayName,
                         clientId: selectedClientId!,
                         clientName: selectedClientName,
+                        clientEmail: selectedClientEmail ?? '',
                         appointmentDateTime: finalAppointmentDateTime,
                         notes: notesController.text.trim(),
                         status: 'Waiting for client response.',
@@ -2566,6 +2617,7 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
     required String dietitianName,
     required String clientId,
     required String clientName,
+    required String clientEmail,
     required DateTime appointmentDateTime,
     required String notes,
     required String status,
@@ -2603,6 +2655,7 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
         'createdAt': createdAtStr,
       });
 
+      // ✅ Add notification
       await FirebaseFirestore.instance
           .collection("Users")
           .doc(clientId)
@@ -2622,11 +2675,23 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
         "timestamp": FieldValue.serverTimestamp(),
       });
 
+      // ✅ Send email notification
+      if (clientEmail.isNotEmpty) {
+        final emailService = Appointmentemail();
+        await emailService.sendAppointmentEmail(
+          clientName: clientName,
+          clientEmail: clientEmail,
+          dietitianName: dietitianName,
+          appointmentDate: appointmentDateTime,
+          notes: notes,
+        );
+      }
+
       if (!mounted) return;
       ScaffoldMessenger.of(contextForSnackBar).showSnackBar(
         SnackBar(
           content: Text('Appointment scheduled with $clientName successfully!'),
-          backgroundColor: _primaryColor,
+          backgroundColor: const Color(0xFF4CAF50),
         ),
       );
       _loadAppointmentsForCalendar();
@@ -2645,7 +2710,7 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _scaffoldBgColor(context),
+      backgroundColor: Colors.grey.shade50,
       body: Column(
         children: [
           Card(
@@ -2653,7 +2718,7 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
             elevation: 2.0,
             shape:
             RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            color: _cardBgColor(context),
+            color: Colors.white,
             child: Padding(
               padding: const EdgeInsets.only(bottom: 8.0),
               child: TableCalendar(
@@ -2668,20 +2733,20 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
                 calendarStyle: CalendarStyle(
                     outsideDaysVisible: false,
                     selectedDecoration: const BoxDecoration(
-                        color: _primaryColor, shape: BoxShape.circle),
-                    selectedTextStyle: _getTextStyle(context,
+                        color: Color(0xFF4CAF50), shape: BoxShape.circle),
+                    selectedTextStyle: const TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.bold),
                     todayDecoration: BoxDecoration(
-                        color: _primaryColor.withOpacity(0.5),
+                        color: const Color(0xFF4CAF50).withOpacity(0.5),
                         shape: BoxShape.circle),
-                    todayTextStyle: _getTextStyle(context,
+                    todayTextStyle: const TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.bold),
-                    weekendTextStyle: _getTextStyle(context,
-                        color: _primaryColor.withOpacity(0.8)),
-                    defaultTextStyle: _getTextStyle(context,
-                        color: _textColorPrimary(context)),
+                    weekendTextStyle: TextStyle(
+                        color: const Color(0xFF4CAF50).withOpacity(0.8)),
+                    defaultTextStyle: const TextStyle(
+                        color: Colors.black87),
                     markersMaxCount: 1,
                     markerSize: 5,
                     markerDecoration: const BoxDecoration(color: Colors.redAccent, shape: BoxShape.circle)
@@ -2689,19 +2754,19 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
                 headerStyle: HeaderStyle(
                   formatButtonVisible: true,
                   titleCentered: true,
-                  titleTextStyle: _getTextStyle(context,
+                  titleTextStyle: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
-                      color: _textColorPrimary(context)),
+                      color: Colors.black87),
                   formatButtonTextStyle:
-                  _getTextStyle(context, color: Colors.white),
+                  const TextStyle(color: Colors.white, fontSize: 14),
                   formatButtonDecoration: BoxDecoration(
-                      color: _primaryColor,
+                      color: const Color(0xFF4CAF50),
                       borderRadius: BorderRadius.circular(20.0)),
-                  leftChevronIcon: Icon(Icons.chevron_left,
-                      color: _textColorPrimary(context)),
-                  rightChevronIcon: Icon(Icons.chevron_right,
-                      color: _textColorPrimary(context)),
+                  leftChevronIcon: const Icon(Icons.chevron_left,
+                      color: Colors.black87),
+                  rightChevronIcon: const Icon(Icons.chevron_right,
+                      color: Colors.black87),
                 ),
                 onDaySelected: _onDaySelected,
                 onFormatChanged: (format) {
@@ -2722,7 +2787,7 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
           if (_isLoadingEvents)
             const Expanded(
               child: Center(
-                  child: CircularProgressIndicator(color: _primaryColor)),
+                  child: CircularProgressIndicator(color: Color(0xFF4CAF50))),
             )
           else
             if (_selectedDay != null)
@@ -2736,10 +2801,10 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
                       Text(
                         "Details for ${DateFormat.yMMMMd().format(
                             _selectedDay!)}:",
-                        style: _getTextStyle(context,
+                        style: const TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
-                            color: _textColorPrimary(context)),
+                            color: Colors.black87),
                       ),
                       const SizedBox(height: 10),
                       _buildScheduledAppointmentsList(_selectedDay!),
@@ -2747,11 +2812,11 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
                       Center(
                         child: ElevatedButton.icon(
                           style: ElevatedButton.styleFrom(
-                              backgroundColor: _primaryColor,
+                              backgroundColor: const Color(0xFF4CAF50),
                               foregroundColor: Colors.white,
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 20, vertical: 12),
-                              textStyle: _getTextStyle(context,
+                              textStyle: const TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.w600,
                                   color: Colors.white)),
@@ -2782,8 +2847,8 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
                       padding: const EdgeInsets.all(16.0),
                       child: Text(
                         "Select a day to see appointments.",
-                        style: _getTextStyle(
-                            context, color: _textColorSecondary(context)),
+                        style: TextStyle(
+                            color: Colors.grey.shade600, fontSize: 14),
                         textAlign: TextAlign.center,
                       ),
                     ),
@@ -2799,15 +2864,15 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
 
     if (dayEvents.isEmpty) {
       return Card(
-        color: _cardBgColor(context),
+        color: Colors.white,
         elevation: 1,
         child: Padding(
           padding: const EdgeInsets.all(16.0),
           child: Center(
             child: Text(
               "No appointments scheduled for this day yet.",
-              style: _getTextStyle(
-                  context, color: _textColorSecondary(context)),
+              style: TextStyle(
+                  color: Colors.grey.shade600, fontSize: 14),
             ),
           ),
         ),
@@ -2840,24 +2905,23 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
 
         return Card(
           margin: const EdgeInsets.only(bottom: 8),
-          color: _cardBgColor(context),
+          color: Colors.white,
           child: ListTile(
             title: Text("${data['clientName'] ?? 'Unknown Client'}",
-                style: _getTextStyle(context, fontWeight: FontWeight.bold)),
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
             subtitle: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text("Time: $formattedTime", style: _getTextStyle(context)),
+                Text("Time: $formattedTime", style: const TextStyle(fontSize: 13)),
                 Text("Status: ${data['status'] ?? 'pending'}",
-                    style: _getTextStyle(context)),
+                    style: const TextStyle(fontSize: 13)),
                 if ((data['notes'] ?? '')
                     .toString()
                     .isNotEmpty)
                   Padding(
                     padding: const EdgeInsets.only(top: 4.0),
-                    child: Text("Notes: ${data['notes']}", style: _getTextStyle(
-                        context, fontSize: 13, color: _textColorSecondary(
-                        context))),
+                    child: Text("Notes: ${data['notes']}", style: const TextStyle(
+                        fontSize: 12, color: Colors.grey)),
                   ),
               ],
             ),
