@@ -2267,10 +2267,8 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
           try {
             final appointmentDateTime =
             DateFormat('yyyy-MM-dd HH:mm').parse(appointmentDateStr);
-            final dateOnly = DateTime.utc(
-                appointmentDateTime.year,
-                appointmentDateTime.month,
-                appointmentDateTime.day);
+            final dateOnly = DateTime.utc(appointmentDateTime.year,
+                appointmentDateTime.month, appointmentDateTime.day);
             if (eventsMap[dateOnly] == null) {
               eventsMap[dateOnly] = [];
             }
@@ -2300,12 +2298,108 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
     return _events[normalizedDay] ?? [];
   }
 
+  bool _hasOverdueAppointment(DateTime day) {
+    final events = _getEventsForDay(day);
+    final now = DateTime.now();
+    final normalizedToday = DateTime.utc(now.year, now.month, now.day);
+    final normalizedDay = DateTime.utc(day.year, day.month, day.day);
+
+    // Only show overdue marker for PAST dates
+    if (!normalizedDay.isBefore(normalizedToday)) {
+      return false;
+    }
+
+    for (var event in events) {
+      final status = (event['status'] ?? '').toString().toLowerCase().trim();
+      // Only mark as overdue if CONFIRMED and NOT COMPLETED
+      if (status == 'confirmed') {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  bool _hasIncompleteAppointment(DateTime day) {
+    final events = _getEventsForDay(day);
+    final now = DateTime.now();
+    final normalizedToday = DateTime.utc(now.year, now.month, now.day);
+    final normalizedDay = DateTime.utc(day.year, day.month, day.day);
+
+    for (var event in events) {
+      final status = (event['status'] ?? '').toString().toLowerCase().trim();
+
+      // SKIP completed and cancelled appointments entirely
+      if (status == 'completed' || status == 'cancelled' || status == 'cancel') {
+        continue;
+      }
+
+      // Show red dot for:
+      // 1. Current/future dates with any pending/waiting/confirmed status
+      if (normalizedDay.isAfter(normalizedToday) ||
+          isSameDay(normalizedDay, normalizedToday)) {
+        return true;
+      }
+      // 2. Past dates - only show if NOT completed/cancelled (already checked above)
+      else if (normalizedDay.isBefore(normalizedToday)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   void _onDaySelected(DateTime selectedDay, DateTime focusedDay) {
     if (!isSameDay(_selectedDay, selectedDay)) {
       setState(() {
         _selectedDay = selectedDay;
         _focusedDay = focusedDay;
       });
+    }
+  }
+
+  Color _getStatusColor(String status) {
+    if (status.toLowerCase() == 'confirmed') {
+      return Colors.green;
+    } else if (status.toLowerCase() == 'cancelled' ||
+        status.toLowerCase() == 'cancel') {
+      return Colors.red;
+    } else if (status.toLowerCase().contains('waiting')) {
+      return Colors.orange;
+    }
+    return Colors.grey;
+  }
+
+  Future<void> _completeAppointment(String scheduleId) async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('schedules')
+          .doc(scheduleId)
+          .update({'status': 'completed'});
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Appointment marked as completed!'),
+            backgroundColor: Color(0xFF4CAF50),
+          ),
+        );
+      }
+
+      // Add small delay to ensure Firestore updates
+      await Future.delayed(const Duration(milliseconds: 500));
+
+      if (mounted) {
+        _loadAppointmentsForCalendar();
+      }
+    } catch (e) {
+      print("Error completing appointment: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error completing appointment: $e'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
     }
   }
 
@@ -2327,7 +2421,8 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
 
     try {
       // ✅ Fetch only clients with pending appointment requests
-      QuerySnapshot appointmentRequestSnapshot = await FirebaseFirestore.instance
+      QuerySnapshot appointmentRequestSnapshot =
+      await FirebaseFirestore.instance
           .collection('appointmentRequest')
           .where('dietitianId', isEqualTo: currentDietitian.uid)
           .where('status', isEqualTo: 'pending')
@@ -2348,9 +2443,8 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
       }
 
       // Fetch user data for pending clients
-      QuerySnapshot userSnapshot = await FirebaseFirestore.instance
-          .collection('Users')
-          .get();
+      QuerySnapshot userSnapshot =
+      await FirebaseFirestore.instance.collection('Users').get();
 
       for (var doc in userSnapshot.docs) {
         if (pendingClientIds.contains(doc.id)) {
@@ -2368,7 +2462,8 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
     if (clients.isEmpty && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-            content: Text('No clients found with pending appointment requests.')),
+            content: Text(
+                'No clients found with pending appointment requests.')),
       );
       return;
     }
@@ -2411,15 +2506,15 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
                             Map<String, dynamic> data =
                             document.data()! as Map<String, dynamic>;
                             String name =
-                            "${data['firstName'] ?? ''} ${data['lastName'] ??
-                                ''}"
+                            "${data['firstName'] ?? ''} ${data['lastName'] ?? ''}"
                                 .trim();
                             if (name.isEmpty) {
                               name = "Client ID: ${document.id.substring(0, 5)}";
                             }
                             return DropdownMenuItem<String>(
                               value: document.id,
-                              child: Text(name, style: const TextStyle(fontSize: 14)),
+                              child: Text(name,
+                                  style: const TextStyle(fontSize: 14)),
                             );
                           }).toList(),
                           onChanged: (String? newValue) {
@@ -2431,12 +2526,13 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
                                 final clientData =
                                 clientDoc.data() as Map<String, dynamic>;
                                 selectedClientName =
-                                    "${clientData['firstName'] ??
-                                        ''} ${clientData['lastName'] ?? ''}"
+                                    "${clientData['firstName'] ?? ''} ${clientData['lastName'] ?? ''}"
                                         .trim();
-                                selectedClientEmail = clientData['email'] ?? '';
+                                selectedClientEmail =
+                                    clientData['email'] ?? '';
                                 if (selectedClientName.isEmpty) {
-                                  selectedClientName = "Client ID: ${newValue.substring(0, 5)}";
+                                  selectedClientName =
+                                  "Client ID: ${newValue.substring(0, 5)}";
                                 }
                               } else {
                                 selectedClientName = "Select Client";
@@ -2448,15 +2544,15 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
                           value == null ? 'Please select a client' : null,
                         )
                       else
-                        const Text("No clients available.", style: TextStyle(fontSize: 14)),
+                        const Text("No clients available.",
+                            style: TextStyle(fontSize: 14)),
                       const SizedBox(height: 15),
                       ListTile(
                         contentPadding: EdgeInsets.zero,
                         leading: const Icon(Icons.access_time_filled_rounded,
                             color: Color(0xFF4CAF50)),
                         title: Text(
-                            'Time: ${selectedTime?.format(dialogContext) ??
-                                'Tap to select'}',
+                            'Time: ${selectedTime?.format(dialogContext) ?? 'Tap to select'}',
                             style: const TextStyle(fontSize: 14)),
                         onTap: () async {
                           final TimeOfDay? pickedTime = await showTimePicker(
@@ -2477,7 +2573,8 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
                           labelText: 'Notes (Optional)',
                           labelStyle: const TextStyle(fontSize: 14),
                           hintText: 'Details for this appointment?',
-                          hintStyle: const TextStyle(fontSize: 14, color: Colors.grey),
+                          hintStyle:
+                          const TextStyle(fontSize: 14, color: Colors.grey),
                           border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(8)),
                           filled: true,
@@ -2515,8 +2612,7 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
                     onPressed: () {
                       if (selectedClientId == null) {
                         ScaffoldMessenger.of(dialogContext).showSnackBar(
-                          const SnackBar(content: Text(
-                              'Please select a client.')),
+                          const SnackBar(content: Text('Please select a client.')),
                         );
                         return;
                       }
@@ -2545,8 +2641,7 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
                         dietitianDisplayName = (widget.dietitianFirstName
                             .isNotEmpty ||
                             widget.dietitianLastName.isNotEmpty)
-                            ? "${widget.dietitianFirstName} ${widget
-                            .dietitianLastName}"
+                            ? "${widget.dietitianFirstName} ${widget.dietitianLastName}"
                             .trim()
                             : currentDietitian.displayName ?? "Dietitian";
                       }
@@ -2624,9 +2719,7 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
         "isRead": false,
         "title": "Appointment Scheduled",
         "message":
-        "$dietitianName scheduled an appointment with you on ${DateFormat
-            .yMMMMd().format(appointmentDateTime)} at ${DateFormat.jm().format(
-            appointmentDateTime)}.",
+        "$dietitianName scheduled an appointment with you on ${DateFormat.yMMMMd().format(appointmentDateTime)} at ${DateFormat.jm().format(appointmentDateTime)}.",
         "type": "appointment",
         "receiverId": clientId,
         "receiverName": clientName,
@@ -2695,22 +2788,20 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
                     selectedDecoration: const BoxDecoration(
                         color: Color(0xFF4CAF50), shape: BoxShape.circle),
                     selectedTextStyle: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold),
+                        color: Colors.white, fontWeight: FontWeight.bold),
                     todayDecoration: BoxDecoration(
                         color: const Color(0xFF4CAF50).withOpacity(0.5),
                         shape: BoxShape.circle),
                     todayTextStyle: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold),
+                        color: Colors.white, fontWeight: FontWeight.bold),
                     weekendTextStyle: TextStyle(
                         color: const Color(0xFF4CAF50).withOpacity(0.8)),
-                    defaultTextStyle: const TextStyle(
-                        color: Colors.black87),
+                    defaultTextStyle:
+                    const TextStyle(color: Colors.black87),
                     markersMaxCount: 1,
                     markerSize: 5,
-                    markerDecoration: const BoxDecoration(color: Colors.redAccent, shape: BoxShape.circle)
-                ),
+                    markerDecoration: const BoxDecoration(
+                        color: Colors.redAccent, shape: BoxShape.circle)),
                 headerStyle: HeaderStyle(
                   formatButtonVisible: true,
                   titleCentered: true,
@@ -2741,6 +2832,63 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
                     _focusedDay = focusedDay;
                   });
                 },
+                calendarBuilders: CalendarBuilders(
+                  markerBuilder: (context, date, events) {
+                    final now = DateTime.now();
+                    final normalizedToday =
+                    DateTime.utc(now.year, now.month, now.day);
+                    final normalizedDay =
+                    DateTime.utc(date.year, date.month, date.day);
+                    final isPastDate = normalizedDay.isBefore(normalizedToday);
+
+                    // DEBUG: Print what we're checking
+                    if (normalizedDay.month == 10 && normalizedDay.day == 22) {
+                      print('📅 OCT 22 - isPastDate: $isPastDate');
+                      print('📅 Events: ${_getEventsForDay(date)}');
+                      for (var event in _getEventsForDay(date)) {
+                        print('📅 Status: ${event['status']}');
+                      }
+                      print('📅 hasOverdue: ${_hasOverdueAppointment(date)}');
+                      print('📅 hasIncomplete: ${_hasIncompleteAppointment(date)}');
+                    }
+
+                    if (_hasOverdueAppointment(date) && isPastDate) {
+                      // Show exclamation mark for past confirmed appointments not completed
+                      return Positioned(
+                        right: 1,
+                        bottom: 1,
+                        child: Container(
+                          decoration: const BoxDecoration(
+                            color: Colors.red,
+                            shape: BoxShape.circle,
+                          ),
+                          width: 16,
+                          height: 16,
+                          child: const Icon(
+                            Icons.error_outline,
+                            color: Colors.white,
+                            size: 10,
+                          ),
+                        ),
+                      );
+                    } else if (_hasIncompleteAppointment(date)) {
+                      // Show red dot for active appointments
+                      return Positioned(
+                        right: 1,
+                        bottom: 1,
+                        child: Container(
+                          decoration: const BoxDecoration(
+                            color: Colors.redAccent,
+                            shape: BoxShape.circle,
+                          ),
+                          width: 8,
+                          height: 8,
+                        ),
+                      );
+                    }
+                    return null;
+                  },
+                ),
               ),
             ),
           ),
@@ -2749,71 +2897,68 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
               child: Center(
                   child: CircularProgressIndicator(color: Color(0xFF4CAF50))),
             )
-          else
-            if (_selectedDay != null)
-              Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 16.0, vertical: 8.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        "Details for ${DateFormat.yMMMMd().format(
-                            _selectedDay!)}:",
-                        style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black87),
+          else if (_selectedDay != null)
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 16.0, vertical: 8.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      "Details for ${DateFormat.yMMMMd().format(_selectedDay!)}:",
+                      style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87),
+                    ),
+                    const SizedBox(height: 10),
+                    _buildScheduledAppointmentsList(_selectedDay!),
+                    const SizedBox(height: 20),
+                    Center(
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF4CAF50),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 20, vertical: 12),
+                            textStyle: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white)),
+                        icon: const Icon(Icons.add_circle_outline_rounded),
+                        label: const Text("Schedule New Appointment"),
+                        onPressed: () {
+                          if (_selectedDay != null) {
+                            _showScheduleAppointmentDialog(_selectedDay!);
+                          } else {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                  content: Text(
+                                      'Please select a day on the calendar first!')),
+                            );
+                          }
+                        },
                       ),
-                      const SizedBox(height: 10),
-                      _buildScheduledAppointmentsList(_selectedDay!),
-                      const SizedBox(height: 20),
-                      Center(
-                        child: ElevatedButton.icon(
-                          style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF4CAF50),
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 20, vertical: 12),
-                              textStyle: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.white)),
-                          icon: const Icon(Icons.add_circle_outline_rounded),
-                          label: const Text("Schedule New Appointment"),
-                          onPressed: () {
-                            if (_selectedDay != null) {
-                              _showScheduleAppointmentDialog(_selectedDay!);
-                            } else {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                    content: Text(
-                                        'Please select a day on the calendar first!')),
-                              );
-                            }
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-              )
-            else
-              if (!_isLoadingEvents)
-                Expanded(
-                  child: Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Text(
-                        "Select a day to see appointments.",
-                        style: TextStyle(
-                            color: Colors.grey.shade600, fontSize: 14),
-                        textAlign: TextAlign.center,
-                      ),
+              ),
+            )
+          else if (!_isLoadingEvents)
+              Expanded(
+                child: Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Text(
+                      "Select a day to see appointments.",
+                      style: TextStyle(
+                          color: Colors.grey.shade600, fontSize: 14),
+                      textAlign: TextAlign.center,
                     ),
                   ),
                 ),
+              ),
         ],
       ),
     );
@@ -2862,29 +3007,77 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
           return const SizedBox.shrink();
         }
         final formattedTime = DateFormat.jm().format(appointmentDateTime);
+        final status = data['status'] ?? 'pending';
+        final statusColor = _getStatusColor(status);
+        final isConfirmed = status.toLowerCase() == 'confirmed';
+        final isCompleted = status.toLowerCase() == 'completed';
+
+        final now = DateTime.now();
+        final normalizedToday = DateTime.utc(now.year, now.month, now.day);
+        final normalizedAppointmentDate = DateTime.utc(
+            appointmentDateTime.year,
+            appointmentDateTime.month,
+            appointmentDateTime.day);
+        final isOverdue = normalizedAppointmentDate.isBefore(normalizedToday) &&
+            !isCompleted;
 
         return Card(
           margin: const EdgeInsets.only(bottom: 8),
-          color: Colors.white,
+          color: isOverdue ? Colors.red.shade50 : Colors.white,
           child: ListTile(
             title: Text("${data['clientName'] ?? 'Unknown Client'}",
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                style: const TextStyle(
+                    fontWeight: FontWeight.bold, fontSize: 14)),
             subtitle: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text("Time: $formattedTime", style: const TextStyle(fontSize: 13)),
-                Text("Status: ${data['status'] ?? 'pending'}",
+                Text("Time: $formattedTime",
                     style: const TextStyle(fontSize: 13)),
-                if ((data['notes'] ?? '')
-                    .toString()
-                    .isNotEmpty)
+                Text("Status: $status",
+                    style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                        color: statusColor)),
+                if (isOverdue)
                   Padding(
                     padding: const EdgeInsets.only(top: 4.0),
-                    child: Text("Notes: ${data['notes']}", style: const TextStyle(
-                        fontSize: 12, color: Colors.grey)),
+                    child: Text(
+                      "Please mark this appointment as complete",
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.red.shade700,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                if ((data['notes'] ?? '').toString().isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4.0),
+                    child: Text("Notes: ${data['notes']}",
+                        style:
+                        const TextStyle(fontSize: 12, color: Colors.grey)),
                   ),
               ],
             ),
+            trailing: isConfirmed && !isCompleted
+                ? SizedBox(
+              width: 100,
+              child: ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF4CAF50),
+                    foregroundColor: Colors.white,
+                    padding:
+                    const EdgeInsets.symmetric(horizontal: 8),
+                    visualDensity: VisualDensity.compact),
+                icon: const Icon(Icons.check, size: 16),
+                label:
+                const Text('Complete', style: TextStyle(fontSize: 12)),
+                onPressed: () {
+                  _completeAppointment(data['id']);
+                },
+              ),
+            )
+                : null,
           ),
         );
       }).toList(),

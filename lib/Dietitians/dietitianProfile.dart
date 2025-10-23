@@ -9,6 +9,7 @@ import 'dietitianSubscriberPage.dart';
 import 'app_theme.dart';
 
 const Color primaryColor = Color(0xFF4CAF50);
+
 class DietitianProfile extends StatefulWidget {
   const DietitianProfile({super.key});
 
@@ -131,7 +132,6 @@ class _DietitianProfileState extends State<DietitianProfile> {
                                       const EditProfileDietitianPage(),
                                     ),
                                   ).then((_) {
-                                    // Refresh profile data when returning
                                     setState(() {});
                                   });
                                 },
@@ -170,7 +170,8 @@ class _DietitianProfileState extends State<DietitianProfile> {
                           ),
                         ),
                       ],
-                      if (data['qrCodeUrl'] != null && data['qrCodeUrl']!.isNotEmpty) ...[
+                      if (data['qrCodeUrl'] != null &&
+                          data['qrCodeUrl']!.isNotEmpty) ...[
                         const SizedBox(height: 16),
                         RepaintBoundary(
                           child: GestureDetector(
@@ -178,7 +179,8 @@ class _DietitianProfileState extends State<DietitianProfile> {
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (context) => const DietitianQRCodePage(),
+                                  builder: (context) =>
+                                  const DietitianQRCodePage(),
                                 ),
                               );
                             },
@@ -218,14 +220,16 @@ class _DietitianProfileState extends State<DietitianProfile> {
                                       cacheHeight: 120,
                                       gaplessPlayback: true,
                                       filterQuality: FilterQuality.low,
-                                      loadingBuilder: (context, child, loadingProgress) {
+                                      loadingBuilder:
+                                          (context, child, loadingProgress) {
                                         if (loadingProgress == null) return child;
                                         return Container(
                                           width: 120,
                                           height: 120,
                                           decoration: BoxDecoration(
                                             color: Colors.grey.shade200,
-                                            borderRadius: BorderRadius.circular(8),
+                                            borderRadius:
+                                            BorderRadius.circular(8),
                                           ),
                                           child: const Center(
                                             child: CircularProgressIndicator(
@@ -235,13 +239,15 @@ class _DietitianProfileState extends State<DietitianProfile> {
                                           ),
                                         );
                                       },
-                                      errorBuilder: (context, error, stackTrace) {
+                                      errorBuilder:
+                                          (context, error, stackTrace) {
                                         return Container(
                                           width: 120,
                                           height: 120,
                                           decoration: BoxDecoration(
                                             color: Colors.grey.shade200,
-                                            borderRadius: BorderRadius.circular(8),
+                                            borderRadius:
+                                            BorderRadius.circular(8),
                                           ),
                                           child: const Icon(
                                             Icons.qr_code_2_outlined,
@@ -297,17 +303,95 @@ class _DietitianProfileState extends State<DietitianProfile> {
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.spaceAround,
                             children: [
-                              _summaryItem(Icons.group_outlined, "Subscribers",
-                                  (data["clientCount"] ?? 0).toString(), textPrimary),
-                              _summaryItem(Icons.article_outlined, "Plans Created",
-                                  (data["plansCreatedCount"] ?? 0).toString(), textPrimary),
-                              _summaryItem(Icons.star_border_outlined, "Rating",
-                                  (data["averageRating"] ?? "N/A").toString(), textPrimary),
-
-                              // _summaryItem(Icons.people_alt_outlined,
-                              //     "Followers", _followerCount.toString(), textPrimary),
+                              FutureBuilder<int>(
+                                future: _getSubscriberCount(),
+                                builder: (context, snapshot) {
+                                  return _summaryItem(
+                                    Icons.group_outlined,
+                                    "Subscribers",
+                                    snapshot.data?.toString() ?? "0",
+                                    textPrimary,
+                                  );
+                                },
+                              ),
+                              FutureBuilder<int>(
+                                future: _getPlansCreatedCount(),
+                                builder: (context, snapshot) {
+                                  return _summaryItem(
+                                    Icons.article_outlined,
+                                    "Plans Created",
+                                    snapshot.data?.toString() ?? "0",
+                                    textPrimary,
+                                  );
+                                },
+                              ),
+                              FutureBuilder<int>(
+                                future: _getFollowersCount(),
+                                builder: (context, snapshot) {
+                                  return _summaryItem(
+                                    Icons.people_alt_outlined,
+                                    "Followers",
+                                    snapshot.data?.toString() ?? "0",
+                                    textPrimary,
+                                  );
+                                },
+                              ),
                             ],
                           ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "Service Pricing",
+                        style: getTextStyle(
+                          context,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Card(
+                        elevation: 2,
+                        color: cardColor,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: ListTile(
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 20, vertical: 12),
+                          leading: const Icon(Icons.attach_money_outlined,
+                              color: primaryColor, size: 28),
+                          title: Text(
+                            "Set Your Pricing",
+                            style: getTextStyle(
+                              context,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w500,
+                              color: textPrimary,
+                            ),
+                          ),
+                          subtitle: Text(
+                            "Configure your consultation rates",
+                            style: getTextStyle(
+                              context,
+                              fontSize: 12,
+                              color: textSecondary,
+                            ),
+                          ),
+                          trailing: Icon(Icons.arrow_forward_ios_rounded,
+                              color: textSecondary, size: 18),
+                          onTap: () {
+                            // Navigate to pricing page
+                            // Navigator.push(context, MaterialPageRoute(builder: (context) => PricingPage()));
+                          },
                         ),
                       ),
                     ],
@@ -335,8 +419,8 @@ class _DietitianProfileState extends State<DietitianProfile> {
                           borderRadius: BorderRadius.circular(16),
                         ),
                         child: ListTile(
-                          contentPadding:
-                          const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 20, vertical: 12),
                           leading: const Icon(Icons.qr_code_2_outlined,
                               color: primaryColor, size: 28),
                           title: Text(
@@ -362,7 +446,8 @@ class _DietitianProfileState extends State<DietitianProfile> {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => const DietitianQRCodePage(),
+                                builder: (context) =>
+                                const DietitianQRCodePage(),
                               ),
                             );
                           },
@@ -376,8 +461,8 @@ class _DietitianProfileState extends State<DietitianProfile> {
                           borderRadius: BorderRadius.circular(16),
                         ),
                         child: ListTile(
-                          contentPadding:
-                          const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 20, vertical: 12),
                           leading: const Icon(Icons.edit_note_outlined,
                               color: primaryColor, size: 28),
                           title: Text(
@@ -395,7 +480,8 @@ class _DietitianProfileState extends State<DietitianProfile> {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => const CreateMealPlanPage(),
+                                builder: (context) =>
+                                const CreateMealPlanPage(),
                               ),
                             );
                           },
@@ -469,14 +555,60 @@ class _DietitianProfileState extends State<DietitianProfile> {
 
   Future<Map<String, dynamic>?> _getUserData() async {
     if (user == null) return null;
-    final snapshot =
-    await FirebaseFirestore.instance.collection("Users").doc(user!.uid).get();
-
-    final data = snapshot.data();
-    return data;
+    final snapshot = await FirebaseFirestore.instance
+        .collection("Users")
+        .doc(user!.uid)
+        .get();
+    return snapshot.data();
   }
 
-  Widget _summaryItem(IconData icon, String label, String value, Color textColor) {
+  Future<int> _getSubscriberCount() async {
+    if (user == null) return 0;
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection("Users")
+          .doc(user!.uid)
+          .collection("subscriber")
+          .where("status", isNotEqualTo: "expired")
+          .get();
+      return snapshot.docs.length;
+    } catch (e) {
+      print("Error fetching subscriber count: $e");
+      return 0;
+    }
+  }
+
+  Future<int> _getPlansCreatedCount() async {
+    if (user == null) return 0;
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection("mealPlans")
+          .where("owner", isEqualTo: user!.uid)
+          .get();
+      return snapshot.docs.length;
+    } catch (e) {
+      print("Error fetching plans count: $e");
+      return 0;
+    }
+  }
+
+  Future<int> _getFollowersCount() async {
+    if (user == null) return 0;
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection("Users")
+          .doc(user!.uid)
+          .collection("followers")
+          .get();
+      return snapshot.docs.length;
+    } catch (e) {
+      print("Error fetching followers count: $e");
+      return 0;
+    }
+  }
+
+  Widget _summaryItem(
+      IconData icon, String label, String value, Color textColor) {
     return Column(
       children: [
         Container(
