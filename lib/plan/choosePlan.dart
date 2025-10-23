@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'payment.dart';
+import 'package:intl/intl.dart';
 
 const String _primaryFontFamily = 'Poppins';
 const Color _primaryColor = Color(0xFF1B8C53);
@@ -28,13 +29,21 @@ class _ChoosePlanPageState extends State<ChoosePlanPage> {
   String? _dietitianId;
   bool _isLoading = true;
 
-  // Subscription plan details with pricing matching your existing implementation
-  final Map<String, Map<String, dynamic>> plans = {
+  // Dynamic pricing from Firestore
+  double _weeklyPrice = 99.00;
+  double _monthlyPrice = 250.00;
+  double _yearlyPrice = 2999.00;
+  final NumberFormat currencyFormatter = NumberFormat("#,##0.00", "en_US");
+
+
+
+  // Subscription plan details (prices will be updated from Firestore)
+  Map<String, Map<String, dynamic>> get plans => {
     'weekly': {
       'name': 'Weekly Plan',
       'duration': '7 days',
-      'price': 99.00, // ₱99.00
-      'displayPrice': '₱ 99.00',
+      'price': _weeklyPrice,
+      'displayPrice': '₱ ${currencyFormatter.format(_weeklyPrice)}',
       'durationDays': 7,
       'description': 'Get access to meal plans for 7 days',
       'benefits': [
@@ -48,8 +57,9 @@ class _ChoosePlanPageState extends State<ChoosePlanPage> {
     'monthly': {
       'name': 'Monthly Plan',
       'duration': '30 days',
-      'price': 250.00, // ₱250.00 (your existing price)
-      'displayPrice': '₱ 250.00',
+      'price': _monthlyPrice,
+      'displayPrice': '₱ ${currencyFormatter.format(_monthlyPrice)}',
+
       'durationDays': 30,
       'description': 'Get access to meal plans for 30 days',
       'benefits': [
@@ -63,8 +73,8 @@ class _ChoosePlanPageState extends State<ChoosePlanPage> {
     'yearly': {
       'name': 'Yearly Plan',
       'duration': '365 days',
-      'price': 2999.00, // ₱2,999.00 (your existing price)
-      'displayPrice': '₱ 2,999.00',
+      'price': _yearlyPrice,
+      'displayPrice': '₱ ${currencyFormatter.format(_yearlyPrice)}',
       'durationDays': 365,
       'description': 'Get access to meal plans for full year',
       'benefits': [
@@ -81,10 +91,10 @@ class _ChoosePlanPageState extends State<ChoosePlanPage> {
   @override
   void initState() {
     super.initState();
-    _fetchDietitianId();
+    _fetchDietitianData();
   }
 
-  Future<void> _fetchDietitianId() async {
+  Future<void> _fetchDietitianData() async {
     try {
       final snapshot = await FirebaseFirestore.instance
           .collection('Users')
@@ -93,15 +103,24 @@ class _ChoosePlanPageState extends State<ChoosePlanPage> {
           .get();
 
       if (snapshot.docs.isNotEmpty) {
+        final dietitianDoc = snapshot.docs.first;
+        final data = dietitianDoc.data();
+
         setState(() {
-          _dietitianId = snapshot.docs.first.id;
+          _dietitianId = dietitianDoc.id;
+
+          // Get pricing from Firestore, use defaults if not set
+          _weeklyPrice = (data['weeklyPrice'] ?? 99.00).toDouble();
+          _monthlyPrice = (data['monthlyPrice'] ?? 250.00).toDouble();
+          _yearlyPrice = (data['yearlyPrice'] ?? 2999.00).toDouble();
+
           _isLoading = false;
         });
       } else {
         setState(() => _isLoading = false);
       }
     } catch (e) {
-      print('Error fetching dietitian ID: $e');
+      print('Error fetching dietitian data: $e');
       setState(() => _isLoading = false);
     }
   }

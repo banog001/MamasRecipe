@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'editDietitianProfile.dart';
@@ -388,9 +389,12 @@ class _DietitianProfileState extends State<DietitianProfile> {
                           ),
                           trailing: Icon(Icons.arrow_forward_ios_rounded,
                               color: textSecondary, size: 18),
-                          onTap: () {
-                            // Navigate to pricing page
-                            // Navigator.push(context, MaterialPageRoute(builder: (context) => PricingPage()));
+                          onTap: () async {
+                            final currentData = await _getUserData();
+                            if (mounted) {
+                              await showPricingDialog(context, currentData);
+                              setState(() {});
+                            }
                           },
                         ),
                       ),
@@ -642,4 +646,298 @@ class _DietitianProfileState extends State<DietitianProfile> {
       ],
     );
   }
+}
+
+// Pricing Dialog Widget
+class PricingDialog extends StatefulWidget {
+  final Map<String, dynamic>? currentPricing;
+
+  const PricingDialog({super.key, this.currentPricing});
+
+  @override
+  State<PricingDialog> createState() => _PricingDialogState();
+}
+
+class _PricingDialogState extends State<PricingDialog> {
+  final _formKey = GlobalKey<FormState>();
+  final _weeklyController = TextEditingController();
+  final _monthlyController = TextEditingController();
+  final _yearlyController = TextEditingController();
+  bool _isSaving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.currentPricing != null) {
+      _weeklyController.text = widget.currentPricing!['weeklyPrice']?.toString() ?? '';
+      _monthlyController.text = widget.currentPricing!['monthlyPrice']?.toString() ?? '';
+      _yearlyController.text = widget.currentPricing!['yearlyPrice']?.toString() ?? '';
+    }
+  }
+
+  @override
+  void dispose() {
+    _weeklyController.dispose();
+    _monthlyController.dispose();
+    _yearlyController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _savePricing() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() {
+      _isSaving = true;
+    });
+
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) throw Exception("User not authenticated");
+
+      final weeklyPrice = double.tryParse(_weeklyController.text) ?? 0.0;
+      final monthlyPrice = double.tryParse(_monthlyController.text) ?? 0.0;
+      final yearlyPrice = double.tryParse(_yearlyController.text) ?? 0.0;
+
+      await FirebaseFirestore.instance
+          .collection("Users")
+          .doc(user.uid)
+          .update({
+        'weeklyPrice': weeklyPrice,
+        'monthlyPrice': monthlyPrice,
+        'yearlyPrice': yearlyPrice,
+      });
+
+      if (mounted) {
+        Navigator.of(context).pop(true);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Pricing updated successfully!"),
+            backgroundColor: primaryColor,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Error updating pricing: $e"),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSaving = false;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: primaryColor.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(
+                        Icons.attach_money_outlined,
+                        color: primaryColor,
+                        size: 28,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    const Expanded(
+                      child: Text(
+                        "Set Your Pricing",
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      icon: const Icon(Icons.close),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  "Configure your consultation rates",
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                _buildPriceField(
+                  controller: _weeklyController,
+                  label: "Weekly Price",
+                  hint: "Enter weekly rate",
+                  icon: Icons.calendar_view_week_outlined,
+                ),
+                const SizedBox(height: 16),
+                _buildPriceField(
+                  controller: _monthlyController,
+                  label: "Monthly Price",
+                  hint: "Enter monthly rate",
+                  icon: Icons.calendar_month_outlined,
+                ),
+                const SizedBox(height: 16),
+                _buildPriceField(
+                  controller: _yearlyController,
+                  label: "Yearly Price",
+                  hint: "Enter yearly rate",
+                  icon: Icons.calendar_today_outlined,
+                ),
+                const SizedBox(height: 24),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: _isSaving ? null : () => Navigator.of(context).pop(),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          side: const BorderSide(color: primaryColor),
+                        ),
+                        child: const Text(
+                          "Cancel",
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: primaryColor,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: _isSaving ? null : _savePricing,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: primaryColor,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: _isSaving
+                            ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
+                            : const Text(
+                          "Save",
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPriceField({
+    required TextEditingController controller,
+    required String label,
+    required String hint,
+    required IconData icon,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 8),
+        TextFormField(
+          controller: controller,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          inputFormatters: [
+            FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
+          ],
+          decoration: InputDecoration(
+            hintText: hint,
+            prefixIcon: Icon(icon, color: primaryColor),
+            prefixText: "₱ ",
+            prefixStyle: const TextStyle(
+              color: Colors.black87,
+              fontWeight: FontWeight.w500,
+            ),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.grey.shade300),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.grey.shade300),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: primaryColor, width: 2),
+            ),
+            filled: true,
+            fillColor: Colors.grey.shade50,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          ),
+          validator: (value) {
+            if (value == null || value.isEmpty) {
+              return "Please enter a price";
+            }
+            final price = double.tryParse(value);
+            if (price == null || price < 0) {
+              return "Please enter a valid price";
+            }
+            return null;
+          },
+        ),
+      ],
+    );
+  }
+}
+
+// Function to show the pricing dialog
+Future<void> showPricingDialog(BuildContext context, Map<String, dynamic>? currentPricing) async {
+  await showDialog(
+    context: context,
+    builder: (context) => PricingDialog(currentPricing: currentPricing),
+  );
 }

@@ -287,7 +287,7 @@ class _CreateMealPlanPageState extends State<CreateMealPlanPage> {
                 items: const [
                   DropdownMenuItem(value: "Weight Loss", child: Text("Weight Loss Program")),
                   DropdownMenuItem(value: "Weight Gain", child: Text("Weight Gain Program")),
-                  DropdownMenuItem(value: "Maintain Weight", child: Text("Weight Maintenance")),
+                  DropdownMenuItem(value: "Maintain Weight", child: Text("Maintain Weight")),
                   DropdownMenuItem(value: "Work Out", child: Text("Fitness & Workout Plan")),
                 ],
                 onChanged: (value) {

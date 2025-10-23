@@ -6,6 +6,12 @@ import 'package:intl/intl.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'dart:collection';
+import 'dart:io';
+import 'package:excel/excel.dart' hide Border; // Hide Border from excel package
+import 'package:flutter/material.dart' show Border;
+import 'package:flutter_file_dialog/flutter_file_dialog.dart';
+import 'dart:typed_data';
+import 'package:intl/intl.dart';
 
 import '../pages/login.dart';
 import 'messagesDietitian.dart';
@@ -1184,36 +1190,35 @@ class SubscriptionApprovalPage extends StatelessWidget {
     return DefaultTabController(
       length: 2,
       child: Scaffold(
-        backgroundColor: _scaffoldBgColor(context),
+        backgroundColor: Colors.grey.shade100,
         appBar: AppBar(
           elevation: 1,
-          backgroundColor: _primaryColor,
-          iconTheme: const IconThemeData(color: _textColorOnPrimary, size: 28),
-          title: Text(
+          backgroundColor: const Color(0xFF4CAF50),
+          iconTheme: const IconThemeData(color: Colors.white, size: 28),
+          title: const Text(
             "Manage Subscriptions",
-            style: _getTextStyle(
-              context,
+            style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
-              color: _textColorOnPrimary,
+              color: Colors.white,
+              fontFamily: 'PlusJakartaSans',
             ),
           ),
-          bottom: TabBar(
+          bottom: const TabBar(
             indicatorColor: Colors.white,
             labelColor: Colors.white,
             unselectedLabelColor: Colors.white70,
-            labelStyle: _getTextStyle(
-              context,
+            labelStyle: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.bold,
-              color: _textColorOnPrimary,
+              color: Colors.white,
+              fontFamily: 'PlusJakartaSans',
             ),
-            unselectedLabelStyle: _getTextStyle(
-              context,
+            unselectedLabelStyle: TextStyle(
               fontSize: 14,
-              color: _textColorOnPrimary.withOpacity(0.7),
+              fontFamily: 'PlusJakartaSans',
             ),
-            tabs: const [
+            tabs: [
               Tab(text: "Pending Requests"),
               Tab(text: "Approved History"),
             ],
@@ -1239,6 +1244,23 @@ class SubscriptionRequests extends StatefulWidget {
 }
 
 class _SubscriptionRequestsState extends State<SubscriptionRequests> {
+  List<Map<String, dynamic>> _receiptsCache = [];
+  bool _isLoadingData = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadReceipts();
+  }
+
+  Future<void> _loadReceipts() async {
+    setState(() => _isLoadingData = true);
+    _receiptsCache = await _fetchReceiptsWithClients(widget.status);
+    if (mounted) {
+      setState(() => _isLoadingData = false);
+    }
+  }
+
   Future<List<Map<String, dynamic>>> _fetchReceiptsWithClients(String status) async {
     final currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser == null) return [];
@@ -1266,20 +1288,156 @@ class _SubscriptionRequestsState extends State<SubscriptionRequests> {
       }
 
       final clientData = clientDoc.data() ?? {};
+
+      // Get timestamp
+      String timestampStr = '';
+      if (data['timeStamp'] != null) {
+        try {
+          final timestamp = data['timeStamp'] as Timestamp;
+          timestampStr = DateFormat('yyyy-MM-dd HH:mm:ss').format(timestamp.toDate());
+        } catch (e) {
+          timestampStr = 'N/A';
+        }
+      }
+
       results.add({
         "docId": doc.id,
         "clientID": clientID,
         "dietitianID": data['dietitianID'],
         "firstname": clientData['firstname'] ?? clientData['firstName'] ?? 'N/A',
         "lastname": clientData['lastname'] ?? clientData['lastName'] ?? 'N/A',
+        "email": clientData['email'] ?? 'N/A',
         "planPrice": data['planPrice'] ?? '',
         "planType": data['planType'] ?? '',
         "status": data['status'] ?? '',
+        "timestamp": timestampStr,
       });
     }
 
     return results;
   }
+
+  Future<void> _exportToExcel() async {
+    if (_receiptsCache.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("No data to export.")),
+      );
+      return;
+    }
+
+    try {
+      // Show loading indicator
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: CircularProgressIndicator(color: Color(0xFF4CAF50)),
+        ),
+      );
+
+      // Create Excel workbook
+      var excel = Excel.createExcel();
+      Sheet sheetObject = excel['Approved Subscriptions'];
+
+      // Define headers
+      final headers = [
+        'Client Name',
+        'Email',
+        'Plan Type',
+        'Plan Price',
+        'Status',
+        'Approved Date'
+      ];
+
+      // Add headers
+      for (int i = 0; i < headers.length; i++) {
+        var cell = sheetObject.cell(
+          CellIndex.indexByColumnRow(columnIndex: i, rowIndex: 0),
+        );
+        cell.value = TextCellValue(headers[i]);
+        cell.cellStyle = CellStyle(
+          bold: true,
+          fontSize: 12,
+          backgroundColorHex: ExcelColor.green,
+          fontColorHex: ExcelColor.white,
+        );
+      }
+
+      // Add data rows
+      for (int i = 0; i < _receiptsCache.length; i++) {
+        final receipt = _receiptsCache[i];
+        final rowIndex = i + 1;
+
+        final rowData = [
+          "${receipt['firstname']} ${receipt['lastname']}",
+          receipt['email'],
+          receipt['planType'],
+          receipt['planPrice'],
+          receipt['status'],
+          receipt['timestamp'],
+        ];
+
+        for (int j = 0; j < rowData.length; j++) {
+          var cell = sheetObject.cell(
+            CellIndex.indexByColumnRow(columnIndex: j, rowIndex: rowIndex),
+          );
+          cell.value = TextCellValue(rowData[j].toString());
+        }
+      }
+
+      // Auto-fit columns
+      for (int i = 0; i < headers.length; i++) {
+        sheetObject.setColumnWidth(i, 20);
+      }
+
+      // ✅ Convert to Uint8List for FlutterFileDialog
+      final excelBytes = Uint8List.fromList(excel.encode()!);
+
+      // Generate filename
+      final timestamp = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
+      final fileName = 'approved_subscriptions_$timestamp.xlsx';
+
+      // Save file using FlutterFileDialog
+      final params = SaveFileDialogParams(
+        fileName: fileName,
+        data: excelBytes,
+      );
+
+      final filePath = await FlutterFileDialog.saveFile(params: params);
+
+      // Close loading dialog
+      if (mounted) Navigator.of(context).pop();
+
+      if (filePath != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Excel file saved successfully:\n$filePath"),
+            backgroundColor: const Color(0xFF4CAF50),
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("File saving was cancelled."),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) Navigator.of(context).pop();
+      debugPrint('Error exporting to Excel: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error exporting to Excel: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+
 
   Future<void> _approveSubscription(Map<String, dynamic> receipt) async {
     try {
@@ -1339,9 +1497,8 @@ class _SubscriptionRequestsState extends State<SubscriptionRequests> {
         const SnackBar(content: Text("User subscription approved!")),
       );
 
-      if (mounted) {
-        setState(() {});
-      }
+      // Reload data
+      await _loadReceipts();
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Error approving user: $e")),
@@ -1358,7 +1515,7 @@ class _SubscriptionRequestsState extends State<SubscriptionRequests> {
       case 'rejected':
         return Colors.red;
       default:
-        return _primaryColor;
+        return const Color(0xFF4CAF50);
     }
   }
 
@@ -1369,194 +1526,249 @@ class _SubscriptionRequestsState extends State<SubscriptionRequests> {
       case 'yearly':
         return Colors.purple;
       default:
-        return _primaryColor;
+        return const Color(0xFF4CAF50);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<List<Map<String, dynamic>>>(
-      future: _fetchReceiptsWithClients(widget.status),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
+    return Column(
+      children: [
+        // Export button for approved tab
+        if (widget.status == 'approved')
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            color: Colors.white,
+            child: ElevatedButton.icon(
+              onPressed: _isLoadingData ? null : _exportToExcel,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF4CAF50),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                elevation: 2,
+              ),
+              icon: const Icon(Icons.download_rounded, size: 20),
+              label: const Text(
+                'Download as Excel File',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  fontFamily: 'PlusJakartaSans',
+                ),
+              ),
+            ),
+          ),
 
-        if (!snapshot.hasData || snapshot.data!.isEmpty) {
-          return Center(
+        // List of receipts
+        Expanded(
+          child: _isLoadingData
+              ? const Center(
+            child: CircularProgressIndicator(color: Color(0xFF4CAF50)),
+          )
+              : _receiptsCache.isEmpty
+              ? Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(
                   Icons.receipt_long_outlined,
                   size: 80,
-                  color: _primaryColor.withOpacity(0.3),
+                  color: const Color(0xFF4CAF50).withOpacity(0.3),
                 ),
                 const SizedBox(height: 16),
                 Text(
                   "No ${widget.status} subscriptions found",
-                  style: _getTextStyle(context, fontSize: 18),
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontFamily: 'PlusJakartaSans',
+                  ),
                 ),
               ],
             ),
-          );
-        }
+          )
+              : ListView.builder(
+            padding: const EdgeInsets.symmetric(
+                horizontal: 12, vertical: 12),
+            itemCount: _receiptsCache.length,
+            itemBuilder: (context, index) {
+              final receipt = _receiptsCache[index];
+              final statusColor = _getStatusColor(receipt['status']);
+              final planTypeColor =
+              _getPlanTypeColor(receipt['planType']);
 
-        final receipts = snapshot.data!;
-        return ListView.builder(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-          itemCount: receipts.length,
-          itemBuilder: (context, index) {
-            final receipt = receipts[index];
-            final statusColor = _getStatusColor(receipt['status']);
-            final planTypeColor = _getPlanTypeColor(receipt['planType']);
-
-            return Card(
-              margin: const EdgeInsets.only(bottom: 12),
-              elevation: 2,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              color: _cardBgColor(context),
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                "${receipt['firstname']} ${receipt['lastname']}",
-                                style: _getTextStyle(context,
+              return Card(
+                margin: const EdgeInsets.only(bottom: 12),
+                elevation: 2,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                color: Colors.white,
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment:
+                        MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment:
+                              CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  "${receipt['firstname']} ${receipt['lastname']}",
+                                  style: const TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.bold,
-                                    color: _primaryColor),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
+                                    color: Color(0xFF4CAF50),
+                                    fontFamily: 'PlusJakartaSans',
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  receipt['planType'],
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey.shade600,
+                                    fontFamily: 'PlusJakartaSans',
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: statusColor.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              receipt['status'],
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: statusColor,
+                                fontFamily: 'PlusJakartaSans',
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        mainAxisAlignment:
+                        MainAxisAlignment.spaceBetween,
+                        children: [
+                          Column(
+                            crossAxisAlignment:
+                            CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                "Price",
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.grey.shade600,
+                                  fontFamily: 'PlusJakartaSans',
+                                ),
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                receipt['planType'],
-                                style: _getTextStyle(context,
-                                    fontSize: 12,
-                                    color: _textColorSecondary(context)),
+                                receipt['planPrice'],
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  fontFamily: 'PlusJakartaSans',
+                                ),
                               ),
                             ],
                           ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            color: statusColor.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            receipt['status'],
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              color: statusColor,
-                              fontFamily: _primaryFontFamily,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              "Price",
-                              style: _getTextStyle(context,
-                                  fontSize: 11,
-                                  color: _textColorSecondary(context)),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              receipt['planPrice'],
-                              style: _getTextStyle(context,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.bold),
-                            ),
-                          ],
-                        ),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              "Plan Type",
-                              style: _getTextStyle(context,
-                                  fontSize: 11,
-                                  color: _textColorSecondary(context)),
-                            ),
-                            const SizedBox(height: 4),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: planTypeColor.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Text(
-                                receipt['planType'],
+                          Column(
+                            crossAxisAlignment:
+                            CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                "Plan Type",
                                 style: TextStyle(
                                   fontSize: 11,
+                                  color: Colors.grey.shade600,
+                                  fontFamily: 'PlusJakartaSans',
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color:
+                                  planTypeColor.withOpacity(0.1),
+                                  borderRadius:
+                                  BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  receipt['planType'],
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: planTypeColor,
+                                    fontFamily: 'PlusJakartaSans',
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                      if (receipt['status'] == 'pending')
+                        Padding(
+                          padding: const EdgeInsets.only(top: 12.0),
+                          child: SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton(
+                              onPressed: () =>
+                                  _approveSubscription(receipt),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor:
+                                const Color(0xFF4CAF50),
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius:
+                                  BorderRadius.circular(8),
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                    vertical: 10),
+                              ),
+                              child: const Text(
+                                'Approve',
+                                style: TextStyle(
+                                  fontSize: 13,
                                   fontWeight: FontWeight.w600,
-                                  color: planTypeColor,
-                                  fontFamily: _primaryFontFamily,
+                                  fontFamily: 'PlusJakartaSans',
                                 ),
                               ),
                             ),
-                          ],
-                        ),
-                      ],
-                    ),
-                    if (receipt['status'] == 'pending')
-                      Padding(
-                        padding: const EdgeInsets.only(top: 12.0),
-                        child: SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton(
-                            onPressed: () => _approveSubscription(receipt),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: _primaryColor,
-                              foregroundColor: _textColorOnPrimary,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              padding: const EdgeInsets.symmetric(vertical: 10),
-                            ),
-                            child: Text(
-                              'Approve',
-                              style: _getTextStyle(context,
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                  color: _textColorOnPrimary),
-                            ),
                           ),
                         ),
-                      ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-            );
-          },
-        );
-      },
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 }
