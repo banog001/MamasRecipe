@@ -2053,6 +2053,37 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
   Map<String, Map<String, dynamic>?> _weeklySchedule = {};
   bool _isLoadingSchedule = false;
 
+
+
+  Widget _buildEmptyState(String title, String subtitle, IconData icon) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 64, color: _primaryColor.withOpacity(0.3)),
+            const SizedBox(height: 16),
+            Text(
+              title,
+              style: _getTextStyle(context,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: _textColorPrimary(context)),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              subtitle,
+              textAlign: TextAlign.center,
+              style: _getTextStyle(context,
+                  fontSize: 14, color: _textColorSecondary(context)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   void initState() {
     super.initState();
@@ -2650,7 +2681,15 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
     final now = DateTime.now();
-    final daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    final daysOfWeek = [
+      'Monday',
+      'Tuesday',
+      'Wednesday',
+      'Thursday',
+      'Friday',
+      'Saturday',
+      'Sunday'
+    ];
 
     final orderedDays = List.generate(7, (i) {
       final date = now.add(Duration(days: i));
@@ -2669,14 +2708,29 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
             foregroundColor: _textColorOnPrimary,
             elevation: 0,
             automaticallyImplyLeading: false,
-            bottom: const TabBar(
+            bottom: TabBar(
               indicatorColor: Colors.white,
               labelColor: Colors.white,
               unselectedLabelColor: Colors.white70,
-              labelStyle: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-              tabs: [
-                Tab(icon: Icon(Icons.calendar_today, size: 20), text: 'Appointments'),
-                Tab(icon: Icon(Icons.restaurant_menu, size: 20), text: 'Meal Plans'),
+              labelStyle: _getTextStyle(
+                context,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: _textColorOnPrimary,
+              ),
+              unselectedLabelStyle: _getTextStyle(
+                context,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: _textColorOnPrimary.withOpacity(0.7),
+              ),
+              tabs: const [
+                Tab(
+                    icon: Icon(Icons.calendar_today, size: 20),
+                    text: 'Appointments'),
+                Tab(
+                    icon: Icon(Icons.restaurant_menu, size: 20),
+                    text: 'Meal Plans'),
               ],
             ),
           ),
@@ -2684,16 +2738,20 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
         body: TabBarView(
           children: [
             _buildAppointmentsTab(),
+            // --- START OF REDESIGNED MEAL PLAN TAB ---
             FutureBuilder<List<Map<String, dynamic>>>(
               future: _fetchLikedMealPlansWithOwners(user?.uid),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
+                  return const Center(
+                      child: CircularProgressIndicator(color: _primaryColor));
                 }
 
                 if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                  return const Center(
-                    child: Text("You haven't liked any meal plans yet.", style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
+                  return _buildEmptyState(
+                    "No Liked Plans",
+                    "Like a meal plan from the Home feed to see it here.",
+                    Icons.favorite_border,
                   );
                 }
 
@@ -2706,46 +2764,74 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
                 }
 
                 return SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
                   padding: const EdgeInsets.all(16),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Container(
                         padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(color: Colors.green.shade50, borderRadius: BorderRadius.circular(10)),
-                        child: const Row(
+                        decoration: BoxDecoration(
+                          color: _primaryColor.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Row(
                           children: [
-                            Icon(Icons.info_outline, color: Colors.green),
-                            SizedBox(width: 8),
+                            Icon(Icons.info_outline, color: _primaryColor),
+                            const SizedBox(width: 10),
                             Expanded(
-                              child: Text("Drag and drop meal plans to schedule your week", style: TextStyle(color: Colors.green, fontWeight: FontWeight.w600)),
+                              child: Text(
+                                "Drag and drop meal plans to schedule your week",
+                                style: _getTextStyle(
+                                  context,
+                                  color: _primaryColor,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 14,
+                                ),
+                              ),
                             ),
                           ],
                         ),
                       ),
-                      const SizedBox(height: 20),
-                      const Text("Your Meal Plans", style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 24),
+                      Text(
+                        "Your Meal Plans",
+                        style: _getTextStyle(context,
+                            fontSize: 18, fontWeight: FontWeight.w700),
+                      ),
+                      const SizedBox(height: 16),
                       Wrap(
                         spacing: 12,
                         runSpacing: 12,
                         children: mealPlans.map((plan) {
                           return LongPressDraggable<Map<String, dynamic>>(
                             data: plan,
-                            feedback: Material(color: Colors.transparent, child: _planCard(plan, isDragging: true)),
-                            childWhenDragging: Opacity(opacity: 0.5, child: _planCard(plan)),
+                            feedback: Material(
+                                color: Colors.transparent,
+                                child: _planCard(plan, isDragging: true)),
+                            childWhenDragging:
+                            Opacity(opacity: 0.5, child: _planCard(plan)),
                             child: _planCard(plan),
                           );
                         }).toList(),
                       ),
-                      const SizedBox(height: 30),
-                      const Text("Weekly Schedule", style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 32),
+                      Text(
+                        "Weekly Schedule",
+                        style: _getTextStyle(context,
+                            fontSize: 18, fontWeight: FontWeight.w700),
+                      ),
+                      const SizedBox(height: 16),
                       if (_isLoadingSchedule)
-                        const Center(child: Padding(padding: EdgeInsets.all(40.0), child: CircularProgressIndicator()))
+                        const Center(
+                          child: Padding(
+                            padding: EdgeInsets.all(40.0),
+                            child: CircularProgressIndicator(color: _primaryColor),
+                          ),
+                        )
                       else
                         SizedBox(
-                          height: 240,
+                          height: 280, // Increased height for better padding
                           child: ListView.builder(
                             scrollDirection: Axis.horizontal,
                             itemCount: orderedDays.length,
@@ -2753,64 +2839,122 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
                               final dayInfo = orderedDays[index];
                               final day = dayInfo['label'] as String;
                               final date = dayInfo['date'] as DateTime;
-                              final formattedDate = "${_monthAbbrev(date.month)} ${date.day}";
+                              final formattedDate =
+                                  "${_monthAbbrev(date.month)} ${date.day}";
                               final plan = _weeklySchedule[day];
 
                               return DragTarget<Map<String, dynamic>>(
                                 onAccept: (receivedPlan) {
-                                  _saveMealPlanToSchedule(day, date, receivedPlan);
+                                  _saveMealPlanToSchedule(
+                                      day, date, receivedPlan);
                                 },
-                                builder: (context, candidateData, rejectedData) {
+                                builder:
+                                    (context, candidateData, rejectedData) {
                                   return Container(
                                     width: 250,
                                     margin: const EdgeInsets.only(right: 12),
-                                    child: Card(
-                                      elevation: 2,
-                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                      child: Padding(
-                                        padding: const EdgeInsets.all(12.0),
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Text(day, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                                            Text(formattedDate, style: const TextStyle(color: Colors.grey, fontSize: 13)),
-                                            const SizedBox(height: 10),
-                                            if (plan == null)
-                                              const Expanded(
-                                                child: Center(child: Text("Drop plan here", style: TextStyle(fontSize: 13, color: Colors.grey))),
-                                              )
-                                            else
-                                              Expanded(
-                                                child: SingleChildScrollView(
-                                                  child: Column(
-                                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    padding: const EdgeInsets.all(12.0),
+                                    decoration: BoxDecoration(
+                                      color: _cardBgColor(context),
+                                      borderRadius: BorderRadius.circular(12),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withOpacity(0.05),
+                                          blurRadius: 8,
+                                          offset: const Offset(0, 2),
+                                        ),
+                                      ],
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                      CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          day,
+                                          style: _getTextStyle(context,
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 16),
+                                        ),
+                                        Text(
+                                          formattedDate,
+                                          style: _getTextStyle(context,
+                                              color: _textColorSecondary(context),
+                                              fontSize: 13),
+                                        ),
+                                        const SizedBox(height: 10),
+                                        if (plan == null)
+                                          Expanded(
+                                            child: Center(
+                                              child: Text(
+                                                "Drop plan here",
+                                                style: _getTextStyle(context,
+                                                    fontSize: 13,
+                                                    color: _textColorSecondary(
+                                                        context)),
+                                              ),
+                                            ),
+                                          )
+                                        else
+                                          Expanded(
+                                            child: SingleChildScrollView(
+                                              physics:
+                                              const BouncingScrollPhysics(),
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                                children: [
+                                                  Row(
+                                                    mainAxisAlignment:
+                                                    MainAxisAlignment
+                                                        .spaceBetween,
                                                     children: [
-                                                      Row(
-                                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                                        children: [
-                                                          Text(plan['planType'] ?? 'Meal Plan', style: const TextStyle(fontWeight: FontWeight.w600)),
-                                                          IconButton(
-                                                            icon: const Icon(Icons.close, color: Colors.red, size: 20),
-                                                            onPressed: () {
-                                                              _deleteMealPlanFromSchedule(day, date);
-                                                            },
-                                                          ),
-                                                        ],
+                                                      Expanded(
+                                                        child: Text(
+                                                          plan['planType'] ??
+                                                              'Meal Plan',
+                                                          style: _getTextStyle(
+                                                              context,
+                                                              fontWeight:
+                                                              FontWeight
+                                                                  .w600),
+                                                          overflow: TextOverflow
+                                                              .ellipsis,
+                                                        ),
                                                       ),
-                                                      const Divider(),
-                                                      _mealRow("Breakfast", plan['breakfast']),
-                                                      _mealRow("AM Snack", plan['amSnack']),
-                                                      _mealRow("Lunch", plan['lunch']),
-                                                      _mealRow("PM Snack", plan['pmSnack']),
-                                                      _mealRow("Dinner", plan['dinner']),
-                                                      _mealRow("Midnight Snack", plan['midnightSnack']),
+                                                      IconButton(
+                                                        padding: EdgeInsets.zero,
+                                                        constraints:
+                                                        const BoxConstraints(),
+                                                        icon: const Icon(
+                                                            Icons.close,
+                                                            color: Colors
+                                                                .redAccent,
+                                                            size: 20),
+                                                        onPressed: () {
+                                                          _deleteMealPlanFromSchedule(
+                                                              day, date);
+                                                        },
+                                                      ),
                                                     ],
                                                   ),
-                                                ),
+                                                  const Divider(),
+                                                  _mealRow("Breakfast",
+                                                      plan['breakfast']),
+                                                  _mealRow("AM Snack",
+                                                      plan['amSnack']),
+                                                  _mealRow("Lunch",
+                                                      plan['lunch']),
+                                                  _mealRow("PM Snack",
+                                                      plan['pmSnack']),
+                                                  _mealRow("Dinner",
+                                                      plan['dinner']),
+                                                  _mealRow("Midnight Snack",
+                                                      plan['midnightSnack']),
+                                                ],
                                               ),
-                                          ],
-                                        ),
-                                      ),
+                                            ),
+                                          ),
+                                      ],
                                     ),
                                   );
                                 },
@@ -2823,6 +2967,7 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
                 );
               },
             ),
+            // --- END OF REDESIGNED MEAL PLAN TAB ---
           ],
         ),
       ),
@@ -2834,31 +2979,63 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
       width: 160,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _cardBgColor(context),
         borderRadius: BorderRadius.circular(12),
-        boxShadow: [if (!isDragging) BoxShadow(color: Colors.black12, blurRadius: 4, offset: const Offset(2, 2))],
+        boxShadow: [
+          if (!isDragging)
+            BoxShadow(
+              color: Colors.black.withOpacity(0.06),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
+            )
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.restaurant_menu, color: Colors.green),
+          Icon(Icons.restaurant_menu_rounded, color: _primaryColor),
           const SizedBox(height: 8),
-          Text(plan['planType'] ?? 'Meal Plan', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+          Text(
+            plan['planType'] ?? 'Meal Plan',
+            style: _getTextStyle(context,
+                fontWeight: FontWeight.bold, fontSize: 14),
+          ),
           const SizedBox(height: 6),
-          Text(plan['ownerName'] ?? 'Unknown Owner', style: const TextStyle(fontSize: 12, color: Colors.black54)),
+          Text(
+            plan['ownerName'] ?? 'Unknown Owner',
+            style: _getTextStyle(context,
+                fontSize: 12, color: _textColorSecondary(context)),
+          ),
         ],
       ),
     );
   }
 
   Widget _mealRow(String label, String? value) {
+    if (value == null || value.trim().isEmpty || value.trim() == '-') {
+      return const SizedBox.shrink();
+    }
+
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
+      padding: const EdgeInsets.symmetric(vertical: 3.0),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(width: 90, child: Text("$label:")),
-          Expanded(child: Text(value ?? '-', style: const TextStyle(fontWeight: FontWeight.w500))),
+          SizedBox(
+            width: 90,
+            child: Text(
+              "$label:",
+              style: _getTextStyle(context,
+                  fontSize: 13, color: _textColorSecondary(context)),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: _getTextStyle(context,
+                  fontSize: 13, fontWeight: FontWeight.w500),
+            ),
+          ),
         ],
       ),
     );
@@ -3026,9 +3203,26 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
 
 // REPLACE the entire UsersListPage class in your home.dart with this code
 
-class UsersListPage extends StatelessWidget {
+// REPLACE the entire UsersListPage class in your home.dart with this code
+
+class UsersListPage extends StatefulWidget {
   final String currentUserId;
   const UsersListPage({super.key, required this.currentUserId});
+
+  @override
+  State<UsersListPage> createState() => _UsersListPageState();
+}
+
+class _UsersListPageState extends State<UsersListPage> {
+  // State for the sorted chats
+  List<Map<String, dynamic>> _sortedChats = [];
+  bool _isLoadingChats = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAndSortChats();
+  }
 
   String getChatRoomId(String userA, String userB) {
     if (userA.compareTo(userB) > 0) {
@@ -3038,10 +3232,25 @@ class UsersListPage extends StatelessWidget {
     }
   }
 
+  /// Get list of followed dietitians from 'following' subcollection
+  Future<List<String>> getFollowedDietitianIds() async {
+    try {
+      final followingSnapshot = await FirebaseFirestore.instance
+          .collection('Users')
+          .doc(widget.currentUserId)
+          .collection('following')
+          .get();
+      return followingSnapshot.docs.map((doc) => doc.id).toList();
+    } catch (e) {
+      print('Error fetching followed dietitians: $e');
+      return [];
+    }
+  }
+
+  /// Fetches the last message and returns its data AND timestamp for sorting
   Future<Map<String, dynamic>> getLastMessage(
       BuildContext context,
       String chatRoomId,
-      String otherUserName,
       ) async {
     final query = await FirebaseFirestore.instance
         .collection("messages")
@@ -3051,15 +3260,17 @@ class UsersListPage extends StatelessWidget {
         .get();
 
     if (query.docs.isEmpty) {
-      return {"message": "", "isMe": false, "time": ""};
+      // Return a null timestamp so this chat goes to the bottom
+      return {"message": "", "isMe": false, "time": "", "timestampObject": null};
     }
 
     final data = query.docs.first.data();
     String formattedTime = "";
     final timestamp = data["timestamp"];
+    DateTime? messageDate;
 
     if (timestamp is Timestamp) {
-      DateTime messageDate = timestamp.toDate();
+      messageDate = timestamp.toDate();
       DateTime nowDate = DateTime.now();
       if (messageDate.year == nowDate.year &&
           messageDate.month == nowDate.month &&
@@ -3075,23 +3286,84 @@ class UsersListPage extends StatelessWidget {
       "isMe": data["senderId"] == FirebaseAuth.instance.currentUser!.uid,
       "time": formattedTime,
       "senderName": data["senderName"] ?? "Unknown",
+      "timestampObject": messageDate, // <-- This is new, for sorting
     };
   }
 
-  /// Get list of followed dietitians from 'following' subcollection
-  Future<List<String>> getFollowedDietitianIds() async {
-    try {
-      final followingSnapshot = await FirebaseFirestore.instance
-          .collection('Users')
-          .doc(currentUserId)
-          .collection('following')
-          .get();
+  /// New function to load all chats, get last messages, sort, and update state
+  Future<void> _loadAndSortChats() async {
+    if (!mounted) return;
+    setState(() => _isLoadingChats = true);
 
-      return followingSnapshot.docs.map((doc) => doc.id).toList();
+    try {
+      // 1. Get all users we can chat with
+      final followedDietitianIds = await getFollowedDietitianIds();
+      final usersSnapshot = await FirebaseFirestore.instance.collection("Users").get();
+      final users = usersSnapshot.docs;
+
+      final filteredUsers = users.where((userDoc) {
+        if (userDoc.id == widget.currentUserId) return false;
+        final data = userDoc.data();
+        final role = data["role"]?.toString().toLowerCase() ?? "";
+        if (role == "admin") return true;
+        if (role == "dietitian" && followedDietitianIds.contains(userDoc.id)) {
+          return true;
+        }
+        return false;
+      }).toList();
+
+      if (filteredUsers.isEmpty) {
+        if (mounted) setState(() => _isLoadingChats = false);
+        return;
+      }
+
+      // 2. Create a list of futures to fetch chat details for each user
+      List<Future<Map<String, dynamic>>> chatFutures = [];
+      for (var userDoc in filteredUsers) {
+        chatFutures.add(_fetchChatDetails(userDoc));
+      }
+
+      // 3. Wait for all futures to complete
+      final resolvedChats = await Future.wait(chatFutures);
+
+      // 4. Sort the list by the timestamp
+      resolvedChats.sort((a, b) {
+        final timeA = a['lastMessage']['timestampObject'] as DateTime?;
+        final timeB = b['lastMessage']['timestampObject'] as DateTime?;
+
+        // Handle null timestamps (chats with no messages)
+        if (timeA == null && timeB == null) return 0;
+        if (timeA == null) return 1; // Put chats with no messages at the end
+        if (timeB == null) return -1; // Keep chats with messages at the top
+
+        return timeB.compareTo(timeA); // Sort descending
+      });
+
+      // 5. Update the state
+      if (mounted) {
+        setState(() {
+          _sortedChats = resolvedChats;
+          _isLoadingChats = false;
+        });
+      }
     } catch (e) {
-      print('Error fetching followed dietitians: $e');
-      return [];
+      print("Error loading and sorting chats: $e");
+      if (mounted) setState(() => _isLoadingChats = false);
     }
+  }
+
+  /// Helper to combine user data and last message data
+  Future<Map<String, dynamic>> _fetchChatDetails(DocumentSnapshot userDoc) async {
+    final data = userDoc.data() as Map<String, dynamic>;
+    final senderName = "${data["firstName"] ?? ""} ${data["lastName"] ?? ""}".trim();
+    final chatRoomId = getChatRoomId(widget.currentUserId, userDoc.id);
+
+    final lastMessageData = await getLastMessage(context, chatRoomId);
+
+    return {
+      'userDoc': userDoc,
+      'lastMessage': lastMessageData,
+    };
   }
 
   @override
@@ -3130,15 +3402,16 @@ class UsersListPage extends StatelessWidget {
               Tab(
                 child: Stack(
                   alignment: Alignment.center,
+                  clipBehavior: Clip.none, // Allow badge to show outside
                   children: [
                     const Text("NOTIFICATIONS"),
                     Positioned(
-                      top: -1,
-                      right: -1,
+                      top: 8,  // Adjust positioning
+                      right: -20, // Adjust positioning
                       child: StreamBuilder<QuerySnapshot>(
                         stream: FirebaseFirestore.instance
                             .collection('Users')
-                            .doc(currentUserId)
+                            .doc(widget.currentUserId)
                             .collection('notifications')
                             .where('isRead', isEqualTo: false)
                             .snapshots(),
@@ -3154,13 +3427,18 @@ class UsersListPage extends StatelessWidget {
                               color: Colors.red,
                               shape: BoxShape.circle,
                             ),
+                            constraints: const BoxConstraints(
+                              minWidth: 16,
+                              minHeight: 16,
+                            ),
                             child: Text(
-                              unreadCount > 99 ? '99+' : '$unreadCount',
+                              '$unreadCount',
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 10,
                                 fontWeight: FontWeight.bold,
                               ),
+                              textAlign: TextAlign.center,
                             ),
                           );
                         },
@@ -3174,231 +3452,167 @@ class UsersListPage extends StatelessWidget {
         ),
         body: TabBarView(
           children: [
-            // CHATS TAB - Modern Card Design
-            FutureBuilder<List<String>>(
-              future: getFollowedDietitianIds(),
-              builder: (context, followingSnapshot) {
-                if (followingSnapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(
-                    child: CircularProgressIndicator(color: _primaryColor),
-                  );
+            // --- CHATS TAB (Sorted) ---
+            _isLoadingChats
+                ? const Center(child: CircularProgressIndicator(color: _primaryColor))
+                : _sortedChats.isEmpty
+                ? Center(
+              child: Text(
+                "Follow dietitians to chat with them.",
+                style: _getTextStyle(
+                  context,
+                  fontSize: 16,
+                  color: _textColorPrimary(context),
+                ),
+              ),
+            )
+                : ListView.builder(
+              padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 8.0),
+              itemCount: _sortedChats.length,
+              itemBuilder: (context, index) {
+                final chat = _sortedChats[index];
+                final userDoc = chat['userDoc'] as DocumentSnapshot;
+                final data = userDoc.data() as Map<String, dynamic>;
+                final lastMsg = chat['lastMessage'] as Map<String, dynamic>;
+
+                final senderName =
+                "${data["firstName"] ?? ""} ${data["lastName"] ?? ""}"
+                    .trim();
+
+                String subtitleText = "No messages yet";
+                final lastMessage = lastMsg["message"] ?? "";
+                final lastSenderName = lastMsg["senderName"] ?? "";
+                final timeText = lastMsg["time"] ?? "";
+
+                if (lastMessage.isNotEmpty) {
+                  if (lastMsg["isMe"] ?? false) {
+                    subtitleText = "You: $lastMessage";
+                  } else {
+                    subtitleText = "$lastSenderName: $lastMessage";
+                  }
                 }
 
-                final followedDietitianIds = followingSnapshot.data ?? [];
-
-                return StreamBuilder<QuerySnapshot>(
-                  stream: FirebaseFirestore.instance
-                      .collection("Users")
-                      .snapshots(),
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const Center(
-                        child: CircularProgressIndicator(color: _primaryColor),
-                      );
-                    }
-                    if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                      return Center(
-                        child: Text(
-                          "No dietitians to chat with yet.",
-                          style: _getTextStyle(
-                            context,
-                            fontSize: 16,
-                            color: _textColorPrimary(context),
+                return Container(
+                  margin: const EdgeInsets.symmetric(vertical: 6.0, horizontal: 4.0),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(12),
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => MessagesPage(
+                              currentUserId: widget.currentUserId,
+                              receiverId: userDoc.id,
+                              receiverName: senderName,
+                              receiverProfile: data["profile"] ?? "",
+                            ),
                           ),
+                        ).then((_) {
+                          // When returning from chat, reload and sort
+                          _loadAndSortChats();
+                        });
+                      },
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: _cardBgColor(context),
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.04),
+                              blurRadius: 4,
+                              offset: const Offset(0, 1),
+                            ),
+                          ],
                         ),
-                      );
-                    }
-
-                    final users = snapshot.data!.docs;
-
-                    // Filter users: Only admin and dietitians that current user follows
-                    final filteredUsers = users.where((userDoc) {
-                      if (userDoc.id == currentUserId) return false;
-
-                      final data = userDoc.data() as Map<String, dynamic>;
-                      final role = data["role"]?.toString().toLowerCase() ?? "";
-
-                      if (role == "admin") return true;
-                      if (role == "dietitian" && followedDietitianIds.contains(userDoc.id)) {
-                        return true;
-                      }
-
-                      return false;
-                    }).toList();
-
-                    if (filteredUsers.isEmpty) {
-                      return Center(
-                        child: Text(
-                          "Follow dietitians to chat with them.",
-                          style: _getTextStyle(
-                            context,
-                            fontSize: 16,
-                            color: _textColorPrimary(context),
-                          ),
-                        ),
-                      );
-                    }
-
-                    return ListView.builder(
-                      padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 8.0),
-                      itemCount: filteredUsers.length,
-                      itemBuilder: (context, index) {
-                        final userDoc = filteredUsers[index];
-                        final data = userDoc.data() as Map<String, dynamic>;
-                        final senderName =
-                        "${data["firstName"] ?? ""} ${data["lastName"] ?? ""}"
-                            .trim();
-                        final chatRoomId = getChatRoomId(currentUserId, userDoc.id);
-
-                        return FutureBuilder<Map<String, dynamic>>(
-                          future: getLastMessage(context, chatRoomId, senderName),
-                          builder: (context, snapshotMessage) {
-                            String subtitleText = "No messages yet";
-                            String timeText = "";
-
-                            if (snapshotMessage.connectionState ==
-                                ConnectionState.done &&
-                                snapshotMessage.hasData) {
-                              final lastMsg = snapshotMessage.data!;
-                              final lastMessage = lastMsg["message"] ?? "";
-                              final lastSenderName = lastMsg["senderName"] ?? "";
-                              timeText = lastMsg["time"] ?? "";
-
-                              if (lastMessage.isNotEmpty) {
-                                if (lastMsg["isMe"] ?? false) {
-                                  subtitleText = "You: $lastMessage";
-                                } else {
-                                  subtitleText = "$lastSenderName: $lastMessage";
-                                }
-                              }
-                            }
-
-                            return Container(
-                              margin: const EdgeInsets.symmetric(vertical: 6.0, horizontal: 4.0),
-                              child: Material(
-                                color: Colors.transparent,
-                                child: InkWell(
-                                  borderRadius: BorderRadius.circular(12),
-                                  onTap: () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) => MessagesPage(
-                                          currentUserId: currentUserId,
-                                          receiverId: userDoc.id,
-                                          receiverName: senderName,
-                                          receiverProfile: data["profile"] ?? "",
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        child: Row(
+                          children: [
+                            Stack(
+                              children: [
+                                CircleAvatar(
+                                  radius: 24,
+                                  backgroundColor: _primaryColor.withOpacity(0.2),
+                                  backgroundImage: (data["profile"] != null &&
+                                      data["profile"].toString().isNotEmpty)
+                                      ? NetworkImage(data["profile"])
+                                      : null,
+                                  child: (data["profile"] == null ||
+                                      data["profile"].toString().isEmpty)
+                                      ? Icon(Icons.person_outline,
+                                      color: _primaryColor, size: 24)
+                                      : null,
+                                ),
+                                if (data['status'] == 'online') // Check for online status
+                                  Positioned(
+                                    bottom: 0,
+                                    right: 0,
+                                    child: Container(
+                                      width: 14,
+                                      height: 14,
+                                      decoration: BoxDecoration(
+                                        color: Colors.green,
+                                        shape: BoxShape.circle,
+                                        border: Border.all(
+                                          color: _cardBgColor(context),
+                                          width: 2,
                                         ),
                                       ),
-                                    );
-                                  },
-                                  child: Container(
-                                    decoration: BoxDecoration(
-                                      color: _cardBgColor(context),
-                                      borderRadius: BorderRadius.circular(12),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: Colors.black.withOpacity(0.04),
-                                          blurRadius: 4,
-                                          offset: const Offset(0, 1),
-                                        ),
-                                      ],
-                                    ),
-                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                                    child: Row(
-                                      children: [
-                                        // Avatar with online indicator
-                                        Stack(
-                                          children: [
-                                            CircleAvatar(
-                                              radius: 24,
-                                              backgroundColor: _primaryColor.withOpacity(0.2),
-                                              backgroundImage: (data["profile"] != null &&
-                                                  data["profile"].toString().isNotEmpty)
-                                                  ? NetworkImage(data["profile"])
-                                                  : null,
-                                              child: (data["profile"] == null ||
-                                                  data["profile"].toString().isEmpty)
-                                                  ? Icon(Icons.person_outline,
-                                                  color: _primaryColor, size: 24)
-                                                  : null,
-                                            ),
-                                            Positioned(
-                                              bottom: 0,
-                                              right: 0,
-                                              child: Container(
-                                                width: 14,
-                                                height: 14,
-                                                decoration: BoxDecoration(
-                                                  color: Colors.green,
-                                                  shape: BoxShape.circle,
-                                                  border: Border.all(
-                                                    color: _cardBgColor(context),
-                                                    width: 2,
-                                                  ),
-                                                ),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                        const SizedBox(width: 12),
-                                        // Chat info
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                senderName,
-                                                style: _getTextStyle(context,
-                                                    fontSize: 15,
-                                                    fontWeight: FontWeight.w600),
-                                                maxLines: 1,
-                                                overflow: TextOverflow.ellipsis,
-                                              ),
-                                              const SizedBox(height: 4),
-                                              Text(
-                                                subtitleText,
-                                                maxLines: 1,
-                                                overflow: TextOverflow.ellipsis,
-                                                style: _getTextStyle(context,
-                                                    fontSize: 13,
-                                                    fontWeight: FontWeight.w400,
-                                                    color: _textColorSecondary(context)),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                        // Time
-                                        if (timeText.isNotEmpty)
-                                          Padding(
-                                            padding: const EdgeInsets.only(left: 8.0),
-                                            child: Text(
-                                              timeText,
-                                              style: _getTextStyle(context,
-                                                  fontSize: 12,
-                                                  color: _textColorSecondary(context)),
-                                            ),
-                                          ),
-                                      ],
                                     ),
                                   ),
+                              ],
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    senderName,
+                                    style: _getTextStyle(context,
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w600),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    subtitleText,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: _getTextStyle(context,
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w400,
+                                        color: _textColorSecondary(context)),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            if (timeText.isNotEmpty)
+                              Padding(
+                                padding: const EdgeInsets.only(left: 8.0),
+                                child: Text(
+                                  timeText,
+                                  style: _getTextStyle(context,
+                                      fontSize: 12,
+                                      color: _textColorSecondary(context)),
                                 ),
                               ),
-                            );
-                          },
-                        );
-                      },
-                    );
-                  },
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
                 );
               },
             ),
 
-            // NOTIFICATIONS TAB - Premium Design
+            // --- NOTIFICATIONS TAB (Grouped) ---
             StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance
                   .collection("Users")
-                  .doc(currentUserId)
+                  .doc(widget.currentUserId)
                   .collection("notifications")
                   .orderBy("timestamp", descending: true)
                   .snapshots(),
@@ -3425,11 +3639,38 @@ class UsersListPage extends StatelessWidget {
                   );
                 }
 
+                // --- NEW GROUPING LOGIC ---
+                // This map will hold only the *latest* notification for each group.
+                final Map<String, DocumentSnapshot> groupedNotifications = {};
+
+                for (final doc in docs) {
+                  final data = doc.data() as Map<String, dynamic>;
+                  String groupingKey;
+
+                  // Group messages by sender, but don't group any other notification type
+                  if (data['type'] == 'message' && data['senderId'] != null) {
+                    groupingKey = data['senderId']; // Group by senderId
+                  } else {
+                    groupingKey = doc.id; // Use unique doc.id to *not* group
+                  }
+
+                  // Since the list is sorted by timestamp (descending),
+                  // the first time we see a groupingKey, it's the most recent one.
+                  if (!groupedNotifications.containsKey(groupingKey)) {
+                    groupedNotifications[groupingKey] = doc;
+                  }
+                }
+
+                // Use the filtered list of documents to build the ListView
+                final finalDocsToShow = groupedNotifications.values.toList();
+                // --- END NEW GROUPING LOGIC ---
+
+
                 return ListView.builder(
-                  itemCount: docs.length,
+                  itemCount: finalDocsToShow.length, // <-- CHANGED
                   padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 12.0),
                   itemBuilder: (context, index) {
-                    final doc = docs[index];
+                    final doc = finalDocsToShow[index]; // <-- CHANGED
                     final data = doc.data() as Map<String, dynamic>;
                     final Timestamp? timestamp = data["timestamp"] as Timestamp?;
                     String formattedTime = "";
@@ -3448,7 +3689,6 @@ class UsersListPage extends StatelessWidget {
 
                     bool isRead = data["isRead"] == true;
 
-                    // Determine icon and color based on type
                     IconData notificationIcon = Icons.notifications_rounded;
                     Color iconBgColor = _primaryColor;
 
@@ -3494,7 +3734,7 @@ class UsersListPage extends StatelessWidget {
                             if (!isRead) {
                               await FirebaseFirestore.instance
                                   .collection("Users")
-                                  .doc(currentUserId)
+                                  .doc(widget.currentUserId)
                                   .collection("notifications")
                                   .doc(doc.id)
                                   .update({"isRead": true});
@@ -3507,19 +3747,25 @@ class UsersListPage extends StatelessWidget {
                                   builder: (_) => MessagesPage(
                                     receiverId: data["senderId"],
                                     receiverName: data["senderName"],
-                                    currentUserId: currentUserId,
+                                    currentUserId: widget.currentUserId,
                                     receiverProfile: data["receiverProfile"] ?? "",
                                   ),
                                 ),
-                              );
+                              ).then((_) {
+                                // When returning, reload chats in case a new chat was started
+                                _loadAndSortChats();
+                              });
                             }
+
+                            // TODO: Add navigation for other notification types
+                            // if (data["type"] == "appointment") { ... }
+
                           },
                           child: Padding(
                             padding: const EdgeInsets.all(14.0),
                             child: Row(
                               crossAxisAlignment: CrossAxisAlignment.center,
                               children: [
-                                // Icon with colored background
                                 Container(
                                   width: 48,
                                   height: 48,
@@ -3538,7 +3784,6 @@ class UsersListPage extends StatelessWidget {
                                   ),
                                 ),
                                 const SizedBox(width: 12),
-                                // Title and message
                                 Expanded(
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,

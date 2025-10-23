@@ -7,6 +7,51 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../email/paymentNotifDietitian.dart';
 import '../pages/home.dart';
+import 'package:dotted_border/dotted_border.dart'; // Import for receipt preview
+
+// --- Theme Helpers ---
+const String _primaryFontFamily = 'PlusJakartaSans';
+const Color _primaryColor = Color(0xFF4CAF50);
+const Color _textColorOnPrimary = Colors.white;
+
+Color _scaffoldBgColor(BuildContext context) =>
+    Theme.of(context).brightness == Brightness.dark
+        ? Colors.grey.shade900
+        : Colors.grey.shade50;
+Color _cardBgColor(BuildContext context) =>
+    Theme.of(context).brightness == Brightness.dark
+        ? Colors.grey.shade800
+        : Colors.white;
+Color _textColorPrimary(BuildContext context) =>
+    Theme.of(context).brightness == Brightness.dark
+        ? Colors.white70
+        : Colors.black87;
+Color _textColorSecondary(BuildContext context) =>
+    Theme.of(context).brightness == Brightness.dark
+        ? Colors.white54
+        : Colors.black54;
+
+TextStyle _getTextStyle(
+    BuildContext context, {
+      double fontSize = 16,
+      FontWeight fontWeight = FontWeight.normal,
+      Color? color,
+      String fontFamily = _primaryFontFamily,
+      double? letterSpacing,
+      FontStyle? fontStyle,
+      double? height,
+    }) {
+  return TextStyle(
+    fontSize: fontSize,
+    fontWeight: fontWeight,
+    color: color ?? _textColorPrimary(context),
+    fontFamily: fontFamily,
+    letterSpacing: letterSpacing,
+    fontStyle: fontStyle,
+    height: height,
+  );
+}
+// --- End Theme Helpers ---
 
 class PaymentPage extends StatefulWidget {
   final String planType;
@@ -14,7 +59,6 @@ class PaymentPage extends StatefulWidget {
   final String dietitianName;
   final String dietitianEmail;
   final String dietitianProfile;
-  // NEW PARAMETERS
   final String? dietitianId;
   final double? priceAmount;
   final int? durationDays;
@@ -26,9 +70,9 @@ class PaymentPage extends StatefulWidget {
     required this.dietitianName,
     required this.dietitianEmail,
     required this.dietitianProfile,
-    this.dietitianId, // Optional for backward compatibility
-    this.priceAmount, // Optional for backward compatibility
-    this.durationDays, // Optional for backward compatibility
+    this.dietitianId,
+    this.priceAmount,
+    this.durationDays,
   });
 
   @override
@@ -38,6 +82,7 @@ class PaymentPage extends StatefulWidget {
 class _PaymentPageState extends State<PaymentPage> {
   String? _qrPicUrl;
   bool _isLoading = true;
+  bool _isUploading = false; // Separate loading state for submission
   String? _uploadedReceiptUrl;
   String? _resolvedDietitianId;
   double? _resolvedPriceAmount;
@@ -52,27 +97,20 @@ class _PaymentPageState extends State<PaymentPage> {
     _initializePaymentData();
   }
 
-  // Initialize and resolve payment data
+  // --- All backend logic functions (untouched, they are correct) ---
   Future<void> _initializePaymentData() async {
     setState(() => _isLoading = true);
-
-    // If dietitianId is already provided, use it
     if (widget.dietitianId != null) {
       _resolvedDietitianId = widget.dietitianId;
       _resolvedPriceAmount = widget.priceAmount;
       _resolvedDurationDays = widget.durationDays;
     } else {
-      // Fetch dietitianId from email (backward compatibility)
       await _fetchDietitianId();
-
-      // Parse price and duration from planType if not provided
       _resolvePlanDetails();
     }
-
     await _fetchDietitianQrPic();
   }
 
-  // Fetch dietitian ID from email
   Future<void> _fetchDietitianId() async {
     try {
       final query = await _firestore
@@ -80,7 +118,6 @@ class _PaymentPageState extends State<PaymentPage> {
           .where('email', isEqualTo: widget.dietitianEmail)
           .limit(1)
           .get();
-
       if (query.docs.isNotEmpty) {
         _resolvedDietitianId = query.docs.first.id;
       }
@@ -89,13 +126,9 @@ class _PaymentPageState extends State<PaymentPage> {
     }
   }
 
-  // Resolve plan details from planType string (backward compatibility)
   void _resolvePlanDetails() {
-    // Extract price from planPrice string (e.g., "₱ 250.00" -> 250.0)
     final priceString = widget.planPrice.replaceAll(RegExp(r'[^0-9.]'), '');
     _resolvedPriceAmount = double.tryParse(priceString) ?? 0.0;
-
-    // Determine duration from planType
     switch (widget.planType.toLowerCase()) {
       case 'weekly':
         _resolvedDurationDays = 7;
@@ -107,11 +140,10 @@ class _PaymentPageState extends State<PaymentPage> {
         _resolvedDurationDays = 365;
         break;
       default:
-        _resolvedDurationDays = 30; // Default to monthly
+        _resolvedDurationDays = 30;
     }
   }
 
-  // Fetch dietitian's qrpic
   Future<void> _fetchDietitianQrPic() async {
     try {
       final query = await _firestore
@@ -132,12 +164,11 @@ class _PaymentPageState extends State<PaymentPage> {
     }
   }
 
-  // Upload image to Cloudinary
   Future<String?> _uploadImageToCloudinary(File imageFile) async {
     const cloudName = 'dbc77ko88';
     const uploadPreset = 'receipts';
-
-    final url = Uri.parse('https://api.cloudinary.com/v1_1/$cloudName/image/upload');
+    final url =
+    Uri.parse('https://api.cloudinary.com/v1_1/$cloudName/image/upload');
     final request = http.MultipartRequest('POST', url)
       ..fields['upload_preset'] = uploadPreset
       ..fields['folder'] = 'Receipts'
@@ -154,7 +185,6 @@ class _PaymentPageState extends State<PaymentPage> {
     }
   }
 
-  // Pick image from gallery (≤ 10MB)
   Future<void> _pickAndUploadImage() async {
     final picker = ImagePicker();
     final pickedFile = await picker.pickImage(source: ImageSource.gallery);
@@ -164,73 +194,52 @@ class _PaymentPageState extends State<PaymentPage> {
     final fileSizeMB = imageFile.lengthSync() / (1024 * 1024);
 
     if (fileSizeMB > 10) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            "Image too large (${fileSizeMB.toStringAsFixed(2)} MB). Max allowed is 10 MB.",
-          ),
-        ),
-      );
+      _showErrorSnackBar(
+          "Image too large (${fileSizeMB.toStringAsFixed(2)} MB). Max 10 MB.");
       return;
     }
 
-    setState(() => _isLoading = true);
-
+    setState(() => _isUploading = true); // Use submission loader
     final uploadedUrl = await _uploadImageToCloudinary(imageFile);
+
     if (uploadedUrl != null) {
       setState(() {
         _uploadedReceiptUrl = uploadedUrl;
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Receipt uploaded successfully")),
-      );
+      _showSuccessSnackBar("Receipt uploaded successfully");
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Failed to upload receipt")),
-      );
+      _showErrorSnackBar("Failed to upload receipt");
     }
-
-    setState(() => _isLoading = false);
+    setState(() => _isUploading = false);
   }
 
-  // Save receipt data and create subscription
   Future<void> _saveReceiptData() async {
     final user = _auth.currentUser;
     if (user == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("User not logged in.")),
-      );
+      _showErrorSnackBar("User not logged in.");
       return;
     }
-
     if (_uploadedReceiptUrl == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please upload your receipt first.")),
-      );
+      _showErrorSnackBar("Please upload your receipt first.");
       return;
     }
-
     if (_resolvedDietitianId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Error: Dietitian information not found.")),
-      );
+      _showErrorSnackBar("Error: Dietitian information not found.");
       return;
     }
 
-    setState(() => _isLoading = true);
+    setState(() => _isUploading = true);
 
     try {
-      // Calculate subscription dates
       final now = DateTime.now();
       final durationDays = _resolvedDurationDays ?? 30;
       final endDate = now.add(Duration(days: durationDays));
 
-      // Create subscription document
       final subscriptionRef = await _firestore.collection('subscriptions').add({
         'dietitianId': _resolvedDietitianId,
         'userId': user.uid,
         'subscriptionType': widget.planType,
-        'status': 'pending', // Will be 'active' after admin approval
+        'status': 'pending',
         'price': _resolvedPriceAmount ?? 0.0,
         'startDate': Timestamp.fromDate(now),
         'endDate': Timestamp.fromDate(endDate),
@@ -238,7 +247,6 @@ class _PaymentPageState extends State<PaymentPage> {
         'cancelledAt': null,
       });
 
-      // Save receipt with subscription reference
       await _firestore.collection('receipts').add({
         'clientID': user.uid,
         'dietitianID': _resolvedDietitianId,
@@ -250,7 +258,6 @@ class _PaymentPageState extends State<PaymentPage> {
         'timeStamp': FieldValue.serverTimestamp(),
       });
 
-      // Send email notification to dietitian
       await EmailSender.sendPaymentNotification(
         toEmail: widget.dietitianEmail,
         clientName: user.displayName ?? "A client",
@@ -259,22 +266,12 @@ class _PaymentPageState extends State<PaymentPage> {
         receiptUrl: _uploadedReceiptUrl!,
       );
 
-      // Update dietitian's subscriber count temporarily
       await _updateDietitianStats();
-
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            "Receipt submitted successfully. Your subscription will be activated after approval.",
-          ),
-          backgroundColor: Colors.green,
-          duration: Duration(seconds: 3),
-        ),
-      );
+      _showSuccessSnackBar(
+          "Receipt submitted! Your subscription will be activated after approval.");
 
-      // Navigate to Home
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(builder: (context) => const home()),
@@ -283,24 +280,15 @@ class _PaymentPageState extends State<PaymentPage> {
     } catch (e) {
       debugPrint("Error saving receipt: $e");
       if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("Error: $e"),
-          backgroundColor: Colors.red,
-        ),
-      );
+      _showErrorSnackBar("Error: $e");
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isUploading = false);
     }
   }
 
-  // Update dietitian statistics
   Future<void> _updateDietitianStats() async {
     if (_resolvedDietitianId == null) return;
-
     try {
-      // Fetch all active subscriptions for this dietitian
       final subscriptions = await _firestore
           .collection('subscriptions')
           .where('dietitianId', isEqualTo: _resolvedDietitianId)
@@ -317,11 +305,8 @@ class _PaymentPageState extends State<PaymentPage> {
         final price = (data['price'] as num?)?.toDouble() ?? 0.0;
         final type = data['subscriptionType'];
         final status = data['status'];
-
         totalRevenue += price;
-
         if (status == 'active' || status == 'pending') activeCount++;
-
         switch (type) {
           case 'weekly':
             weeklyCount++;
@@ -334,8 +319,6 @@ class _PaymentPageState extends State<PaymentPage> {
             break;
         }
       }
-
-      // Update dietitian document
       await _firestore.collection('Users').doc(_resolvedDietitianId).update({
         'activeSubscriptions': activeCount,
         'totalRevenue': totalRevenue,
@@ -345,162 +328,442 @@ class _PaymentPageState extends State<PaymentPage> {
           'monthly': monthlyCount,
           'yearly': yearlyCount,
         },
-        'clientCount': activeCount, // Update client count
+        'clientCount': activeCount,
       });
     } catch (e) {
       debugPrint('Error updating dietitian stats: $e');
     }
   }
+  // --- End backend logic functions ---
+
+  // --- Styled SnackBars ---
+  void _showErrorSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(Icons.error_outline, color: _textColorOnPrimary),
+            const SizedBox(width: 12),
+            Expanded(child: Text(message)),
+          ],
+        ),
+        backgroundColor: Colors.redAccent,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        margin: const EdgeInsets.all(16),
+      ),
+    );
+  }
+
+  void _showSuccessSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(Icons.check_circle_outline, color: _textColorOnPrimary),
+            const SizedBox(width: 12),
+            Expanded(child: Text(message)),
+          ],
+        ),
+        backgroundColor: _primaryColor,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        margin: const EdgeInsets.all(16),
+      ),
+    );
+  }
+  // --- End Styled SnackBars ---
 
   @override
   Widget build(BuildContext context) {
-    const String fontFamily = 'Poppins';
-    const Color primaryColor = Color(0xFF1B8C53);
-
     return Scaffold(
+      backgroundColor: _scaffoldBgColor(context),
       appBar: AppBar(
-        title: const Text(
-          "Plan Summary",
-          style: TextStyle(
-            fontFamily: fontFamily,
-            color: Colors.black,
-            fontWeight: FontWeight.w600,
+        title: Text(
+          "Payment",
+          style: _getTextStyle(
+            context,
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: _textColorOnPrimary,
           ),
         ),
         centerTitle: true,
-        backgroundColor: Colors.white,
-        elevation: 0,
+        backgroundColor: _primaryColor,
+        elevation: 1,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          icon: const Icon(Icons.arrow_back, color: _textColorOnPrimary),
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      backgroundColor: Colors.white,
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(16),
+        physics: const BouncingScrollPhysics(),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            CircleAvatar(
-              radius: 45,
-              backgroundImage: NetworkImage(widget.dietitianProfile),
-            ),
-            const SizedBox(height: 15),
-            Text(
-              widget.dietitianName,
-              style: const TextStyle(
-                fontFamily: fontFamily,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              widget.dietitianEmail,
-              style: const TextStyle(
-                fontFamily: fontFamily,
-                fontSize: 14,
-                color: Colors.grey,
-              ),
-            ),
-            const SizedBox(height: 30),
-            const Divider(),
+            _buildDietitianCard(context),
             const SizedBox(height: 20),
-            Text(
-              "You selected the ${widget.planType} Plan",
-              style: const TextStyle(
-                fontFamily: fontFamily,
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              "Price: ${widget.planPrice}",
-              style: const TextStyle(
-                fontFamily: fontFamily,
-                fontSize: 15,
-                color: Colors.black87,
-              ),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              "Duration: ${_resolvedDurationDays ?? 30} days",
-              style: const TextStyle(
-                fontFamily: fontFamily,
-                fontSize: 14,
-                color: Colors.grey,
-              ),
-            ),
-            const SizedBox(height: 30),
-            const Divider(),
+            _buildSummaryCard(context),
             const SizedBox(height: 20),
-            if (_isLoading)
-              const CircularProgressIndicator(color: primaryColor)
-            else if (_qrPicUrl != null)
-              Column(
-                children: [
-                  const Text(
-                    "Scan this QR code to pay:",
-                    style: TextStyle(
-                      fontFamily: fontFamily,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: Image.network(
-                      _qrPicUrl!,
-                      height: 200,
-                      width: 200,
-                      fit: BoxFit.cover,
-                    ),
-                  ),
-                ],
-              ),
-            const SizedBox(height: 30),
-            ElevatedButton.icon(
-              onPressed: _isLoading ? null : _pickAndUploadImage,
-              icon: const Icon(Icons.upload),
-              label: const Text("Upload Receipt"),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: primaryColor,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-            ),
-            if (_uploadedReceiptUrl != null) ...[
-              const SizedBox(height: 20),
-              Image.network(_uploadedReceiptUrl!, height: 150),
-            ],
-            const SizedBox(height: 25),
-            ElevatedButton.icon(
-              onPressed: _isLoading ? null : _saveReceiptData,
-              icon: _isLoading
-                  ? const SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(
-                  color: Colors.white,
-                  strokeWidth: 2,
-                ),
-              )
-                  : const Icon(Icons.check_circle_outline),
-              label: Text(_isLoading ? "Processing..." : "Mark as Paid"),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.teal,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-            ),
+            _buildPaymentCard(context),
+            const SizedBox(height: 20),
+            _buildUploadCard(context),
+            const SizedBox(height: 40),
           ],
+        ),
+      ),
+      bottomNavigationBar: _buildBottomButton(context),
+    );
+  }
+
+  Widget _buildDietitianCard(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: _cardBgColor(context),
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 30,
+            backgroundImage: NetworkImage(widget.dietitianProfile),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "Subscribing to:",
+                  style: _getTextStyle(
+                    context,
+                    fontSize: 13,
+                    color: _textColorSecondary(context),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  widget.dietitianName,
+                  style: _getTextStyle(
+                    context,
+                    fontSize: 17,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Text(
+                  widget.dietitianEmail,
+                  style: _getTextStyle(
+                    context,
+                    fontSize: 14,
+                    color: _textColorSecondary(context),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSummaryCard(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: _cardBgColor(context),
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            "Order Summary",
+            style: _getTextStyle(context,
+                fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 16),
+          _buildSummaryRow(
+            context,
+            "Plan:",
+            widget.planType,
+          ),
+          const SizedBox(height: 8),
+          _buildSummaryRow(
+            context,
+            "Duration:",
+            "${_resolvedDurationDays ?? 30} days",
+          ),
+          const Divider(height: 24),
+          _buildSummaryRow(
+            context,
+            "Total Price:",
+            widget.planPrice,
+            isTotal: true,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSummaryRow(BuildContext context, String title, String value,
+      {bool isTotal = false}) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          title,
+          style: _getTextStyle(
+            context,
+            fontSize: 15,
+            color: _textColorSecondary(context),
+            fontWeight: isTotal ? FontWeight.w600 : FontWeight.normal,
+          ),
+        ),
+        Text(
+          value,
+          style: _getTextStyle(
+            context,
+            fontSize: isTotal ? 20 : 16,
+            fontWeight: FontWeight.bold,
+            color: isTotal ? _primaryColor : _textColorPrimary(context),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPaymentCard(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: _cardBgColor(context),
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Text(
+            "Payment Instructions",
+            style: _getTextStyle(context,
+                fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 16),
+          if (_isLoading)
+            const SizedBox(
+              height: 200,
+              child:
+              Center(child: CircularProgressIndicator(color: _primaryColor)),
+            )
+          else if (_qrPicUrl != null)
+            Column(
+              children: [
+                Text(
+                  "Scan this QR code to pay:",
+                  style: _getTextStyle(
+                    context,
+                    fontSize: 15,
+                    color: _textColorSecondary(context),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.network(
+                    _qrPicUrl!,
+                    height: 250,
+                    width: 250,
+                    fit: BoxFit.cover,
+                  ),
+                ),
+              ],
+            )
+          else
+            Container(
+              height: 150,
+              child: Center(
+                child: Text(
+                  "Could not load QR Code.\nPlease contact dietitian.",
+                  textAlign: TextAlign.center,
+                  style: _getTextStyle(context, color: Colors.redAccent),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildUploadCard(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: _cardBgColor(context),
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Text(
+            "Upload Receipt",
+            style: _getTextStyle(context,
+                fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            "Upload a screenshot of your payment to be verified.",
+            textAlign: TextAlign.center,
+            style: _getTextStyle(
+              context,
+              fontSize: 14,
+              color: _textColorSecondary(context),
+            ),
+          ),
+          const SizedBox(height: 20),
+          if (_uploadedReceiptUrl == null)
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: OutlinedButton.icon(
+                onPressed: _isUploading ? null : _pickAndUploadImage,
+                icon: const Icon(Icons.upload_file_outlined),
+                label: Text(
+                  "Upload Receipt Image",
+                  style: _getTextStyle(context,
+                      fontWeight: FontWeight.bold, color: _primaryColor),
+                ),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: _primaryColor,
+                  side: const BorderSide(color: _primaryColor, width: 1.5),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            )
+          else
+            Column(
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: DottedBorder(
+                    color: _primaryColor.withOpacity(0.7),
+                    strokeWidth: 2,
+                    borderType: BorderType.RRect,
+                    radius: const Radius.circular(12),
+                    dashPattern: const [8, 4],
+                    child: Container(
+                      height: 200,
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        color: _primaryColor.withOpacity(0.05),
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(10),
+                        child:
+                        Image.network(_uploadedReceiptUrl!, fit: BoxFit.cover),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextButton.icon(
+                  onPressed: _isUploading ? null : _pickAndUploadImage,
+                  icon: const Icon(Icons.edit_outlined, size: 18),
+                  label: Text(
+                    "Change Image",
+                    style: _getTextStyle(context,
+                        fontSize: 14, color: _primaryColor),
+                  ),
+                ),
+              ],
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBottomButton(BuildContext context) {
+    bool canSubmit = _uploadedReceiptUrl != null;
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(24, 16, 24, 40),
+      decoration: BoxDecoration(
+        color: _cardBgColor(context),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 12,
+            offset: const Offset(0, -4),
+          )
+        ],
+      ),
+      child: SizedBox(
+        width: double.infinity,
+        height: 56,
+        child: ElevatedButton(
+          onPressed: (canSubmit && !_isUploading) ? _saveReceiptData : null,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: _primaryColor,
+            foregroundColor: _textColorOnPrimary,
+            disabledBackgroundColor: Colors.grey.shade300,
+            disabledForegroundColor: Colors.grey.shade500,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            elevation: 4,
+            shadowColor: _primaryColor.withOpacity(0.3),
+          ),
+          child: _isUploading
+              ? const SizedBox(
+            width: 24,
+            height: 24,
+            child: CircularProgressIndicator(
+              color: Colors.white,
+              strokeWidth: 3,
+            ),
+          )
+              : Text(
+            "Submit for Approval",
+            style: _getTextStyle(
+              context,
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: canSubmit
+                  ? _textColorOnPrimary
+                  : Colors.grey.shade500,
+            ),
+          ),
         ),
       ),
     );

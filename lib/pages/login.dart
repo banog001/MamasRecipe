@@ -843,7 +843,7 @@ class _LoginPageState extends State<LoginPageMobile> with TickerProviderStateMix
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Text(
-                                'Welcome Back',
+                                'Welcome!',
                                 style: _getTextStyle(
                                   context,
                                   fontSize: 28,

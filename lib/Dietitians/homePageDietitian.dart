@@ -19,6 +19,8 @@ import 'createMealPlan.dart';
 import 'dietitianProfile.dart';
 import '../email/appointmentEmail.dart';
 
+import 'package:mamas_recipe/about/about_page.dart';
+
 // --- THEME & STYLING CONSTANTS (Available to the whole file) ---
 const String _primaryFontFamily = 'PlusJakartaSans';
 const Color _primaryColor = Color(0xFF4CAF50);
@@ -219,7 +221,17 @@ class _HomePageDietitianState extends State<HomePageDietitian> {
               decoration: const BoxDecoration(color: _primaryColor),
             ),
             _buildMenuTile('My Meal Plans', Icons.list_alt_outlined),
-            _buildMenuTile('Client Management', Icons.people_outline_rounded),
+            ListTile(
+              leading: const Icon(Icons.info_outline, color: Colors.black87),
+              title: const Text('About', style: TextStyle(fontFamily: _primaryFontFamily)),
+              onTap: () {
+                Navigator.pop(context); // Close the drawer first
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const AboutPage()),
+                );
+              },
+            ),
             _buildMenuTile('Settings', Icons.settings_outlined),
             const Divider(indent: 16, endIndent: 16),
             _buildMenuTile('Logout', Icons.logout_outlined),

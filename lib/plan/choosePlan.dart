@@ -4,9 +4,49 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'payment.dart';
 import 'package:intl/intl.dart';
 
-const String _primaryFontFamily = 'Poppins';
-const Color _primaryColor = Color(0xFF1B8C53);
+// --- Theme Helpers ---
+const String _primaryFontFamily = 'PlusJakartaSans';
+const Color _primaryColor = Color(0xFF4CAF50);
 const Color _textColorOnPrimary = Colors.white;
+
+Color _scaffoldBgColor(BuildContext context) =>
+    Theme.of(context).brightness == Brightness.dark
+        ? Colors.grey.shade900
+        : Colors.grey.shade50; // Use a light grey for contrast
+Color _cardBgColor(BuildContext context) =>
+    Theme.of(context).brightness == Brightness.dark
+        ? Colors.grey.shade800
+        : Colors.white;
+Color _textColorPrimary(BuildContext context) =>
+    Theme.of(context).brightness == Brightness.dark
+        ? Colors.white70
+        : Colors.black87;
+Color _textColorSecondary(BuildContext context) =>
+    Theme.of(context).brightness == Brightness.dark
+        ? Colors.white54
+        : Colors.black54;
+
+TextStyle _getTextStyle(
+    BuildContext context, {
+      double fontSize = 16,
+      FontWeight fontWeight = FontWeight.normal,
+      Color? color,
+      String fontFamily = _primaryFontFamily,
+      double? letterSpacing,
+      FontStyle? fontStyle,
+      double? height,
+    }) {
+  return TextStyle(
+    fontSize: fontSize,
+    fontWeight: fontWeight,
+    color: color ?? _textColorPrimary(context),
+    fontFamily: fontFamily,
+    letterSpacing: letterSpacing,
+    fontStyle: fontStyle,
+    height: height,
+  );
+}
+// --- End Theme Helpers ---
 
 class ChoosePlanPage extends StatefulWidget {
   final String dietitianName;
@@ -29,15 +69,11 @@ class _ChoosePlanPageState extends State<ChoosePlanPage> {
   String? _dietitianId;
   bool _isLoading = true;
 
-  // Dynamic pricing from Firestore
   double _weeklyPrice = 99.00;
   double _monthlyPrice = 250.00;
   double _yearlyPrice = 2999.00;
   final NumberFormat currencyFormatter = NumberFormat("#,##0.00", "en_US");
 
-
-
-  // Subscription plan details (prices will be updated from Firestore)
   Map<String, Map<String, dynamic>> get plans => {
     'weekly': {
       'name': 'Weekly Plan',
@@ -45,30 +81,27 @@ class _ChoosePlanPageState extends State<ChoosePlanPage> {
       'price': _weeklyPrice,
       'displayPrice': '₱ ${currencyFormatter.format(_weeklyPrice)}',
       'durationDays': 7,
-      'description': 'Get access to meal plans for 7 days',
       'benefits': [
         'Access to dietitian meal plans',
         'Weekly updates',
         'Basic support',
       ],
       'icon': Icons.calendar_view_week,
-      'color': Colors.blue,
+      'color': Colors.blue.shade700,
     },
     'monthly': {
       'name': 'Monthly Plan',
       'duration': '30 days',
       'price': _monthlyPrice,
       'displayPrice': '₱ ${currencyFormatter.format(_monthlyPrice)}',
-
       'durationDays': 30,
-      'description': 'Get access to meal plans for 30 days',
       'benefits': [
         'Access to unlimited meal plans',
         'Monthly updates',
         'Priority support',
       ],
       'icon': Icons.calendar_view_month,
-      'color': Colors.orange,
+      'color': Colors.orange.shade700,
     },
     'yearly': {
       'name': 'Yearly Plan',
@@ -76,7 +109,6 @@ class _ChoosePlanPageState extends State<ChoosePlanPage> {
       'price': _yearlyPrice,
       'displayPrice': '₱ ${currencyFormatter.format(_yearlyPrice)}',
       'durationDays': 365,
-      'description': 'Get access to meal plans for full year',
       'benefits': [
         'Unlimited meal plan access',
         'Weekly personalized updates',
@@ -84,7 +116,7 @@ class _ChoosePlanPageState extends State<ChoosePlanPage> {
         'Save over 40% vs monthly',
       ],
       'icon': Icons.calendar_today,
-      'color': Colors.purple,
+      'color': Colors.purple.shade700,
     },
   };
 
@@ -108,12 +140,9 @@ class _ChoosePlanPageState extends State<ChoosePlanPage> {
 
         setState(() {
           _dietitianId = dietitianDoc.id;
-
-          // Get pricing from Firestore, use defaults if not set
           _weeklyPrice = (data['weeklyPrice'] ?? 99.00).toDouble();
           _monthlyPrice = (data['monthlyPrice'] ?? 250.00).toDouble();
           _yearlyPrice = (data['yearlyPrice'] ?? 2999.00).toDouble();
-
           _isLoading = false;
         });
       } else {
@@ -127,304 +156,343 @@ class _ChoosePlanPageState extends State<ChoosePlanPage> {
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
-      return Scaffold(
-        backgroundColor: Colors.white,
-        body: Center(
-          child: CircularProgressIndicator(color: _primaryColor),
-        ),
-      );
-    }
-
     return Scaffold(
+      backgroundColor: _scaffoldBgColor(context),
       appBar: AppBar(
-        title: const Text(
+        title: Text(
           'Choose a Plan',
-          style: TextStyle(
-            fontFamily: _primaryFontFamily,
-            fontWeight: FontWeight.w600,
-            color: Colors.black,
+          style: _getTextStyle(
+            context,
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: _textColorOnPrimary,
           ),
         ),
-        backgroundColor: Colors.white,
-        elevation: 0,
+        backgroundColor: _primaryColor,
+        elevation: 1,
         centerTitle: true,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          icon: const Icon(Icons.arrow_back, color: _textColorOnPrimary),
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      backgroundColor: Colors.white,
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator(color: _primaryColor))
+          : SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Premium Card
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: _primaryColor,
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: const [
-                        Text(
-                          "Premium",
-                          style: TextStyle(
-                            fontFamily: _primaryFontFamily,
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
-                        SizedBox(height: 8),
-                        Text(
-                          "Gain more access to approved meal plans of dietitians",
-                          style: TextStyle(
-                            fontFamily: _primaryFontFamily,
-                            fontSize: 14,
-                            color: Colors.white,
-                            height: 1.4,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  SizedBox(
-                    height: 80,
-                    width: 80,
-                    child: Image.asset('assets/images/salad.png'),
-                  ),
-                ],
-              ),
-            ),
+            _buildPremiumCard(context),
             const SizedBox(height: 20),
-
-            // Dietitian Info
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade100,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                children: [
-                  CircleAvatar(
-                    radius: 30,
-                    backgroundImage: widget.dietitianProfile.isNotEmpty
-                        ? NetworkImage(widget.dietitianProfile)
-                        : null,
-                    child: widget.dietitianProfile.isEmpty
-                        ? const Icon(Icons.person, size: 30)
-                        : null,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          widget.dietitianName,
-                          style: const TextStyle(
-                            fontFamily: _primaryFontFamily,
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Licensed Dietitian',
-                          style: TextStyle(
-                            fontFamily: _primaryFontFamily,
-                            fontSize: 13,
-                            color: Colors.grey.shade600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            _buildDietitianInfoCard(context),
             const SizedBox(height: 24),
-
-            // Plan Selection
-            const Text(
+            Text(
               "Select a plan:",
-              style: TextStyle(
-                fontFamily: _primaryFontFamily,
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
+              style: _getTextStyle(
+                context,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
               ),
             ),
-            const SizedBox(height: 12),
-
-            // Plan Cards
+            const SizedBox(height: 16),
             ...plans.entries.map((entry) {
-              final planKey = entry.key;
-              final planData = entry.value;
-              final isSelected = selectedPlanType == planKey;
-
-              return GestureDetector(
-                onTap: () {
-                  setState(() {
-                    selectedPlanType = planKey;
-                  });
-                },
-                child: Container(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? planData['color'].withOpacity(0.1)
-                        : Colors.white,
-                    border: Border.all(
-                      color: isSelected
-                          ? planData['color']
-                          : Colors.grey.shade300,
-                      width: isSelected ? 2 : 1,
-                    ),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: planData['color'].withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Icon(
-                          planData['icon'],
-                          color: planData['color'],
-                          size: 24,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              planData['name'],
-                              style: const TextStyle(
-                                fontFamily: _primaryFontFamily,
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              planData['duration'],
-                              style: TextStyle(
-                                fontFamily: _primaryFontFamily,
-                                fontSize: 12,
-                                color: Colors.grey.shade600,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Text(
-                            planData['displayPrice'],
-                            style: TextStyle(
-                              fontFamily: _primaryFontFamily,
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: planData['color'],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              );
+              return _buildPlanCard(
+                  context, entry.key, entry.value);
             }).toList(),
-
             if (selectedPlanType != null) ...[
-              const SizedBox(height: 20),
-              const Text(
-                "What you can do with premium:",
-                style: TextStyle(
-                  fontFamily: _primaryFontFamily,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
+              const SizedBox(height: 24),
+              Text(
+                "What you'll get:",
+                style: _getTextStyle(
+                  context,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
               const SizedBox(height: 12),
-              ...plans[selectedPlanType]!['benefits'].map<Widget>((benefit) {
-                return Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(14),
-                  margin: const EdgeInsets.only(bottom: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade200,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.check_circle,
-                        color: plans[selectedPlanType]!['color'],
-                        size: 20,
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          benefit,
-                          style: const TextStyle(
-                            fontFamily: _primaryFontFamily,
-                            fontSize: 14,
-                            color: Colors.black87,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+              ...plans[selectedPlanType]!['benefits']
+                  .map<Widget>((benefit) {
+                return _buildBenefitRow(
+                  context,
+                  benefit,
+                  plans[selectedPlanType]!['color'],
                 );
               }).toList(),
             ],
+            const SizedBox(height: 40), // Spacer for button
+          ],
+        ),
+      ),
+      bottomNavigationBar: _buildBottomButton(context),
+    );
+  }
 
-            const SizedBox(height: 24),
-
-            // Proceed to Payment Button
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: selectedPlanType == null ? null : _proceedToPayment,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _primaryColor,
-                  disabledBackgroundColor: Colors.grey.shade300,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                child: Text(
-                  selectedPlanType == null
-                      ? 'Select a plan to continue'
-                      : 'Proceed to Payment',
-                  style: const TextStyle(
-                    fontFamily: _primaryFontFamily,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
+  Widget _buildPremiumCard(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: _primaryColor,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: _primaryColor.withOpacity(0.3),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "Go Premium",
+                  style: _getTextStyle(
+                    context,
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
                     color: Colors.white,
                   ),
                 ),
+                const SizedBox(height: 8),
+                Text(
+                  "Gain full access to approved meal plans from your dietitian.",
+                  style: _getTextStyle(
+                    context,
+                    fontSize: 14,
+                    color: Colors.white.withOpacity(0.9),
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 16),
+          Icon(
+            Icons.workspace_premium_outlined,
+            color: Colors.white.withOpacity(0.8),
+            size: 60,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDietitianInfoCard(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: _cardBgColor(context),
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 30,
+            backgroundImage: widget.dietitianProfile.isNotEmpty
+                ? NetworkImage(widget.dietitianProfile)
+                : null,
+            child: widget.dietitianProfile.isEmpty
+                ? const Icon(Icons.person, size: 30)
+                : null,
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  widget.dietitianName,
+                  style: _getTextStyle(
+                    context,
+                    fontSize: 17,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Licensed Dietitian',
+                  style: _getTextStyle(
+                    context,
+                    fontSize: 14,
+                    color: _textColorSecondary(context),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPlanCard(
+      BuildContext context, String planKey, Map<String, dynamic> planData) {
+    final isSelected = selectedPlanType == planKey;
+    final Color color = planData['color'];
+
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          selectedPlanType = planKey;
+        });
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: isSelected ? color.withOpacity(0.1) : _cardBgColor(context),
+          border: Border.all(
+            color: isSelected ? color : Theme.of(context).dividerColor,
+            width: isSelected ? 2 : 1,
+          ),
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: isSelected
+              ? [
+            BoxShadow(
+              color: color.withOpacity(0.15),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            )
+          ]
+              : [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 4,
+              offset: const Offset(0, 1),
+            )
+          ],
+        ),
+        child: Row(
+          children: [
+            Icon(
+              planData['icon'],
+              color: color,
+              size: 28,
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    planData['name'],
+                    style: _getTextStyle(
+                      context,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    planData['duration'],
+                    style: _getTextStyle(
+                      context,
+                      fontSize: 13,
+                      color: _textColorSecondary(context),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Text(
+              planData['displayPrice'],
+              style: _getTextStyle(
+                context,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: color,
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBenefitRow(
+      BuildContext context, String benefit, Color color) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10.0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            Icons.check_circle,
+            color: color,
+            size: 20,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              benefit,
+              style: _getTextStyle(
+                context,
+                fontSize: 14,
+                color: _textColorSecondary(context),
+                height: 1.4,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBottomButton(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(24, 16, 24, 40),
+      decoration: BoxDecoration(
+        color: _cardBgColor(context),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 12,
+            offset: const Offset(0, -4),
+          )
+        ],
+      ),
+      child: SizedBox(
+        width: double.infinity,
+        height: 56,
+        child: ElevatedButton(
+          onPressed: selectedPlanType == null ? null : _proceedToPayment,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: _primaryColor,
+            foregroundColor: _textColorOnPrimary,
+            disabledBackgroundColor: Colors.grey.shade300,
+            disabledForegroundColor: Colors.grey.shade500,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            elevation: 4,
+            shadowColor: _primaryColor.withOpacity(0.3),
+          ),
+          child: Text(
+            selectedPlanType == null
+                ? 'Select a plan to continue'
+                : 'Proceed to Payment',
+            style: _getTextStyle(
+              context,
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: selectedPlanType == null
+                  ? Colors.grey.shade500
+                  : _textColorOnPrimary,
+            ),
+          ),
         ),
       ),
     );
