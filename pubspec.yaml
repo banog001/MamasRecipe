@@ -57,6 +57,7 @@ dependencies:
   flutter_datetime_picker_plus: ^2.1.0
   excel: ^4.0.6
   archive: ^3.6.1
+  dotted_border: ^2.1.0
 
 
 
@@ -85,6 +86,7 @@ flutter:
     - lib/assets/image/user.png
     - lib/assets/icons/google_icon.svg
     - lib/assets/files/DIETITIAN-SERVICE-AGREEMENT.pdf
+    - lib/assets/image/start2.png
 
 
   fonts:

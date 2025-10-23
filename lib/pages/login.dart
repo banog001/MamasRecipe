@@ -252,22 +252,126 @@ class _LoginPageState extends State<LoginPageMobile> with TickerProviderStateMix
     return showDialog<String>(
       context: context,
       barrierDismissible: false,
-      builder: (context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Text("Select Account Type"),
-          content: const Text("Are you signing in as a User or a Dietitian?"),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, "user"),
-              child: const Text("User"),
+      barrierColor: Colors.black.withOpacity(0.6), // Matches welcome dialog
+      builder: (dialogContext) {
+        // Use dialogContext to correctly resolve Theme-based helpers
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
+          backgroundColor: Colors.transparent,
+          child: Container(
+            padding: const EdgeInsets.all(32),
+            decoration: BoxDecoration(
+              color: _cardBgColor(dialogContext),
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 20,
+                  offset: const Offset(0, 10),
+                ),
+              ],
             ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: _primaryColor),
-              onPressed: () => Navigator.pop(context, "dietitian"),
-              child: const Text("Dietitian"),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // 1. Icon
+                Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    color: _primaryColor.withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.person_search_outlined,
+                    color: _primaryColor,
+                    size: 40,
+                  ),
+                ),
+                const SizedBox(height: 24),
+
+                // 2. Title
+                Text(
+                  'Select Account Type',
+                  style: _getTextStyle(
+                    dialogContext,
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: _textColorPrimary(dialogContext),
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                // 3. Subtitle
+                Text(
+                  'Please choose your role to continue.',
+                  textAlign: TextAlign.center,
+                  style: _getTextStyle(
+                    dialogContext,
+                    fontSize: 16,
+                    color: _textColorSecondary(dialogContext),
+                  ),
+                ),
+                const SizedBox(height: 32),
+
+                // 4. User Button (Outlined Style)
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () => Navigator.pop(dialogContext, "user"),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      side: BorderSide(color: _primaryColor, width: 1.5),
+                      foregroundColor: _primaryColor,
+                    ),
+                    icon: const Icon(Icons.person_outline, size: 20),
+                    label: Text(
+                      'I am a User',
+                      style: _getTextStyle(
+                        dialogContext,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: _primaryColor,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // 5. Dietitian Button (Elevated Style)
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: () => Navigator.pop(dialogContext, "dietitian"),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _primaryColor,
+                      foregroundColor: _textColorOnPrimary,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      elevation: 4,
+                    ),
+                    icon: const Icon(Icons.health_and_safety_outlined, size: 20),
+                    label: Text(
+                      'I am a Dietitian',
+                      style: _getTextStyle(
+                        dialogContext,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: _textColorOnPrimary,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         );
       },
     );
