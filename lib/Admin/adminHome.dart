@@ -8,40 +8,45 @@ import 'package:rxdart/rxdart.dart';
 
 const String _primaryFontFamily = 'PlusJakartaSans';
 
-
 const Color _backgroundColor = Color(0xFF121212); // Deep charcoal background
 const Color _surfaceColor = Color(0xFF1E1E1E); // Slightly lighter for cards
-const Color _primaryColor = Color(0xFF0D63F5); // Professional vibrant blue (was green #4CAF50)
+const Color _primaryColor = Color(
+  0xFF0D63F5,
+); // Professional vibrant blue (was green #4CAF50)
 const Color _textColorOnPrimary = Colors.white;
 const Color _hintColor = Color(0xFFAAAAAA); // Subtle grey for hints
-const Color _errorColor = Color(0xFFCF6679); // Material Design error color for dark themes
+const Color _errorColor = Color(
+  0xFFCF6679,
+); // Material Design error color for dark themes
 
 Color _scaffoldBgColor(BuildContext context) =>
     Theme.of(context).brightness == Brightness.dark
-        ? const Color(0xFF121212) // Deep charcoal (was Colors.grey.shade900)
-        : Colors.grey.shade100;
+    ? const Color(0xFF121212) // Deep charcoal (was Colors.grey.shade900)
+    : Colors.grey.shade100;
 
 Color _cardBgColor(BuildContext context) =>
     Theme.of(context).brightness == Brightness.dark
-        ? const Color(0xFF1E1E1E) // Slightly lighter surface (was Colors.grey.shade800)
-        : Colors.white;
+    ? const Color(
+        0xFF1E1E1E,
+      ) // Slightly lighter surface (was Colors.grey.shade800)
+    : Colors.white;
 
 Color _textColorPrimary(BuildContext context) =>
     Theme.of(context).brightness == Brightness.dark
-        ? Colors.white
-        : Colors.black87;
+    ? Colors.white
+    : Colors.black87;
 
 Color _textColorSecondary(BuildContext context) =>
     Theme.of(context).brightness == Brightness.dark
-        ? const Color(0xFFAAAAAA) // Subtle grey (was Colors.white54)
-        : Colors.black54;
+    ? const Color(0xFFAAAAAA) // Subtle grey (was Colors.white54)
+    : Colors.black54;
 
 TextStyle _getTextStyle(
-    BuildContext context, {
-      double fontSize = 16,
-      FontWeight fontWeight = FontWeight.normal,
-      Color? color,
-    }) {
+  BuildContext context, {
+  double fontSize = 16,
+  FontWeight fontWeight = FontWeight.normal,
+  Color? color,
+}) {
   return TextStyle(
     fontSize: fontSize,
     fontWeight: fontWeight,
@@ -80,8 +85,6 @@ class _AdminHomeState extends State<AdminHome> {
   final ScrollController _scrollController = ScrollController();
   final TextEditingController _messageController = TextEditingController();
 
-
-
   // Add this method inside the _AdminHomeState class
 
   Future<void> _handleLogout() async {
@@ -113,7 +116,10 @@ class _AdminHomeState extends State<AdminHome> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text("Cancel", style: TextStyle(fontFamily: _primaryFontFamily)),
+            child: const Text(
+              "Cancel",
+              style: TextStyle(fontFamily: _primaryFontFamily),
+            ),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -124,7 +130,10 @@ class _AdminHomeState extends State<AdminHome> {
               ),
             ),
             onPressed: () => Navigator.pop(context, true),
-            child: const Text("Logout", style: TextStyle(fontFamily: _primaryFontFamily)),
+            child: const Text(
+              "Logout",
+              style: TextStyle(fontFamily: _primaryFontFamily),
+            ),
           ),
         ],
       ),
@@ -138,7 +147,7 @@ class _AdminHomeState extends State<AdminHome> {
           // Pop all routes and return to the first screen (your login screen)
           Navigator.of(context).pushNamedAndRemoveUntil(
             '/', // Replace with your LOGIN screen's route name
-                (route) => false,
+            (route) => false,
           );
 
           // Alternative: If the above doesn't work, try this instead:
@@ -162,7 +171,9 @@ class _AdminHomeState extends State<AdminHome> {
               ),
               backgroundColor: Colors.red,
               behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
             ),
           );
         }
@@ -170,14 +181,12 @@ class _AdminHomeState extends State<AdminHome> {
     }
   }
 
-
   @override
   void dispose() {
     _scrollController.dispose();
     _messageController.dispose();
     super.dispose();
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -250,10 +259,30 @@ class _AdminHomeState extends State<AdminHome> {
                     ),
                   ),
                   const SizedBox(height: 20),
-                  _buildSidebarItem(Icons.home_outlined, Icons.home, "Home", isTablet),
-                  _buildSidebarItem(Icons.settings_outlined, Icons.settings, "CRUD", isTablet),
-                  _buildSidebarItem(Icons.check_circle_outlined, Icons.check_circle, "QR Approval", isTablet),
-                  _buildSidebarItem(Icons.message_outlined, Icons.message, "Messages", isTablet),
+                  _buildSidebarItem(
+                    Icons.home_outlined,
+                    Icons.home,
+                    "Home",
+                    isTablet,
+                  ),
+                  _buildSidebarItem(
+                    Icons.settings_outlined,
+                    Icons.settings,
+                    "CRUD",
+                    isTablet,
+                  ),
+                  _buildSidebarItem(
+                    Icons.check_circle_outlined,
+                    Icons.check_circle,
+                    "QR Approval",
+                    isTablet,
+                  ),
+                  _buildSidebarItem(
+                    Icons.message_outlined,
+                    Icons.message,
+                    "Messages",
+                    isTablet,
+                  ),
                   const Spacer(),
                   const Divider(indent: 16, endIndent: 16),
                   Material(
@@ -262,11 +291,17 @@ class _AdminHomeState extends State<AdminHome> {
                       onTap: _handleLogout,
                       borderRadius: BorderRadius.circular(12),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 14,
+                        ),
                         decoration: BoxDecoration(
                           color: Colors.transparent,
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.transparent, width: 1),
+                          border: Border.all(
+                            color: Colors.transparent,
+                            width: 1,
+                          ),
                         ),
                         child: Row(
                           children: [
@@ -290,7 +325,7 @@ class _AdminHomeState extends State<AdminHome> {
                         ),
                       ),
                     ),
-                  )
+                  ),
                 ],
               ),
             ),
@@ -383,23 +418,21 @@ class _AdminHomeState extends State<AdminHome> {
                   child: isMobile
                       ? _buildMobileLayout()
                       : Row(
-                    children: [
-                      Expanded(
-                        child: _buildMainContent(),
-                      ),
-                      if (selectedPage == "Home" && isDesktop)
-                        Container(
-                          width: 280,
-                          color: _scaffoldBgColor(context),
-                          child: Column(
-                            children: [
-                              Expanded(child: _buildDietitianPanel()),
-                              Expanded(child: _buildUsersPanel()),
-                            ],
-                          ),
+                          children: [
+                            Expanded(child: _buildMainContent()),
+                            if (selectedPage == "Home" && isDesktop)
+                              Container(
+                                width: 280,
+                                color: _scaffoldBgColor(context),
+                                child: Column(
+                                  children: [
+                                    Expanded(child: _buildDietitianPanel()),
+                                    Expanded(child: _buildUsersPanel()),
+                                  ],
+                                ),
+                              ),
+                          ],
                         ),
-                    ],
-                  ),
                 ),
               ],
             ),
@@ -434,7 +467,11 @@ class _AdminHomeState extends State<AdminHome> {
                     color: Colors.white.withOpacity(0.2),
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: const Icon(Icons.admin_panel_settings, color: _textColorOnPrimary, size: 28,),
+                  child: const Icon(
+                    Icons.admin_panel_settings,
+                    color: _textColorOnPrimary,
+                    size: 28,
+                  ),
                 ),
                 const SizedBox(width: 12),
                 const Expanded(
@@ -453,9 +490,24 @@ class _AdminHomeState extends State<AdminHome> {
           ),
           const SizedBox(height: 20),
           _buildSidebarItem(Icons.home_outlined, Icons.home, "Home", false),
-          _buildSidebarItem(Icons.settings_outlined, Icons.settings, "CRUD", false),
-          _buildSidebarItem(Icons.check_circle_outlined, Icons.check_circle, "QR Approval", false),
-          _buildSidebarItem(Icons.message_outlined, Icons.message, "Messages", false),
+          _buildSidebarItem(
+            Icons.settings_outlined,
+            Icons.settings,
+            "CRUD",
+            false,
+          ),
+          _buildSidebarItem(
+            Icons.check_circle_outlined,
+            Icons.check_circle,
+            "QR Approval",
+            false,
+          ),
+          _buildSidebarItem(
+            Icons.message_outlined,
+            Icons.message,
+            "Messages",
+            false,
+          ),
           const Spacer(),
           const Divider(indent: 16, endIndent: 16),
           Padding(
@@ -466,18 +518,17 @@ class _AdminHomeState extends State<AdminHome> {
                 onTap: _handleLogout,
                 borderRadius: BorderRadius.circular(12),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 14,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.transparent,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Row(
                     children: [
-                      const Icon(
-                        Icons.logout,
-                        color: Colors.red,
-                        size: 22,
-                      ),
+                      const Icon(Icons.logout, color: Colors.red, size: 22),
                       const SizedBox(width: 12),
                       const Text(
                         "Logout",
@@ -492,7 +543,7 @@ class _AdminHomeState extends State<AdminHome> {
                 ),
               ),
             ),
-          )
+          ),
         ],
       ),
     );
@@ -505,28 +556,19 @@ class _AdminHomeState extends State<AdminHome> {
           children: [
             _buildSectionHeader("Key Metrics"),
             const SizedBox(height: 12),
-            SizedBox(
-              height: 300,
-              child: _buildUserCreationChart(),
-            ),
+            SizedBox(height: 300, child: _buildUserCreationChart()),
             const SizedBox(height: 16),
             _buildAppointmentAnalytics(),
             const SizedBox(height: 16),
             // ============ NEW: Revenue & Commissions Section ============
             _buildSectionHeader("Revenue & Commissions"),
             const SizedBox(height: 12),
-            SizedBox(
-              height: 400,
-              child: _buildDietitianRevenueAnalytics(),
-            ),
+            SizedBox(height: 400, child: _buildDietitianRevenueAnalytics()),
             const SizedBox(height: 16),
             // ============ NEW: Revenue Trends Section ============
             _buildSectionHeader("Revenue Trends"),
             const SizedBox(height: 12),
-            SizedBox(
-              height: 400,
-              child: _buildRevenueTrendChart(),
-            ),
+            SizedBox(height: 400, child: _buildRevenueTrendChart()),
             const SizedBox(height: 16),
             // ============ NEW: Subscription Status Section ============
             _buildSectionHeader("Subscription Status"),
@@ -541,10 +583,7 @@ class _AdminHomeState extends State<AdminHome> {
             // ============ EXISTING: Performance Section ============
             _buildSectionHeader("Performance"),
             const SizedBox(height: 12),
-            SizedBox(
-              height: 300,
-              child: _buildMealPlanPerformance(),
-            ),
+            SizedBox(height: 300, child: _buildMealPlanPerformance()),
             const SizedBox(height: 16),
             _buildUserSubscriptionChurn(),
             const SizedBox(height: 16),
@@ -558,15 +597,9 @@ class _AdminHomeState extends State<AdminHome> {
             // ============ EXISTING: Activity Section ============
             _buildSectionHeader("Activity"),
             const SizedBox(height: 12),
-            SizedBox(
-              height: 300,
-              child: _buildDietitianActivityHistory(),
-            ),
+            SizedBox(height: 300, child: _buildDietitianActivityHistory()),
             const SizedBox(height: 16),
-            SizedBox(
-              height: 300,
-              child: _buildMealPlansWithLikes(),
-            ),
+            SizedBox(height: 300, child: _buildMealPlansWithLikes()),
           ],
         ),
       );
@@ -575,9 +608,12 @@ class _AdminHomeState extends State<AdminHome> {
     }
   }
 
-
-
-  Widget _buildSidebarItem(IconData outlinedIcon, IconData filledIcon, String title, bool isCompact) {
+  Widget _buildSidebarItem(
+    IconData outlinedIcon,
+    IconData filledIcon,
+    String title,
+    bool isCompact,
+  ) {
     final isSelected = selectedPage == title;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
@@ -596,10 +632,14 @@ class _AdminHomeState extends State<AdminHome> {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             decoration: BoxDecoration(
-              color: isSelected ? _primaryColor.withOpacity(0.1) : Colors.transparent,
+              color: isSelected
+                  ? _primaryColor.withOpacity(0.1)
+                  : Colors.transparent,
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                color: isSelected ? _primaryColor.withOpacity(0.3) : Colors.transparent,
+                color: isSelected
+                    ? _primaryColor.withOpacity(0.3)
+                    : Colors.transparent,
                 width: 1,
               ),
             ),
@@ -607,7 +647,9 @@ class _AdminHomeState extends State<AdminHome> {
               children: [
                 Icon(
                   isSelected ? filledIcon : outlinedIcon,
-                  color: isSelected ? _primaryColor : _textColorSecondary(context),
+                  color: isSelected
+                      ? _primaryColor
+                      : _textColorSecondary(context),
                   size: 22,
                 ),
                 if (!isCompact) ...[
@@ -616,8 +658,12 @@ class _AdminHomeState extends State<AdminHome> {
                     title,
                     style: _getTextStyle(
                       context,
-                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                      color: isSelected ? _primaryColor : _textColorPrimary(context),
+                      fontWeight: isSelected
+                          ? FontWeight.w600
+                          : FontWeight.normal,
+                      color: isSelected
+                          ? _primaryColor
+                          : _textColorPrimary(context),
                     ),
                   ),
                 ],
@@ -645,9 +691,12 @@ class _AdminHomeState extends State<AdminHome> {
     }
     return Container();
   }
+
   Widget _buildHomeDashboard() {
     final isMobile = MediaQuery.of(context).size.width < 768;
-    final isTablet = MediaQuery.of(context).size.width >= 768 && MediaQuery.of(context).size.width < 1024;
+    final isTablet =
+        MediaQuery.of(context).size.width >= 768 &&
+        MediaQuery.of(context).size.width < 1024;
 
     return Container(
       color: _scaffoldBgColor(context),
@@ -655,153 +704,146 @@ class _AdminHomeState extends State<AdminHome> {
       child: SingleChildScrollView(
         child: isMobile
             ? Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // ============ EXISTING: Key Metrics Section ============
-            _buildSectionHeader("Key Metrics"),
-            const SizedBox(height: 12),
-            _buildUserCreationChart(),
-            const SizedBox(height: 16),
-            _buildAppointmentAnalytics(),
-            const SizedBox(height: 16),
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // ============ EXISTING: Key Metrics Section ============
+                  _buildSectionHeader("Key Metrics"),
+                  const SizedBox(height: 12),
+                  _buildUserCreationChart(),
+                  const SizedBox(height: 16),
+                  _buildAppointmentAnalytics(),
+                  const SizedBox(height: 16),
 
-            // ============ NEW: Revenue & Commissions Section ============
-            _buildSectionHeader("Revenue & Commissions"),
-            const SizedBox(height: 12),
-            SizedBox(
-              height: 400,
-              child: _buildDietitianRevenueAnalytics(),
-            ),
-            const SizedBox(height: 16),
+                  // ============ NEW: Revenue & Commissions Section ============
+                  _buildSectionHeader("Revenue & Commissions"),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    height: 400,
+                    child: _buildDietitianRevenueAnalytics(),
+                  ),
+                  const SizedBox(height: 16),
 
-            // ============ NEW: Revenue Trends Section ============
-            _buildSectionHeader("Revenue Trends"),
-            const SizedBox(height: 12),
-            SizedBox(
-              height: 400,
-              child: _buildRevenueTrendChart(),
-            ),
-            const SizedBox(height: 16),
+                  // ============ NEW: Revenue Trends Section ============
+                  _buildSectionHeader("Revenue Trends"),
+                  const SizedBox(height: 12),
+                  SizedBox(height: 400, child: _buildRevenueTrendChart()),
+                  const SizedBox(height: 16),
 
-            // ============ NEW: Subscription Status Section ============
-            _buildSectionHeader("Subscription Status"),
-            const SizedBox(height: 12),
-            _buildSubscriptionStatusOverview(),
-            const SizedBox(height: 16),
+                  // ============ NEW: Subscription Status Section ============
+                  _buildSectionHeader("Subscription Status"),
+                  const SizedBox(height: 12),
+                  _buildSubscriptionStatusOverview(),
+                  const SizedBox(height: 16),
 
-            // ============ NEW: Top Performers Section ============
-            _buildSectionHeader("Top Performers"),
-            const SizedBox(height: 12),
-            _buildTopPerformingDietitians(),
-            const SizedBox(height: 16),
+                  // ============ NEW: Top Performers Section ============
+                  _buildSectionHeader("Top Performers"),
+                  const SizedBox(height: 12),
+                  _buildTopPerformingDietitians(),
+                  const SizedBox(height: 16),
 
-            // ============ EXISTING: Performance Section ============
-            _buildSectionHeader("Performance"),
-            const SizedBox(height: 12),
-            _buildMealPlanPerformance(),
-            const SizedBox(height: 16),
-            _buildUserSubscriptionChurn(),
-            const SizedBox(height: 16),
+                  // ============ EXISTING: Performance Section ============
+                  _buildSectionHeader("Performance"),
+                  const SizedBox(height: 12),
+                  _buildMealPlanPerformance(),
+                  const SizedBox(height: 16),
+                  _buildUserSubscriptionChurn(),
+                  const SizedBox(height: 16),
 
-            // ============ EXISTING: Insights Section ============
-            _buildSectionHeader("Insights"),
-            const SizedBox(height: 12),
-            _buildHealthGoalsDistribution(),
-            const SizedBox(height: 16),
-            _buildUserDemographics(),
-            const SizedBox(height: 16),
+                  // ============ EXISTING: Insights Section ============
+                  _buildSectionHeader("Insights"),
+                  const SizedBox(height: 12),
+                  _buildHealthGoalsDistribution(),
+                  const SizedBox(height: 16),
+                  _buildUserDemographics(),
+                  const SizedBox(height: 16),
 
-            // ============ EXISTING: Activity Section ============
-            _buildSectionHeader("Activity"),
-            const SizedBox(height: 12),
-            _buildDietitianActivityHistory(),
-            const SizedBox(height: 16),
-            _buildMealPlansWithLikes(),
-          ],
-        )
+                  // ============ EXISTING: Activity Section ============
+                  _buildSectionHeader("Activity"),
+                  const SizedBox(height: 12),
+                  _buildDietitianActivityHistory(),
+                  const SizedBox(height: 16),
+                  _buildMealPlansWithLikes(),
+                ],
+              )
             : Column(
-          children: [
-            // ============ EXISTING: Key Metrics Section ============
-            _buildSectionHeader("Key Metrics"),
-            const SizedBox(height: 12),
-            _buildUserCreationChart(),
-            const SizedBox(height: 16),
+                children: [
+                  // ============ EXISTING: Key Metrics Section ============
+                  _buildSectionHeader("Key Metrics"),
+                  const SizedBox(height: 12),
+                  _buildUserCreationChart(),
+                  const SizedBox(height: 16),
 
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  flex: isTablet ? 1 : 1,
-                  child: _buildAppointmentAnalytics(),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  flex: isTablet ? 1 : 1,
-                  child: _buildMealPlanPerformance(),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        flex: isTablet ? 1 : 1,
+                        child: _buildAppointmentAnalytics(),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        flex: isTablet ? 1 : 1,
+                        child: _buildMealPlanPerformance(),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
 
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(child: _buildUserSubscriptionChurn()),
-                const SizedBox(width: 16),
-                Expanded(child: _buildHealthGoalsDistribution()),
-              ],
-            ),
-            const SizedBox(height: 16),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(child: _buildUserSubscriptionChurn()),
+                      const SizedBox(width: 16),
+                      Expanded(child: _buildHealthGoalsDistribution()),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
 
-            _buildUserDemographics(),
-            const SizedBox(height: 16),
+                  _buildUserDemographics(),
+                  const SizedBox(height: 16),
 
-            // ============ NEW: Revenue & Commissions Section ============
-            _buildSectionHeader("Revenue & Commissions"),
-            const SizedBox(height: 12),
-            _buildDietitianRevenueAnalytics(),
-            const SizedBox(height: 16),
+                  // ============ NEW: Revenue & Commissions Section ============
+                  _buildSectionHeader("Revenue & Commissions"),
+                  const SizedBox(height: 12),
+                  _buildDietitianRevenueAnalytics(),
+                  const SizedBox(height: 16),
 
-            // ============ NEW: Revenue Trends & Subscription Status (Side by side) ============
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: _buildRevenueTrendChart(),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: _buildSubscriptionStatusOverview(),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
+                  // ============ NEW: Revenue Trends & Subscription Status (Side by side) ============
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(child: _buildRevenueTrendChart()),
+                      const SizedBox(width: 16),
+                      Expanded(child: _buildSubscriptionStatusOverview()),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
 
-            // ============ NEW: Top Performers Section ============
-            _buildSectionHeader("Top Performers"),
-            const SizedBox(height: 12),
-            _buildTopPerformingDietitians(),
-            const SizedBox(height: 16),
+                  // ============ NEW: Top Performers Section ============
+                  _buildSectionHeader("Top Performers"),
+                  const SizedBox(height: 12),
+                  _buildTopPerformingDietitians(),
+                  const SizedBox(height: 16),
 
-            // ============ EXISTING: Activity Section ============
-            _buildSectionHeader("Activity"),
-            const SizedBox(height: 12),
+                  // ============ EXISTING: Activity Section ============
+                  _buildSectionHeader("Activity"),
+                  const SizedBox(height: 12),
 
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(child: _buildDietitianActivityHistory()),
-                const SizedBox(width: 16),
-                Expanded(child: _buildMealPlansWithLikes()),
-              ],
-            ),
-          ],
-        ),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(child: _buildDietitianActivityHistory()),
+                      const SizedBox(width: 16),
+                      Expanded(child: _buildMealPlansWithLikes()),
+                    ],
+                  ),
+                ],
+              ),
       ),
     );
   }
 
-// Replace the _buildUserCreationChart() and _buildAreaChart() methods with this code
+  // Replace the _buildUserCreationChart() and _buildAreaChart() methods with this code
 
   Widget _buildUserCreationChart() {
     return Card(
@@ -856,13 +898,18 @@ class _AdminHomeState extends State<AdminHome> {
                   .snapshots(),
               builder: (context, snapshot) {
                 if (!snapshot.hasData) {
-                  return const Center(child: CircularProgressIndicator(color: _primaryColor));
+                  return const Center(
+                    child: CircularProgressIndicator(color: _primaryColor),
+                  );
                 }
 
                 final users = snapshot.data!.docs;
                 final totalUsers = users.length;
                 final chartData = _processUserCreationData(users, chartFilter);
-                final newUsersThisPeriod = _calculateNewUsersPeriod(users, chartFilter);
+                final newUsersThisPeriod = _calculateNewUsersPeriod(
+                  users,
+                  chartFilter,
+                );
 
                 return Column(
                   children: [
@@ -899,10 +946,7 @@ class _AdminHomeState extends State<AdminHome> {
                     ),
                     const SizedBox(height: 24),
                     // Bar Chart
-                    SizedBox(
-                      height: 280,
-                      child: _buildBarChart(chartData),
-                    ),
+                    SizedBox(height: 280, child: _buildBarChart(chartData)),
                   ],
                 );
               },
@@ -913,8 +957,13 @@ class _AdminHomeState extends State<AdminHome> {
     );
   }
 
-// Metric Card Widget
-  Widget _buildMetricCard(String label, String value, Color color, IconData icon) {
+  // Metric Card Widget
+  Widget _buildMetricCard(
+    String label,
+    String value,
+    Color color,
+    IconData icon,
+  ) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -957,8 +1006,7 @@ class _AdminHomeState extends State<AdminHome> {
     );
   }
 
-
-// Bar Chart using fl_chart
+  // Bar Chart using fl_chart
   // REPLACE your _buildBarChart method with this fixed version:
 
   Widget _buildBarChart(Map<String, dynamic> chartData) {
@@ -1059,14 +1107,18 @@ class _AdminHomeState extends State<AdminHome> {
     );
   }
 
-// Calculate new users in the current period
-  int _calculateNewUsersPeriod(List<QueryDocumentSnapshot> users, String period) {
+  // Calculate new users in the current period
+  int _calculateNewUsersPeriod(
+    List<QueryDocumentSnapshot> users,
+    String period,
+  ) {
     final now = DateTime.now();
     int count = 0;
 
     for (var doc in users) {
       final data = doc.data() as Map<String, dynamic>;
-      final timestamp = data['createdAt'] as Timestamp? ?? data['creationDate'] as Timestamp?;
+      final timestamp =
+          data['createdAt'] as Timestamp? ?? data['creationDate'] as Timestamp?;
 
       if (timestamp != null) {
         final date = timestamp.toDate();
@@ -1087,15 +1139,19 @@ class _AdminHomeState extends State<AdminHome> {
     return count;
   }
 
-// Calculate growth trend percentage
-  String _calculateGrowthTrend(List<QueryDocumentSnapshot> users, String period) {
+  // Calculate growth trend percentage
+  String _calculateGrowthTrend(
+    List<QueryDocumentSnapshot> users,
+    String period,
+  ) {
     final now = DateTime.now();
     int currentCount = 0;
     int previousCount = 0;
 
     for (var doc in users) {
       final data = doc.data() as Map<String, dynamic>;
-      final timestamp = data['createdAt'] as Timestamp? ?? data['creationDate'] as Timestamp?;
+      final timestamp =
+          data['createdAt'] as Timestamp? ?? data['creationDate'] as Timestamp?;
 
       if (timestamp != null) {
         final date = timestamp.toDate();
@@ -1133,14 +1189,18 @@ class _AdminHomeState extends State<AdminHome> {
 
     if (previousCount == 0) return "New";
 
-    final trend = ((currentCount - previousCount) / previousCount * 100).toStringAsFixed(1);
+    final trend = ((currentCount - previousCount) / previousCount * 100)
+        .toStringAsFixed(1);
     return "$trend%";
   }
 
-// Updated data processing - excludes today for Week view
-// REPLACE your _processUserCreationData method with this corrected version:
+  // Updated data processing - excludes today for Week view
+  // REPLACE your _processUserCreationData method with this corrected version:
 
-  Map<String, dynamic> _processUserCreationData(List<QueryDocumentSnapshot> users, String chartFilter) {
+  Map<String, dynamic> _processUserCreationData(
+    List<QueryDocumentSnapshot> users,
+    String chartFilter,
+  ) {
     final now = DateTime.now();
     Map<String, int> dateCounts = {};
     List<String> dateKeys = [];
@@ -1180,7 +1240,8 @@ class _AdminHomeState extends State<AdminHome> {
     // Count user creations
     for (var doc in users) {
       final data = doc.data() as Map<String, dynamic>;
-      final timestamp = data['createdAt'] as Timestamp? ?? data['creationDate'] as Timestamp?;
+      final timestamp =
+          data['createdAt'] as Timestamp? ?? data['creationDate'] as Timestamp?;
 
       if (timestamp != null) {
         final date = timestamp.toDate();
@@ -1190,7 +1251,9 @@ class _AdminHomeState extends State<AdminHome> {
           key = DateFormat('yyyy-MM-dd').format(date);
         } else if (chartFilter == "Month") {
           // FIXED: Corrected DateTime constructor order
-          key = DateFormat('yyyy-MM').format(DateTime(date.year, date.month, 1));
+          key = DateFormat(
+            'yyyy-MM',
+          ).format(DateTime(date.year, date.month, 1));
         } else {
           key = date.year.toString();
         }
@@ -1203,13 +1266,11 @@ class _AdminHomeState extends State<AdminHome> {
 
     // Map values in correct order
     final values = dateKeys.map((k) => dateCounts[k]!).toList();
-    final maxY = values.isEmpty ? 10.0 : values.reduce((a, b) => a > b ? a : b).toDouble();
+    final maxY = values.isEmpty
+        ? 10.0
+        : values.reduce((a, b) => a > b ? a : b).toDouble();
 
-    return {
-      'labels': labels,
-      'values': values,
-      'maxY': maxY,
-    };
+    return {'labels': labels, 'values': values, 'maxY': maxY};
   }
 
   Widget _buildChartFilterButton(String filter) {
@@ -1227,7 +1288,9 @@ class _AdminHomeState extends State<AdminHome> {
           color: isSelected ? _primaryColor : Colors.transparent,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: isSelected ? _primaryColor : _textColorSecondary(context).withOpacity(0.3),
+            color: isSelected
+                ? _primaryColor
+                : _textColorSecondary(context).withOpacity(0.3),
           ),
         ),
         child: Text(
@@ -1235,15 +1298,15 @@ class _AdminHomeState extends State<AdminHome> {
           style: TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.w600,
-            color: isSelected ? _textColorOnPrimary : _textColorPrimary(context),
+            color: isSelected
+                ? _textColorOnPrimary
+                : _textColorPrimary(context),
             fontFamily: _primaryFontFamily,
           ),
         ),
       ),
     );
   }
-
-
 
   Widget _buildQRApprovalPage() {
     return Container(
@@ -1397,19 +1460,27 @@ class _AdminHomeState extends State<AdminHome> {
                                 DataCell(
                                   CircleAvatar(
                                     radius: 20,
-                                    backgroundColor: _primaryColor.withOpacity(0.2),
+                                    backgroundColor: _primaryColor.withOpacity(
+                                      0.2,
+                                    ),
                                     backgroundImage: profileUrl.isNotEmpty
                                         ? NetworkImage(profileUrl)
                                         : null,
                                     child: profileUrl.isEmpty
-                                        ? const Icon(Icons.person, color: _primaryColor)
+                                        ? const Icon(
+                                            Icons.person,
+                                            color: _primaryColor,
+                                          )
                                         : null,
                                   ),
                                 ),
                                 DataCell(
                                   Text(
                                     "$firstName $lastName",
-                                    style: _getTextStyle(context, fontWeight: FontWeight.w600),
+                                    style: _getTextStyle(
+                                      context,
+                                      fontWeight: FontWeight.w600,
+                                    ),
                                   ),
                                 ),
                                 DataCell(
@@ -1442,66 +1513,84 @@ class _AdminHomeState extends State<AdminHome> {
                                 DataCell(
                                   qrCodeUrl.isNotEmpty
                                       ? ElevatedButton.icon(
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.blue,
-                                      foregroundColor: _textColorOnPrimary,
-                                      elevation: 2,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(10),
-                                      ),
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 16,
-                                        vertical: 10,
-                                      ),
-                                    ),
-                                    onPressed: () {
-                                      showDialog(
-                                        context: context,
-                                        builder: (context) => Dialog(
-                                          child: Container(
-                                            padding: const EdgeInsets.all(20),
-                                            child: Column(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                Text(
-                                                  "QR Code Preview",
-                                                  style: _getTextStyle(
-                                                    context,
-                                                    fontSize: 18,
-                                                    fontWeight: FontWeight.bold,
-                                                  ),
-                                                ),
-                                                const SizedBox(height: 16),
-                                                Image.network(
-                                                  qrCodeUrl,
-                                                  width: 300,
-                                                  height: 300,
-                                                  fit: BoxFit.contain,
-                                                ),
-                                                const SizedBox(height: 16),
-                                                ElevatedButton(
-                                                  onPressed: () => Navigator.pop(context),
-                                                  child: const Text("Close"),
-                                                ),
-                                              ],
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: Colors.blue,
+                                            foregroundColor:
+                                                _textColorOnPrimary,
+                                            elevation: 2,
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(10),
+                                            ),
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 16,
+                                              vertical: 10,
                                             ),
                                           ),
-                                        ),
-                                      );
-                                    },
-                                    icon: const Icon(Icons.visibility, size: 18),
-                                    label: const Text(
-                                      "View",
-                                      style: TextStyle(
-                                        fontFamily: _primaryFontFamily,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  )
+                                          onPressed: () {
+                                            showDialog(
+                                              context: context,
+                                              builder: (context) => Dialog(
+                                                child: Container(
+                                                  padding: const EdgeInsets.all(
+                                                    20,
+                                                  ),
+                                                  child: Column(
+                                                    mainAxisSize:
+                                                        MainAxisSize.min,
+                                                    children: [
+                                                      Text(
+                                                        "QR Code Preview",
+                                                        style: _getTextStyle(
+                                                          context,
+                                                          fontSize: 18,
+                                                          fontWeight:
+                                                              FontWeight.bold,
+                                                        ),
+                                                      ),
+                                                      const SizedBox(
+                                                        height: 16,
+                                                      ),
+                                                      Image.network(
+                                                        qrCodeUrl,
+                                                        width: 300,
+                                                        height: 300,
+                                                        fit: BoxFit.contain,
+                                                      ),
+                                                      const SizedBox(
+                                                        height: 16,
+                                                      ),
+                                                      ElevatedButton(
+                                                        onPressed: () =>
+                                                            Navigator.pop(
+                                                              context,
+                                                            ),
+                                                        child: const Text(
+                                                          "Close",
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                              ),
+                                            );
+                                          },
+                                          icon: const Icon(
+                                            Icons.visibility,
+                                            size: 18,
+                                          ),
+                                          label: const Text(
+                                            "View",
+                                            style: TextStyle(
+                                              fontFamily: _primaryFontFamily,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        )
                                       : Text(
-                                    "No QR Code",
-                                    style: _cardSubtitleStyle(context),
-                                  ),
+                                          "No QR Code",
+                                          style: _cardSubtitleStyle(context),
+                                        ),
                                 ),
                                 DataCell(
                                   Row(
@@ -1513,7 +1602,9 @@ class _AdminHomeState extends State<AdminHome> {
                                           foregroundColor: _textColorOnPrimary,
                                           elevation: 2,
                                           shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(10),
+                                            borderRadius: BorderRadius.circular(
+                                              10,
+                                            ),
                                           ),
                                           padding: const EdgeInsets.symmetric(
                                             horizontal: 16,
@@ -1525,15 +1616,21 @@ class _AdminHomeState extends State<AdminHome> {
                                             context: context,
                                             builder: (context) => AlertDialog(
                                               shape: RoundedRectangleBorder(
-                                                borderRadius: BorderRadius.circular(16),
+                                                borderRadius:
+                                                    BorderRadius.circular(16),
                                               ),
                                               title: Row(
                                                 children: [
                                                   Container(
-                                                    padding: const EdgeInsets.all(8),
+                                                    padding:
+                                                        const EdgeInsets.all(8),
                                                     decoration: BoxDecoration(
-                                                      color: Colors.green.withOpacity(0.1),
-                                                      borderRadius: BorderRadius.circular(8),
+                                                      color: Colors.green
+                                                          .withOpacity(0.1),
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                            8,
+                                                          ),
                                                     ),
                                                     child: const Icon(
                                                       Icons.check_circle,
@@ -1543,34 +1640,59 @@ class _AdminHomeState extends State<AdminHome> {
                                                   const SizedBox(width: 12),
                                                   const Text(
                                                     "Confirm Approval",
-                                                    style: TextStyle(fontFamily: _primaryFontFamily),
+                                                    style: TextStyle(
+                                                      fontFamily:
+                                                          _primaryFontFamily,
+                                                    ),
                                                   ),
                                                 ],
                                               ),
                                               content: Text(
                                                 "Approve QR code for $firstName $lastName?",
-                                                style: const TextStyle(fontFamily: _primaryFontFamily),
+                                                style: const TextStyle(
+                                                  fontFamily:
+                                                      _primaryFontFamily,
+                                                ),
                                               ),
                                               actions: [
                                                 TextButton(
-                                                  onPressed: () => Navigator.pop(context, false),
+                                                  onPressed: () =>
+                                                      Navigator.pop(
+                                                        context,
+                                                        false,
+                                                      ),
                                                   child: const Text(
                                                     "Cancel",
-                                                    style: TextStyle(fontFamily: _primaryFontFamily),
+                                                    style: TextStyle(
+                                                      fontFamily:
+                                                          _primaryFontFamily,
+                                                    ),
                                                   ),
                                                 ),
                                                 ElevatedButton(
                                                   style: ElevatedButton.styleFrom(
-                                                    backgroundColor: Colors.green,
-                                                    foregroundColor: Colors.white,
+                                                    backgroundColor:
+                                                        Colors.green,
+                                                    foregroundColor:
+                                                        Colors.white,
                                                     shape: RoundedRectangleBorder(
-                                                      borderRadius: BorderRadius.circular(10),
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                            10,
+                                                          ),
                                                     ),
                                                   ),
-                                                  onPressed: () => Navigator.pop(context, true),
+                                                  onPressed: () =>
+                                                      Navigator.pop(
+                                                        context,
+                                                        true,
+                                                      ),
                                                   child: const Text(
                                                     "Approve",
-                                                    style: TextStyle(fontFamily: _primaryFontFamily),
+                                                    style: TextStyle(
+                                                      fontFamily:
+                                                          _primaryFontFamily,
+                                                    ),
                                                   ),
                                                 ),
                                               ],
@@ -1582,27 +1704,39 @@ class _AdminHomeState extends State<AdminHome> {
                                                 .collection('Users')
                                                 .doc(docId)
                                                 .update({
-                                              'qrstatus': 'approved',
-                                              'qrapproved': true,
-                                            });
+                                                  'qrstatus': 'approved',
+                                                  'qrapproved': true,
+                                                });
 
                                             if (mounted) {
-                                              ScaffoldMessenger.of(context).showSnackBar(
+                                              ScaffoldMessenger.of(
+                                                context,
+                                              ).showSnackBar(
                                                 SnackBar(
                                                   content: Row(
                                                     children: [
-                                                      const Icon(Icons.check_circle, color: Colors.white),
+                                                      const Icon(
+                                                        Icons.check_circle,
+                                                        color: Colors.white,
+                                                      ),
                                                       const SizedBox(width: 8),
                                                       Text(
                                                         "$firstName $lastName approved!",
-                                                        style: const TextStyle(fontFamily: _primaryFontFamily),
+                                                        style: const TextStyle(
+                                                          fontFamily:
+                                                              _primaryFontFamily,
+                                                        ),
                                                       ),
                                                     ],
                                                   ),
                                                   backgroundColor: Colors.green,
-                                                  behavior: SnackBarBehavior.floating,
+                                                  behavior:
+                                                      SnackBarBehavior.floating,
                                                   shape: RoundedRectangleBorder(
-                                                    borderRadius: BorderRadius.circular(10),
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          10,
+                                                        ),
                                                   ),
                                                 ),
                                               );
@@ -1625,7 +1759,9 @@ class _AdminHomeState extends State<AdminHome> {
                                           foregroundColor: _textColorOnPrimary,
                                           elevation: 2,
                                           shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(10),
+                                            borderRadius: BorderRadius.circular(
+                                              10,
+                                            ),
                                           ),
                                           padding: const EdgeInsets.symmetric(
                                             horizontal: 16,
@@ -1637,15 +1773,21 @@ class _AdminHomeState extends State<AdminHome> {
                                             context: context,
                                             builder: (context) => AlertDialog(
                                               shape: RoundedRectangleBorder(
-                                                borderRadius: BorderRadius.circular(16),
+                                                borderRadius:
+                                                    BorderRadius.circular(16),
                                               ),
                                               title: Row(
                                                 children: [
                                                   Container(
-                                                    padding: const EdgeInsets.all(8),
+                                                    padding:
+                                                        const EdgeInsets.all(8),
                                                     decoration: BoxDecoration(
-                                                      color: Colors.red.withOpacity(0.1),
-                                                      borderRadius: BorderRadius.circular(8),
+                                                      color: Colors.red
+                                                          .withOpacity(0.1),
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                            8,
+                                                          ),
                                                     ),
                                                     child: const Icon(
                                                       Icons.cancel,
@@ -1655,34 +1797,58 @@ class _AdminHomeState extends State<AdminHome> {
                                                   const SizedBox(width: 12),
                                                   const Text(
                                                     "Confirm Rejection",
-                                                    style: TextStyle(fontFamily: _primaryFontFamily),
+                                                    style: TextStyle(
+                                                      fontFamily:
+                                                          _primaryFontFamily,
+                                                    ),
                                                   ),
                                                 ],
                                               ),
                                               content: Text(
                                                 "Reject QR code for $firstName $lastName?",
-                                                style: const TextStyle(fontFamily: _primaryFontFamily),
+                                                style: const TextStyle(
+                                                  fontFamily:
+                                                      _primaryFontFamily,
+                                                ),
                                               ),
                                               actions: [
                                                 TextButton(
-                                                  onPressed: () => Navigator.pop(context, false),
+                                                  onPressed: () =>
+                                                      Navigator.pop(
+                                                        context,
+                                                        false,
+                                                      ),
                                                   child: const Text(
                                                     "Cancel",
-                                                    style: TextStyle(fontFamily: _primaryFontFamily),
+                                                    style: TextStyle(
+                                                      fontFamily:
+                                                          _primaryFontFamily,
+                                                    ),
                                                   ),
                                                 ),
                                                 ElevatedButton(
                                                   style: ElevatedButton.styleFrom(
                                                     backgroundColor: Colors.red,
-                                                    foregroundColor: Colors.white,
+                                                    foregroundColor:
+                                                        Colors.white,
                                                     shape: RoundedRectangleBorder(
-                                                      borderRadius: BorderRadius.circular(10),
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                            10,
+                                                          ),
                                                     ),
                                                   ),
-                                                  onPressed: () => Navigator.pop(context, true),
+                                                  onPressed: () =>
+                                                      Navigator.pop(
+                                                        context,
+                                                        true,
+                                                      ),
                                                   child: const Text(
                                                     "Reject",
-                                                    style: TextStyle(fontFamily: _primaryFontFamily),
+                                                    style: TextStyle(
+                                                      fontFamily:
+                                                          _primaryFontFamily,
+                                                    ),
                                                   ),
                                                 ),
                                               ],
@@ -1694,27 +1860,39 @@ class _AdminHomeState extends State<AdminHome> {
                                                 .collection('Users')
                                                 .doc(docId)
                                                 .update({
-                                              'qrstatus': 'rejected',
-                                              'qrapproved': false,
-                                            });
+                                                  'qrstatus': 'rejected',
+                                                  'qrapproved': false,
+                                                });
 
                                             if (mounted) {
-                                              ScaffoldMessenger.of(context).showSnackBar(
+                                              ScaffoldMessenger.of(
+                                                context,
+                                              ).showSnackBar(
                                                 SnackBar(
                                                   content: Row(
                                                     children: [
-                                                      const Icon(Icons.cancel, color: Colors.white),
+                                                      const Icon(
+                                                        Icons.cancel,
+                                                        color: Colors.white,
+                                                      ),
                                                       const SizedBox(width: 8),
                                                       Text(
                                                         "$firstName $lastName rejected",
-                                                        style: const TextStyle(fontFamily: _primaryFontFamily),
+                                                        style: const TextStyle(
+                                                          fontFamily:
+                                                              _primaryFontFamily,
+                                                        ),
                                                       ),
                                                     ],
                                                   ),
                                                   backgroundColor: Colors.red,
-                                                  behavior: SnackBarBehavior.floating,
+                                                  behavior:
+                                                      SnackBarBehavior.floating,
                                                   shape: RoundedRectangleBorder(
-                                                    borderRadius: BorderRadius.circular(10),
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          10,
+                                                        ),
                                                   ),
                                                 ),
                                               );
@@ -1789,7 +1967,9 @@ class _AdminHomeState extends State<AdminHome> {
                   .snapshots(),
               builder: (context, snapshot) {
                 if (!snapshot.hasData) {
-                  return const Center(child: CircularProgressIndicator(color: _primaryColor));
+                  return const Center(
+                    child: CircularProgressIndicator(color: _primaryColor),
+                  );
                 }
 
                 final mealPlans = snapshot.data!.docs;
@@ -1811,7 +1991,8 @@ class _AdminHomeState extends State<AdminHome> {
                   physics: const NeverScrollableScrollPhysics(),
                   itemCount: mealPlans.length,
                   itemBuilder: (context, index) {
-                    final mealPlan = mealPlans[index].data() as Map<String, dynamic>;
+                    final mealPlan =
+                        mealPlans[index].data() as Map<String, dynamic>;
                     final ownerId = mealPlan['owner'] ?? '';
                     final planType = mealPlan['planType'] ?? 'Unknown';
                     final timestamp = mealPlan['timestamp'] as Timestamp?;
@@ -1829,7 +2010,9 @@ class _AdminHomeState extends State<AdminHome> {
                         String profileUrl = '';
 
                         if (userSnapshot.hasData && userSnapshot.data!.exists) {
-                          final userData = userSnapshot.data!.data() as Map<String, dynamic>?;
+                          final userData =
+                              userSnapshot.data!.data()
+                                  as Map<String, dynamic>?;
                           final firstName = userData?['firstName'] ?? '';
                           final lastName = userData?['lastName'] ?? '';
                           dietitianName = "$firstName $lastName".trim();
@@ -1855,7 +2038,10 @@ class _AdminHomeState extends State<AdminHome> {
                                     ? NetworkImage(profileUrl)
                                     : null,
                                 child: profileUrl.isEmpty
-                                    ? const Icon(Icons.person, color: Colors.orange)
+                                    ? const Icon(
+                                        Icons.person,
+                                        color: Colors.orange,
+                                      )
                                     : null,
                               ),
                               const SizedBox(width: 12),
@@ -1960,7 +2146,9 @@ class _AdminHomeState extends State<AdminHome> {
                   .snapshots(),
               builder: (context, snapshot) {
                 if (!snapshot.hasData) {
-                  return const Center(child: CircularProgressIndicator(color: _primaryColor));
+                  return const Center(
+                    child: CircularProgressIndicator(color: _primaryColor),
+                  );
                 }
 
                 final mealPlans = snapshot.data!.docs;
@@ -2007,8 +2195,11 @@ class _AdminHomeState extends State<AdminHome> {
                             String dietitianName = 'Unknown Dietitian';
                             String profileUrl = '';
 
-                            if (userSnapshot.hasData && userSnapshot.data!.exists) {
-                              final userData = userSnapshot.data!.data() as Map<String, dynamic>?;
+                            if (userSnapshot.hasData &&
+                                userSnapshot.data!.exists) {
+                              final userData =
+                                  userSnapshot.data!.data()
+                                      as Map<String, dynamic>?;
                               final firstName = userData?['firstName'] ?? '';
                               final lastName = userData?['lastName'] ?? '';
                               dietitianName = "$firstName $lastName".trim();
@@ -2029,18 +2220,24 @@ class _AdminHomeState extends State<AdminHome> {
                                 children: [
                                   CircleAvatar(
                                     radius: 24,
-                                    backgroundColor: Colors.purple.withOpacity(0.2),
+                                    backgroundColor: Colors.purple.withOpacity(
+                                      0.2,
+                                    ),
                                     backgroundImage: profileUrl.isNotEmpty
                                         ? NetworkImage(profileUrl)
                                         : null,
                                     child: profileUrl.isEmpty
-                                        ? const Icon(Icons.restaurant_menu, color: Colors.purple)
+                                        ? const Icon(
+                                            Icons.restaurant_menu,
+                                            color: Colors.purple,
+                                          )
                                         : null,
                                   ),
                                   const SizedBox(width: 12),
                                   Expanded(
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         Text(
                                           planType,
@@ -2127,15 +2324,9 @@ class _AdminHomeState extends State<AdminHome> {
           Expanded(
             child: Row(
               children: [
-                Expanded(
-                  flex: 1,
-                  child: _buildUsersList(),
-                ),
+                Expanded(flex: 1, child: _buildUsersList()),
                 const SizedBox(width: 16),
-                Expanded(
-                  flex: 2,
-                  child: _buildChatArea(),
-                ),
+                Expanded(flex: 2, child: _buildChatArea()),
               ],
             ),
           ),
@@ -2188,11 +2379,14 @@ class _AdminHomeState extends State<AdminHome> {
                   .snapshots(),
               builder: (context, snapshot) {
                 if (!snapshot.hasData) {
-                  return const Center(child: CircularProgressIndicator(color: _primaryColor));
+                  return const Center(
+                    child: CircularProgressIndicator(color: _primaryColor),
+                  );
                 }
 
                 final messages = snapshot.data!.docs;
-                final currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
+                final currentUserId =
+                    FirebaseAuth.instance.currentUser?.uid ?? '';
 
                 Map<String, Map<String, dynamic>> uniqueConversations = {};
 
@@ -2202,10 +2396,13 @@ class _AdminHomeState extends State<AdminHome> {
                   final receiverId = data['receiverID'] ?? '';
 
                   // Determine the "other user" (not the current admin)
-                  final otherUserId = senderId == currentUserId ? receiverId : senderId;
+                  final otherUserId = senderId == currentUserId
+                      ? receiverId
+                      : senderId;
 
                   // Only add if we haven't seen this user before (ensures no duplicates)
-                  if (otherUserId.isNotEmpty && !uniqueConversations.containsKey(otherUserId)) {
+                  if (otherUserId.isNotEmpty &&
+                      !uniqueConversations.containsKey(otherUserId)) {
                     uniqueConversations[otherUserId] = {
                       ...data,
                       'otherUserId': otherUserId,
@@ -2264,7 +2461,9 @@ class _AdminHomeState extends State<AdminHome> {
                         String profileUrl = '';
 
                         if (userSnapshot.hasData && userSnapshot.data!.exists) {
-                          final userData = userSnapshot.data!.data() as Map<String, dynamic>?;
+                          final userData =
+                              userSnapshot.data!.data()
+                                  as Map<String, dynamic>?;
                           profileUrl = userData?['profile'] ?? '';
                         }
 
@@ -2274,7 +2473,9 @@ class _AdminHomeState extends State<AdminHome> {
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                             side: BorderSide(
-                              color: isSelected ? _primaryColor : Colors.transparent,
+                              color: isSelected
+                                  ? _primaryColor
+                                  : Colors.transparent,
                               width: 2,
                             ),
                           ),
@@ -2290,7 +2491,10 @@ class _AdminHomeState extends State<AdminHome> {
                                   ? NetworkImage(profileUrl)
                                   : null,
                               child: profileUrl.isEmpty
-                                  ? const Icon(Icons.person, color: _primaryColor)
+                                  ? const Icon(
+                                      Icons.person,
+                                      color: _primaryColor,
+                                    )
                                   : null,
                             ),
                             title: Text(
@@ -2394,10 +2598,14 @@ class _AdminHomeState extends State<AdminHome> {
                 CircleAvatar(
                   radius: 20,
                   backgroundColor: _textColorOnPrimary.withOpacity(0.2),
-                  backgroundImage: selectedChatUserProfile != null && selectedChatUserProfile!.isNotEmpty
+                  backgroundImage:
+                      selectedChatUserProfile != null &&
+                          selectedChatUserProfile!.isNotEmpty
                       ? NetworkImage(selectedChatUserProfile!)
                       : null,
-                  child: selectedChatUserProfile == null || selectedChatUserProfile!.isEmpty
+                  child:
+                      selectedChatUserProfile == null ||
+                          selectedChatUserProfile!.isEmpty
                       ? const Icon(Icons.person, color: _textColorOnPrimary)
                       : null,
                 ),
@@ -2425,7 +2633,9 @@ class _AdminHomeState extends State<AdminHome> {
                   .snapshots(),
               builder: (context, snapshot) {
                 if (!snapshot.hasData) {
-                  return const Center(child: CircularProgressIndicator(color: _primaryColor));
+                  return const Center(
+                    child: CircularProgressIndicator(color: _primaryColor),
+                  );
                 }
 
                 final messages = snapshot.data!.docs;
@@ -2445,7 +2655,8 @@ class _AdminHomeState extends State<AdminHome> {
                   padding: const EdgeInsets.all(16),
                   itemCount: messages.length,
                   itemBuilder: (context, index) {
-                    final message = messages[index].data() as Map<String, dynamic>;
+                    final message =
+                        messages[index].data() as Map<String, dynamic>;
                     final isMe = message["senderID"] == currentUserId;
                     final messageText = message["message"] ?? "";
                     final timestamp = message["timestamp"] as Timestamp?;
@@ -2454,7 +2665,9 @@ class _AdminHomeState extends State<AdminHome> {
                         : '';
 
                     return Align(
-                      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+                      alignment: isMe
+                          ? Alignment.centerRight
+                          : Alignment.centerLeft,
                       child: Container(
                         constraints: BoxConstraints(
                           maxWidth: MediaQuery.of(context).size.width * 0.5,
@@ -2465,7 +2678,9 @@ class _AdminHomeState extends State<AdminHome> {
                           vertical: 10,
                         ),
                         decoration: BoxDecoration(
-                          color: isMe ? _primaryColor : _scaffoldBgColor(context),
+                          color: isMe
+                              ? _primaryColor
+                              : _scaffoldBgColor(context),
                           borderRadius: BorderRadius.only(
                             topLeft: Radius.circular(isMe ? 16 : 4),
                             topRight: Radius.circular(isMe ? 4 : 16),
@@ -2480,7 +2695,9 @@ class _AdminHomeState extends State<AdminHome> {
                               messageText,
                               style: TextStyle(
                                 fontSize: 14,
-                                color: isMe ? _textColorOnPrimary : _textColorPrimary(context),
+                                color: isMe
+                                    ? _textColorOnPrimary
+                                    : _textColorPrimary(context),
                                 fontFamily: _primaryFontFamily,
                               ),
                             ),
@@ -2578,7 +2795,9 @@ class _AdminHomeState extends State<AdminHome> {
         .doc(currentUserId)
         .get();
     final adminData = adminDoc.data() as Map<String, dynamic>?;
-    final adminName = "${adminData?['firstName'] ?? 'Admin'} ${adminData?['lastName'] ?? ''}".trim();
+    final adminName =
+        "${adminData?['firstName'] ?? 'Admin'} ${adminData?['lastName'] ?? ''}"
+            .trim();
 
     await FirebaseFirestore.instance.collection("messages").add({
       "senderID": currentUserId,
@@ -2596,17 +2815,17 @@ class _AdminHomeState extends State<AdminHome> {
         .doc(selectedChatUserId!)
         .collection("notifications")
         .add({
-      "title": "New Message from Admin",
-      "message": "$adminName: $text",
-      "senderId": currentUserId,
-      "senderName": adminName,
-      "receiverId": selectedChatUserId!,
-      "receiverName": selectedChatUserName ?? "User",
-      "receiverProfile": selectedChatUserProfile ?? "",
-      "type": "message",
-      "isRead": false,
-      "timestamp": FieldValue.serverTimestamp(),
-    });
+          "title": "New Message from Admin",
+          "message": "$adminName: $text",
+          "senderId": currentUserId,
+          "senderName": adminName,
+          "receiverId": selectedChatUserId!,
+          "receiverName": selectedChatUserName ?? "User",
+          "receiverProfile": selectedChatUserProfile ?? "",
+          "type": "message",
+          "isRead": false,
+          "timestamp": FieldValue.serverTimestamp(),
+        });
 
     if (_scrollController.hasClients) {
       _scrollController.animateTo(
@@ -2617,7 +2836,7 @@ class _AdminHomeState extends State<AdminHome> {
     }
   }
 
-// Replace your _buildCrudTable() method with this updated version that includes Verification tabs
+  // Replace your _buildCrudTable() method with this updated version that includes Verification tabs
 
   Widget _buildCrudTable() {
     final isMobile = MediaQuery.of(context).size.width < 768;
@@ -2664,7 +2883,8 @@ class _AdminHomeState extends State<AdminHome> {
                         vertical: 14,
                       ),
                     ),
-                    onPressed: () => setState(() => selectedPage = "User Verification"),
+                    onPressed: () =>
+                        setState(() => selectedPage = "User Verification"),
                     icon: const Icon(Icons.verified_user, size: 18),
                     label: Text(
                       isMobile ? "User Ver." : "User Verification",
@@ -2690,7 +2910,8 @@ class _AdminHomeState extends State<AdminHome> {
                         vertical: 14,
                       ),
                     ),
-                    onPressed: () => setState(() => selectedPage = "Dietitian Verification"),
+                    onPressed: () =>
+                        setState(() => selectedPage = "Dietitian Verification"),
                     icon: const Icon(Icons.health_and_safety, size: 18),
                     label: Text(
                       isMobile ? "Diet. Ver." : "Dietitian Verification",
@@ -2821,7 +3042,7 @@ class _AdminHomeState extends State<AdminHome> {
     );
   }
 
-// REPLACE your _buildUserVerificationPage() with this:
+  // REPLACE your _buildUserVerificationPage() with this:
 
   Widget _buildUserVerificationPage() {
     final isMobile = MediaQuery.of(context).size.width < 768;
@@ -2906,7 +3127,7 @@ class _AdminHomeState extends State<AdminHome> {
     );
   }
 
-// REPLACE your _buildDietitianVerificationPage() with this:
+  // REPLACE your _buildDietitianVerificationPage() with this:
 
   Widget _buildDietitianVerificationPage() {
     final isMobile = MediaQuery.of(context).size.width < 768;
@@ -2991,14 +3212,13 @@ class _AdminHomeState extends State<AdminHome> {
     );
   }
 
-// Fixed: Dietitian Verification Table with Move Logic
+  // Fixed: Dietitian Verification Table with Move Logic
   Widget _buildDietitianVerificationsTable(
-      List<QueryDocumentSnapshot> dietitians) {
+    List<QueryDocumentSnapshot> dietitians,
+  ) {
     return Card(
       elevation: 4,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       color: _cardBgColor(context),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
@@ -3072,204 +3292,227 @@ class _AdminHomeState extends State<AdminHome> {
                 final licenseNum = (data['licenseNum'] ?? "N/A").toString();
                 final profileUrl = data['prcImageUrl'] ?? data['profile'] ?? '';
 
-                return DataRow(cells: [
-                  DataCell(Text(
-                    firstName,
-                    style: _getTextStyle(context),
-                  )),
-                  DataCell(Text(
-                    lastName,
-                    style: _getTextStyle(context),
-                  )),
-                  DataCell(Text(
-                    email,
-                    style: _getTextStyle(context, fontSize: 14),
-                  )),
-                  DataCell(Text(
-                    licenseNum,
-                    style: _getTextStyle(context, fontSize: 14),
-                  )),
-                  DataCell(
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        ElevatedButton.icon(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.green,
-                            foregroundColor: _textColorOnPrimary,
-                            elevation: 2,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
+                return DataRow(
+                  cells: [
+                    DataCell(Text(firstName, style: _getTextStyle(context))),
+                    DataCell(Text(lastName, style: _getTextStyle(context))),
+                    DataCell(
+                      Text(email, style: _getTextStyle(context, fontSize: 14)),
+                    ),
+                    DataCell(
+                      Text(
+                        licenseNum,
+                        style: _getTextStyle(context, fontSize: 14),
+                      ),
+                    ),
+                    DataCell(
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.green,
+                              foregroundColor: _textColorOnPrimary,
+                              elevation: 2,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 10,
+                              ),
                             ),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 10,
-                            ),
-                          ),
-                          onPressed: () async {
-                            final confirm = await showDialog<bool>(
-                              context: context,
-                              builder: (context) => AlertDialog(
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(16),
-                                ),
-                                title: Row(
-                                  children: [
-                                    Container(
-                                      padding: const EdgeInsets.all(8),
-                                      decoration: BoxDecoration(
-                                        color: Colors.green.withOpacity(0.1),
-                                        borderRadius: BorderRadius.circular(8),
+                            onPressed: () async {
+                              final confirm = await showDialog<bool>(
+                                context: context,
+                                builder: (context) => AlertDialog(
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                  title: Row(
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.all(8),
+                                        decoration: BoxDecoration(
+                                          color: Colors.green.withOpacity(0.1),
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
+                                        ),
+                                        child: const Icon(
+                                          Icons.check_circle,
+                                          color: Colors.green,
+                                        ),
                                       ),
-                                      child: const Icon(
-                                        Icons.check_circle,
-                                        color: Colors.green,
+                                      const SizedBox(width: 12),
+                                      const Text(
+                                        "Verify Dietitian",
+                                        style: TextStyle(
+                                          fontFamily: _primaryFontFamily,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  content: Text(
+                                    "Verify $firstName $lastName as a dietitian?",
+                                    style: const TextStyle(
+                                      fontFamily: _primaryFontFamily,
+                                    ),
+                                  ),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () =>
+                                          Navigator.pop(context, false),
+                                      child: const Text(
+                                        "Cancel",
+                                        style: TextStyle(
+                                          fontFamily: _primaryFontFamily,
+                                        ),
                                       ),
                                     ),
-                                    const SizedBox(width: 12),
-                                    const Text(
-                                      "Verify Dietitian",
-                                      style: TextStyle(
-                                          fontFamily: _primaryFontFamily),
+                                    ElevatedButton(
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.green,
+                                        foregroundColor: Colors.white,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            10,
+                                          ),
+                                        ),
+                                      ),
+                                      onPressed: () =>
+                                          Navigator.pop(context, true),
+                                      child: const Text(
+                                        "Verify",
+                                        style: TextStyle(
+                                          fontFamily: _primaryFontFamily,
+                                        ),
+                                      ),
                                     ),
                                   ],
                                 ),
-                                content: Text(
-                                  "Verify $firstName $lastName as a dietitian?",
-                                  style: const TextStyle(
-                                      fontFamily: _primaryFontFamily),
-                                ),
-                                actions: [
-                                  TextButton(
-                                    onPressed: () =>
-                                        Navigator.pop(context, false),
-                                    child: const Text(
-                                      "Cancel",
-                                      style: TextStyle(
-                                          fontFamily: _primaryFontFamily),
-                                    ),
-                                  ),
-                                  ElevatedButton(
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.green,
-                                      foregroundColor: Colors.white,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(10),
-                                      ),
-                                    ),
-                                    onPressed: () =>
-                                        Navigator.pop(context, true),
-                                    child: const Text(
-                                      "Verify",
-                                      style: TextStyle(
-                                          fontFamily: _primaryFontFamily),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            );
+                              );
 
-                            if (confirm == true) {
-                              try {
-                                // Prepare the data to move to Users collection
-                                final newDietitianData = {
-                                  'uid': docId,
-                                  'firstName': firstName,
-                                  'lastName': lastName,
-                                  'email': email,
-                                  'role': 'dietitian',
-                                  'status': 'offline',
-                                  'profile': profileUrl,
-                                  'licenseNum': licenseNum,
-                                  'createdAt': FieldValue.serverTimestamp(),
-                                };
+                              if (confirm == true) {
+                                try {
+                                  // Prepare the data to move to Users collection
+                                  final newDietitianData = {
+                                    'uid': docId,
+                                    'firstName': firstName,
+                                    'lastName': lastName,
+                                    'email': email,
+                                    'role': 'dietitian',
+                                    'status': 'offline',
+                                    'profile': profileUrl,
+                                    'licenseNum': licenseNum,
+                                    'createdAt': FieldValue.serverTimestamp(),
+                                  };
 
-                                // Step 1: Add to Users collection
-                                await FirebaseFirestore.instance
-                                    .collection('Users')
-                                    .doc(docId)
-                                    .set(newDietitianData);
+                                  // Step 1: Add to Users collection
+                                  await FirebaseFirestore.instance
+                                      .collection('Users')
+                                      .doc(docId)
+                                      .set(newDietitianData);
 
-                                // Step 2: Delete from dietitianApproval collection
-                                await FirebaseFirestore.instance
-                                    .collection('dietitianApproval')
-                                    .doc(docId)
-                                    .delete();
+                                  // Step 2: Delete from dietitianApproval collection
+                                  await FirebaseFirestore.instance
+                                      .collection('dietitianApproval')
+                                      .doc(docId)
+                                      .delete();
 
-                                if (mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Row(
-                                        children: [
-                                          const Icon(Icons.check_circle,
-                                              color: Colors.white),
-                                          const SizedBox(width: 8),
-                                          Text(
-                                            "$firstName $lastName verified as dietitian!",
-                                            style: const TextStyle(
-                                                fontFamily: _primaryFontFamily),
-                                          ),
-                                        ],
-                                      ),
-                                      backgroundColor: Colors.green,
-                                      behavior: SnackBarBehavior.floating,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(10),
-                                      ),
-                                    ),
-                                  );
-                                }
-                              } catch (e) {
-                                print("Error during dietitian verification: $e");
-                                if (mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Row(
-                                        children: [
-                                          const Icon(Icons.error_outline,
-                                              color: Colors.white),
-                                          const SizedBox(width: 8),
-                                          Expanded(
-                                            child: Text(
-                                              "Error: $e",
-                                              style: const TextStyle(
-                                                  fontFamily: _primaryFontFamily),
+                                  if (mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Row(
+                                          children: [
+                                            const Icon(
+                                              Icons.check_circle,
+                                              color: Colors.white,
                                             ),
+                                            const SizedBox(width: 8),
+                                            Text(
+                                              "$firstName $lastName verified as dietitian!",
+                                              style: const TextStyle(
+                                                fontFamily: _primaryFontFamily,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        backgroundColor: Colors.green,
+                                        behavior: SnackBarBehavior.floating,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            10,
                                           ),
-                                        ],
+                                        ),
                                       ),
-                                      backgroundColor: Colors.red,
-                                      behavior: SnackBarBehavior.floating,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(10),
-                                      ),
-                                    ),
+                                    );
+                                  }
+                                } catch (e) {
+                                  print(
+                                    "Error during dietitian verification: $e",
                                   );
+                                  if (mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Row(
+                                          children: [
+                                            const Icon(
+                                              Icons.error_outline,
+                                              color: Colors.white,
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Expanded(
+                                              child: Text(
+                                                "Error: $e",
+                                                style: const TextStyle(
+                                                  fontFamily:
+                                                      _primaryFontFamily,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        backgroundColor: Colors.red,
+                                        behavior: SnackBarBehavior.floating,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            10,
+                                          ),
+                                        ),
+                                      ),
+                                    );
+                                  }
                                 }
                               }
-                            }
-                          },
-                          icon: const Icon(Icons.check, size: 18),
-                          label: const Text(
-                            "Accept",
-                            style: TextStyle(
-                              fontFamily: _primaryFontFamily,
-                              fontWeight: FontWeight.w600,
+                            },
+                            icon: const Icon(Icons.check, size: 18),
+                            label: const Text(
+                              "Accept",
+                              style: TextStyle(
+                                fontFamily: _primaryFontFamily,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                           ),
-                        ),
-                        const SizedBox(width: 8),
-                        IconButton(
-                          icon: const Icon(Icons.delete_outline, color: Colors.red),
-                          onPressed: () =>
-                              _showDeleteDietitianVerificationConfirmation(
-                                  docId, firstName),
-                          tooltip: "Delete unverified dietitian",
-                        ),
-                      ],
+                          const SizedBox(width: 8),
+                          IconButton(
+                            icon: const Icon(
+                              Icons.delete_outline,
+                              color: Colors.red,
+                            ),
+                            onPressed: () =>
+                                _showDeleteDietitianVerificationConfirmation(
+                                  docId,
+                                  firstName,
+                                ),
+                            tooltip: "Delete unverified dietitian",
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                ]);
+                  ],
+                );
               }).toList(),
             ),
           ),
@@ -3278,8 +3521,11 @@ class _AdminHomeState extends State<AdminHome> {
     );
   }
 
-// Delete Dietitian Verification Confirmation
-  void _showDeleteDietitianVerificationConfirmation(String docId, String firstName) {
+  // Delete Dietitian Verification Confirmation
+  void _showDeleteDietitianVerificationConfirmation(
+    String docId,
+    String firstName,
+  ) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -3308,7 +3554,10 @@ class _AdminHomeState extends State<AdminHome> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text("Cancel", style: TextStyle(fontFamily: _primaryFontFamily)),
+            child: const Text(
+              "Cancel",
+              style: TextStyle(fontFamily: _primaryFontFamily),
+            ),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -3331,13 +3580,17 @@ class _AdminHomeState extends State<AdminHome> {
                       children: [
                         Icon(Icons.check_circle, color: Colors.white),
                         SizedBox(width: 8),
-                        Text("Unverified dietitian deleted successfully",
-                            style: TextStyle(fontFamily: _primaryFontFamily)),
+                        Text(
+                          "Unverified dietitian deleted successfully",
+                          style: TextStyle(fontFamily: _primaryFontFamily),
+                        ),
                       ],
                     ),
                     backgroundColor: Colors.red,
                     behavior: SnackBarBehavior.floating,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
                   ),
                 );
               } catch (e) {
@@ -3347,31 +3600,36 @@ class _AdminHomeState extends State<AdminHome> {
                       children: [
                         Icon(Icons.error_outline, color: Colors.white),
                         SizedBox(width: 8),
-                        Text("Failed to delete dietitian",
-                            style: TextStyle(fontFamily: _primaryFontFamily)),
+                        Text(
+                          "Failed to delete dietitian",
+                          style: TextStyle(fontFamily: _primaryFontFamily),
+                        ),
                       ],
                     ),
                     backgroundColor: Colors.red,
                     behavior: SnackBarBehavior.floating,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
                   ),
                 );
               }
             },
-            child: const Text("Delete", style: TextStyle(fontFamily: _primaryFontFamily)),
+            child: const Text(
+              "Delete",
+              style: TextStyle(fontFamily: _primaryFontFamily),
+            ),
           ),
         ],
       ),
     );
   }
 
-// NEW METHOD: User Verifications Table
+  // NEW METHOD: User Verifications Table
   Widget _buildUserVerificationsTable(List<QueryDocumentSnapshot> users) {
     return Card(
       elevation: 4,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       color: _cardBgColor(context),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
@@ -3433,196 +3691,215 @@ class _AdminHomeState extends State<AdminHome> {
                 final lastName = user['lastName'] ?? "No last name";
                 final email = user['email'] ?? "No email";
 
-                return DataRow(cells: [
-                  DataCell(Text(
-                    firstName,
-                    style: _getTextStyle(context),
-                  )),
-                  DataCell(Text(
-                    lastName,
-                    style: _getTextStyle(context),
-                  )),
-                  DataCell(Text(
-                    email,
-                    style: _getTextStyle(context, fontSize: 14),
-                  )),
-                  DataCell(
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        ElevatedButton.icon(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.green,
-                            foregroundColor: _textColorOnPrimary,
-                            elevation: 2,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
+                return DataRow(
+                  cells: [
+                    DataCell(Text(firstName, style: _getTextStyle(context))),
+                    DataCell(Text(lastName, style: _getTextStyle(context))),
+                    DataCell(
+                      Text(email, style: _getTextStyle(context, fontSize: 14)),
+                    ),
+                    DataCell(
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.green,
+                              foregroundColor: _textColorOnPrimary,
+                              elevation: 2,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 10,
+                              ),
                             ),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 10,
-                            ),
-                          ),
-                          onPressed: () async {
-                            final confirm = await showDialog<bool>(
-                              context: context,
-                              builder: (context) => AlertDialog(
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(16),
-                                ),
-                                title: Row(
-                                  children: [
-                                    Container(
-                                      padding: const EdgeInsets.all(8),
-                                      decoration: BoxDecoration(
-                                        color: Colors.green.withOpacity(0.1),
-                                        borderRadius: BorderRadius.circular(8),
+                            onPressed: () async {
+                              final confirm = await showDialog<bool>(
+                                context: context,
+                                builder: (context) => AlertDialog(
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                  title: Row(
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.all(8),
+                                        decoration: BoxDecoration(
+                                          color: Colors.green.withOpacity(0.1),
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
+                                        ),
+                                        child: const Icon(
+                                          Icons.check_circle,
+                                          color: Colors.green,
+                                        ),
                                       ),
-                                      child: const Icon(
-                                        Icons.check_circle,
-                                        color: Colors.green,
+                                      const SizedBox(width: 12),
+                                      const Text(
+                                        "Verify User",
+                                        style: TextStyle(
+                                          fontFamily: _primaryFontFamily,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  content: Text(
+                                    "Verify $firstName $lastName as a user?",
+                                    style: const TextStyle(
+                                      fontFamily: _primaryFontFamily,
+                                    ),
+                                  ),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () =>
+                                          Navigator.pop(context, false),
+                                      child: const Text(
+                                        "Cancel",
+                                        style: TextStyle(
+                                          fontFamily: _primaryFontFamily,
+                                        ),
                                       ),
                                     ),
-                                    const SizedBox(width: 12),
-                                    const Text(
-                                      "Verify User",
-                                      style: TextStyle(
-                                          fontFamily: _primaryFontFamily),
+                                    ElevatedButton(
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.green,
+                                        foregroundColor: Colors.white,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            10,
+                                          ),
+                                        ),
+                                      ),
+                                      onPressed: () =>
+                                          Navigator.pop(context, true),
+                                      child: const Text(
+                                        "Verify",
+                                        style: TextStyle(
+                                          fontFamily: _primaryFontFamily,
+                                        ),
+                                      ),
                                     ),
                                   ],
                                 ),
-                                content: Text(
-                                  "Verify $firstName $lastName as a user?",
-                                  style: const TextStyle(
-                                      fontFamily: _primaryFontFamily),
-                                ),
-                                actions: [
-                                  TextButton(
-                                    onPressed: () =>
-                                        Navigator.pop(context, false),
-                                    child: const Text(
-                                      "Cancel",
-                                      style: TextStyle(
-                                          fontFamily: _primaryFontFamily),
-                                    ),
-                                  ),
-                                  ElevatedButton(
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.green,
-                                      foregroundColor: Colors.white,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(10),
-                                      ),
-                                    ),
-                                    onPressed: () =>
-                                        Navigator.pop(context, true),
-                                    child: const Text(
-                                      "Verify",
-                                      style: TextStyle(
-                                          fontFamily: _primaryFontFamily),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            );
+                              );
 
-                            if (confirm == true) {
-                              try {
-                                // Move user from notVerifiedUsers to Users
-                                final newUserData = {
-                                  ...user,
-                                  'uid': docId,
-                                  'role': 'user',
-                                  'status': 'offline',
-                                  'createdAt': FieldValue.serverTimestamp(),
-                                };
+                              if (confirm == true) {
+                                try {
+                                  // Move user from notVerifiedUsers to Users
+                                  final newUserData = {
+                                    ...user,
+                                    'uid': docId,
+                                    'role': 'user',
+                                    'status': 'offline',
+                                    'createdAt': FieldValue.serverTimestamp(),
+                                  };
 
-                                // Add to Users collection
-                                await FirebaseFirestore.instance
-                                    .collection('Users')
-                                    .doc(docId)
-                                    .set(newUserData);
+                                  // Add to Users collection
+                                  await FirebaseFirestore.instance
+                                      .collection('Users')
+                                      .doc(docId)
+                                      .set(newUserData);
 
-                                // Delete from notVerifiedUsers
-                                await FirebaseFirestore.instance
-                                    .collection('notVerifiedUsers')
-                                    .doc(docId)
-                                    .delete();
+                                  // Delete from notVerifiedUsers
+                                  await FirebaseFirestore.instance
+                                      .collection('notVerifiedUsers')
+                                      .doc(docId)
+                                      .delete();
 
-                                if (mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Row(
-                                        children: [
-                                          const Icon(Icons.check_circle,
-                                              color: Colors.white),
-                                          const SizedBox(width: 8),
-                                          Text(
-                                            "$firstName $lastName verified!",
-                                            style: const TextStyle(
-                                                fontFamily: _primaryFontFamily),
-                                          ),
-                                        ],
-                                      ),
-                                      backgroundColor: Colors.green,
-                                      behavior: SnackBarBehavior.floating,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(10),
-                                      ),
-                                    ),
-                                  );
-                                }
-                              } catch (e) {
-                                print("Error verifying user: $e");
-                                if (mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Row(
-                                        children: [
-                                          const Icon(Icons.error_outline,
-                                              color: Colors.white),
-                                          const SizedBox(width: 8),
-                                          Expanded(
-                                            child: Text(
-                                              "Error: $e",
-                                              style: const TextStyle(
-                                                  fontFamily: _primaryFontFamily),
+                                  if (mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Row(
+                                          children: [
+                                            const Icon(
+                                              Icons.check_circle,
+                                              color: Colors.white,
                                             ),
+                                            const SizedBox(width: 8),
+                                            Text(
+                                              "$firstName $lastName verified!",
+                                              style: const TextStyle(
+                                                fontFamily: _primaryFontFamily,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        backgroundColor: Colors.green,
+                                        behavior: SnackBarBehavior.floating,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            10,
                                           ),
-                                        ],
+                                        ),
                                       ),
-                                      backgroundColor: Colors.red,
-                                      behavior: SnackBarBehavior.floating,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(10),
+                                    );
+                                  }
+                                } catch (e) {
+                                  print("Error verifying user: $e");
+                                  if (mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Row(
+                                          children: [
+                                            const Icon(
+                                              Icons.error_outline,
+                                              color: Colors.white,
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Expanded(
+                                              child: Text(
+                                                "Error: $e",
+                                                style: const TextStyle(
+                                                  fontFamily:
+                                                      _primaryFontFamily,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        backgroundColor: Colors.red,
+                                        behavior: SnackBarBehavior.floating,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            10,
+                                          ),
+                                        ),
                                       ),
-                                    ),
-                                  );
+                                    );
+                                  }
                                 }
                               }
-                            }
-                          },
-                          icon: const Icon(Icons.check, size: 18),
-                          label: const Text(
-                            "Accept",
-                            style: TextStyle(
-                              fontFamily: _primaryFontFamily,
-                              fontWeight: FontWeight.w600,
+                            },
+                            icon: const Icon(Icons.check, size: 18),
+                            label: const Text(
+                              "Accept",
+                              style: TextStyle(
+                                fontFamily: _primaryFontFamily,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                           ),
-                        ),
-                        const SizedBox(width: 8),
-                        IconButton(
-                          icon: const Icon(Icons.delete_outline, color: Colors.red),
-                          onPressed: () =>
-                              _showDeleteUserVerificationConfirmation(
-                                  docId, firstName),
-                          tooltip: "Delete unverified user",
-                        ),
-                      ],
+                          const SizedBox(width: 8),
+                          IconButton(
+                            icon: const Icon(
+                              Icons.delete_outline,
+                              color: Colors.red,
+                            ),
+                            onPressed: () =>
+                                _showDeleteUserVerificationConfirmation(
+                                  docId,
+                                  firstName,
+                                ),
+                            tooltip: "Delete unverified user",
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                ]);
+                  ],
+                );
               }).toList(),
             ),
           ),
@@ -3631,7 +3908,7 @@ class _AdminHomeState extends State<AdminHome> {
     );
   }
 
-// Dietitian Verification Tab
+  // Dietitian Verification Tab
   Widget _buildDietitianVerificationTab(bool isMobile) {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
@@ -3639,7 +3916,9 @@ class _AdminHomeState extends State<AdminHome> {
           .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator(color: _primaryColor));
+          return const Center(
+            child: CircularProgressIndicator(color: _primaryColor),
+          );
         }
 
         if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
@@ -3647,7 +3926,11 @@ class _AdminHomeState extends State<AdminHome> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.verified_outlined, size: 80, color: Colors.orange.withOpacity(0.3)),
+                Icon(
+                  Icons.verified_outlined,
+                  size: 80,
+                  color: Colors.orange.withOpacity(0.3),
+                ),
                 const SizedBox(height: 16),
                 Text(
                   "No unverified dietitians pending",
@@ -3662,8 +3945,6 @@ class _AdminHomeState extends State<AdminHome> {
       },
     );
   }
-
-
 
   IconData _getEmptyIcon() {
     switch (crudFilter) {
@@ -3681,9 +3962,7 @@ class _AdminHomeState extends State<AdminHome> {
   Widget _buildUsersTable(List<QueryDocumentSnapshot> users) {
     return Card(
       elevation: 4,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       color: _cardBgColor(context),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
@@ -3700,11 +3979,15 @@ class _AdminHomeState extends State<AdminHome> {
                 if (isMultiSelectMode)
                   DataColumn(
                     label: Checkbox(
-                      value: selectedUserIds.length == users.length && users.isNotEmpty,
+                      value:
+                          selectedUserIds.length == users.length &&
+                          users.isNotEmpty,
                       onChanged: (value) {
                         setState(() {
                           if (value == true) {
-                            selectedUserIds = users.map((doc) => doc.id).toSet();
+                            selectedUserIds = users
+                                .map((doc) => doc.id)
+                                .toSet();
                           } else {
                             selectedUserIds.clear();
                           }
@@ -3793,145 +4076,149 @@ class _AdminHomeState extends State<AdminHome> {
                 final role = user['role'] ?? "user";
 
                 return DataRow(
-                    selected: selectedUserIds.contains(doc.id),
-                    onSelectChanged: isMultiSelectMode
-                        ? (selected) {
-                      setState(() {
-                        if (selected == true) {
-                          selectedUserIds.add(doc.id);
-                        } else {
-                          selectedUserIds.remove(doc.id);
+                  selected: selectedUserIds.contains(doc.id),
+                  onSelectChanged: isMultiSelectMode
+                      ? (selected) {
+                          setState(() {
+                            if (selected == true) {
+                              selectedUserIds.add(doc.id);
+                            } else {
+                              selectedUserIds.remove(doc.id);
+                            }
+                          });
                         }
-                      });
-                    }
-                        : null,
-                    cells: [
-                      if (isMultiSelectMode)
-                        DataCell(
-                          Checkbox(
-                            value: selectedUserIds.contains(doc.id),
-                            onChanged: (value) {
-                              setState(() {
-                                if (value == true) {
-                                  selectedUserIds.add(doc.id);
-                                } else {
-                                  selectedUserIds.remove(doc.id);
-                                }
-                              });
-                            },
-                            activeColor: _primaryColor,
-                          ),
-                        ),
-                      DataCell(Text(
-                        firstName,
-                        style: _getTextStyle(context),
-                      )),
-                      DataCell(Text(
-                        lastName,
-                        style: _getTextStyle(context),
-                      )),
-                      DataCell(Text(
-                        email,
-                        style: _getTextStyle(context, fontSize: 14),
-                      )),
+                      : null,
+                  cells: [
+                    if (isMultiSelectMode)
                       DataCell(
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
+                        Checkbox(
+                          value: selectedUserIds.contains(doc.id),
+                          onChanged: (value) {
+                            setState(() {
+                              if (value == true) {
+                                selectedUserIds.add(doc.id);
+                              } else {
+                                selectedUserIds.remove(doc.id);
+                              }
+                            });
+                          },
+                          activeColor: _primaryColor,
+                        ),
+                      ),
+                    DataCell(Text(firstName, style: _getTextStyle(context))),
+                    DataCell(Text(lastName, style: _getTextStyle(context))),
+                    DataCell(
+                      Text(email, style: _getTextStyle(context, fontSize: 14)),
+                    ),
+                    DataCell(
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: status.toLowerCase() == "online"
+                              ? Colors.green.withOpacity(0.1)
+                              : Colors.red.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          status,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
                             color: status.toLowerCase() == "online"
-                                ? Colors.green.withOpacity(0.1)
-                                : Colors.red.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            status,
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: status.toLowerCase() == "online"
-                                  ? Colors.green[700]
-                                  : Colors.red[700],
-                              fontFamily: _primaryFontFamily,
-                            ),
+                                ? Colors.green[700]
+                                : Colors.red[700],
+                            fontFamily: _primaryFontFamily,
                           ),
                         ),
                       ),
-                      DataCell(
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
+                    ),
+                    DataCell(
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: role == "dietitian"
+                              ? _primaryColor.withOpacity(0.1)
+                              : Colors.blue.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          role,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
                             color: role == "dietitian"
-                                ? _primaryColor.withOpacity(0.1)
-                                : Colors.blue.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            role,
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: role == "dietitian"
-                                  ? _primaryColor
-                                  : Colors.blue[700],
-                              fontFamily: _primaryFontFamily,
-                            ),
+                                ? _primaryColor
+                                : Colors.blue[700],
+                            fontFamily: _primaryFontFamily,
                           ),
                         ),
                       ),
-                      DataCell(
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            IconButton(
-                              icon: const Icon(Icons.edit_outlined, color: Colors.blue),
-                              onPressed: () => _showEditUserDialog(doc.id, user),
-                              tooltip: "Edit user",
+                    ),
+                    DataCell(
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            icon: const Icon(
+                              Icons.edit_outlined,
+                              color: Colors.blue,
                             ),
-                            IconButton(
-                              icon: const Icon(Icons.delete_outline, color: Colors.red),
-                              onPressed: () => _showDeleteConfirmation(doc.id, firstName),
-                              tooltip: "Delete user",
+                            onPressed: () => _showEditUserDialog(doc.id, user),
+                            tooltip: "Edit user",
+                          ),
+                          IconButton(
+                            icon: const Icon(
+                              Icons.delete_outline,
+                              color: Colors.red,
                             ),
-                          ],
-                        ),
+                            onPressed: () =>
+                                _showDeleteConfirmation(doc.id, firstName),
+                            tooltip: "Delete user",
+                          ),
+                        ],
                       ),
-                      DataCell(
-                        ElevatedButton.icon(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: role == "dietitian"
-                                ? Colors.orange
-                                : _primaryColor,
-                            foregroundColor: _textColorOnPrimary,
-                            elevation: 2,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 10,
-                            ),
+                    ),
+                    DataCell(
+                      ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: role == "dietitian"
+                              ? Colors.orange
+                              : _primaryColor,
+                          foregroundColor: _textColorOnPrimary,
+                          elevation: 2,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
                           ),
-                          onPressed: () => _toggleUserRole(doc.id, role, firstName),
-                          icon: Icon(
-                            role == "dietitian" ? Icons.arrow_downward : Icons.arrow_upward,
-                            size: 18,
-                          ),
-                          label: Text(
-                            role == "dietitian" ? "Downgrade" : "Upgrade",
-                            style: const TextStyle(
-                              fontFamily: _primaryFontFamily,
-                              fontWeight: FontWeight.w600,
-                            ),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 10,
                           ),
                         ),
+                        onPressed: () =>
+                            _toggleUserRole(doc.id, role, firstName),
+                        icon: Icon(
+                          role == "dietitian"
+                              ? Icons.arrow_downward
+                              : Icons.arrow_upward,
+                          size: 18,
+                        ),
+                        label: Text(
+                          role == "dietitian" ? "Downgrade" : "Upgrade",
+                          style: const TextStyle(
+                            fontFamily: _primaryFontFamily,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                       ),
-                    ]);
+                    ),
+                  ],
+                );
               }).toList(),
             ),
           ),
@@ -3943,9 +4230,7 @@ class _AdminHomeState extends State<AdminHome> {
   Widget _buildVerificationsTable(List<QueryDocumentSnapshot> users) {
     return Card(
       elevation: 4,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       color: _cardBgColor(context),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
@@ -4017,213 +4302,241 @@ class _AdminHomeState extends State<AdminHome> {
                 final email = user['email'] ?? "No email";
                 final role = user['role'] ?? "user";
 
-                return DataRow(cells: [
-                  DataCell(Text(
-                    firstName,
-                    style: _getTextStyle(context),
-                  )),
-                  DataCell(Text(
-                    lastName,
-                    style: _getTextStyle(context),
-                  )),
-                  DataCell(Text(
-                    email,
-                    style: _getTextStyle(context, fontSize: 14),
-                  )),
-                  DataCell(
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.orange.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        role,
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.orange[700],
-                          fontFamily: _primaryFontFamily,
+                return DataRow(
+                  cells: [
+                    DataCell(Text(firstName, style: _getTextStyle(context))),
+                    DataCell(Text(lastName, style: _getTextStyle(context))),
+                    DataCell(
+                      Text(email, style: _getTextStyle(context, fontSize: 14)),
+                    ),
+                    DataCell(
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          role,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.orange[700],
+                            fontFamily: _primaryFontFamily,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                  DataCell(
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        ElevatedButton.icon(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.green,
-                            foregroundColor: _textColorOnPrimary,
-                            elevation: 2,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
+                    DataCell(
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.green,
+                              foregroundColor: _textColorOnPrimary,
+                              elevation: 2,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 10,
+                              ),
                             ),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 10,
-                            ),
-                          ),
-                          onPressed: () async {
-                            final confirm = await showDialog<bool>(
-                              context: context,
-                              builder: (context) => AlertDialog(
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(16),
-                                ),
-                                title: Row(
-                                  children: [
-                                    Container(
-                                      padding: const EdgeInsets.all(8),
-                                      decoration: BoxDecoration(
-                                        color: Colors.green.withOpacity(0.1),
-                                        borderRadius: BorderRadius.circular(8),
+                            onPressed: () async {
+                              final confirm = await showDialog<bool>(
+                                context: context,
+                                builder: (context) => AlertDialog(
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                  title: Row(
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.all(8),
+                                        decoration: BoxDecoration(
+                                          color: Colors.green.withOpacity(0.1),
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
+                                        ),
+                                        child: const Icon(
+                                          Icons.check_circle,
+                                          color: Colors.green,
+                                        ),
                                       ),
-                                      child: const Icon(
-                                        Icons.check_circle,
-                                        color: Colors.green,
+                                      const SizedBox(width: 12),
+                                      const Text(
+                                        "Confirm Verification",
+                                        style: TextStyle(
+                                          fontFamily: _primaryFontFamily,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  content: Text(
+                                    "Accept and move $firstName $lastName to verified users?",
+                                    style: const TextStyle(
+                                      fontFamily: _primaryFontFamily,
+                                    ),
+                                  ),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () =>
+                                          Navigator.pop(context, false),
+                                      child: const Text(
+                                        "Cancel",
+                                        style: TextStyle(
+                                          fontFamily: _primaryFontFamily,
+                                        ),
                                       ),
                                     ),
-                                    const SizedBox(width: 12),
-                                    const Text(
-                                      "Confirm Verification",
-                                      style: TextStyle(fontFamily: _primaryFontFamily),
+                                    ElevatedButton(
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.green,
+                                        foregroundColor: Colors.white,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            10,
+                                          ),
+                                        ),
+                                      ),
+                                      onPressed: () =>
+                                          Navigator.pop(context, true),
+                                      child: const Text(
+                                        "Accept",
+                                        style: TextStyle(
+                                          fontFamily: _primaryFontFamily,
+                                        ),
+                                      ),
                                     ),
                                   ],
                                 ),
-                                content: Text(
-                                  "Accept and move $firstName $lastName to verified users?",
-                                  style: const TextStyle(fontFamily: _primaryFontFamily),
-                                ),
-                                actions: [
-                                  TextButton(
-                                    onPressed: () => Navigator.pop(context, false),
-                                    child: const Text(
-                                      "Cancel",
-                                      style: TextStyle(fontFamily: _primaryFontFamily),
-                                    ),
-                                  ),
-                                  ElevatedButton(
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.green,
-                                      foregroundColor: Colors.white,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(10),
-                                      ),
-                                    ),
-                                    onPressed: () => Navigator.pop(context, true),
-                                    child: const Text(
-                                      "Accept",
-                                      style: TextStyle(fontFamily: _primaryFontFamily),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            );
+                              );
 
-                            if (confirm == true) {
-                              try {
-                                // Prepare user data with all required fields
-                                final newUserData = {
-                                  ...user,
-                                  'role': role.isNotEmpty ? role : 'user', // Ensure role exists
-                                  'status': user['status'] ?? 'offline',
-                                  'profile': user['profile'] ?? '',
-                                  'email': email,
-                                  'firstName': firstName,
-                                  'lastName': lastName,
-                                  'createdAt': FieldValue.serverTimestamp(),
-                                  'uid': doc.id,
-                                };
+                              if (confirm == true) {
+                                try {
+                                  // Prepare user data with all required fields
+                                  final newUserData = {
+                                    ...user,
+                                    'role': role.isNotEmpty
+                                        ? role
+                                        : 'user', // Ensure role exists
+                                    'status': user['status'] ?? 'offline',
+                                    'profile': user['profile'] ?? '',
+                                    'email': email,
+                                    'firstName': firstName,
+                                    'lastName': lastName,
+                                    'createdAt': FieldValue.serverTimestamp(),
+                                    'uid': doc.id,
+                                  };
 
-                                // Add user to Users collection
-                                await FirebaseFirestore.instance
-                                    .collection('Users')
-                                    .doc(doc.id)
-                                    .set(newUserData);
+                                  // Add user to Users collection
+                                  await FirebaseFirestore.instance
+                                      .collection('Users')
+                                      .doc(doc.id)
+                                      .set(newUserData);
 
-                                // Remove from notVerifiedUsers collection
-                                await FirebaseFirestore.instance
-                                    .collection('notVerifiedUsers')
-                                    .doc(doc.id)
-                                    .delete();
+                                  // Remove from notVerifiedUsers collection
+                                  await FirebaseFirestore.instance
+                                      .collection('notVerifiedUsers')
+                                      .doc(doc.id)
+                                      .delete();
 
-                                if (mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Row(
-                                        children: [
-                                          const Icon(Icons.check_circle,
-                                              color: Colors.white),
-                                          const SizedBox(width: 8),
-                                          Text(
-                                            "$firstName $lastName verified!",
-                                            style: const TextStyle(
-                                                fontFamily: _primaryFontFamily),
-                                          ),
-                                        ],
-                                      ),
-                                      backgroundColor: Colors.green,
-                                      behavior: SnackBarBehavior.floating,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(10),
-                                      ),
-                                    ),
-                                  );
-                                }
-                              } catch (e) {
-                                if (mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Row(
-                                        children: [
-                                          const Icon(Icons.error_outline,
-                                              color: Colors.white),
-                                          const SizedBox(width: 8),
-                                          Expanded(
-                                            child: Text(
-                                              "Error: $e",
-                                              style: const TextStyle(
-                                                  fontFamily: _primaryFontFamily),
+                                  if (mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Row(
+                                          children: [
+                                            const Icon(
+                                              Icons.check_circle,
+                                              color: Colors.white,
                                             ),
+                                            const SizedBox(width: 8),
+                                            Text(
+                                              "$firstName $lastName verified!",
+                                              style: const TextStyle(
+                                                fontFamily: _primaryFontFamily,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        backgroundColor: Colors.green,
+                                        behavior: SnackBarBehavior.floating,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            10,
                                           ),
-                                        ],
+                                        ),
                                       ),
-                                      backgroundColor: Colors.red,
-                                      behavior: SnackBarBehavior.floating,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(10),
+                                    );
+                                  }
+                                } catch (e) {
+                                  if (mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Row(
+                                          children: [
+                                            const Icon(
+                                              Icons.error_outline,
+                                              color: Colors.white,
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Expanded(
+                                              child: Text(
+                                                "Error: $e",
+                                                style: const TextStyle(
+                                                  fontFamily:
+                                                      _primaryFontFamily,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        backgroundColor: Colors.red,
+                                        behavior: SnackBarBehavior.floating,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            10,
+                                          ),
+                                        ),
                                       ),
-                                    ),
-                                  );
+                                    );
+                                  }
                                 }
                               }
-                            }
-                          },
-                          icon: const Icon(Icons.check, size: 18),
-                          label: const Text(
-                            "Accept",
-                            style: TextStyle(
-                              fontFamily: _primaryFontFamily,
-                              fontWeight: FontWeight.w600,
+                            },
+                            icon: const Icon(Icons.check, size: 18),
+                            label: const Text(
+                              "Accept",
+                              style: TextStyle(
+                                fontFamily: _primaryFontFamily,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                           ),
-                        ),
-                        const SizedBox(width: 8),
-                        IconButton(
-                          icon: const Icon(Icons.delete_outline, color: Colors.red),
-                          onPressed: () =>
-                              _showDeleteUserVerificationConfirmation(doc.id, firstName),
-                          tooltip: "Delete unverified user",
-                        ),
-                      ],
+                          const SizedBox(width: 8),
+                          IconButton(
+                            icon: const Icon(
+                              Icons.delete_outline,
+                              color: Colors.red,
+                            ),
+                            onPressed: () =>
+                                _showDeleteUserVerificationConfirmation(
+                                  doc.id,
+                                  firstName,
+                                ),
+                            tooltip: "Delete unverified user",
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                ]);
+                  ],
+                );
               }).toList(),
             ),
           ),
@@ -4235,9 +4548,7 @@ class _AdminHomeState extends State<AdminHome> {
   Widget _buildMealPlansTable(List<QueryDocumentSnapshot> mealPlans) {
     return Card(
       elevation: 4,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       color: _cardBgColor(context),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
@@ -4298,96 +4609,109 @@ class _AdminHomeState extends State<AdminHome> {
                 final ownerId = mealPlan['owner'] ?? "";
                 final timestamp = mealPlan['timestamp'] as Timestamp?;
                 final dateTimeCreated = timestamp != null
-                    ? DateFormat('MMM dd, yyyy - hh:mm a').format(timestamp.toDate())
+                    ? DateFormat(
+                        'MMM dd, yyyy - hh:mm a',
+                      ).format(timestamp.toDate())
                     : "Unknown";
 
-                return DataRow(cells: [
-                  DataCell(
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.purple.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        planType,
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.purple[700],
-                          fontFamily: _primaryFontFamily,
+                return DataRow(
+                  cells: [
+                    DataCell(
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.purple.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          planType,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.purple[700],
+                            fontFamily: _primaryFontFamily,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                  DataCell(
-                    FutureBuilder<DocumentSnapshot>(
-                      future: FirebaseFirestore.instance
-                          .collection('Users')
-                          .doc(ownerId)
-                          .get(),
-                      builder: (context, snapshot) {
-                        if (!snapshot.hasData) {
+                    DataCell(
+                      FutureBuilder<DocumentSnapshot>(
+                        future: FirebaseFirestore.instance
+                            .collection('Users')
+                            .doc(ownerId)
+                            .get(),
+                        builder: (context, snapshot) {
+                          if (!snapshot.hasData) {
+                            return Text(
+                              "Loading...",
+                              style: _getTextStyle(context, fontSize: 14),
+                            );
+                          }
+                          final ownerData =
+                              snapshot.data!.data() as Map<String, dynamic>?;
+                          final firstName = ownerData?['firstName'] ?? '';
+                          final lastName = ownerData?['lastName'] ?? '';
+                          final name = "$firstName $lastName".trim();
                           return Text(
-                            "Loading...",
+                            name.isEmpty ? "Unknown" : name,
                             style: _getTextStyle(context, fontSize: 14),
                           );
-                        }
-                        final ownerData = snapshot.data!.data() as Map<String, dynamic>?;
-                        final firstName = ownerData?['firstName'] ?? '';
-                        final lastName = ownerData?['lastName'] ?? '';
-                        final name = "$firstName $lastName".trim();
-                        return Text(
-                          name.isEmpty ? "Unknown" : name,
-                          style: _getTextStyle(context, fontSize: 14),
-                        );
-                      },
+                        },
+                      ),
                     ),
-                  ),
-                  DataCell(Text(
-                    dateTimeCreated,
-                    style: _getTextStyle(context, fontSize: 14),
-                  )),
-                  DataCell(
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        ElevatedButton.icon(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.purple,
-                            foregroundColor: _textColorOnPrimary,
-                            elevation: 2,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
+                    DataCell(
+                      Text(
+                        dateTimeCreated,
+                        style: _getTextStyle(context, fontSize: 14),
+                      ),
+                    ),
+                    DataCell(
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.purple,
+                              foregroundColor: _textColorOnPrimary,
+                              elevation: 2,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 10,
+                              ),
                             ),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 10,
+                            onPressed: () => _showMealPlanDetails(mealPlan),
+                            icon: const Icon(Icons.visibility, size: 18),
+                            label: const Text(
+                              "View",
+                              style: TextStyle(
+                                fontFamily: _primaryFontFamily,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                           ),
-                          onPressed: () => _showMealPlanDetails(mealPlan),
-                          icon: const Icon(Icons.visibility, size: 18),
-                          label: const Text(
-                            "View",
-                            style: TextStyle(
-                              fontFamily: _primaryFontFamily,
-                              fontWeight: FontWeight.w600,
+                          const SizedBox(width: 8),
+                          IconButton(
+                            icon: const Icon(
+                              Icons.delete_outline,
+                              color: Colors.red,
                             ),
+                            onPressed: () => _showDeleteMealPlanConfirmation(
+                              doc.id,
+                              planType,
+                            ),
+                            tooltip: "Delete meal plan",
                           ),
-                        ),
-                        const SizedBox(width: 8),
-                        IconButton(
-                          icon: const Icon(Icons.delete_outline, color: Colors.red),
-                          onPressed: () => _showDeleteMealPlanConfirmation(doc.id, planType),
-                          tooltip: "Delete meal plan",
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-                ]);
+                  ],
+                );
               }).toList(),
             ),
           ),
@@ -4396,7 +4720,7 @@ class _AdminHomeState extends State<AdminHome> {
     );
   }
 
-// Update your _buildFilterButton to handle new verification pages
+  // Update your _buildFilterButton to handle new verification pages
   Widget _buildFilterButton(String filter) {
     final isSelected = crudFilter == filter;
     IconData icon;
@@ -4439,17 +4763,19 @@ class _AdminHomeState extends State<AdminHome> {
             color: isSelected ? _primaryColor : _cardBgColor(context),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: isSelected ? _primaryColor : _primaryColor.withOpacity(0.3),
+              color: isSelected
+                  ? _primaryColor
+                  : _primaryColor.withOpacity(0.3),
               width: 2,
             ),
             boxShadow: isSelected
                 ? [
-              BoxShadow(
-                color: _primaryColor.withOpacity(0.3),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-            ]
+                    BoxShadow(
+                      color: _primaryColor.withOpacity(0.3),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ]
                 : [],
           ),
           child: Row(
@@ -4477,7 +4803,7 @@ class _AdminHomeState extends State<AdminHome> {
     );
   }
 
-// New method: Show verification menu
+  // New method: Show verification menu
   void _showVerificationMenu() {
     showModalBottomSheet(
       context: context,
@@ -4504,7 +4830,10 @@ class _AdminHomeState extends State<AdminHome> {
               ),
               const SizedBox(height: 16),
               ListTile(
-                leading: const Icon(Icons.person_add_outlined, color: Colors.blue),
+                leading: const Icon(
+                  Icons.person_add_outlined,
+                  color: Colors.blue,
+                ),
                 title: Text(
                   "User Verification",
                   style: _getTextStyle(context, fontWeight: FontWeight.w600),
@@ -4520,7 +4849,10 @@ class _AdminHomeState extends State<AdminHome> {
               ),
               const SizedBox(height: 8),
               ListTile(
-                leading: const Icon(Icons.health_and_safety, color: Colors.orange),
+                leading: const Icon(
+                  Icons.health_and_safety,
+                  color: Colors.orange,
+                ),
                 title: Text(
                   "Dietitian Verification",
                   style: _getTextStyle(context, fontWeight: FontWeight.w600),
@@ -4541,8 +4873,7 @@ class _AdminHomeState extends State<AdminHome> {
     );
   }
 
-
-// REPLACE your _getFilteredStream() method with this corrected version:
+  // REPLACE your _getFilteredStream() method with this corrected version:
 
   Stream<QuerySnapshot> _getFilteredStream() {
     if (crudFilter == "Meal Plans") {
@@ -4654,7 +4985,11 @@ class _AdminHomeState extends State<AdminHome> {
                       const SizedBox(height: 16),
                       _buildMealSection("Dinner", dinner, Icons.dinner_dining),
                       const SizedBox(height: 16),
-                      _buildMealSection("Midnight Snack", midnightSnack, Icons.nightlight),
+                      _buildMealSection(
+                        "Midnight Snack",
+                        midnightSnack,
+                        Icons.nightlight,
+                      ),
                     ],
                   ),
                 ),
@@ -4672,10 +5007,7 @@ class _AdminHomeState extends State<AdminHome> {
       decoration: BoxDecoration(
         color: _cardBgColor(context),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: Colors.purple.withOpacity(0.2),
-          width: 1,
-        ),
+        border: Border.all(color: Colors.purple.withOpacity(0.2), width: 1),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -4696,16 +5028,13 @@ class _AdminHomeState extends State<AdminHome> {
             ],
           ),
           const SizedBox(height: 12),
-          Text(
-            content,
-            style: _getTextStyle(context, fontSize: 14),
-          ),
+          Text(content, style: _getTextStyle(context, fontSize: 14)),
         ],
       ),
     );
   }
 
-// NEW METHOD: Delete confirmation for user verification
+  // NEW METHOD: Delete confirmation for user verification
   void _showDeleteUserVerificationConfirmation(String docId, String firstName) {
     showDialog(
       context: context,
@@ -4735,7 +5064,10 @@ class _AdminHomeState extends State<AdminHome> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text("Cancel", style: TextStyle(fontFamily: _primaryFontFamily)),
+            child: const Text(
+              "Cancel",
+              style: TextStyle(fontFamily: _primaryFontFamily),
+            ),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -4759,14 +5091,17 @@ class _AdminHomeState extends State<AdminHome> {
                         children: [
                           Icon(Icons.check_circle, color: Colors.white),
                           SizedBox(width: 8),
-                          Text("Unverified user deleted successfully",
-                              style: TextStyle(fontFamily: _primaryFontFamily)),
+                          Text(
+                            "Unverified user deleted successfully",
+                            style: TextStyle(fontFamily: _primaryFontFamily),
+                          ),
                         ],
                       ),
                       backgroundColor: Colors.red,
                       behavior: SnackBarBehavior.floating,
                       shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10)),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
                     ),
                   );
                 }
@@ -4778,20 +5113,26 @@ class _AdminHomeState extends State<AdminHome> {
                         children: [
                           Icon(Icons.error_outline, color: Colors.white),
                           SizedBox(width: 8),
-                          Text("Failed to delete user",
-                              style: TextStyle(fontFamily: _primaryFontFamily)),
+                          Text(
+                            "Failed to delete user",
+                            style: TextStyle(fontFamily: _primaryFontFamily),
+                          ),
                         ],
                       ),
                       backgroundColor: Colors.red,
                       behavior: SnackBarBehavior.floating,
                       shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10)),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
                     ),
                   );
                 }
               }
             },
-            child: const Text("Delete", style: TextStyle(fontFamily: _primaryFontFamily)),
+            child: const Text(
+              "Delete",
+              style: TextStyle(fontFamily: _primaryFontFamily),
+            ),
           ),
         ],
       ),
@@ -4827,7 +5168,10 @@ class _AdminHomeState extends State<AdminHome> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text("Cancel", style: TextStyle(fontFamily: _primaryFontFamily)),
+            child: const Text(
+              "Cancel",
+              style: TextStyle(fontFamily: _primaryFontFamily),
+            ),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -4850,12 +5194,17 @@ class _AdminHomeState extends State<AdminHome> {
                       children: [
                         Icon(Icons.check_circle, color: Colors.white),
                         SizedBox(width: 8),
-                        Text("Meal plan deleted successfully", style: TextStyle(fontFamily: _primaryFontFamily)),
+                        Text(
+                          "Meal plan deleted successfully",
+                          style: TextStyle(fontFamily: _primaryFontFamily),
+                        ),
                       ],
                     ),
                     backgroundColor: Colors.red,
                     behavior: SnackBarBehavior.floating,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
                   ),
                 );
               } catch (e) {
@@ -4865,17 +5214,25 @@ class _AdminHomeState extends State<AdminHome> {
                       children: [
                         Icon(Icons.error_outline, color: Colors.white),
                         SizedBox(width: 8),
-                        Text("Failed to delete meal plan", style: TextStyle(fontFamily: _primaryFontFamily)),
+                        Text(
+                          "Failed to delete meal plan",
+                          style: TextStyle(fontFamily: _primaryFontFamily),
+                        ),
                       ],
                     ),
                     backgroundColor: Colors.red,
                     behavior: SnackBarBehavior.floating,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
                   ),
                 );
               }
             },
-            child: const Text("Delete", style: TextStyle(fontFamily: _primaryFontFamily)),
+            child: const Text(
+              "Delete",
+              style: TextStyle(fontFamily: _primaryFontFamily),
+            ),
           ),
         ],
       ),
@@ -4892,7 +5249,9 @@ class _AdminHomeState extends State<AdminHome> {
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           title: Row(
             children: [
               Container(
@@ -4960,7 +5319,10 @@ class _AdminHomeState extends State<AdminHome> {
                     ),
                     items: const [
                       DropdownMenuItem(value: "user", child: Text("User")),
-                      DropdownMenuItem(value: "dietitian", child: Text("Dietitian")),
+                      DropdownMenuItem(
+                        value: "dietitian",
+                        child: Text("Dietitian"),
+                      ),
                     ],
                     onChanged: (value) {
                       setDialogState(() {
@@ -4978,7 +5340,11 @@ class _AdminHomeState extends State<AdminHome> {
                     ),
                     child: Row(
                       children: [
-                        Icon(Icons.info_outline, color: Colors.blue.shade700, size: 20),
+                        Icon(
+                          Icons.info_outline,
+                          color: Colors.blue.shade700,
+                          size: 20,
+                        ),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
@@ -5000,7 +5366,10 @@ class _AdminHomeState extends State<AdminHome> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text("Cancel", style: TextStyle(fontFamily: _primaryFontFamily)),
+              child: const Text(
+                "Cancel",
+                style: TextStyle(fontFamily: _primaryFontFamily),
+              ),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
@@ -5020,12 +5389,17 @@ class _AdminHomeState extends State<AdminHome> {
                         children: [
                           Icon(Icons.warning, color: Colors.white),
                           SizedBox(width: 8),
-                          Text("Please fill all fields", style: TextStyle(fontFamily: _primaryFontFamily)),
+                          Text(
+                            "Please fill all fields",
+                            style: TextStyle(fontFamily: _primaryFontFamily),
+                          ),
                         ],
                       ),
                       backgroundColor: Colors.orange,
                       behavior: SnackBarBehavior.floating,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
                     ),
                   );
                   return;
@@ -5040,8 +5414,11 @@ class _AdminHomeState extends State<AdminHome> {
                 );
 
                 try {
-                  final docRef = FirebaseFirestore.instance.collection("Users").doc();
-                  final userId = docRef.id; // Changed this to docId, assuming it's passed correctly
+                  final docRef = FirebaseFirestore.instance
+                      .collection("Users")
+                      .doc();
+                  final userId = docRef
+                      .id; // Changed this to docId, assuming it's passed correctly
 
                   await docRef.set({
                     "uid": userId,
@@ -5064,7 +5441,11 @@ class _AdminHomeState extends State<AdminHome> {
                       SnackBar(
                         content: Row(
                           children: [
-                            const Icon(Icons.check_circle, color: Colors.white, size: 24),
+                            const Icon(
+                              Icons.check_circle,
+                              color: Colors.white,
+                              size: 24,
+                            ),
                             const SizedBox(width: 12),
                             Expanded(
                               child: Column(
@@ -5095,7 +5476,9 @@ class _AdminHomeState extends State<AdminHome> {
                         backgroundColor: Colors.green.shade600,
                         behavior: SnackBarBehavior.floating,
                         margin: const EdgeInsets.all(16),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                         duration: const Duration(seconds: 4),
                         action: SnackBarAction(
                           label: "OK",
@@ -5117,7 +5500,9 @@ class _AdminHomeState extends State<AdminHome> {
                           Expanded(
                             child: Text(
                               "Error: ${e.toString()}",
-                              style: const TextStyle(fontFamily: _primaryFontFamily),
+                              style: const TextStyle(
+                                fontFamily: _primaryFontFamily,
+                              ),
                             ),
                           ),
                         ],
@@ -5125,13 +5510,18 @@ class _AdminHomeState extends State<AdminHome> {
                       backgroundColor: Colors.red,
                       behavior: SnackBarBehavior.floating,
                       margin: const EdgeInsets.all(16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
                       duration: const Duration(seconds: 4),
                     ),
                   );
                 }
               },
-              child: const Text("Add", style: TextStyle(fontFamily: _primaryFontFamily)),
+              child: const Text(
+                "Add",
+                style: TextStyle(fontFamily: _primaryFontFamily),
+              ),
             ),
           ],
         ),
@@ -5140,8 +5530,12 @@ class _AdminHomeState extends State<AdminHome> {
   }
 
   void _showEditUserDialog(String docId, Map<String, dynamic> user) {
-    final firstNameController = TextEditingController(text: user['firstName'] ?? '');
-    final lastNameController = TextEditingController(text: user['lastName'] ?? '');
+    final firstNameController = TextEditingController(
+      text: user['firstName'] ?? '',
+    );
+    final lastNameController = TextEditingController(
+      text: user['lastName'] ?? '',
+    );
     final emailController = TextEditingController(text: user['email'] ?? '');
     String selectedRole = user['role'] ?? "user";
     String selectedStatus = user['status'] ?? "active";
@@ -5150,7 +5544,9 @@ class _AdminHomeState extends State<AdminHome> {
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           title: Row(
             children: [
               Container(
@@ -5218,7 +5614,10 @@ class _AdminHomeState extends State<AdminHome> {
                     ),
                     items: const [
                       DropdownMenuItem(value: "user", child: Text("User")),
-                      DropdownMenuItem(value: "dietitian", child: Text("Dietitian")),
+                      DropdownMenuItem(
+                        value: "dietitian",
+                        child: Text("Dietitian"),
+                      ),
                     ],
                     onChanged: (value) {
                       setDialogState(() {
@@ -5238,7 +5637,10 @@ class _AdminHomeState extends State<AdminHome> {
                     ),
                     items: const [
                       DropdownMenuItem(value: "online", child: Text("Online")),
-                      DropdownMenuItem(value: "offline", child: Text("Offline")),
+                      DropdownMenuItem(
+                        value: "offline",
+                        child: Text("Offline"),
+                      ),
                     ],
                     onChanged: (value) {
                       setDialogState(() {
@@ -5253,7 +5655,10 @@ class _AdminHomeState extends State<AdminHome> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text("Cancel", style: TextStyle(fontFamily: _primaryFontFamily)),
+              child: const Text(
+                "Cancel",
+                style: TextStyle(fontFamily: _primaryFontFamily),
+              ),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
@@ -5265,13 +5670,16 @@ class _AdminHomeState extends State<AdminHome> {
               ),
               onPressed: () async {
                 try {
-                  await FirebaseFirestore.instance.collection("Users").doc(docId).update({
-                    "firstName": firstNameController.text,
-                    "lastName": lastNameController.text,
-                    "email": emailController.text,
-                    "role": selectedRole,
-                    "status": selectedStatus,
-                  });
+                  await FirebaseFirestore.instance
+                      .collection("Users")
+                      .doc(docId)
+                      .update({
+                        "firstName": firstNameController.text,
+                        "lastName": lastNameController.text,
+                        "email": emailController.text,
+                        "role": selectedRole,
+                        "status": selectedStatus,
+                      });
 
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -5280,12 +5688,17 @@ class _AdminHomeState extends State<AdminHome> {
                         children: [
                           Icon(Icons.check_circle, color: Colors.white),
                           SizedBox(width: 8),
-                          Text("User updated successfully", style: TextStyle(fontFamily: _primaryFontFamily)),
+                          Text(
+                            "User updated successfully",
+                            style: TextStyle(fontFamily: _primaryFontFamily),
+                          ),
                         ],
                       ),
                       backgroundColor: Colors.blue,
                       behavior: SnackBarBehavior.floating,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
                     ),
                   );
                 } catch (e) {
@@ -5295,17 +5708,25 @@ class _AdminHomeState extends State<AdminHome> {
                         children: [
                           Icon(Icons.error_outline, color: Colors.white),
                           SizedBox(width: 8),
-                          Text("Failed to update user", style: TextStyle(fontFamily: _primaryFontFamily)),
+                          Text(
+                            "Failed to update user",
+                            style: TextStyle(fontFamily: _primaryFontFamily),
+                          ),
                         ],
                       ),
                       backgroundColor: Colors.red,
                       behavior: SnackBarBehavior.floating,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
                     ),
                   );
                 }
               },
-              child: const Text("Update", style: TextStyle(fontFamily: _primaryFontFamily)),
+              child: const Text(
+                "Update",
+                style: TextStyle(fontFamily: _primaryFontFamily),
+              ),
             ),
           ],
         ),
@@ -5342,7 +5763,10 @@ class _AdminHomeState extends State<AdminHome> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text("Cancel", style: TextStyle(fontFamily: _primaryFontFamily)),
+            child: const Text(
+              "Cancel",
+              style: TextStyle(fontFamily: _primaryFontFamily),
+            ),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -5354,7 +5778,10 @@ class _AdminHomeState extends State<AdminHome> {
             ),
             onPressed: () async {
               try {
-                await FirebaseFirestore.instance.collection("Users").doc(docId).delete();
+                await FirebaseFirestore.instance
+                    .collection("Users")
+                    .doc(docId)
+                    .delete();
                 Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
@@ -5362,12 +5789,17 @@ class _AdminHomeState extends State<AdminHome> {
                       children: [
                         Icon(Icons.check_circle, color: Colors.white),
                         SizedBox(width: 8),
-                        Text("User deleted successfully", style: TextStyle(fontFamily: _primaryFontFamily)),
+                        Text(
+                          "User deleted successfully",
+                          style: TextStyle(fontFamily: _primaryFontFamily),
+                        ),
                       ],
                     ),
                     backgroundColor: Colors.red,
                     behavior: SnackBarBehavior.floating,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
                   ),
                 );
               } catch (e) {
@@ -5377,29 +5809,43 @@ class _AdminHomeState extends State<AdminHome> {
                       children: [
                         Icon(Icons.error_outline, color: Colors.white),
                         SizedBox(width: 8),
-                        Text("Failed to delete user", style: TextStyle(fontFamily: _primaryFontFamily)),
+                        Text(
+                          "Failed to delete user",
+                          style: TextStyle(fontFamily: _primaryFontFamily),
+                        ),
                       ],
                     ),
                     backgroundColor: Colors.red,
                     behavior: SnackBarBehavior.floating,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
                   ),
                 );
               }
             },
-            child: const Text("Delete", style: TextStyle(fontFamily: _primaryFontFamily)),
+            child: const Text(
+              "Delete",
+              style: TextStyle(fontFamily: _primaryFontFamily),
+            ),
           ),
         ],
       ),
     );
   }
 
-  Future<void> _toggleUserRole(String docId, String currentRole, String firstName) async {
+  Future<void> _toggleUserRole(
+    String docId,
+    String currentRole,
+    String firstName,
+  ) async {
     final newRole = currentRole == "dietitian" ? "user" : "dietitian";
     final action = currentRole == "dietitian" ? "downgraded" : "upgraded";
 
     try {
-      await FirebaseFirestore.instance.collection("Users").doc(docId).update({"role": newRole});
+      await FirebaseFirestore.instance.collection("Users").doc(docId).update({
+        "role": newRole,
+      });
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -5413,9 +5859,13 @@ class _AdminHomeState extends State<AdminHome> {
               ),
             ],
           ),
-          backgroundColor: newRole == "dietitian" ? _primaryColor : Colors.orange,
+          backgroundColor: newRole == "dietitian"
+              ? _primaryColor
+              : Colors.orange,
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
         ),
       );
     } catch (e) {
@@ -5429,19 +5879,30 @@ class _AdminHomeState extends State<AdminHome> {
                 children: [
                   Icon(Icons.error_outline, color: Colors.white),
                   SizedBox(width: 8),
-                  Text("Failed to change role", style: TextStyle(fontFamily: _primaryFontFamily, fontWeight: FontWeight.bold)),
+                  Text(
+                    "Failed to change role",
+                    style: TextStyle(
+                      fontFamily: _primaryFontFamily,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ],
               ),
               const SizedBox(height: 4),
               Text(
                 "Error: $e",
-                style: const TextStyle(fontFamily: _primaryFontFamily, fontSize: 12),
+                style: const TextStyle(
+                  fontFamily: _primaryFontFamily,
+                  fontSize: 12,
+                ),
               ),
             ],
           ),
           backgroundColor: Colors.red,
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
           duration: const Duration(seconds: 5),
         ),
       );
@@ -5505,9 +5966,14 @@ class _AdminHomeState extends State<AdminHome> {
                       .where('role', isEqualTo: 'dietitian')
                       .snapshots(),
                   builder: (context, snapshot) {
-                    final count = snapshot.hasData ? snapshot.data!.docs.length : 0;
+                    final count = snapshot.hasData
+                        ? snapshot.data!.docs.length
+                        : 0;
                     return Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
                         color: _primaryColor,
                         borderRadius: BorderRadius.circular(12),
@@ -5588,10 +6054,10 @@ class _AdminHomeState extends State<AdminHome> {
                                   : null,
                               child: profileUrl.isEmpty
                                   ? const Icon(
-                                Icons.person,
-                                color: _primaryColor,
-                                size: 20,
-                              )
+                                      Icons.person,
+                                      color: _primaryColor,
+                                      size: 20,
+                                    )
                                   : null,
                             ),
                             Positioned(
@@ -5719,9 +6185,14 @@ class _AdminHomeState extends State<AdminHome> {
                       .where('role', isEqualTo: 'user')
                       .snapshots(),
                   builder: (context, snapshot) {
-                    final count = snapshot.hasData ? snapshot.data!.docs.length : 0;
+                    final count = snapshot.hasData
+                        ? snapshot.data!.docs.length
+                        : 0;
                     return Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
                         color: _primaryColor,
                         borderRadius: BorderRadius.circular(12),
@@ -5802,10 +6273,10 @@ class _AdminHomeState extends State<AdminHome> {
                                   : null,
                               child: profileUrl.isEmpty
                                   ? const Icon(
-                                Icons.person,
-                                color: _primaryColor,
-                                size: 20,
-                              )
+                                      Icons.person,
+                                      color: _primaryColor,
+                                      size: 20,
+                                    )
                                   : null,
                             ),
                             Positioned(
@@ -5931,7 +6402,9 @@ class _AdminHomeState extends State<AdminHome> {
       final batch = FirebaseFirestore.instance.batch();
 
       for (String userId in selectedUserIds) {
-        batch.delete(FirebaseFirestore.instance.collection("Users").doc(userId));
+        batch.delete(
+          FirebaseFirestore.instance.collection("Users").doc(userId),
+        );
       }
 
       await batch.commit();
@@ -5945,7 +6418,9 @@ class _AdminHomeState extends State<AdminHome> {
             ),
             backgroundColor: Colors.green,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
           ),
         );
 
@@ -5964,7 +6439,9 @@ class _AdminHomeState extends State<AdminHome> {
             ),
             backgroundColor: Colors.red,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
           ),
         );
       }
@@ -6005,28 +6482,47 @@ class _AdminHomeState extends State<AdminHome> {
             const SizedBox(height: 16),
             StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance
-                  .collection('appointments')
+                  .collection('schedules') // ✅ Listen to ALL schedules
                   .snapshots(),
               builder: (context, snapshot) {
                 if (!snapshot.hasData) {
-                  return const Center(child: CircularProgressIndicator(color: _primaryColor));
+                  return const Center(
+                    child: CircularProgressIndicator(color: _primaryColor),
+                  );
                 }
 
-                final appointments = snapshot.data!.docs;
-                int scheduled = 0, confirmed = 0, completed = 0, declined = 0;
+                final schedules = snapshot.data!.docs;
+                int confirmed = 0, completed = 0, cancelled = 0;
+                int total = 0;
 
-                for (var doc in appointments) {
+                for (var doc in schedules) {
                   final data = doc.data() as Map<String, dynamic>;
-                  final status = (data['status'] ?? '').toString().toLowerCase();
 
-                  if (status == 'scheduled') scheduled++;
-                  else if (status == 'confirmed') confirmed++;
-                  else if (status == 'completed') completed++;
-                  else if (status == 'declined') declined++;
+                  // ✅ Skip documents with all fields empty/null
+                  if (data.isEmpty ||
+                      data.values.every((v) =>
+                      v == null ||
+                          (v is String && v.trim().isEmpty))) {
+                    continue;
+                  }
+
+                  total++; // ✅ Only count valid documents
+
+                  final status =
+                  (data['status'] ?? '').toString().toLowerCase().trim();
+
+                  if (status == 'confirmed') {
+                    confirmed++;
+                  } else if (status == 'completed') {
+                    completed++;
+                  } else if (status == 'cancelled' || status == 'cancel') {
+                    cancelled++;
+                  }
                 }
 
-                final total = appointments.length;
-                final completionRate = total > 0 ? (completed / total * 100).toStringAsFixed(1) : '0.0';
+                final completionRate = total > 0
+                    ? (completed / total * 100).toStringAsFixed(1)
+                    : '0.0';
 
                 return Column(
                   children: [
@@ -6034,10 +6530,10 @@ class _AdminHomeState extends State<AdminHome> {
                       children: [
                         Expanded(
                           child: _buildStatCard(
-                            "Scheduled",
-                            scheduled.toString(),
+                            "Total",
+                            total.toString(),
                             Colors.blue,
-                            Icons.schedule,
+                            Icons.event,
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -6065,8 +6561,8 @@ class _AdminHomeState extends State<AdminHome> {
                         const SizedBox(width: 12),
                         Expanded(
                           child: _buildStatCard(
-                            "Declined",
-                            declined.toString(),
+                            "Cancelled",
+                            cancelled.toString(),
                             Colors.red,
                             Icons.cancel,
                           ),
@@ -6085,7 +6581,10 @@ class _AdminHomeState extends State<AdminHome> {
                         children: [
                           Text(
                             "Completion Rate",
-                            style: _getTextStyle(context, fontWeight: FontWeight.w600),
+                            style: _getTextStyle(
+                              context,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                           Text(
                             "$completionRate%",
@@ -6105,6 +6604,48 @@ class _AdminHomeState extends State<AdminHome> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+
+  // Helper method for stat cards
+  Widget _buildStatCard(
+    String label,
+    String value,
+    Color color,
+    IconData icon,
+  ) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.3), width: 1),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, color: color, size: 28),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: _getTextStyle(
+              context,
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: _getTextStyle(
+              context,
+              fontSize: 12,
+              color: _textColorSecondary(context),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -6147,15 +6688,30 @@ class _AdminHomeState extends State<AdminHome> {
                   .snapshots(),
               builder: (context, snapshot) {
                 if (!snapshot.hasData) {
-                  return const Center(child: CircularProgressIndicator(color: _primaryColor));
+                  return const Center(
+                    child: CircularProgressIndicator(color: _primaryColor),
+                  );
                 }
 
-                final mealPlans = snapshot.data!.docs;
+                final allMealPlans = snapshot.data!.docs;
+
+                // ✅ Filter out documents with all empty or null fields, and check creator is not blank
+                final validMealPlans = allMealPlans.where((doc) {
+                  final data = doc.data() as Map<String, dynamic>;
+                  final creator = (data['owner'] ?? '').toString().trim();
+
+                  return !(data.isEmpty ||
+                      data.values.every((v) =>
+                      v == null ||
+                          (v is String && v.trim().isEmpty))) &&
+                      creator.isNotEmpty;
+                }).toList();
+
                 Map<String, int> categoryCount = {};
 
-                for (var doc in mealPlans) {
+                for (var doc in validMealPlans) {
                   final data = doc.data() as Map<String, dynamic>;
-                  final planType = data['planType'] ?? 'Unknown';
+                  final planType = (data['planType'] ?? 'Unknown').toString().trim();
                   categoryCount[planType] = (categoryCount[planType] ?? 0) + 1;
                 }
 
@@ -6174,10 +6730,13 @@ class _AdminHomeState extends State<AdminHome> {
                             children: [
                               Text(
                                 "Total Meal Plans",
-                                style: _getTextStyle(context, fontWeight: FontWeight.w600),
+                                style: _getTextStyle(
+                                  context,
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
                               Text(
-                                mealPlans.length.toString(),
+                                validMealPlans.length.toString(),
                                 style: _getTextStyle(
                                   context,
                                   fontSize: 20,
@@ -6188,34 +6747,39 @@ class _AdminHomeState extends State<AdminHome> {
                             ],
                           ),
                           const SizedBox(height: 12),
-                          ...categoryCount.entries.map((entry) => Padding(
-                            padding: const EdgeInsets.only(bottom: 8.0),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  entry.key,
-                                  style: _cardSubtitleStyle(context),
-                                ),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                                  decoration: BoxDecoration(
-                                    color: Colors.amber.withOpacity(0.1),
-                                    borderRadius: BorderRadius.circular(12),
+                          ...categoryCount.entries.map(
+                                (entry) => Padding(
+                              padding: const EdgeInsets.only(bottom: 8.0),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    entry.key,
+                                    style: _cardSubtitleStyle(context),
                                   ),
-                                  child: Text(
-                                    entry.value.toString(),
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.amber[700],
-                                      fontFamily: _primaryFontFamily,
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 4,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.amber.withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Text(
+                                      entry.value.toString(),
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.amber[700],
+                                        fontFamily: _primaryFontFamily,
+                                      ),
                                     ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
-                          )),
+                          ),
                         ],
                       ),
                     ),
@@ -6228,6 +6792,7 @@ class _AdminHomeState extends State<AdminHome> {
       ),
     );
   }
+
 
   // add async package to pubspec.yaml
 
@@ -6268,28 +6833,39 @@ class _AdminHomeState extends State<AdminHome> {
               builder: (context, snapshot) {
                 if (!snapshot.hasData) {
                   return const Center(
-                      child: CircularProgressIndicator(color: Colors.indigo));
+                    child: CircularProgressIndicator(color: Colors.indigo),
+                  );
                 }
 
                 final subscribers = snapshot.data!;
+                int approvedSubscribers = 0;
                 int canceledSubscribers = 0;
+                int expiredSubscribers = 0;
                 final now = DateTime.now();
                 final monthAgo = now.subtract(const Duration(days: 30));
 
-                // Count canceled subscribers in last 30 days
-                // for (var subDoc in subscribers) {
-                //   final cancelledAt = subDoc['cancelledAt'] as Timestamp?;
-                //   if (cancelledAt != null && cancelledAt.toDate().isAfter(monthAgo)) {
-                //     canceledSubscribers++;
-                //   }
-                // }
+                // Count subscribers by status
+                for (var subDoc in subscribers) {
+                  final status = subDoc['status'] as String?;
 
-                final total = subscribers.length + canceledSubscribers;
-                final subscriberRate = total > 0
-                    ? ((subscribers.length / total) * 100).toStringAsFixed(1)
+                  if (status == 'approved') {
+                    approvedSubscribers++;
+                  } else if (status == 'cancelled') {
+                    canceledSubscribers++;
+                  } else if (status == 'expired') {
+                    expiredSubscribers++;
+                  }
+                }
+
+                final total = approvedSubscribers + canceledSubscribers + expiredSubscribers;
+                final approvedRate = total > 0
+                    ? ((approvedSubscribers / total) * 100).toStringAsFixed(1)
                     : '0.0';
                 final canceledRate = total > 0
                     ? ((canceledSubscribers / total) * 100).toStringAsFixed(1)
+                    : '0.0';
+                final expiredRate = total > 0
+                    ? ((expiredSubscribers / total) * 100).toStringAsFixed(1)
                     : '0.0';
 
                 return Column(
@@ -6298,19 +6874,28 @@ class _AdminHomeState extends State<AdminHome> {
                       children: [
                         Expanded(
                           child: _buildStatCard(
-                            "Subscribers",
-                            subscribers.length.toString(),
+                            "Approved",
+                            approvedSubscribers.toString(),
                             Colors.green,
-                            Icons.person_add,
+                            Icons.check_circle,
                           ),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
                           child: _buildStatCard(
-                            "Canceled Subscribers (30d)",
+                            "Cancelled",
                             canceledSubscribers.toString(),
                             Colors.red,
                             Icons.cancel,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _buildStatCard(
+                            "Expired",
+                            expiredSubscribers.toString(),
+                            Colors.orange,
+                            Icons.schedule,
                           ),
                         ),
                       ],
@@ -6328,12 +6913,14 @@ class _AdminHomeState extends State<AdminHome> {
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               Text(
-                                "Subscriber Rate",
+                                "Approved Rate",
                                 style: _getTextStyle(
-                                    context, fontWeight: FontWeight.w600),
+                                  context,
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
                               Text(
-                                "$subscriberRate%",
+                                "$approvedRate%",
                                 style: _getTextStyle(
                                   context,
                                   fontSize: 20,
@@ -6348,9 +6935,11 @@ class _AdminHomeState extends State<AdminHome> {
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               Text(
-                                "Canceled Subscriber Rate",
+                                "Cancelled Rate",
                                 style: _getTextStyle(
-                                    context, fontWeight: FontWeight.w600),
+                                  context,
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
                               Text(
                                 "$canceledRate%",
@@ -6359,6 +6948,28 @@ class _AdminHomeState extends State<AdminHome> {
                                   fontSize: 20,
                                   fontWeight: FontWeight.bold,
                                   color: Colors.red,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const Divider(height: 24),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                "Expired Rate",
+                                style: _getTextStyle(
+                                  context,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              Text(
+                                "$expiredRate%",
+                                style: _getTextStyle(
+                                  context,
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.orange,
                                 ),
                               ),
                             ],
@@ -6376,7 +6987,7 @@ class _AdminHomeState extends State<AdminHome> {
     );
   }
 
-// Stream of all subscriber docs from each user's subscribeTo subcollection
+  // Stream of all subscriber docs from each user's subscribeTo subcollection
   Stream<List<QueryDocumentSnapshot>> _subscribersStream() async* {
     final usersStream = FirebaseFirestore.instance
         .collection('Users')
@@ -6393,17 +7004,14 @@ class _AdminHomeState extends State<AdminHome> {
       }).toList();
 
       // Combine multiple subcollection streams into one
-      yield* StreamGroup.merge(streams).map((snapshot) => snapshot.docs).scan<List<QueryDocumentSnapshot>>(
+      yield* StreamGroup.merge(streams)
+          .map((snapshot) => snapshot.docs)
+          .scan<List<QueryDocumentSnapshot>>(
             (accumulated, current, index) => [...accumulated, ...current],
         [],
       );
     }
   }
-
-
-
-
-
 
   Widget _buildHealthGoalsDistribution() {
     return Card(
@@ -6444,7 +7052,9 @@ class _AdminHomeState extends State<AdminHome> {
                   .snapshots(),
               builder: (context, snapshot) {
                 if (!snapshot.hasData) {
-                  return const Center(child: CircularProgressIndicator(color: _primaryColor));
+                  return const Center(
+                    child: CircularProgressIndicator(color: _primaryColor),
+                  );
                 }
 
                 final users = snapshot.data!.docs;
@@ -6480,7 +7090,10 @@ class _AdminHomeState extends State<AdminHome> {
                             children: [
                               Text(
                                 entry.key,
-                                style: _getTextStyle(context, fontWeight: FontWeight.w600),
+                                style: _getTextStyle(
+                                  context,
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
                               Text(
                                 "${entry.value} users ($percentage%)",
@@ -6495,9 +7108,13 @@ class _AdminHomeState extends State<AdminHome> {
                           ),
                           const SizedBox(height: 8),
                           LinearProgressIndicator(
-                            value: users.isNotEmpty ? entry.value / users.length : 0,
+                            value: users.isNotEmpty
+                                ? entry.value / users.length
+                                : 0,
                             backgroundColor: Colors.pink.withOpacity(0.1),
-                            valueColor: const AlwaysStoppedAnimation<Color>(Colors.pink),
+                            valueColor: const AlwaysStoppedAnimation<Color>(
+                              Colors.pink,
+                            ),
                             minHeight: 8,
                             borderRadius: BorderRadius.circular(4),
                           ),
@@ -6552,7 +7169,9 @@ class _AdminHomeState extends State<AdminHome> {
                   .snapshots(),
               builder: (context, snapshot) {
                 if (!snapshot.hasData) {
-                  return const Center(child: CircularProgressIndicator(color: _primaryColor));
+                  return const Center(
+                    child: CircularProgressIndicator(color: _primaryColor),
+                  );
                 }
 
                 final users = snapshot.data!.docs;
@@ -6564,12 +7183,17 @@ class _AdminHomeState extends State<AdminHome> {
                   final role = data['role'] ?? 'user';
                   final authProvider = data['authProvider'] ?? 'email';
 
-                  if (role == 'user') regularUsers++;
-                  else if (role == 'dietitian') dietitians++;
-                  else if (role == 'admin') admins++;
+                  if (role == 'user')
+                    regularUsers++;
+                  else if (role == 'dietitian')
+                    dietitians++;
+                  else if (role == 'admin')
+                    admins++;
 
-                  if (authProvider == 'google') googleAuth++;
-                  else emailAuth++;
+                  if (authProvider == 'google')
+                    googleAuth++;
+                  else
+                    emailAuth++;
                 }
 
                 return Column(
@@ -6592,9 +7216,17 @@ class _AdminHomeState extends State<AdminHome> {
                             ),
                           ),
                           const SizedBox(height: 12),
-                          _buildDemographicRow("Users", regularUsers, Colors.blue),
+                          _buildDemographicRow(
+                            "Users",
+                            regularUsers,
+                            Colors.blue,
+                          ),
                           const SizedBox(height: 8),
-                          _buildDemographicRow("Dietitians", dietitians, Colors.green),
+                          _buildDemographicRow(
+                            "Dietitians",
+                            dietitians,
+                            Colors.green,
+                          ),
                           const SizedBox(height: 8),
                           _buildDemographicRow("Admins", admins, Colors.orange),
                         ],
@@ -6610,48 +7242,6 @@ class _AdminHomeState extends State<AdminHome> {
     );
   }
 
-  Widget _buildStatCard(String label, String value, Color color, IconData icon) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.3)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, color: color, size: 20),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  label,
-                  style: _getTextStyle(
-                    context,
-                    fontSize: 12,
-                    color: _textColorSecondary(context),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            value,
-            style: _getTextStyle(
-              context,
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: color,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildDemographicRow(String label, int count, Color color) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -6661,16 +7251,10 @@ class _AdminHomeState extends State<AdminHome> {
             Container(
               width: 12,
               height: 12,
-              decoration: BoxDecoration(
-                color: color,
-                shape: BoxShape.circle,
-              ),
+              decoration: BoxDecoration(color: color, shape: BoxShape.circle),
             ),
             const SizedBox(width: 8),
-            Text(
-              label,
-              style: _getTextStyle(context),
-            ),
+            Text(label, style: _getTextStyle(context)),
           ],
         ),
         Container(
@@ -6708,7 +7292,7 @@ class _AdminHomeState extends State<AdminHome> {
     );
   }
 
-// Add this widget to your adminHome.dart file
+  // Add this widget to your adminHome.dart file
 
   Widget _buildDietitianRevenueAnalytics() {
     return Card(
@@ -6770,8 +7354,10 @@ class _AdminHomeState extends State<AdminHome> {
 
                         final summary = summarySnapshot.data!;
                         final totalRevenue = summary['totalRevenue'] as double;
-                        final totalCommission = summary['totalCommission'] as double;
-                        final totalSubscriptions = summary['totalSubscriptions'] as int;
+                        final totalCommission =
+                            summary['totalCommission'] as double;
+                        final totalSubscriptions =
+                            summary['totalSubscriptions'] as int;
 
                         return Column(
                           children: [
@@ -6824,11 +7410,11 @@ class _AdminHomeState extends State<AdminHome> {
   }
 
   Widget _buildRevenueMetricCard(
-      String label,
-      String value,
-      Color color,
-      IconData icon,
-      ) {
+    String label,
+    String value,
+    Color color,
+    IconData icon,
+  ) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -6871,14 +7457,10 @@ class _AdminHomeState extends State<AdminHome> {
     );
   }
 
-  Widget _buildDietitianRevenueTable(
-      List<QueryDocumentSnapshot> dietitians,
-      ) {
+  Widget _buildDietitianRevenueTable(List<QueryDocumentSnapshot> dietitians) {
     return Card(
       elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       color: _scaffoldBgColor(context),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
@@ -6992,7 +7574,10 @@ class _AdminHomeState extends State<AdminHome> {
                     DataCell(
                       Text(
                         "$firstName $lastName",
-                        style: _getTextStyle(context, fontWeight: FontWeight.w600),
+                        style: _getTextStyle(
+                          context,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
                     // Active Subscriptions - will be filled by FutureBuilder
@@ -7010,7 +7595,10 @@ class _AdminHomeState extends State<AdminHome> {
                     // Weekly Count
                     DataCell(
                       FutureBuilder<int>(
-                        future: _getSubscriptionCountByType(dietitianId, 'weekly'),
+                        future: _getSubscriptionCountByType(
+                          dietitianId,
+                          'weekly',
+                        ),
                         builder: (context, snapshot) {
                           return _buildSubscriptionTypeCell(
                             snapshot.hasData ? snapshot.data.toString() : '0',
@@ -7022,7 +7610,10 @@ class _AdminHomeState extends State<AdminHome> {
                     // Monthly Count
                     DataCell(
                       FutureBuilder<int>(
-                        future: _getSubscriptionCountByType(dietitianId, 'monthly'),
+                        future: _getSubscriptionCountByType(
+                          dietitianId,
+                          'monthly',
+                        ),
                         builder: (context, snapshot) {
                           return _buildSubscriptionTypeCell(
                             snapshot.hasData ? snapshot.data.toString() : '0',
@@ -7034,7 +7625,10 @@ class _AdminHomeState extends State<AdminHome> {
                     // Yearly Count
                     DataCell(
                       FutureBuilder<int>(
-                        future: _getSubscriptionCountByType(dietitianId, 'yearly'),
+                        future: _getSubscriptionCountByType(
+                          dietitianId,
+                          'yearly',
+                        ),
                         builder: (context, snapshot) {
                           return _buildSubscriptionTypeCell(
                             snapshot.hasData ? snapshot.data.toString() : '0',
@@ -7048,7 +7642,9 @@ class _AdminHomeState extends State<AdminHome> {
                       FutureBuilder<double>(
                         future: _getDietitianTotalRevenue(dietitianId),
                         builder: (context, snapshot) {
-                          final revenue = snapshot.hasData ? snapshot.data! : 0.0;
+                          final revenue = snapshot.hasData
+                              ? snapshot.data!
+                              : 0.0;
                           return Text(
                             "\$${revenue.toStringAsFixed(2)}",
                             style: _getTextStyle(
@@ -7065,7 +7661,9 @@ class _AdminHomeState extends State<AdminHome> {
                       FutureBuilder<double>(
                         future: _getDietitianTotalRevenue(dietitianId),
                         builder: (context, snapshot) {
-                          final revenue = snapshot.hasData ? snapshot.data! : 0.0;
+                          final revenue = snapshot.hasData
+                              ? snapshot.data!
+                              : 0.0;
                           final commission = revenue * 0.10;
                           return Text(
                             "\$${commission.toStringAsFixed(2)}",
@@ -7137,11 +7735,11 @@ class _AdminHomeState extends State<AdminHome> {
     );
   }
 
-// Helper Methods - Add these to your _AdminHomeState class
+  // Helper Methods - Add these to your _AdminHomeState class
 
   Future<Map<String, dynamic>> _calculateTotalRevenue(
-      List<QueryDocumentSnapshot> dietitians,
-      ) async {
+    List<QueryDocumentSnapshot> dietitians,
+  ) async {
     double totalRevenue = 0;
     double totalCommission = 0;
     int totalSubscriptions = 0;
@@ -7182,9 +7780,9 @@ class _AdminHomeState extends State<AdminHome> {
   }
 
   Future<int> _getSubscriptionCountByType(
-      String dietitianId,
-      String subscriptionType,
-      ) async {
+    String dietitianId,
+    String subscriptionType,
+  ) async {
     final snapshot = await FirebaseFirestore.instance
         .collection('subscriptions')
         .where('dietitianId', isEqualTo: dietitianId)
@@ -7211,7 +7809,10 @@ class _AdminHomeState extends State<AdminHome> {
     return total;
   }
 
-  void _showDietitianSubscriptionDetails(String dietitianId, String dietitianName) {
+  void _showDietitianSubscriptionDetails(
+    String dietitianId,
+    String dietitianName,
+  ) {
     showDialog(
       context: context,
       builder: (context) => Dialog(
@@ -7297,8 +7898,8 @@ class _AdminHomeState extends State<AdminHome> {
                       padding: const EdgeInsets.all(16),
                       itemCount: subscriptions.length,
                       itemBuilder: (context, index) {
-                        final sub = subscriptions[index].data()
-                        as Map<String, dynamic>;
+                        final sub =
+                            subscriptions[index].data() as Map<String, dynamic>;
                         final subscriptionType = sub['subscriptionType'] ?? '';
                         final price = (sub['price'] as num?)?.toDouble() ?? 0.0;
                         final startDate = sub['startDate'] as Timestamp?;
@@ -7313,7 +7914,7 @@ class _AdminHomeState extends State<AdminHome> {
                               children: [
                                 Row(
                                   mainAxisAlignment:
-                                  MainAxisAlignment.spaceBetween,
+                                      MainAxisAlignment.spaceBetween,
                                   children: [
                                     Container(
                                       padding: const EdgeInsets.symmetric(
@@ -7321,8 +7922,9 @@ class _AdminHomeState extends State<AdminHome> {
                                         vertical: 4,
                                       ),
                                       decoration: BoxDecoration(
-                                        color: _getPlanColor(subscriptionType)
-                                            .withOpacity(0.1),
+                                        color: _getPlanColor(
+                                          subscriptionType,
+                                        ).withOpacity(0.1),
                                         borderRadius: BorderRadius.circular(8),
                                       ),
                                       child: Text(
@@ -7330,7 +7932,9 @@ class _AdminHomeState extends State<AdminHome> {
                                         style: TextStyle(
                                           fontSize: 12,
                                           fontWeight: FontWeight.w600,
-                                          color: _getPlanColor(subscriptionType),
+                                          color: _getPlanColor(
+                                            subscriptionType,
+                                          ),
                                           fontFamily: _primaryFontFamily,
                                         ),
                                       ),
@@ -7384,12 +7988,9 @@ class _AdminHomeState extends State<AdminHome> {
     }
   }
 
-
-
-
   // ADVANCED ANALYTICS FEATURES - Add these methods to _AdminHomeState
 
-// Feature 1: Revenue Trend Over Time
+  // Feature 1: Revenue Trend Over Time
   Widget _buildRevenueTrendChart() {
     return Card(
       elevation: 4,
@@ -7514,32 +8115,36 @@ class _AdminHomeState extends State<AdminHome> {
                           ),
                         ],
                         rows: trendData.map((day) {
-                          return DataRow(cells: [
-                            DataCell(Text(day['date'] as String)),
-                            DataCell(
-                              Text(
-                                "\$${(day['revenue'] as double).toStringAsFixed(2)}",
-                                style: _getTextStyle(
-                                  context,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.green,
+                          return DataRow(
+                            cells: [
+                              DataCell(Text(day['date'] as String)),
+                              DataCell(
+                                Text(
+                                  "\$${(day['revenue'] as double).toStringAsFixed(2)}",
+                                  style: _getTextStyle(
+                                    context,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.green,
+                                  ),
                                 ),
                               ),
-                            ),
-                            DataCell(
-                              Text(
-                                "\$${((day['revenue'] as double) * 0.10).toStringAsFixed(2)}",
-                                style: _getTextStyle(
-                                  context,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.teal,
+                              DataCell(
+                                Text(
+                                  "\$${((day['revenue'] as double) * 0.10).toStringAsFixed(2)}",
+                                  style: _getTextStyle(
+                                    context,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.teal,
+                                  ),
                                 ),
                               ),
-                            ),
-                            DataCell(
-                              Text((day['newSubscriptions'] as int).toString()),
-                            ),
-                          ]);
+                              DataCell(
+                                Text(
+                                  (day['newSubscriptions'] as int).toString(),
+                                ),
+                              ),
+                            ],
+                          );
                         }).toList(),
                       ),
                     ),
@@ -7553,7 +8158,7 @@ class _AdminHomeState extends State<AdminHome> {
     );
   }
 
-// Feature 2: Subscription Status Overview
+  // Feature 2: Subscription Status Overview
   Widget _buildSubscriptionStatusOverview() {
     return Card(
       elevation: 4,
@@ -7596,7 +8201,8 @@ class _AdminHomeState extends State<AdminHome> {
                 }
 
                 final stats = snapshot.data!;
-                final total = stats['active']! + stats['canceled']! + stats['expired']!;
+                final total =
+                    stats['active']! + stats['canceled']! + stats['expired']!;
 
                 return Column(
                   children: [
@@ -7607,7 +8213,10 @@ class _AdminHomeState extends State<AdminHome> {
                             "Active",
                             stats['active'].toString(),
                             Colors.green,
-                            total > 0 ? ((stats['active']! / total) * 100).toStringAsFixed(1) : '0.0',
+                            total > 0
+                                ? ((stats['active']! / total) * 100)
+                                      .toStringAsFixed(1)
+                                : '0.0',
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -7616,7 +8225,10 @@ class _AdminHomeState extends State<AdminHome> {
                             "Canceled",
                             stats['canceled'].toString(),
                             Colors.red,
-                            total > 0 ? ((stats['canceled']! / total) * 100).toStringAsFixed(1) : '0.0',
+                            total > 0
+                                ? ((stats['canceled']! / total) * 100)
+                                      .toStringAsFixed(1)
+                                : '0.0',
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -7625,7 +8237,10 @@ class _AdminHomeState extends State<AdminHome> {
                             "Expired",
                             stats['expired'].toString(),
                             Colors.orange,
-                            total > 0 ? ((stats['expired']! / total) * 100).toStringAsFixed(1) : '0.0',
+                            total > 0
+                                ? ((stats['expired']! / total) * 100)
+                                      .toStringAsFixed(1)
+                                : '0.0',
                           ),
                         ),
                       ],
@@ -7642,12 +8257,17 @@ class _AdminHomeState extends State<AdminHome> {
                         children: [
                           Text(
                             "Churn Rate (Last 7 Days)",
-                            style: _getTextStyle(context, fontWeight: FontWeight.w600),
+                            style: _getTextStyle(
+                              context,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                           FutureBuilder<double>(
                             future: _getChurnRate(),
                             builder: (context, snapshot) {
-                              final rate = snapshot.hasData ? snapshot.data! : 0.0;
+                              final rate = snapshot.hasData
+                                  ? snapshot.data!
+                                  : 0.0;
                               return Text(
                                 "${rate.toStringAsFixed(1)}%",
                                 style: _getTextStyle(
@@ -7672,7 +8292,12 @@ class _AdminHomeState extends State<AdminHome> {
     );
   }
 
-  Widget _buildStatusCard(String label, String count, Color color, String percentage) {
+  Widget _buildStatusCard(
+    String label,
+    String count,
+    Color color,
+    String percentage,
+  ) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -7741,7 +8366,7 @@ class _AdminHomeState extends State<AdminHome> {
     );
   }
 
-// Feature 3: Top Performing Dietitians
+  // Feature 3: Top Performing Dietitians
   Widget _buildTopPerformingDietitians() {
     return Card(
       elevation: 4,
@@ -7907,7 +8532,7 @@ class _AdminHomeState extends State<AdminHome> {
     }
   }
 
-// Helper Methods - Backend Queries
+  // Helper Methods - Backend Queries
 
   Future<List<Map<String, dynamic>>> _getRevenueTrendData() async {
     List<Map<String, dynamic>> trendData = [];
@@ -7954,13 +8579,17 @@ class _AdminHomeState extends State<AdminHome> {
   double _findPeakDayRevenue(List<Map<String, dynamic>> data) {
     return data.isEmpty
         ? 0
-        : data.map((d) => d['revenue'] as double).reduce((a, b) => a > b ? a : b);
+        : data
+              .map((d) => d['revenue'] as double)
+              .reduce((a, b) => a > b ? a : b);
   }
 
   double _findLowestDayRevenue(List<Map<String, dynamic>> data) {
     return data.isEmpty
         ? 0
-        : data.map((d) => d['revenue'] as double).reduce((a, b) => a < b ? a : b);
+        : data
+              .map((d) => d['revenue'] as double)
+              .reduce((a, b) => a < b ? a : b);
   }
 
   Future<Map<String, int>> _getSubscriptionStatuses() async {
@@ -7995,12 +8624,18 @@ class _AdminHomeState extends State<AdminHome> {
 
     final canceledSnapshot = await FirebaseFirestore.instance
         .collection('subscriptions')
-        .where('cancelledAt', isGreaterThanOrEqualTo: Timestamp.fromDate(sevenDaysAgo))
+        .where(
+          'cancelledAt',
+          isGreaterThanOrEqualTo: Timestamp.fromDate(sevenDaysAgo),
+        )
         .get();
 
     final totalSnapshot = await FirebaseFirestore.instance
         .collection('subscriptions')
-        .where('createdAt', isLessThanOrEqualTo: Timestamp.fromDate(sevenDaysAgo))
+        .where(
+          'createdAt',
+          isLessThanOrEqualTo: Timestamp.fromDate(sevenDaysAgo),
+        )
         .get();
 
     final canceled = canceledSnapshot.docs.length;
@@ -8043,11 +8678,9 @@ class _AdminHomeState extends State<AdminHome> {
     }
 
     // Sort by revenue descending and take top 5
-    performanceData.sort((a, b) => (b['revenue'] as double).compareTo(a['revenue'] as double));
+    performanceData.sort(
+      (a, b) => (b['revenue'] as double).compareTo(a['revenue'] as double),
+    );
     return performanceData.take(5).toList();
   }
-
-
-
-
 }
