@@ -13,6 +13,8 @@ import 'subscription_service.dart';
 import 'subscription_widget.dart';
 import '../Dietitians/dietitianPublicProfile.dart';
 
+import 'package:mamas_recipe/about/about_page.dart';
+
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:intl/intl.dart';
@@ -1821,7 +1823,18 @@ class _HomeState extends State<home> {
               buildMenuTile('Subscription', Icons.subscriptions_outlined,
                   Icons.subscriptions),
               buildMenuTile('Settings', Icons.settings_outlined, Icons.settings),
-              buildMenuTile('About', Icons.info_outline, Icons.info),
+              ListTile(
+                leading: const Icon(Icons.info_outline, color: Colors.black87),
+                title: const Text('About', style: TextStyle(fontFamily: _primaryFontFamily)),
+                onTap: () {
+                  Navigator.pop(context); // Close the drawer first
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const AboutPage()),
+                  );
+                },
+              ),
+
               const Divider(indent: 16, endIndent: 16),
               buildMenuTile('Logout', Icons.logout_outlined, Icons.logout),
             ],

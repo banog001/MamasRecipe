@@ -376,7 +376,6 @@ class _MealPlanningScreen3State extends State<MealPlanningScreen3> {
   final List<Map<String, dynamic>> healthGoals = [
     {"icon": Icons.person_remove_outlined, "text": "Weight Loss"},
     {"icon": Icons.person_add_alt_1_outlined, "text": "Weight Gain"},
-    {"icon": Icons.health_and_safety_outlined, "text": "Health Recovery"},
     {"icon":Icons.monitor_weight_outlined, "text": "Maintain Weight"},
     {"icon": Icons.fitness_center, "text": "Workout"},
   ];
