@@ -571,10 +571,6 @@ class _AdminHomeState extends State<AdminHome> {
             SizedBox(height: 400, child: _buildRevenueTrendChart()),
             const SizedBox(height: 16),
             // ============ NEW: Subscription Status Section ============
-            _buildSectionHeader("Subscription Status"),
-            const SizedBox(height: 12),
-            _buildSubscriptionStatusOverview(),
-            const SizedBox(height: 16),
             // ============ NEW: Top Performers Section ============
             _buildSectionHeader("Top Performers"),
             const SizedBox(height: 12),
@@ -730,10 +726,6 @@ class _AdminHomeState extends State<AdminHome> {
                   const SizedBox(height: 16),
 
                   // ============ NEW: Subscription Status Section ============
-                  _buildSectionHeader("Subscription Status"),
-                  const SizedBox(height: 12),
-                  _buildSubscriptionStatusOverview(),
-                  const SizedBox(height: 16),
 
                   // ============ NEW: Top Performers Section ============
                   _buildSectionHeader("Top Performers"),
@@ -806,17 +798,6 @@ class _AdminHomeState extends State<AdminHome> {
                   _buildSectionHeader("Revenue & Commissions"),
                   const SizedBox(height: 12),
                   _buildDietitianRevenueAnalytics(),
-                  const SizedBox(height: 16),
-
-                  // ============ NEW: Revenue Trends & Subscription Status (Side by side) ============
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(child: _buildRevenueTrendChart()),
-                      const SizedBox(width: 16),
-                      Expanded(child: _buildSubscriptionStatusOverview()),
-                    ],
-                  ),
                   const SizedBox(height: 16),
 
                   // ============ NEW: Top Performers Section ============
@@ -7355,9 +7336,9 @@ class _AdminHomeState extends State<AdminHome> {
                         final summary = summarySnapshot.data!;
                         final totalRevenue = summary['totalRevenue'] as double;
                         final totalCommission =
-                            summary['totalCommission'] as double;
+                        summary['totalCommission'] as double;
                         final totalSubscriptions =
-                            summary['totalSubscriptions'] as int;
+                        summary['totalSubscriptions'] as int;
 
                         return Column(
                           children: [
@@ -7367,7 +7348,7 @@ class _AdminHomeState extends State<AdminHome> {
                                 Expanded(
                                   child: _buildRevenueMetricCard(
                                     "Total Revenue",
-                                    "\$${totalRevenue.toStringAsFixed(2)}",
+                                    "₱${totalRevenue.toStringAsFixed(2)}",
                                     Colors.blue,
                                     Icons.trending_up,
                                   ),
@@ -7375,8 +7356,8 @@ class _AdminHomeState extends State<AdminHome> {
                                 const SizedBox(width: 12),
                                 Expanded(
                                   child: _buildRevenueMetricCard(
-                                    "Your Commission (10%)",
-                                    "\$${totalCommission.toStringAsFixed(2)}",
+                                    "Your Commission",
+                                    "₱${totalCommission.toStringAsFixed(2)}",
                                     Colors.green,
                                     Icons.account_balance_wallet,
                                   ),
@@ -7384,10 +7365,10 @@ class _AdminHomeState extends State<AdminHome> {
                                 const SizedBox(width: 12),
                                 Expanded(
                                   child: _buildRevenueMetricCard(
-                                    "Active Subscriptions",
+                                    "Active Subscribers",
                                     totalSubscriptions.toString(),
                                     Colors.purple,
-                                    Icons.subscriptions,
+                                    Icons.people,
                                   ),
                                 ),
                               ],
@@ -7410,11 +7391,11 @@ class _AdminHomeState extends State<AdminHome> {
   }
 
   Widget _buildRevenueMetricCard(
-    String label,
-    String value,
-    Color color,
-    IconData icon,
-  ) {
+      String label,
+      String value,
+      Color color,
+      IconData icon,
+      ) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -7580,10 +7561,10 @@ class _AdminHomeState extends State<AdminHome> {
                         ),
                       ),
                     ),
-                    // Active Subscriptions - will be filled by FutureBuilder
+                    // Active Subscriptions (approved only)
                     DataCell(
                       FutureBuilder<int>(
-                        future: _getActiveSubscriptionCount(dietitianId),
+                        future: _getActiveSubscriberCount(dietitianId),
                         builder: (context, snapshot) {
                           return Text(
                             snapshot.hasData ? snapshot.data.toString() : '0',
@@ -7592,10 +7573,10 @@ class _AdminHomeState extends State<AdminHome> {
                         },
                       ),
                     ),
-                    // Weekly Count
+                    // Weekly Count (all statuses)
                     DataCell(
                       FutureBuilder<int>(
-                        future: _getSubscriptionCountByType(
+                        future: _getSubscriberCountByType(
                           dietitianId,
                           'weekly',
                         ),
@@ -7607,10 +7588,10 @@ class _AdminHomeState extends State<AdminHome> {
                         },
                       ),
                     ),
-                    // Monthly Count
+                    // Monthly Count (all statuses)
                     DataCell(
                       FutureBuilder<int>(
-                        future: _getSubscriptionCountByType(
+                        future: _getSubscriberCountByType(
                           dietitianId,
                           'monthly',
                         ),
@@ -7622,10 +7603,10 @@ class _AdminHomeState extends State<AdminHome> {
                         },
                       ),
                     ),
-                    // Yearly Count
+                    // Yearly Count (all statuses)
                     DataCell(
                       FutureBuilder<int>(
-                        future: _getSubscriptionCountByType(
+                        future: _getSubscriberCountByType(
                           dietitianId,
                           'yearly',
                         ),
@@ -7637,16 +7618,16 @@ class _AdminHomeState extends State<AdminHome> {
                         },
                       ),
                     ),
-                    // Total Revenue
+                    // Total Revenue (all statuses)
                     DataCell(
-                      FutureBuilder<double>(
-                        future: _getDietitianTotalRevenue(dietitianId),
+                      FutureBuilder<Map<String, double>>(
+                        future: _getDietitianRevenueAndCommission(dietitianId),
                         builder: (context, snapshot) {
                           final revenue = snapshot.hasData
-                              ? snapshot.data!
+                              ? snapshot.data!['revenue']!
                               : 0.0;
                           return Text(
-                            "\$${revenue.toStringAsFixed(2)}",
+                            "₱${revenue.toStringAsFixed(2)}",
                             style: _getTextStyle(
                               context,
                               fontWeight: FontWeight.w600,
@@ -7656,17 +7637,16 @@ class _AdminHomeState extends State<AdminHome> {
                         },
                       ),
                     ),
-                    // Your Commission (10%)
+                    // Your Commission (approved and cancelled only)
                     DataCell(
-                      FutureBuilder<double>(
-                        future: _getDietitianTotalRevenue(dietitianId),
+                      FutureBuilder<Map<String, double>>(
+                        future: _getDietitianRevenueAndCommission(dietitianId),
                         builder: (context, snapshot) {
-                          final revenue = snapshot.hasData
-                              ? snapshot.data!
+                          final commission = snapshot.hasData
+                              ? snapshot.data!['commission']!
                               : 0.0;
-                          final commission = revenue * 0.10;
                           return Text(
-                            "\$${commission.toStringAsFixed(2)}",
+                            "₱${commission.toStringAsFixed(2)}",
                             style: _getTextStyle(
                               context,
                               fontWeight: FontWeight.w600,
@@ -7691,7 +7671,7 @@ class _AdminHomeState extends State<AdminHome> {
                             vertical: 8,
                           ),
                         ),
-                        onPressed: () => _showDietitianSubscriptionDetails(
+                        onPressed: () => _showDietitianSubscriberDetails(
                           dietitianId,
                           "$firstName $lastName",
                         ),
@@ -7735,11 +7715,19 @@ class _AdminHomeState extends State<AdminHome> {
     );
   }
 
-  // Helper Methods - Add these to your _AdminHomeState class
+  // Helper method to parse price string to double
+  double _parsePriceString(String priceStr) {
+    // Remove currency symbol and commas, then parse
+    // "₱ 1,199.00" -> "1199.00" -> 1199.00
+    final cleanPrice = priceStr.replaceAll(RegExp(r'[₱\s,]'), '');
+    return double.tryParse(cleanPrice) ?? 0.0;
+  }
+
+  // Helper Methods
 
   Future<Map<String, dynamic>> _calculateTotalRevenue(
-    List<QueryDocumentSnapshot> dietitians,
-  ) async {
+      List<QueryDocumentSnapshot> dietitians,
+      ) async {
     double totalRevenue = 0;
     double totalCommission = 0;
     int totalSubscriptions = 0;
@@ -7747,18 +7735,41 @@ class _AdminHomeState extends State<AdminHome> {
     for (var dietitianDoc in dietitians) {
       final dietitianId = dietitianDoc.id;
 
-      final subscriptions = await FirebaseFirestore.instance
-          .collection('subscriptions')
-          .where('dietitianId', isEqualTo: dietitianId)
-          .where('status', isEqualTo: 'active')
+      // Get ALL subscribers for counts and revenue
+      final allSubscribers = await FirebaseFirestore.instance
+          .collection('Users')
+          .doc(dietitianId)
+          .collection('subscriber')
           .get();
 
-      for (var sub in subscriptions.docs) {
+      // Count only approved subscribers for active count
+      final approvedCount = allSubscribers.docs
+          .where((doc) => (doc.data()['status'] as String?)?.toLowerCase() == 'approved')
+          .length;
+      totalSubscriptions += approvedCount;
+
+      for (var sub in allSubscribers.docs) {
         final data = sub.data();
-        final price = (data['price'] as num?)?.toDouble() ?? 0.0;
+        final planType = (data['planType'] as String?)?.toLowerCase() ?? '';
+        final priceStr = data['price'] as String? ?? '₱ 0.00';
+        final price = _parsePriceString(priceStr);
+        final status = (data['status'] as String?)?.toLowerCase() ?? '';
+
+        // Add to total revenue regardless of status
         totalRevenue += price;
-        totalCommission += price * 0.10;
-        totalSubscriptions++;
+
+        // Calculate commission only for approved and cancelled (exclude expired)
+        if (status == 'approved' || status == 'cancelled') {
+          double commission = 0;
+          if (planType == 'weekly') {
+            commission = price * 0.10; // 10%
+          } else if (planType == 'monthly') {
+            commission = price * 0.15; // 15%
+          } else if (planType == 'yearly') {
+            commission = price * 0.08; // 8%
+          }
+          totalCommission += commission;
+        }
       }
     }
 
@@ -7769,56 +7780,84 @@ class _AdminHomeState extends State<AdminHome> {
     };
   }
 
-  Future<int> _getActiveSubscriptionCount(String dietitianId) async {
+  Future<int> _getActiveSubscriberCount(String dietitianId) async {
     final snapshot = await FirebaseFirestore.instance
-        .collection('subscriptions')
-        .where('dietitianId', isEqualTo: dietitianId)
-        .where('status', isEqualTo: 'active')
+        .collection('Users')
+        .doc(dietitianId)
+        .collection('subscriber')
+        .where('status', isEqualTo: 'approved')
         .get();
 
     return snapshot.docs.length;
   }
 
-  Future<int> _getSubscriptionCountByType(
-    String dietitianId,
-    String subscriptionType,
-  ) async {
+  Future<int> _getSubscriberCountByType(
+      String dietitianId,
+      String planType,
+      ) async {
+    // Count ALL subscribers regardless of status
     final snapshot = await FirebaseFirestore.instance
-        .collection('subscriptions')
-        .where('dietitianId', isEqualTo: dietitianId)
-        .where('subscriptionType', isEqualTo: subscriptionType)
-        .where('status', isEqualTo: 'active')
+        .collection('Users')
+        .doc(dietitianId)
+        .collection('subscriber')
+        .where('planType', isEqualTo: planType)
         .get();
 
     return snapshot.docs.length;
   }
 
-  Future<double> _getDietitianTotalRevenue(String dietitianId) async {
+  Future<Map<String, double>> _getDietitianRevenueAndCommission(
+      String dietitianId,
+      )
+  async {
+    // Get ALL subscribers for revenue calculation
     final snapshot = await FirebaseFirestore.instance
-        .collection('subscriptions')
-        .where('dietitianId', isEqualTo: dietitianId)
-        .where('status', isEqualTo: 'active')
+        .collection('Users')
+        .doc(dietitianId)
+        .collection('subscriber')
         .get();
 
-    double total = 0;
+    double totalRevenue = 0;
+    double totalCommission = 0;
+
     for (var doc in snapshot.docs) {
-      final price = (doc.data()['price'] as num?)?.toDouble() ?? 0.0;
-      total += price;
+      final data = doc.data();
+      final planType = (data['planType'] as String?)?.toLowerCase() ?? '';
+      final priceStr = data['price'] as String? ?? '₱ 0.00';
+      final price = _parsePriceString(priceStr);
+      final status = (data['status'] as String?)?.toLowerCase() ?? '';
+
+      // Add to total revenue regardless of status
+      totalRevenue += price;
+
+      // Calculate commission only for approved and cancelled (exclude expired)
+      if (status == 'approved' || status == 'cancelled') {
+        if (planType == 'weekly') {
+          totalCommission += price * 0.10; // 10%
+        } else if (planType == 'monthly') {
+          totalCommission += price * 0.15; // 15%
+        } else if (planType == 'yearly') {
+          totalCommission += price * 0.08; // 8%
+        }
+      }
     }
 
-    return total;
+    return {
+      'revenue': totalRevenue,
+      'commission': totalCommission,
+    };
   }
 
-  void _showDietitianSubscriptionDetails(
-    String dietitianId,
-    String dietitianName,
-  ) {
+  void _showDietitianSubscriberDetails(
+      String dietitianId,
+      String dietitianName,
+      ) {
     showDialog(
       context: context,
       builder: (context) => Dialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         child: Container(
-          constraints: const BoxConstraints(maxWidth: 600, maxHeight: 700),
+          constraints: const BoxConstraints(maxWidth: 700, maxHeight: 700),
           child: Column(
             children: [
               Container(
@@ -7833,7 +7872,7 @@ class _AdminHomeState extends State<AdminHome> {
                 child: Row(
                   children: [
                     const Icon(
-                      Icons.subscriptions,
+                      Icons.people,
                       color: _textColorOnPrimary,
                       size: 28,
                     ),
@@ -7843,7 +7882,7 @@ class _AdminHomeState extends State<AdminHome> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const Text(
-                            "Subscription Details",
+                            "Subscriber Details",
                             style: TextStyle(
                               color: _textColorOnPrimary,
                               fontWeight: FontWeight.bold,
@@ -7872,9 +7911,9 @@ class _AdminHomeState extends State<AdminHome> {
               Expanded(
                 child: StreamBuilder<QuerySnapshot>(
                   stream: FirebaseFirestore.instance
-                      .collection('subscriptions')
-                      .where('dietitianId', isEqualTo: dietitianId)
-                      .where('status', isEqualTo: 'active')
+                      .collection('Users')
+                      .doc(dietitianId)
+                      .collection('subscriber')
                       .snapshots(),
                   builder: (context, snapshot) {
                     if (!snapshot.hasData) {
@@ -7883,85 +7922,277 @@ class _AdminHomeState extends State<AdminHome> {
                       );
                     }
 
-                    final subscriptions = snapshot.data!.docs;
+                    final subscribers = snapshot.data!.docs;
 
-                    if (subscriptions.isEmpty) {
+                    if (subscribers.isEmpty) {
                       return Center(
-                        child: Text(
-                          "No active subscriptions",
-                          style: _cardSubtitleStyle(context),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.person_off_outlined,
+                              size: 64,
+                              color: Colors.grey[400],
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              "No subscribers",
+                              style: _cardSubtitleStyle(context),
+                            ),
+                          ],
                         ),
                       );
                     }
 
                     return ListView.builder(
                       padding: const EdgeInsets.all(16),
-                      itemCount: subscriptions.length,
+                      itemCount: subscribers.length,
                       itemBuilder: (context, index) {
-                        final sub =
-                            subscriptions[index].data() as Map<String, dynamic>;
-                        final subscriptionType = sub['subscriptionType'] ?? '';
-                        final price = (sub['price'] as num?)?.toDouble() ?? 0.0;
-                        final startDate = sub['startDate'] as Timestamp?;
-                        final endDate = sub['endDate'] as Timestamp?;
+                        final subData =
+                        subscribers[index].data() as Map<String, dynamic>;
+                        final userId = subData['userId'] ?? '';
+                        final planType =
+                            (subData['planType'] as String?)?.toLowerCase() ?? '';
+                        final priceStr = subData['price'] as String? ?? '₱ 0.00';
+                        final price = _parsePriceString(priceStr);
+                        final startDate = subData['timestamp'] as Timestamp?;
+                        final endDate = subData['expirationDate'] as Timestamp?;
+                        final status = (subData['status'] as String?)?.toLowerCase() ?? '';
 
-                        return Card(
-                          margin: const EdgeInsets.only(bottom: 12),
-                          child: Padding(
-                            padding: const EdgeInsets.all(12),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
+                        // Calculate commission for this subscription (only if approved or cancelled)
+                        double commission = 0;
+                        String commissionRate = '0%';
+                        if (status == 'approved' || status == 'cancelled') {
+                          if (planType == 'weekly') {
+                            commission = price * 0.10;
+                            commissionRate = '10%';
+                          } else if (planType == 'monthly') {
+                            commission = price * 0.15;
+                            commissionRate = '15%';
+                          } else if (planType == 'yearly') {
+                            commission = price * 0.08;
+                            commissionRate = '8%';
+                          }
+                        }
+
+                        return FutureBuilder<DocumentSnapshot>(
+                          future: FirebaseFirestore.instance
+                              .collection('Users')
+                              .doc(userId)
+                              .get(),
+                          builder: (context, userSnapshot) {
+                            String userName = 'Loading...';
+                            String userEmail = '';
+
+                            if (userSnapshot.hasData && userSnapshot.data!.exists) {
+                              final userData =
+                              userSnapshot.data!.data() as Map<String, dynamic>?;
+                              final firstName = userData?['firstName'] ?? '';
+                              final lastName = userData?['lastName'] ?? '';
+                              userName = '$firstName $lastName'.trim();
+                              if (userName.isEmpty) userName = 'Unknown User';
+                              userEmail = userData?['email'] ?? '';
+                            }
+
+                            return Card(
+                              margin: const EdgeInsets.only(bottom: 12),
+                              elevation: 2,
+                              child: Padding(
+                                padding: const EdgeInsets.all(16),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 10,
-                                        vertical: 4,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: _getPlanColor(
-                                          subscriptionType,
-                                        ).withOpacity(0.1),
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                      child: Text(
-                                        subscriptionType.toUpperCase(),
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w600,
-                                          color: _getPlanColor(
-                                            subscriptionType,
+                                    Row(
+                                      children: [
+                                        CircleAvatar(
+                                          backgroundColor: Colors.green.withOpacity(0.1),
+                                          child: const Icon(
+                                            Icons.person,
+                                            color: Colors.green,
                                           ),
-                                          fontFamily: _primaryFontFamily,
                                         ),
-                                      ),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                userName,
+                                                style: _getTextStyle(
+                                                  context,
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 15,
+                                                ),
+                                              ),
+                                              if (userEmail.isNotEmpty)
+                                                Text(
+                                                  userEmail,
+                                                  style: _cardSubtitleStyle(context)
+                                                      .copyWith(fontSize: 12),
+                                                ),
+                                            ],
+                                          ),
+                                        ),
+                                        Column(
+                                          crossAxisAlignment: CrossAxisAlignment.end,
+                                          children: [
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(
+                                                horizontal: 10,
+                                                vertical: 4,
+                                              ),
+                                              decoration: BoxDecoration(
+                                                color: _getPlanColor(planType)
+                                                    .withOpacity(0.1),
+                                                borderRadius: BorderRadius.circular(8),
+                                              ),
+                                              child: Text(
+                                                planType.toUpperCase(),
+                                                style: TextStyle(
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: _getPlanColor(planType),
+                                                  fontFamily: _primaryFontFamily,
+                                                ),
+                                              ),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(
+                                                horizontal: 8,
+                                                vertical: 2,
+                                              ),
+                                              decoration: BoxDecoration(
+                                                color: _getStatusColor(status)
+                                                    .withOpacity(0.1),
+                                                borderRadius: BorderRadius.circular(6),
+                                              ),
+                                              child: Text(
+                                                status.toUpperCase(),
+                                                style: TextStyle(
+                                                  fontSize: 10,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: _getStatusColor(status),
+                                                  fontFamily: _primaryFontFamily,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
                                     ),
-                                    Text(
-                                      "\$${price.toStringAsFixed(2)}",
-                                      style: _getTextStyle(
-                                        context,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.green,
-                                        fontSize: 16,
-                                      ),
+                                    const Divider(height: 20),
+                                    Row(
+                                      mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Column(
+                                          crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              "Price",
+                                              style: _cardSubtitleStyle(context),
+                                            ),
+                                            Text(
+                                              priceStr,
+                                              style: _getTextStyle(
+                                                context,
+                                                fontWeight: FontWeight.bold,
+                                                color: Colors.blue,
+                                                fontSize: 16,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        Column(
+                                          crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              "Commission",
+                                              style: _cardSubtitleStyle(context),
+                                            ),
+                                            Text(
+                                              "₱${commission.toStringAsFixed(2)}",
+                                              style: _getTextStyle(
+                                                context,
+                                                fontWeight: FontWeight.bold,
+                                                color: Colors.green,
+                                                fontSize: 16,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        Column(
+                                          crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              "Rate",
+                                              style: _cardSubtitleStyle(context),
+                                            ),
+                                            Text(
+                                              commissionRate,
+                                              style: _getTextStyle(
+                                                context,
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 16,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 12),
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                "Start Date",
+                                                style: _cardSubtitleStyle(context),
+                                              ),
+                                              Text(
+                                                startDate != null
+                                                    ? DateFormat('MMM dd, yyyy')
+                                                    .format(startDate.toDate())
+                                                    : 'N/A',
+                                                style: _getTextStyle(context),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                "Expiration Date",
+                                                style: _cardSubtitleStyle(context),
+                                              ),
+                                              Text(
+                                                endDate != null
+                                                    ? DateFormat('MMM dd, yyyy')
+                                                    .format(endDate.toDate())
+                                                    : 'N/A',
+                                                style: _getTextStyle(context),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ],
                                 ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  "Start: ${startDate != null ? DateFormat('MMM dd, yyyy').format(startDate.toDate()) : 'N/A'}",
-                                  style: _cardSubtitleStyle(context),
-                                ),
-                                Text(
-                                  "End: ${endDate != null ? DateFormat('MMM dd, yyyy').format(endDate.toDate()) : 'N/A'}",
-                                  style: _cardSubtitleStyle(context),
-                                ),
-                              ],
-                            ),
-                          ),
+                              ),
+                            );
+                          },
                         );
                       },
                     );
@@ -7983,6 +8214,19 @@ class _AdminHomeState extends State<AdminHome> {
         return Colors.amber;
       case 'yearly':
         return Colors.purple;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  Color _getStatusColor(String status) {
+    switch (status.toLowerCase()) {
+      case 'approved':
+        return Colors.green;
+      case 'cancelled':
+        return Colors.orange;
+      case 'expired':
+        return Colors.red;
       default:
         return Colors.grey;
     }
@@ -8159,138 +8403,6 @@ class _AdminHomeState extends State<AdminHome> {
   }
 
   // Feature 2: Subscription Status Overview
-  Widget _buildSubscriptionStatusOverview() {
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      color: _cardBgColor(context),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.indigo.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Icon(Icons.track_changes, color: Colors.indigo),
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  "Subscription Status Overview",
-                  style: _getTextStyle(
-                    context,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            FutureBuilder<Map<String, int>>(
-              future: _getSubscriptionStatuses(),
-              builder: (context, snapshot) {
-                if (!snapshot.hasData) {
-                  return const Center(
-                    child: CircularProgressIndicator(color: _primaryColor),
-                  );
-                }
-
-                final stats = snapshot.data!;
-                final total =
-                    stats['active']! + stats['canceled']! + stats['expired']!;
-
-                return Column(
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _buildStatusCard(
-                            "Active",
-                            stats['active'].toString(),
-                            Colors.green,
-                            total > 0
-                                ? ((stats['active']! / total) * 100)
-                                      .toStringAsFixed(1)
-                                : '0.0',
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: _buildStatusCard(
-                            "Canceled",
-                            stats['canceled'].toString(),
-                            Colors.red,
-                            total > 0
-                                ? ((stats['canceled']! / total) * 100)
-                                      .toStringAsFixed(1)
-                                : '0.0',
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: _buildStatusCard(
-                            "Expired",
-                            stats['expired'].toString(),
-                            Colors.orange,
-                            total > 0
-                                ? ((stats['expired']! / total) * 100)
-                                      .toStringAsFixed(1)
-                                : '0.0',
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: _scaffoldBgColor(context),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            "Churn Rate (Last 7 Days)",
-                            style: _getTextStyle(
-                              context,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          FutureBuilder<double>(
-                            future: _getChurnRate(),
-                            builder: (context, snapshot) {
-                              final rate = snapshot.hasData
-                                  ? snapshot.data!
-                                  : 0.0;
-                              return Text(
-                                "${rate.toStringAsFixed(1)}%",
-                                style: _getTextStyle(
-                                  context,
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: rate > 10 ? Colors.red : Colors.green,
-                                ),
-                              );
-                            },
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                );
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   Widget _buildStatusCard(
     String label,
@@ -8475,7 +8587,7 @@ class _AdminHomeState extends State<AdminHome> {
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  "${dietitian['subscriberCount']} subscribers",
+                                  "${dietitian['subscriberCount']} subscriber",
                                   style: _cardSubtitleStyle(context),
                                 ),
                               ],
