@@ -436,14 +436,17 @@ class _AnalyticsDashboardState extends State<AnalyticsDashboard> {
     int activeSubscriptions = subscriberSnap.docs.length;
     int monthlySubs = 0;
     int yearlySubs = 0;
+    int weeklySubs = 0;
     int newClientsThisMonth = 0;
-    double totalRevenue = 0.0;
     final now = DateTime.now();
 
     for (var doc in subscriberSnap.docs) {
       final data = doc.data();
-      if (data['planType'] == 'Monthly') monthlySubs++;
-      if (data['planType'] == 'Yearly') yearlySubs++;
+      final planType = data['planType']?.toString() ?? '';
+
+      if (planType.toLowerCase() == 'monthly') monthlySubs++;
+      if (planType.toLowerCase() == 'yearly') yearlySubs++;
+      if (planType.toLowerCase() == 'weekly') weeklySubs++;
 
       final timestamp = data['timestamp'] as Timestamp?;
       if (timestamp != null) {
@@ -452,8 +455,20 @@ class _AnalyticsDashboardState extends State<AnalyticsDashboard> {
           newClientsThisMonth++;
         }
       }
+    }
 
-      final priceString = data['price']?.toString().replaceAll(RegExp(r'[^0-9.]'), '');
+    // Fetch total revenue from receipts collection (all approved payments)
+    // This calculates cumulative revenue from ALL approved receipts ever
+    double totalRevenue = 0.0;
+    final receiptsSnap = await FirebaseFirestore.instance
+        .collection('receipts')
+        .where('dietitianID', isEqualTo: dietitianId)
+        .where('status', isEqualTo: 'approved')
+        .get();
+
+    for (var doc in receiptsSnap.docs) {
+      final data = doc.data();
+      final priceString = data['planPrice']?.toString().replaceAll(RegExp(r'[^0-9.]'), '');
       if (priceString != null && priceString.isNotEmpty) {
         totalRevenue += double.tryParse(priceString) ?? 0.0;
       }
@@ -463,6 +478,7 @@ class _AnalyticsDashboardState extends State<AnalyticsDashboard> {
       'activeSubscriptions': activeSubscriptions,
       'monthlySubs': monthlySubs,
       'yearlySubs': yearlySubs,
+      'weeklySubs': weeklySubs,
       'newClientsThisMonth': newClientsThisMonth,
       'totalRevenue': totalRevenue,
     };
@@ -792,6 +808,9 @@ class _AnalyticsDashboardState extends State<AnalyticsDashboard> {
               ],
             ),
             const SizedBox(height: 16),
+            _buildDetailRow(context, 'Weekly Plans',
+                '${subData['weeklySubs'] ?? 0}', Colors.green),
+            const SizedBox(height: 12),
             _buildDetailRow(context, 'Monthly Plans',
                 '${subData['monthlySubs'] ?? 0}', Colors.blue),
             const SizedBox(height: 12),
@@ -936,35 +955,202 @@ class _AnalyticsDashboardState extends State<AnalyticsDashboard> {
       Map<String, dynamic> mealData,
       ) {
     final planData = mealData['mostPopularPlanData'] as Map<String, dynamic>;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+
+    return Container(
+      decoration: BoxDecoration(
+        color: _cardBgColor(context),
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Most Popular Plan',
-              style: _getTextStyle(context,
-                  fontSize: 12, color: _textColorSecondary(context)),
-            ),
+            // Header with like count
             Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Icon(Icons.favorite, color: Colors.red, size: 14),
-                const SizedBox(width: 4),
                 Text(
-                  (planData['likeCounts'] ?? 0).toString(),
+                  'Most Popular Plan',
                   style: _getTextStyle(context,
-                      fontSize: 12, fontWeight: FontWeight.bold),
+                      fontSize: 12, color: _textColorSecondary(context)),
+                ),
+                Row(
+                  children: [
+                    const Icon(Icons.favorite, color: Colors.red, size: 14),
+                    const SizedBox(width: 4),
+                    Text(
+                      (planData['likeCounts'] ?? 0).toString(),
+                      style: _getTextStyle(context,
+                          fontSize: 12, fontWeight: FontWeight.bold),
+                    ),
+                  ],
                 ),
               ],
             ),
+            const SizedBox(height: 8),
+
+            // Plan name and type
+            Text(
+              mealData['mostPopularPlan'] ?? 'N/A',
+              style: _getTextStyle(context,
+                  fontSize: 14, fontWeight: FontWeight.bold),
+            ),
+            if (planData['planType'] != null) ...[
+              const SizedBox(height: 4),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: _primaryColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  planData['planType'],
+                  style: _getTextStyle(context,
+                      fontSize: 11,
+                      color: _primaryColor,
+                      fontWeight: FontWeight.w600),
+                ),
+              ),
+            ],
+
+            const SizedBox(height: 16),
+            const Divider(height: 1),
+            const SizedBox(height: 16),
+
+            // Meal details
+            _buildMealItem(
+              context,
+              'Breakfast',
+              planData['breakfast'] ?? '',
+              planData['breakfastTime'] ?? '',
+              Icons.wb_sunny_outlined,
+              Colors.orange,
+            ),
+            const SizedBox(height: 12),
+            _buildMealItem(
+              context,
+              'AM Snack',
+              planData['amSnack'] ?? '',
+              planData['amSnackTime'] ?? '',
+              Icons.coffee_outlined,
+              Colors.brown,
+            ),
+            const SizedBox(height: 12),
+            _buildMealItem(
+              context,
+              'Lunch',
+              planData['lunch'] ?? '',
+              planData['lunchTime'] ?? '',
+              Icons.restaurant_outlined,
+              Colors.green,
+            ),
+            const SizedBox(height: 12),
+            _buildMealItem(
+              context,
+              'PM Snack',
+              planData['pmSnack'] ?? '',
+              planData['pmSnackTime'] ?? '',
+              Icons.local_cafe_outlined,
+              Colors.purple,
+            ),
+            const SizedBox(height: 12),
+            _buildMealItem(
+              context,
+              'Dinner',
+              planData['dinner'] ?? '',
+              planData['dinnerTime'] ?? '',
+              Icons.nightlight_outlined,
+              Colors.indigo,
+            ),
+            if (planData['midnightSnack'] != null &&
+                planData['midnightSnack'].toString().isNotEmpty) ...[
+              const SizedBox(height: 12),
+              _buildMealItem(
+                context,
+                'Midnight Snack',
+                planData['midnightSnack'],
+                planData['midnightSnackTime'] ?? '',
+                Icons.bedtime_outlined,
+                Colors.blueGrey,
+              ),
+            ],
           ],
         ),
-        const SizedBox(height: 8),
-        Text(
-          mealData['mostPopularPlan'],
-          style: _getTextStyle(context,
-              fontSize: 14, fontWeight: FontWeight.bold),
+      ),
+    );
+  }
+
+  Widget _buildMealItem(
+      BuildContext context,
+      String mealName,
+      String mealContent,
+      String mealTime,
+      IconData icon,
+      Color iconColor,
+      ) {
+    // Skip if meal content is empty
+    if (mealContent.isEmpty) return const SizedBox.shrink();
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(6),
+          decoration: BoxDecoration(
+            color: iconColor.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(icon, color: iconColor, size: 16),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                mealName,
+                style: _getTextStyle(context,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: _textColorSecondary(context)),
+              ),
+              if (mealTime.isNotEmpty) ...[
+                const SizedBox(height: 2),
+                Row(
+                  children: [
+                    Icon(Icons.access_time,
+                        size: 11,
+                        color: iconColor.withOpacity(0.7)),
+                    const SizedBox(width: 4),
+                    Text(
+                      mealTime,
+                      style: _getTextStyle(context,
+                          fontSize: 11,
+                          color: iconColor,
+                          fontWeight: FontWeight.w600),
+                    ),
+                  ],
+                ),
+              ],
+              const SizedBox(height: 4),
+              Text(
+                mealContent,
+                style: _getTextStyle(context,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
         ),
       ],
     );
@@ -1470,7 +1656,12 @@ class _SubscriptionRequestsState extends State<SubscriptionRequests> {
       DateTime now = DateTime.now();
       DateTime expirationDate;
 
-      if (planType.toString().toLowerCase() == 'monthly') {
+      // if (planType.toString().toLowerCase() == 'weekly') {
+      //   expirationDate = now.add(const Duration(days: 7));
+      if (planType.toString().toLowerCase() == 'weekly') {
+        // For testing only — expires in 1 hour instead of 7 days
+        expirationDate = now.add(const Duration(hours: 1));
+      } else if (planType.toString().toLowerCase() == 'monthly') {
         expirationDate = DateTime(now.year, now.month + 1, now.day);
       } else if (planType.toString().toLowerCase() == 'yearly') {
         expirationDate = DateTime(now.year + 1, now.month, now.day);
