@@ -9,6 +9,8 @@ import '../email/OTPSender.dart';
 import 'package:flutter_file_dialog/flutter_file_dialog.dart';
 import 'package:flutter/services.dart';
 
+import 'package:mamas_recipe/widget/custom_snackbar.dart';
+
 class DietitianQRCodePage extends StatefulWidget {
   const DietitianQRCodePage({super.key});
 
@@ -99,12 +101,8 @@ class _DietitianQRCodePageState extends State<DietitianQRCodePage> {
                     Navigator.pop(context);
                     _showImageSourceDialog(); // ✅ allow QR change
                   } else {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Invalid or expired OTP.'),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
+                    CustomSnackBar.show(context, 'Invalid or expired OTP.', backgroundColor: Colors.red, icon: Icons.error_outline);
+
                   }
 
                   setState(() => isVerifying = false);
@@ -135,28 +133,16 @@ class _DietitianQRCodePageState extends State<DietitianQRCodePage> {
 
       // 4️⃣ Notify user
       if (savedFilePath != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('PDF downloaded successfully'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        CustomSnackBar.show(context, 'PDF downloaded successfully', backgroundColor: Colors.green, icon: Icons.file_download_done);
+
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Save canceled by user'),
-            backgroundColor: Colors.orange,
-          ),
-        );
+        CustomSnackBar.show(context, 'Save canceled by user', backgroundColor: Colors.orange, icon: Icons.cancel_outlined);
+
       }
     } catch (e) {
       print('$e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error saving PDF: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      CustomSnackBar.show(context, 'Error saving PDF: $e', backgroundColor: Colors.red, icon: Icons.error_outline);
+
     }
   }
 
@@ -249,9 +235,8 @@ class _DietitianQRCodePageState extends State<DietitianQRCodePage> {
 
     if (_qrCodeImage == null) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please select a QR code image first.")),
-      );
+      CustomSnackBar.show(context, 'Please select a QR code image first.', backgroundColor: Colors.orange, icon: Icons.warning_outlined);
+
       return;
     }
 
@@ -260,9 +245,8 @@ class _DietitianQRCodePageState extends State<DietitianQRCodePage> {
     if (!mounted) return;
 
     if (imageUrl == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Failed to upload QR code. Please implement upload logic.")),
-      );
+      CustomSnackBar.show(context, 'Failed to upload QR code. Please implement upload logic.', backgroundColor: Colors.red, icon: Icons.error_outline);
+
       return;
     }
 
@@ -282,17 +266,12 @@ class _DietitianQRCodePageState extends State<DietitianQRCodePage> {
         _qrCodeImage = null;
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("✅ QR code saved successfully!"),
-          backgroundColor: _primaryColor,
-        ),
-      );
+      CustomSnackBar.show(context, 'QR code saved successfully!', backgroundColor: const Color(0xFF4CAF50), icon: Icons.check_circle_outline);
+
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error saving QR code: $e")),
-      );
+      CustomSnackBar.show(context, 'Error saving QR code: $e', backgroundColor: Colors.red, icon: Icons.error_outline);
+
     }
 
   }
@@ -537,21 +516,11 @@ class _DietitianQRCodePageState extends State<DietitianQRCodePage> {
                                             .doc(user.uid)
                                             .set({'qrstatus': 'pending'}, SetOptions(merge: true));
 
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          const SnackBar(
-                                            content: Text(
-                                              "Your request has been sent. We'll check your QR code soon!",
-                                            ),
-                                            backgroundColor: Colors.green,
-                                          ),
-                                        );
+                                        CustomSnackBar.show(context, 'Your request has been sent. We\'ll check your QR code soon!', backgroundColor: Colors.green, icon: Icons.check_circle_outline);
+
                                       } catch (e) {
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          SnackBar(
-                                            content: Text("Failed to send request: $e"),
-                                            backgroundColor: Colors.red,
-                                          ),
-                                        );
+                                        CustomSnackBar.show(context, 'Failed to send request: $e', backgroundColor: Colors.red, icon: Icons.error_outline);
+
                                       }
                                       return;
                                     }
@@ -560,9 +529,8 @@ class _DietitianQRCodePageState extends State<DietitianQRCodePage> {
                                     if (user.email != null) {
                                       await _showOtpVerificationDialog(user.email!);
                                     } else {
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(content: Text('No email found for your account.')),
-                                      );
+                                      CustomSnackBar.show(context, 'No email found for your account.', backgroundColor: Colors.orange, icon: Icons.mail_outline);
+
                                     }
                                   },
 

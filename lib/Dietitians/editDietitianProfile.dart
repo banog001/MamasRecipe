@@ -7,6 +7,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'homePageDietitian.dart';
 
+import 'package:mamas_recipe/widget/custom_snackbar.dart';
+
 class EditProfileDietitianPage extends StatefulWidget {
   const EditProfileDietitianPage({super.key});
 
@@ -145,8 +147,11 @@ class _EditProfilePageState extends State<EditProfileDietitianPage> {
     if (_profileImage != null) {
       imageUrl = await _uploadToCloudinary(_profileImage!);
       if (imageUrl == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Failed to upload image.")),
+        CustomSnackBar.show(
+          context,
+          'Failed to upload image.',
+          backgroundColor: Colors.redAccent,
+          icon: Icons.error_outline,
         );
         return;
       }
@@ -154,8 +159,11 @@ class _EditProfilePageState extends State<EditProfileDietitianPage> {
     // 🔹 Add bio if it has content
     if (_bioController.text.trim().isNotEmpty) {
       if (_bioController.text.trim().length > 30) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Bio cannot exceed 30 characters.")),
+        CustomSnackBar.show(
+          context,
+          'Bio cannot exceed 30 characters.',
+          backgroundColor: Colors.orange,
+          icon: Icons.warning_outlined,
         );
         return; // stop saving if limit exceeded
       }
@@ -179,8 +187,11 @@ class _EditProfilePageState extends State<EditProfileDietitianPage> {
           .doc(user.uid)
           .update(updateData);
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("✅ Profile updated successfully!")),
+      CustomSnackBar.show(
+        context,
+        'Profile updated successfully!',
+        backgroundColor: const Color(0xFF4CAF50),
+        icon: Icons.check_circle_outline,
       );
 
       // Refresh data on screen
@@ -189,8 +200,11 @@ class _EditProfilePageState extends State<EditProfileDietitianPage> {
         _profileImage = null;
       });
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("No changes to save.")),
+      CustomSnackBar.show(
+        context,
+        'No changes to save.',
+        backgroundColor: Colors.orange,
+        icon: Icons.info_outline,
       );
     }
   }

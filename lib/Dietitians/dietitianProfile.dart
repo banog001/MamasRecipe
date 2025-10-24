@@ -30,12 +30,59 @@ class _DietitianProfileState extends State<DietitianProfile> {
     final Color textPrimary = textColorPrimary(context);
     final Color textSecondary = textColorSecondary(context);
 
+    // --- NEW: BACKGROUND SHAPES WIDGET ---
+    Widget _buildProfileBackground(BuildContext context) {
+      final isDark = Theme.of(context).brightness == Brightness.dark;
+      // Use a subtle shade of the primary color
+      final shapeColor =
+      isDark ? primaryColor.withOpacity(0.08) : primaryColor.withOpacity(0.05);
+
+      return Positioned.fill(
+        child: Container(
+          // The base color is already set by scaffold.
+          // This container just holds the shapes.
+          child: Stack(
+            clipBehavior: Clip.none, // Allow shapes to go off-screen
+            children: [
+              Positioned(
+                top: 80, // Will be partially under the green header
+                right: -150,
+                child: Container(
+                  width: 300,
+                  height: 300,
+                  decoration: BoxDecoration(
+                    color: shapeColor,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ),
+              Positioned(
+                bottom: -100,
+                left: -120,
+                child: Container(
+                  width: 400,
+                  height: 400,
+                  decoration: BoxDecoration(
+                    color: shapeColor,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // --- (Your other helper methods like _getUserData, _getSubscriberCount, etc. go here) ---
+
     return FutureBuilder<Map<String, dynamic>?>(
       future: _getUserData(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Scaffold(
-            body: Center(
+          return Scaffold(
+            backgroundColor: bgColor, // Use bgColor here
+            body: const Center(
               child: CircularProgressIndicator(color: primaryColor),
             ),
           );
@@ -66,438 +113,378 @@ class _DietitianProfileState extends State<DietitianProfile> {
             elevation: 1,
             iconTheme: const IconThemeData(color: textColorOnPrimary),
           ),
-          body: SingleChildScrollView(
-            physics: const ClampingScrollPhysics(),
-            child: Column(
-              children: [
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
-                  decoration: BoxDecoration(
-                    color: primaryColor,
-                    borderRadius: const BorderRadius.vertical(
-                      bottom: Radius.circular(24),
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
-                        blurRadius: 8,
-                        offset: const Offset(0, 3),
-                      )
-                    ],
-                  ),
-                  child: Column(
-                    children: [
-                      Stack(
+          // --- BODY IS NOW A STACK ---
+          body: Stack(
+            children: [
+              // 1. NEW: THE BACKGROUND SHAPES
+              _buildProfileBackground(context),
+
+              // 2. YOUR ORIGINAL SCROLLABLE CONTENT
+              SingleChildScrollView(
+                physics: const ClampingScrollPhysics(),
+                child: Column(
+                  children: [
+                    // --- HEADER ---
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+                      decoration: BoxDecoration(
+                        color: primaryColor,
+                        borderRadius: const BorderRadius.vertical(
+                          bottom: Radius.circular(24),
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 8,
+                            offset: const Offset(0, 3),
+                          )
+                        ],
+                      ),
+                      child: Column(
                         children: [
-                          Container(
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              border: Border.all(color: Colors.white, width: 3),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.15),
-                                  spreadRadius: 1,
-                                  blurRadius: 6,
-                                  offset: const Offset(0, 2),
-                                )
-                              ],
-                            ),
-                            child: CircleAvatar(
-                              radius: 40,
-                              backgroundColor: Colors.white,
-                              backgroundImage: (profileUrl.isNotEmpty)
-                                  ? NetworkImage(profileUrl)
-                                  : null,
-                              child: (profileUrl.isEmpty)
-                                  ? const Icon(
-                                Icons.person_outline,
-                                size: 42,
-                                color: primaryColor,
-                              )
-                                  : null,
-                            ),
-                          ),
-                          Positioned(
-                            bottom: 0,
-                            right: 0,
-                            child: Material(
-                              color: Colors.white,
-                              shape: const CircleBorder(),
-                              elevation: 2,
-                              child: InkWell(
-                                onTap: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) =>
-                                      const EditProfileDietitianPage(),
-                                    ),
-                                  ).then((_) {
-                                    setState(() {});
-                                  });
-                                },
-                                customBorder: const CircleBorder(),
-                                child: const Padding(
-                                  padding: EdgeInsets.all(6.0),
-                                  child: Icon(
-                                    Icons.edit_outlined,
-                                    size: 18,
+                          Stack(
+                            children: [
+                              Container(
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  border:
+                                  Border.all(color: Colors.white, width: 3),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.15),
+                                      spreadRadius: 1,
+                                      blurRadius: 6,
+                                      offset: const Offset(0, 2),
+                                    )
+                                  ],
+                                ),
+                                child: CircleAvatar(
+                                  radius: 40,
+                                  backgroundColor: Colors.white,
+                                  backgroundImage: (profileUrl.isNotEmpty)
+                                      ? NetworkImage(profileUrl)
+                                      : null,
+                                  child: (profileUrl.isEmpty)
+                                      ? const Icon(
+                                    Icons.person_outline,
+                                    size: 42,
                                     color: primaryColor,
+                                  )
+                                      : null,
+                                ),
+                              ),
+                              Positioned(
+                                bottom: 0,
+                                right: 0,
+                                child: Material(
+                                  color: Colors.white,
+                                  shape: const CircleBorder(),
+                                  elevation: 2,
+                                  child: InkWell(
+                                    onTap: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) =>
+                                          const EditProfileDietitianPage(),
+                                        ),
+                                      ).then((_) {
+                                        setState(() {});
+                                      });
+                                    },
+                                    customBorder: const CircleBorder(),
+                                    child: const Padding(
+                                      padding: EdgeInsets.all(6.0),
+                                      child: Icon(
+                                        Icons.edit_outlined,
+                                        size: 18,
+                                        color: primaryColor,
+                                      ),
+                                    ),
                                   ),
                                 ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          Text(
+                            fullName,
+                            style: getTextStyle(
+                              context,
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: textColorOnPrimary,
+                            ),
+                          ),
+                          if (email.isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              email,
+                              style: getTextStyle(
+                                context,
+                                fontSize: 14,
+                                color: textColorOnPrimary.withOpacity(0.8),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+
+                    // --- PROFESSIONAL SUMMARY ---
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            "Professional Summary",
+                            style: getTextStyle(
+                              context,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: textPrimary,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Card(
+                            elevation: 2,
+                            color: cardColor,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                  vertical: 20, horizontal: 16),
+                              child: Row(
+                                mainAxisAlignment:
+                                MainAxisAlignment.spaceAround,
+                                children: [
+                                  FutureBuilder<int>(
+                                    future: _getSubscriberCount(),
+                                    builder: (context, snapshot) {
+                                      return _summaryItem(
+                                        Icons.group_outlined,
+                                        "Subscribers",
+                                        snapshot.data?.toString() ?? "0",
+                                        textPrimary,
+                                      );
+                                    },
+                                  ),
+                                  FutureBuilder<int>(
+                                    future: _getPlansCreatedCount(),
+                                    builder: (context, snapshot) {
+                                      return _summaryItem(
+                                        Icons.article_outlined,
+                                        "Plans Created",
+                                        snapshot.data?.toString() ?? "0",
+                                        textPrimary,
+                                      );
+                                    },
+                                  ),
+                                  FutureBuilder<int>(
+                                    future: _getFollowersCount(),
+                                    builder: (context, snapshot) {
+                                      return _summaryItem(
+                                        Icons.people_alt_outlined,
+                                        "Followers",
+                                        snapshot.data?.toString() ?? "0",
+                                        textPrimary,
+                                      );
+                                    },
+                                  ),
+                                ],
                               ),
                             ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 10),
-                      Text(
-                        fullName,
-                        style: getTextStyle(
-                          context,
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: textColorOnPrimary,
-                        ),
-                      ),
-                      if (email.isNotEmpty) ...[
-                        const SizedBox(height: 4),
-                        Text(
-                          email,
-                          style: getTextStyle(
-                            context,
-                            fontSize: 14,
-                            color: textColorOnPrimary.withOpacity(0.8),
+                    ),
+
+                    // --- SERVICE PRICING ---
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            "Service Pricing",
+                            style: getTextStyle(
+                              context,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: textPrimary,
+                            ),
                           ),
-                        ),
-                      ],
-                      if (data['qrCodeUrl'] != null &&
-                          data['qrCodeUrl']!.isNotEmpty) ...[
-                        const SizedBox(height: 16),
-                        RepaintBoundary(
-                          child: GestureDetector(
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) =>
-                                  const DietitianQRCodePage(),
+                          const SizedBox(height: 12),
+                          Card(
+                            elevation: 2,
+                            color: cardColor,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: ListTile(
+                              contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 20, vertical: 12),
+                              leading: const Icon(
+                                  Icons.attach_money_outlined,
+                                  color: primaryColor,
+                                  size: 28),
+                              title: Text(
+                                "Set Your Pricing",
+                                style: getTextStyle(
+                                  context,
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w500,
+                                  color: textPrimary,
                                 ),
-                              );
-                            },
-                            child: Container(
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(16),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.1),
-                                    blurRadius: 8,
-                                    offset: const Offset(0, 2),
-                                  )
-                                ],
                               ),
-                              child: Column(
-                                children: [
-                                  Text(
+                              subtitle: Text(
+                                "Configure your consultation rates",
+                                style: getTextStyle(
+                                  context,
+                                  fontSize: 12,
+                                  color: textSecondary,
+                                ),
+                              ),
+                              trailing: Icon(Icons.arrow_forward_ios_rounded,
+                                  color: textSecondary, size: 18),
+                              onTap: () async {
+                                final currentData = await _getUserData();
+                                if (mounted) {
+                                  await showPricingDialog(
+                                      context, currentData);
+                                  setState(() {});
+                                }
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // --- DIETITIAN TOOLS ---
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            "Dietitian Tools",
+                            style: getTextStyle(
+                              context,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: textPrimary,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Card(
+                            elevation: 2,
+                            color: cardColor,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: Column(
+                              children: [
+                                ListTile(
+                                  contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 20, vertical: 12),
+                                  leading: const Icon(
+                                      Icons.qr_code_2_outlined,
+                                      color: primaryColor,
+                                      size: 28),
+                                  title: Text(
                                     "My QR Code",
                                     style: getTextStyle(
                                       context,
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w600,
-                                      color: primaryColor,
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w500,
+                                      color: textPrimary,
                                     ),
                                   ),
-                                  const SizedBox(height: 8),
-                                  ClipRRect(
-                                    borderRadius: BorderRadius.circular(8),
-                                    child: Image.network(
-                                      data['qrCodeUrl']!,
-                                      width: 120,
-                                      height: 120,
-                                      fit: BoxFit.cover,
-                                      cacheWidth: 120,
-                                      cacheHeight: 120,
-                                      gaplessPlayback: true,
-                                      filterQuality: FilterQuality.low,
-                                      loadingBuilder:
-                                          (context, child, loadingProgress) {
-                                        if (loadingProgress == null) return child;
-                                        return Container(
-                                          width: 120,
-                                          height: 120,
-                                          decoration: BoxDecoration(
-                                            color: Colors.grey.shade200,
-                                            borderRadius:
-                                            BorderRadius.circular(8),
-                                          ),
-                                          child: const Center(
-                                            child: CircularProgressIndicator(
-                                              color: primaryColor,
-                                              strokeWidth: 2,
-                                            ),
-                                          ),
-                                        );
-                                      },
-                                      errorBuilder:
-                                          (context, error, stackTrace) {
-                                        return Container(
-                                          width: 120,
-                                          height: 120,
-                                          decoration: BoxDecoration(
-                                            color: Colors.grey.shade200,
-                                            borderRadius:
-                                            BorderRadius.circular(8),
-                                          ),
-                                          child: const Icon(
-                                            Icons.qr_code_2_outlined,
-                                            size: 48,
-                                            color: primaryColor,
-                                          ),
-                                        );
-                                      },
-                                    ),
-                                  ),
-                                  const SizedBox(height: 6),
-                                  Text(
-                                    "Tap to view full size",
+                                  subtitle: Text(
+                                    "Upload & share with clients",
                                     style: getTextStyle(
                                       context,
-                                      fontSize: 11,
-                                      color: Colors.grey.shade600,
+                                      fontSize: 12,
+                                      color: textSecondary,
                                     ),
                                   ),
-                                ],
-                              ),
+                                  trailing: Icon(
+                                      Icons.arrow_forward_ios_rounded,
+                                      color: textSecondary,
+                                      size: 18),
+                                  onTap: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) =>
+                                        const DietitianQRCodePage(),
+                                      ),
+                                    );
+                                  },
+                                ),
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 16.0),
+                                  child: Divider(
+                                    height: 1,
+                                    color: textSecondary.withOpacity(0.1),
+                                  ),
+                                ),
+                                ListTile(
+                                  contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 20, vertical: 12),
+                                  leading: const Icon(
+                                      Icons.edit_note_outlined,
+                                      color: primaryColor,
+                                      size: 28),
+                                  title: Text(
+                                    "Create & Manage Plans",
+                                    style: getTextStyle(
+                                      context,
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w500,
+                                      color: textPrimary,
+                                    ),
+                                  ),
+                                  subtitle: Text(
+                                    "Build new meal plans for clients",
+                                    style: getTextStyle(
+                                      context,
+                                      fontSize: 12,
+                                      color: textSecondary,
+                                    ),
+                                  ),
+                                  trailing: Icon(
+                                      Icons.arrow_forward_ios_rounded,
+                                      color: textSecondary,
+                                      size: 18),
+                                  onTap: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) =>
+                                        const CreateMealPlanPage(),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ],
                             ),
                           ),
-                        ),
-                      ],
-                    ],
-                  ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16), // Extra padding at the bottom
+                  ],
                 ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        "Professional Summary",
-                        style: getTextStyle(
-                          context,
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: textPrimary,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Card(
-                        elevation: 2,
-                        color: cardColor,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                              vertical: 20, horizontal: 16),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceAround,
-                            children: [
-                              FutureBuilder<int>(
-                                future: _getSubscriberCount(),
-                                builder: (context, snapshot) {
-                                  return _summaryItem(
-                                    Icons.group_outlined,
-                                    "Subscribers",
-                                    snapshot.data?.toString() ?? "0",
-                                    textPrimary,
-                                  );
-                                },
-                              ),
-                              FutureBuilder<int>(
-                                future: _getPlansCreatedCount(),
-                                builder: (context, snapshot) {
-                                  return _summaryItem(
-                                    Icons.article_outlined,
-                                    "Plans Created",
-                                    snapshot.data?.toString() ?? "0",
-                                    textPrimary,
-                                  );
-                                },
-                              ),
-                              FutureBuilder<int>(
-                                future: _getFollowersCount(),
-                                builder: (context, snapshot) {
-                                  return _summaryItem(
-                                    Icons.people_alt_outlined,
-                                    "Followers",
-                                    snapshot.data?.toString() ?? "0",
-                                    textPrimary,
-                                  );
-                                },
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        "Service Pricing",
-                        style: getTextStyle(
-                          context,
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: textPrimary,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Card(
-                        elevation: 2,
-                        color: cardColor,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: ListTile(
-                          contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 20, vertical: 12),
-                          leading: const Icon(Icons.attach_money_outlined,
-                              color: primaryColor, size: 28),
-                          title: Text(
-                            "Set Your Pricing",
-                            style: getTextStyle(
-                              context,
-                              fontSize: 15,
-                              fontWeight: FontWeight.w500,
-                              color: textPrimary,
-                            ),
-                          ),
-                          subtitle: Text(
-                            "Configure your consultation rates",
-                            style: getTextStyle(
-                              context,
-                              fontSize: 12,
-                              color: textSecondary,
-                            ),
-                          ),
-                          trailing: Icon(Icons.arrow_forward_ios_rounded,
-                              color: textSecondary, size: 18),
-                          onTap: () async {
-                            final currentData = await _getUserData();
-                            if (mounted) {
-                              await showPricingDialog(context, currentData);
-                              setState(() {});
-                            }
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        "Dietitian Tools",
-                        style: getTextStyle(
-                          context,
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: textPrimary,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Card(
-                        elevation: 2,
-                        color: cardColor,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: ListTile(
-                          contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 20, vertical: 12),
-                          leading: const Icon(Icons.qr_code_2_outlined,
-                              color: primaryColor, size: 28),
-                          title: Text(
-                            "My QR Code",
-                            style: getTextStyle(
-                              context,
-                              fontSize: 15,
-                              fontWeight: FontWeight.w500,
-                              color: textPrimary,
-                            ),
-                          ),
-                          subtitle: Text(
-                            "Upload & share with clients",
-                            style: getTextStyle(
-                              context,
-                              fontSize: 12,
-                              color: textSecondary,
-                            ),
-                          ),
-                          trailing: Icon(Icons.arrow_forward_ios_rounded,
-                              color: textSecondary, size: 18),
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) =>
-                                const DietitianQRCodePage(),
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Card(
-                        elevation: 2,
-                        color: cardColor,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: ListTile(
-                          contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 20, vertical: 12),
-                          leading: const Icon(Icons.edit_note_outlined,
-                              color: primaryColor, size: 28),
-                          title: Text(
-                            "Create & Manage Plans",
-                            style: getTextStyle(
-                              context,
-                              fontSize: 15,
-                              fontWeight: FontWeight.w500,
-                              color: textPrimary,
-                            ),
-                          ),
-                          trailing: Icon(Icons.arrow_forward_ios_rounded,
-                              color: textSecondary, size: 18),
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) =>
-                                const CreateMealPlanPage(),
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
+          // --- BOTTOM NAV BAR (Unchanged) ---
           bottomNavigationBar: Container(
             decoration: BoxDecoration(
               color: primaryColor,
@@ -557,6 +544,8 @@ class _DietitianProfileState extends State<DietitianProfile> {
       },
     );
   }
+
+  // --- HELPER FUNCTIONS (Unchanged) ---
 
   Future<Map<String, dynamic>?> _getUserData() async {
     if (user == null) return null;
@@ -649,8 +638,11 @@ class _DietitianProfileState extends State<DietitianProfile> {
   }
 }
 
+// --- All other classes like PriceHelper and PricingDialog remain unchanged ---
+// (Your file already has these, so they are not repeated here)
+
 // ============================================
-// PRICE HELPER CLASS - Add to your project
+// PRICE HELPER CLASS - (This was in your file)
 // ============================================
 class PriceHelper {
   /// Check and apply pending prices if effective date has passed
@@ -671,7 +663,8 @@ class PriceHelper {
         final effectiveDateTime = effectiveDate.toDate();
         final now = DateTime.now();
 
-        if (now.isAfter(effectiveDateTime) || now.isAtSameMomentAs(effectiveDateTime)) {
+        if (now.isAfter(effectiveDateTime) ||
+            now.isAtSameMomentAs(effectiveDateTime)) {
           final pendingWeekly = data['pendingWeeklyPrice'];
           final pendingMonthly = data['pendingMonthlyPrice'];
           final pendingYearly = data['pendingYearlyPrice'];
@@ -701,7 +694,7 @@ class PriceHelper {
 }
 
 // ============================================
-// PRICING DIALOG WIDGET
+// PRICING DIALOG WIDGET - (This was in your file)
 // ============================================
 class PricingDialog extends StatefulWidget {
   final Map<String, dynamic>? currentPricing;
@@ -981,17 +974,26 @@ class _PricingDialogState extends State<PricingDialog> {
       if (!dietitianDoc.exists) return;
 
       final dietitianData = dietitianDoc.data()!;
-      final dietitianName = "${dietitianData['firstName'] ?? ''} ${dietitianData['lastName'] ?? ''}".trim();
+      final dietitianName =
+      "${dietitianData['firstName'] ?? ''} ${dietitianData['lastName'] ?? ''}"
+          .trim();
 
       // Get current and pending prices - handle both int and double
-      final monthlyOld = (dietitianData['monthlyPrice'] as num?)?.toString() ?? 'N/A';
-      final monthlyNew = (dietitianData['pendingMonthlyPrice'] as num?)?.toString() ?? monthlyOld;
+      final monthlyOld =
+          (dietitianData['monthlyPrice'] as num?)?.toString() ?? 'N/A';
+      final monthlyNew =
+          (dietitianData['pendingMonthlyPrice'] as num?)?.toString() ??
+              monthlyOld;
 
-      final weeklyOld = (dietitianData['weeklyPrice'] as num?)?.toString() ?? 'N/A';
-      final weeklyNew = (dietitianData['pendingWeeklyPrice'] as num?)?.toString() ?? weeklyOld;
+      final weeklyOld =
+          (dietitianData['weeklyPrice'] as num?)?.toString() ?? 'N/A';
+      final weeklyNew =
+          (dietitianData['pendingWeeklyPrice'] as num?)?.toString() ?? weeklyOld;
 
-      final yearlyOld = (dietitianData['yearlyPrice'] as num?)?.toString() ?? 'N/A';
-      final yearlyNew = (dietitianData['pendingYearlyPrice'] as num?)?.toString() ?? yearlyOld;
+      final yearlyOld =
+          (dietitianData['yearlyPrice'] as num?)?.toString() ?? 'N/A';
+      final yearlyNew =
+          (dietitianData['pendingYearlyPrice'] as num?)?.toString() ?? yearlyOld;
 
       // Get all subscribers (regardless of status)
       final subscribersSnapshot = await FirebaseFirestore.instance
@@ -1001,8 +1003,10 @@ class _PricingDialogState extends State<PricingDialog> {
           .get();
 
       print('Raw dietitian data: $dietitianData');
-      print('Monthly price type: ${dietitianData['monthlyPrice'].runtimeType}');
-      print('Pending monthly price type: ${dietitianData['pendingMonthlyPrice'].runtimeType}');
+      print(
+          'Monthly price type: ${dietitianData['monthlyPrice'].runtimeType}');
+      print(
+          'Pending monthly price type: ${dietitianData['pendingMonthlyPrice'].runtimeType}');
       // Send notification to each subscriber
       for (var subDoc in subscribersSnapshot.docs) {
         final clientId = subDoc.id;
@@ -1015,7 +1019,8 @@ class _PricingDialogState extends State<PricingDialog> {
 
         await notificationRef.set({
           'isRead': false,
-          'message': '$dietitianName has updated their pricing. New rates will be effective on ${_formatDate(effectiveDate)}.',
+          'message':
+          '$dietitianName has updated their pricing. New rates will be effective on ${_formatDate(effectiveDate)}.',
           'senderId': dietitianId,
           'senderName': dietitianName,
           'dietitianName': dietitianName,
@@ -1161,7 +1166,8 @@ class _PricingDialogState extends State<PricingDialog> {
                   children: [
                     Expanded(
                       child: OutlinedButton(
-                        onPressed: _isSaving ? null : () => Navigator.of(context).pop(),
+                        onPressed:
+                        _isSaving ? null : () => Navigator.of(context).pop(),
                         style: OutlinedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 14),
                           shape: RoundedRectangleBorder(
@@ -1262,7 +1268,8 @@ class _PricingDialogState extends State<PricingDialog> {
             ),
             filled: true,
             fillColor: Colors.grey.shade50,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           ),
           validator: (value) {
             if (value == null || value.isEmpty) {
@@ -1281,7 +1288,8 @@ class _PricingDialogState extends State<PricingDialog> {
 }
 
 // Function to show the pricing dialog
-Future<void> showPricingDialog(BuildContext context, Map<String, dynamic>? currentPricing) async {
+Future<void> showPricingDialog(
+    BuildContext context, Map<String, dynamic>? currentPricing) async {
   await showDialog(
     context: context,
     builder: (context) => PricingDialog(currentPricing: currentPricing),

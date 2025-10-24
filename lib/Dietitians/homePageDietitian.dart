@@ -19,6 +19,8 @@ import 'createMealPlan.dart';
 import 'dietitianProfile.dart';
 import '../email/appointmentEmail.dart';
 
+import 'package:mamas_recipe/widget/custom_snackbar.dart';
+
 import 'package:mamas_recipe/about/about_page.dart';
 
 // --- THEME & STYLING CONSTANTS (Available to the whole file) ---
@@ -532,7 +534,7 @@ class _AnalyticsDashboardState extends State<AnalyticsDashboard> {
     final receiptsSnap = await FirebaseFirestore.instance
         .collection('receipts')
         .where('dietitianID', isEqualTo: dietitianId)
-        .where('status', isEqualTo: 'approved')
+        .where('status')
         .get();
 
     for (var doc in receiptsSnap.docs) {
@@ -1675,9 +1677,12 @@ class _SubscriptionRequestsState extends State<SubscriptionRequests> {
 
   Future<void> _exportToExcel() async {
     if (_receiptsCache.isEmpty) {
-      ScaffoldMessenger.of(
+      CustomSnackBar.show(
         context,
-      ).showSnackBar(const SnackBar(content: Text("No data to export.")));
+        'No data to export.',
+        backgroundColor: Colors.orange,
+        icon: Icons.info_outline,
+      );
       return;
     }
 
@@ -1762,28 +1767,28 @@ class _SubscriptionRequestsState extends State<SubscriptionRequests> {
       if (mounted) Navigator.of(context).pop();
 
       if (filePath != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("Excel file saved successfully:\n$filePath"),
-            backgroundColor: const Color(0xFF4CAF50),
-            duration: const Duration(seconds: 5),
-          ),
+        CustomSnackBar.show(
+          context,
+          'Excel file saved successfully!\n$filePath',
+          backgroundColor: const Color(0xFF4CAF50),
+          icon: Icons.file_download_done,
+          duration: const Duration(seconds: 5),
         );
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("File saving was cancelled.")),
-        );
+        CustomSnackBar.show(context, 'File saving was cancelled.', backgroundColor: Colors.orange, icon: Icons.cancel_outlined);
       }
     } catch (e) {
       if (mounted) Navigator.of(context).pop();
       debugPrint('Error exporting to Excel: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error exporting to Excel: $e'),
+        if (mounted) {
+          CustomSnackBar.show(
+            context,
+            'Error exporting to Excel: $e',
             backgroundColor: Colors.red,
-          ),
-        );
+            icon: Icons.error_outline,
+          );
+        }
       }
     }
   }
@@ -1792,9 +1797,7 @@ class _SubscriptionRequestsState extends State<SubscriptionRequests> {
     try {
       final currentDietitian = FirebaseAuth.instance.currentUser;
       if (currentDietitian == null) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text("You must be logged in.")));
+        CustomSnackBar.show(context, 'You must be logged in.', backgroundColor: Colors.redAccent, icon: Icons.lock_outline);
         return;
       }
 
@@ -1847,16 +1850,22 @@ class _SubscriptionRequestsState extends State<SubscriptionRequests> {
           .doc(receiptId)
           .update({"status": "approved"});
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("User subscription approved!")),
+      CustomSnackBar.show(
+        context,
+        'User subscription approved!',
+        backgroundColor: const Color(0xFF4CAF50),
+        icon: Icons.check_circle_outline,
       );
 
       // Reload data
       await _loadReceipts();
     } catch (e) {
-      ScaffoldMessenger.of(
+      CustomSnackBar.show(
         context,
-      ).showSnackBar(SnackBar(content: Text("Error approving user: $e")));
+        'Error approving user: $e',
+        backgroundColor: Colors.redAccent,
+        icon: Icons.error_outline,
+      );
     }
   }
 
@@ -3052,11 +3061,11 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
           .update({'status': 'completed'});
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Appointment marked as completed!'),
-            backgroundColor: Color(0xFF4CAF50),
-          ),
+        CustomSnackBar.show(
+          context,
+          'Appointment marked as completed!',
+          backgroundColor: const Color(0xFF4CAF50),
+          icon: Icons.check_circle_outline,
         );
       }
 
@@ -3069,11 +3078,11 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
     } catch (e) {
       print("Error completing appointment: $e");
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error completing appointment: $e'),
-            backgroundColor: Colors.redAccent,
-          ),
+        CustomSnackBar.show(
+          context,
+          'Error completing appointment: $e',
+          backgroundColor: Colors.redAccent,
+          icon: Icons.error_outline,
         );
       }
     }
@@ -3082,8 +3091,11 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
   Future<void> _showScheduleAppointmentDialog(DateTime selectedDate) async {
     final User? currentDietitian = FirebaseAuth.instance.currentUser;
     if (currentDietitian == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('You need to be logged in.')),
+      CustomSnackBar.show(
+        context,
+        'You must be logged in.',
+        backgroundColor: Colors.redAccent,
+        icon: Icons.warning_outlined
       );
       return;
     }
@@ -3111,10 +3123,11 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
       }
 
       if (pendingClientIds.isEmpty && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('No pending appointment requests from clients.'),
-          ),
+        CustomSnackBar.show(
+          context,
+          'No pending appointment requests from clients.',
+          backgroundColor: Colors.orange,
+          icon: Icons.info_outline,
         );
         return;
       }
@@ -3131,18 +3144,12 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
       }
     } catch (e) {
       print("Error fetching clients with pending requests: $e");
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error fetching clients: $e')));
+      CustomSnackBar.show(context, 'Error fetching clients: $e', backgroundColor: Colors.red, icon: Icons.error_outline);
       return;
     }
 
     if (clients.isEmpty && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('No clients found with pending appointment requests.'),
-        ),
-      );
+      CustomSnackBar.show(context, 'No clients found with pending appointment requests.', backgroundColor: Colors.orange, icon: Icons.info_outline);
       return;
     }
 
@@ -3319,19 +3326,16 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
                   ),
                   onPressed: () {
                     if (selectedClientId == null) {
-                      ScaffoldMessenger.of(dialogContext).showSnackBar(
-                        const SnackBar(
-                          content: Text('Please select a client.'),
-                        ),
+                      CustomSnackBar.show(
+                        dialogContext,
+                        'Please select a client.',
+                        backgroundColor: Colors.redAccent,
+                        icon: Icons.warning_outlined
                       );
                       return;
                     }
                     if (selectedTime == null) {
-                      ScaffoldMessenger.of(dialogContext).showSnackBar(
-                        const SnackBar(
-                          content: Text('Please select an appointment time.'),
-                        ),
-                      );
+                      CustomSnackBar.show(dialogContext, 'Please select an appointment time.', backgroundColor: Colors.redAccent, icon: Icons.schedule_outlined);
                       return;
                     }
 
@@ -3454,21 +3458,21 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
       }
 
       if (!mounted) return;
-      ScaffoldMessenger.of(contextForSnackBar).showSnackBar(
-        SnackBar(
-          content: Text('Appointment scheduled with $clientName successfully!'),
-          backgroundColor: const Color(0xFF4CAF50),
-        ),
+      CustomSnackBar.show(
+        contextForSnackBar,
+        'Appointment scheduled with $clientName successfully!',
+        backgroundColor: const Color(0xFF4CAF50),
+        icon: Icons.check_circle_outline,
       );
       _loadAppointmentsForCalendar();
     } catch (e) {
       print("Error saving schedule: $e");
       if (!mounted) return;
-      ScaffoldMessenger.of(contextForSnackBar).showSnackBar(
-        SnackBar(
-          content: Text('Error saving schedule: $e'),
-          backgroundColor: Colors.redAccent,
-        ),
+      CustomSnackBar.show(
+        contextForSnackBar,
+        'Error saving schedule: $e',
+        backgroundColor: Colors.redAccent,
+        icon: Icons.error_outline,
       );
     }
   }
@@ -3680,13 +3684,7 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
                           if (_selectedDay != null) {
                             _showScheduleAppointmentDialog(_selectedDay!);
                           } else {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                  'Please select a day on the calendar first!',
-                                ),
-                              ),
-                            );
+                            CustomSnackBar.show(context, 'Please select a day on the calendar first!', backgroundColor: Colors.redAccent, icon: Icons.calendar_today_outlined);
                           }
                         },
                       ),

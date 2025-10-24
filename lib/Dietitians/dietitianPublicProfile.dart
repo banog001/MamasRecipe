@@ -5,10 +5,13 @@ import '../pages/home.dart';
 import 'package:intl/intl.dart';
 import '../plan/choosePlan.dart';
 
+import 'package:mamas_recipe/widget/custom_snackbar.dart';
+
 // --- Theme Helpers (Copied from other files) ---
 const String _primaryFontFamily = 'PlusJakartaSans';
 const Color _primaryColor = Color(0xFF4CAF50);
 const Color _textColorOnPrimary = Colors.white;
+
 
 Color _scaffoldBgColor(BuildContext context) =>
     Theme.of(context).brightness == Brightness.dark
@@ -202,11 +205,21 @@ class _DietitianPublicProfileState extends State<DietitianPublicProfile> {
   Future<void> _toggleFollow() async {
     final user = _auth.currentUser;
     if (user == null) {
-      ScaffoldMessenger.of(context).showSnackBar( const SnackBar(content: Text('Please log in to follow dietitians')),);
+      CustomSnackBar.show(
+        context,
+        'Please log in to follow dietitians',
+        backgroundColor: Colors.redAccent,
+        icon: Icons.lock_outline,
+      );
       return;
     }
     if (user.uid == widget.dietitianId) {
-      ScaffoldMessenger.of(context).showSnackBar( const SnackBar(content: Text('You cannot follow yourself')), );
+      CustomSnackBar.show(
+        context,
+        'You cannot follow yourself',
+        backgroundColor: Colors.orange,
+        icon: Icons.block_outlined,
+      );
       return;
     }
 
@@ -248,8 +261,12 @@ class _DietitianPublicProfileState extends State<DietitianPublicProfile> {
       await batch.commit();
     } catch (e) {
       debugPrint('Error toggling follow: $e');
-      ScaffoldMessenger.of(context).showSnackBar( SnackBar(content: Text('Error: $e')),);
-
+      CustomSnackBar.show(
+        context,
+        'Error: $e',
+        backgroundColor: Colors.red,
+        icon: Icons.error_outline,
+      );
       if (mounted) {
         setState(() {
           _isFollowing = previousFollowingState;
@@ -327,8 +344,11 @@ class _DietitianPublicProfileState extends State<DietitianPublicProfile> {
                       .get();
 
                   if (!dietitianDoc.exists) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Dietitian not found')),
+                    CustomSnackBar.show(
+                      context,
+                      'Dietitian not found',
+                      backgroundColor: Colors.orange,
+                      icon: Icons.person_off_outlined,
                     );
                     return;
                   }
@@ -350,8 +370,11 @@ class _DietitianPublicProfileState extends State<DietitianPublicProfile> {
                   }
                 } catch (e) {
                   debugPrint('Error navigating to choose plan: $e');
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Error: $e')),
+                  CustomSnackBar.show(
+                    context,
+                    'Error: $e',
+                    backgroundColor: Colors.red,
+                    icon: Icons.error_outline,
                   );
                 }
               }
@@ -433,8 +456,11 @@ class _DietitianPublicProfileState extends State<DietitianPublicProfile> {
                         .get();
 
                     if (!dietitianDoc.exists) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Dietitian not found')),
+                      CustomSnackBar.show(
+                        context,
+                        'Dietitian not found',
+                        backgroundColor: Colors.orange,
+                        icon: Icons.person_off_outlined,
                       );
                       return;
                     }
@@ -456,8 +482,11 @@ class _DietitianPublicProfileState extends State<DietitianPublicProfile> {
                     }
                   } catch (e) {
                     debugPrint('Error navigating to choose plan: $e');
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Error: $e')),
+                    CustomSnackBar.show(
+                      context,
+                      'Error: $e',
+                      backgroundColor: Colors.red,
+                      icon: Icons.error_outline,
                     );
                   }
                 },
@@ -619,13 +648,29 @@ class _DietitianPublicProfileState extends State<DietitianPublicProfile> {
                                 onPressed: () async {
                                   try {
                                     final doc = await FirebaseFirestore.instance .collection('Users').doc(widget.dietitianId).get();
-                                    if (!doc.exists) { ScaffoldMessenger.of(context).showSnackBar( const SnackBar(content: Text('Dietitian not found')),); return; }
+                                    if (!doc.exists) {
+                                      CustomSnackBar.show(
+                                        context,
+                                        'Dietitian not found',
+                                        backgroundColor: Colors.orange,
+                                        icon: Icons.person_off_outlined,
+                                      );
+                                      return;
+                                    }
+
                                     final data = doc.data()!;
                                     final dietitianEmail = data['email'] ?? 'No email';
                                     if (mounted) {
                                       Navigator.push( context, MaterialPageRoute( builder: (context) => ChoosePlanPage( dietitianName: widget.dietitianName, dietitianEmail: dietitianEmail, dietitianProfile: widget.dietitianProfile,),),);
                                     }
-                                  } catch (e) { debugPrint('Error navigating to choose plan: $e'); ScaffoldMessenger.of(context).showSnackBar( SnackBar(content: Text('Error: $e')),); }
+                                  } catch (e) { debugPrint('Error navigating to choose plan: $e');
+                                  CustomSnackBar.show(
+                                    context,
+                                    'Error: $e',
+                                    backgroundColor: Colors.red,
+                                    icon: Icons.error_outline,
+                                  );
+                                  }
                                 },
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: _primaryColor,

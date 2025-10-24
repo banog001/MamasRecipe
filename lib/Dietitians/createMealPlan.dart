@@ -2,45 +2,53 @@ import 'package:flutter/material.dart';
 import 'mealEntry.dart'; // Ensure this and MealPlanPreviewPage are correctly defined and imported
 import 'mealPlanPreview.dart';
 
-// --- Style Definitions (Add these or import from a shared style file) ---
-const String _primaryFontFamily = 'PlusJakartaSans'; // Or your chosen font
-const Color _primaryColor = Color(0xFF4CAF50);    // Your theme green
-const Color _accentColor = Color(0xFF66BB6A);     // Lighter green for accents
+// --- Style Definitions (Now fully theme-aware) ---
+const String _primaryFontFamily = 'PlusJakartaSans';
+const Color _primaryColor = Color(0xFF4CAF50);
 const Color _textColorOnPrimary = Colors.white;
-const Color _destructiveColor = Colors.redAccent; // For delete buttons
-const Color _neutralButtonColor = Colors.blueGrey; // For cancel or less prominent actions
+const Color _destructiveColor = Colors.redAccent;
+const Color _neutralButtonColor = Colors.blueGrey;
 
-// Helper for general text
-TextStyle _getTextStyle(BuildContext context, {
-  double fontSize = 16,
-  FontWeight fontWeight = FontWeight.normal,
-  Color? color,
-  String fontFamily = _primaryFontFamily,
-  double? letterSpacing,
-}) {
-  final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-  // Fallback to sensible defaults based on theme brightness if color isn't provided
-  final Color defaultTextColor = color ?? (isDarkMode ? Colors.white70 : Colors.black87);
+Color _getScaffoldBgColor(BuildContext context) =>
+    Theme.of(context).brightness == Brightness.dark
+        ? Colors.black
+        : Colors.grey.shade100;
+
+Color _getCardBgColor(BuildContext context) =>
+    Theme.of(context).brightness == Brightness.dark
+        ? Colors.grey.shade900
+        : Colors.white;
+
+Color _inputFillColor(BuildContext context) =>
+    Theme.of(context).brightness == Brightness.dark
+        ? Colors.grey.shade800
+        : Colors.grey.shade200;
+
+Color _getTextColorPrimary(BuildContext context) =>
+    Theme.of(context).brightness == Brightness.dark
+        ? Colors.white
+        : Colors.black87;
+
+Color _getTextColorSecondary(BuildContext context) =>
+    Theme.of(context).brightness == Brightness.dark
+        ? Colors.white70
+        : Colors.grey.shade700;
+
+TextStyle _getTextStyle(
+    BuildContext context, {
+      double fontSize = 16,
+      FontWeight fontWeight = FontWeight.normal,
+      Color? color,
+      String fontFamily = _primaryFontFamily,
+    }) {
+  final defaultTextColor = color ?? _getTextColorPrimary(context);
   return TextStyle(
     fontFamily: fontFamily,
     fontSize: fontSize,
     fontWeight: fontWeight,
     color: defaultTextColor,
-    letterSpacing: letterSpacing,
   );
 }
-
-Color _getScaffoldBgColor(BuildContext context) =>
-    Theme.of(context).brightness == Brightness.dark ? Colors.grey.shade900 : Colors.grey.shade100;
-
-Color _getCardBgColor(BuildContext context) =>
-    Theme.of(context).brightness == Brightness.dark ? Colors.grey.shade800 : Colors.white;
-
-Color _getTextColorPrimary(BuildContext context) =>
-    Theme.of(context).brightness == Brightness.dark ? Colors.white70 : Colors.black87;
-
-Color _getTextColorSecondary(BuildContext context) =>
-    Theme.of(context).brightness == Brightness.dark ? Colors.white54 : Colors.black54;
 // --- End Style Definitions ---
 
 class CreateMealPlanPage extends StatefulWidget {
@@ -71,180 +79,6 @@ class _CreateMealPlanPageState extends State<CreateMealPlanPage> {
     "Midnight Snack": const TimeOfDay(hour: 21, minute: 0),
   };
 
-  Future<void> _pickTime(String mealKey) async {
-    final picked = await showTimePicker(
-      context: context,
-      initialTime: mealTimes[mealKey]!,
-      builder: (context, child) { // Optional: Theme the picker
-        return Theme(
-          data: ThemeData.light().copyWith( // Or ThemeData.dark()
-            colorScheme: const ColorScheme.light(primary: _primaryColor),
-            buttonTheme: const ButtonThemeData(textTheme: ButtonTextTheme.primary),
-          ),
-          child: child!,
-        );
-      },
-    );
-    if (picked != null && mounted) {
-      setState(() {
-        mealTimes[mealKey] = picked;
-      });
-    }
-  }
-
-  Widget _buildStyledTextField({
-    required TextEditingController controller,
-    required String hintText,
-    IconData? prefixIcon, // Optional prefix icon
-  }) {
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    final fillColor = isDarkMode ? Colors.grey[700]!.withOpacity(0.5) : Colors.grey[200];
-    final hintColor = isDarkMode ? Colors.grey[400] : Colors.grey[500];
-    final inputTextColor = _getTextColorPrimary(context);
-    final focusedBorderColor = _accentColor;
-
-    return TextFormField(
-      controller: controller,
-      style: _getTextStyle(context, color: inputTextColor, fontSize: 15),
-      decoration: InputDecoration(
-        hintText: hintText,
-        hintStyle: _getTextStyle(context, color: hintColor, fontSize: 14, letterSpacing: 0.2),
-        prefixIcon: prefixIcon != null
-            ? Padding(
-          padding: const EdgeInsets.only(left: 14.0, right: 10.0),
-          child: Icon(prefixIcon, color: _primaryColor.withOpacity(0.7), size: 20),
-        )
-            : null,
-        filled: true,
-        fillColor: fillColor,
-        contentPadding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 16.0),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.withOpacity(0.3), width: 1)),
-        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: focusedBorderColor, width: 2)),
-      ),
-    );
-  }
-
-
-  Widget buildMealRow(String mealName, String key) {
-    final time = mealTimes[key]!;
-    final formattedTime = time.format(context);
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-
-    return Card( // Wrap each meal row in a Card for better visual structure
-      elevation: 2,
-      margin: const EdgeInsets.symmetric(vertical: 10.0),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      color: _getCardBgColor(context),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              mealName,
-              style: _getTextStyle(context, fontSize: 18, fontWeight: FontWeight.bold, color: _getTextColorPrimary(context)),
-            ),
-            const SizedBox(height: 12),
-
-            // Dynamic textboxes using the new styled text field
-            Column(
-              children: List.generate(mealControllers[key]!.length, (index) {
-                return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 6.0),
-                  child: _buildStyledTextField( // Using the styled text field
-                    controller: mealControllers[key]![index],
-                    hintText: "Enter meal details for item ${index + 1}",
-                    // prefixIcon: Icons.restaurant_menu_outlined, // Example icon
-                  ),
-                );
-              }),
-            ),
-            const SizedBox(height: 16),
-
-            // Buttons row
-            Wrap(
-              spacing: 12, // Increased spacing
-              runSpacing: 10, // Increased run spacing
-              alignment: WrapAlignment.start,
-              children: [
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Icon(Icons.access_time_rounded, color: _primaryColor, size: 20),
-                    const SizedBox(width: 6),
-                    Text(
-                      "Set Time:",
-                      style: _getTextStyle(context, fontSize: 14, color: _getTextColorSecondary(context)),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      formattedTime,
-                      style: _getTextStyle(context, fontSize: 15, fontWeight: FontWeight.bold, color: _primaryColor),
-                    ),
-                  ],
-                ),
-                ElevatedButton.icon(
-                  onPressed: () => _pickTime(key),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _accentColor,
-                    foregroundColor: _textColorOnPrimary,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                    textStyle: _getTextStyle(context, fontSize: 13, fontWeight: FontWeight.w500, color: _textColorOnPrimary),
-                  ),
-                  icon: const Icon(Icons.edit_calendar_outlined, size: 18),
-                  label: const Text("Edit Time"),
-                ),
-                ElevatedButton.icon(
-                  onPressed: () {
-                    if (mounted) {
-                      setState(() {
-                        mealControllers[key]!.add(TextEditingController());
-                      });
-                    }
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _primaryColor, // Changed color
-                    foregroundColor: _textColorOnPrimary,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                    textStyle: _getTextStyle(context, fontSize: 13, fontWeight: FontWeight.w500, color: _textColorOnPrimary),
-                  ),
-                  icon: const Icon(Icons.add_circle_outline_rounded, size: 18),
-                  label: const Text("Add Item"),
-                ),
-                if (mealControllers[key]!.length > 1) // Only show delete if more than one item
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      if (mounted) {
-                        setState(() {
-                          if (mealControllers[key]!.length > 1) {
-                            // Also dispose the controller being removed
-                            mealControllers[key]!.removeLast().dispose();
-                          }
-                        });
-                      }
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: _destructiveColor,
-                      foregroundColor: _textColorOnPrimary,
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                      textStyle: _getTextStyle(context, fontSize: 13, fontWeight: FontWeight.w500, color: _textColorOnPrimary),
-                    ),
-                    icon: const Icon(Icons.remove_circle_outline_rounded, size: 18),
-                    label: const Text("Delete Last"),
-                  ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   @override
   void dispose() {
     // Dispose all TextEditingControllers
@@ -256,39 +90,265 @@ class _CreateMealPlanPageState extends State<CreateMealPlanPage> {
     super.dispose();
   }
 
+  Future<void> _pickTime(String mealKey) async {
+    // Get the current theme to check for dark mode
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: mealTimes[mealKey]!,
+      builder: (context, child) {
+        // This theme now correctly handles both dark and light modes
+        return Theme(
+          data: theme.copyWith(
+            colorScheme: theme.colorScheme.copyWith(
+              // The main header background of the time picker
+              primary: _primaryColor,
+              // The text on the header (AM/PM, time)
+              onPrimary: _textColorOnPrimary,
+              // The background of the clock dial
+              surface: isDark ? Colors.grey.shade800 : Colors.white,
+              // The numbers on the clock dial
+              onSurface: _getTextColorPrimary(context),
+            ),
+            // Style for the "OK" and "Cancel" buttons
+            textButtonTheme: TextButtonThemeData(
+              style: TextButton.styleFrom(
+                foregroundColor: _primaryColor, // Button text color
+                textStyle: const TextStyle(
+                  fontFamily: _primaryFontFamily,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
+              ),
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null && mounted) {
+      setState(() {
+        mealTimes[mealKey] = picked;
+      });
+    }
+  }
+
+  // --- NEW: Re-styled Text Field ---
+  Widget _buildStyledTextField({
+    required TextEditingController controller,
+    required String hintText,
+    IconData? prefixIcon,
+  }) {
+    return TextFormField(
+      controller: controller,
+      style: _getTextStyle(context, fontSize: 15),
+      decoration: InputDecoration(
+        hintText: hintText,
+        hintStyle:
+        _getTextStyle(context, color: _getTextColorSecondary(context)),
+        filled: true,
+        fillColor: _inputFillColor(context),
+        prefixIcon: prefixIcon != null
+            ? Icon(prefixIcon, color: _primaryColor.withOpacity(0.7), size: 20)
+            : null,
+        contentPadding:
+        const EdgeInsets.symmetric(vertical: 16.0, horizontal: 16.0),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: _primaryColor, width: 2),
+        ),
+      ),
+    );
+  }
+
+  // --- NEW: Re-styled Time Picker Button ---
+  Widget _buildTimePickerButton(BuildContext context, String mealKey) {
+    final time = mealTimes[mealKey]!;
+    return Padding(
+      padding: const EdgeInsets.only(top: 8.0, bottom: 8.0),
+      child: InkWell(
+        onTap: () => _pickTime(mealKey),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          decoration: BoxDecoration(
+            color: _inputFillColor(context),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Meal Time: ${time.format(context)}',
+                style: _getTextStyle(
+                  context,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: _getTextColorPrimary(context),
+                ),
+              ),
+              const Icon(Icons.edit_calendar_outlined, color: _primaryColor),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // --- NEW: Refactored Meal Row Builder ---
+  Widget buildMealRow(String mealName, String key) {
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 10.0),
+      padding: const EdgeInsets.all(16.0),
+      decoration: BoxDecoration(
+        color: _getCardBgColor(context),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          )
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            mealName,
+            style: _getTextStyle(context,
+                fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 12),
+
+          // --- This is your new styled Time Picker ---
+          _buildTimePickerButton(context, key),
+          const SizedBox(height: 12),
+
+          // Dynamic textboxes
+          Column(
+            children: List.generate(mealControllers[key]!.length, (index) {
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 6.0),
+                child: _buildStyledTextField(
+                  controller: mealControllers[key]![index],
+                  hintText: "Enter item ${index + 1}",
+                  prefixIcon: Icons.restaurant_menu_outlined,
+                ),
+              );
+            }),
+          ),
+          const SizedBox(height: 16),
+
+          // Buttons row
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            alignment: WrapAlignment.start,
+            children: [
+              // Add Item Button
+              ElevatedButton.icon(
+                onPressed: () {
+                  if (mounted) {
+                    setState(() {
+                      mealControllers[key]!.add(TextEditingController());
+                    });
+                  }
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _primaryColor,
+                  foregroundColor: _textColorOnPrimary,
+                  padding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8)),
+                  textStyle: _getTextStyle(context,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      color: _textColorOnPrimary),
+                ),
+                icon: const Icon(Icons.add_circle_outline_rounded, size: 18),
+                label: const Text("Add Item"),
+              ),
+
+              // Delete Last Button
+              if (mealControllers[key]!.length > 1)
+                ElevatedButton.icon(
+                  onPressed: () {
+                    if (mounted) {
+                      setState(() {
+                        if (mealControllers[key]!.length > 1) {
+                          mealControllers[key]!.removeLast().dispose();
+                        }
+                      });
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _destructiveColor,
+                    foregroundColor: _textColorOnPrimary,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 10),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8)),
+                    textStyle: _getTextStyle(context,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                        color: _textColorOnPrimary),
+                  ),
+                  icon:
+                  const Icon(Icons.remove_circle_outline_rounded, size: 18),
+                  label: const Text("Delete Last"),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-
     return Scaffold(
-      backgroundColor: _getScaffoldBgColor(context), // Themed background
+      backgroundColor: _getScaffoldBgColor(context),
       appBar: AppBar(
-        leading: BackButton(color: isDarkMode ? _textColorOnPrimary : _primaryColor), // Themed back button
-        backgroundColor: isDarkMode ? _primaryColor.withGreen(100) : Colors.white, // Themed AppBar background
-        foregroundColor: isDarkMode ? _textColorOnPrimary : _primaryColor, // For title and actions
+        backgroundColor: _getCardBgColor(context),
+        foregroundColor: _getTextColorPrimary(context),
         title: Text(
           "Create New Meal Plan",
-          style: _getTextStyle(context, fontSize: 20, fontWeight: FontWeight.bold, color: isDarkMode ? _textColorOnPrimary : _primaryColor),
+          style: _getTextStyle(context,
+              fontSize: 20, fontWeight: FontWeight.bold),
         ),
         centerTitle: true,
-        elevation: 1.0, // Subtle elevation
+        elevation: 1.0,
       ),
-      body: SingleChildScrollView( // Changed to SingleChildScrollView for potentially long forms
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
-        child: Column( // Main content in a Column
+        child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Dropdown for meal plan type
+            // --- NEW: Re-styled Dropdown ---
             Padding(
-              padding: const EdgeInsets.only(top: 8.0, bottom: 20.0), // Added bottom padding
+              padding: const EdgeInsets.only(top: 8.0, bottom: 20.0),
               child: DropdownButtonFormField<String>(
                 value: selectedPlanType,
                 items: const [
-                  DropdownMenuItem(value: "Weight Loss", child: Text("Weight Loss Program")),
-                  DropdownMenuItem(value: "Weight Gain", child: Text("Weight Gain Program")),
-                  DropdownMenuItem(value: "Maintain Weight", child: Text("Maintain Weight")),
-                  DropdownMenuItem(value: "Work Out", child: Text("Fitness & Workout Plan")),
+                  DropdownMenuItem(
+                      value: "Weight Loss", child: Text("Weight Loss Program")),
+                  DropdownMenuItem(
+                      value: "Weight Gain", child: Text("Weight Gain Program")),
+                  DropdownMenuItem(
+                      value: "Maintain Weight",
+                      child: Text("Maintain Weight")),
+                  DropdownMenuItem(
+                      value: "Work Out",
+                      child: Text("Fitness & Workout Plan")),
                 ],
                 onChanged: (value) {
                   if (value != null && mounted) {
@@ -297,33 +357,32 @@ class _CreateMealPlanPageState extends State<CreateMealPlanPage> {
                     });
                   }
                 },
-                style: _getTextStyle(context, fontSize: 16, color: _getTextColorPrimary(context)),
+                style: _getTextStyle(context, fontSize: 16),
                 decoration: InputDecoration(
-                    labelText: "Select Meal Plan Type",
-                    labelStyle: _getTextStyle(context, fontSize: 14, color: _primaryColor),
-                    filled: true,
-                    fillColor: isDarkMode ? Colors.grey[700]?.withOpacity(0.5) : Colors.grey[200],
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none,
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Colors.grey.withOpacity(0.3), width: 1)
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: _accentColor, width: 2),
-                    ),
-                    prefixIcon: const Padding(
-                      padding: EdgeInsets.only(left: 14.0, right:10.0),
-                      child: Icon(Icons.category_outlined, color: _primaryColor, size: 20),
-                    )
+                  labelText: "Select Meal Plan Type",
+                  labelStyle:
+                  _getTextStyle(context, color: _primaryColor),
+                  filled: true,
+                  fillColor: _inputFillColor(context),
+                  contentPadding: const EdgeInsets.symmetric(
+                      vertical: 16.0, horizontal: 16.0),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: _primaryColor, width: 2),
+                  ),
+                  prefixIcon: const Padding(
+                    padding: EdgeInsets.only(left: 14.0, right: 10.0),
+                    child:
+                    Icon(Icons.category_outlined, color: _primaryColor, size: 20),
+                  ),
                 ),
                 dropdownColor: _getCardBgColor(context),
               ),
             ),
-            // const SizedBox(height: 10), // Reduced space as Card will add margin
 
             buildMealRow("Breakfast", "Breakfast"),
             buildMealRow("AM Snack", "AM Snack"),
@@ -332,24 +391,28 @@ class _CreateMealPlanPageState extends State<CreateMealPlanPage> {
             buildMealRow("Dinner", "Dinner"),
             buildMealRow("Midnight Snack", "Midnight Snack"),
 
-            const SizedBox(height: 30), // Increased spacing before action buttons
+            const SizedBox(height: 30),
             Row(
               children: [
                 Expanded(
                   child: ElevatedButton.icon(
                     onPressed: () => Navigator.pop(context),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: _neutralButtonColor, // Themed
+                      backgroundColor: _neutralButtonColor,
                       foregroundColor: _textColorOnPrimary,
                       padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      textStyle: _getTextStyle(context, fontSize: 16, fontWeight: FontWeight.bold, color: _textColorOnPrimary),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                      textStyle: _getTextStyle(context,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: _textColorOnPrimary),
                     ),
                     icon: const Icon(Icons.cancel_outlined, size: 20),
                     label: const Text("Cancel"),
                   ),
                 ),
-                const SizedBox(width: 16), // Increased spacing
+                const SizedBox(width: 16),
                 Expanded(
                   child: ElevatedButton.icon(
                     onPressed: () {
@@ -357,7 +420,10 @@ class _CreateMealPlanPageState extends State<CreateMealPlanPage> {
                       mealControllers.forEach((key, controllers) {
                         meals.add(MealEntry(
                           name: key,
-                          items: controllers.map((c) => c.text.trim()).where((t) => t.isNotEmpty).toList(),
+                          items: controllers
+                              .map((c) => c.text.trim())
+                              .where((t) => t.isNotEmpty)
+                              .toList(),
                           time: mealTimes[key]!,
                         ));
                       });
@@ -373,11 +439,15 @@ class _CreateMealPlanPageState extends State<CreateMealPlanPage> {
                       );
                     },
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: _primaryColor, // Themed
+                      backgroundColor: _primaryColor,
                       foregroundColor: _textColorOnPrimary,
                       padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      textStyle: _getTextStyle(context, fontSize: 16, fontWeight: FontWeight.bold, color: _textColorOnPrimary),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                      textStyle: _getTextStyle(context,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: _textColorOnPrimary),
                     ),
                     icon: const Icon(Icons.arrow_forward_ios_rounded, size: 18),
                     label: const Text("Next"),
@@ -385,7 +455,7 @@ class _CreateMealPlanPageState extends State<CreateMealPlanPage> {
                 ),
               ],
             ),
-            const SizedBox(height: 20), // Padding at the bottom
+            const SizedBox(height: 20),
           ],
         ),
       ),

@@ -14,6 +14,53 @@ class UserProfile extends StatefulWidget {
 class _UserProfileState extends State<UserProfile> {
   bool _isFavoritesActive = true;
 
+
+  // --- NEW: BACKGROUND SHAPES WIDGET ---
+  Widget _buildProfileBackground(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    // Use a subtle shade of the primary color
+    final shapeColor =
+    isDark ? _primaryColor.withOpacity(0.08) : _primaryColor.withOpacity(0.05);
+
+    return Positioned.fill(
+      child: Container(
+        // The base color is already set by scaffold.
+        // This container just holds the shapes.
+        child: Stack(
+          clipBehavior: Clip.none, // Allow shapes to go off-screen
+          children: [
+            Positioned(
+              top: 80, // Will be partially under the green header
+              right: -150,
+              child: Container(
+                width: 300,
+                height: 300,
+                decoration: BoxDecoration(
+                  color: shapeColor,
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ),
+            Positioned(
+              bottom: -100,
+              left: -120,
+              child: Container(
+                width: 400,
+                height: 400,
+                decoration: BoxDecoration(
+                  color: shapeColor,
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // --- (Your main 'build' method goes here) ---
+
   // Matching home.dart design system
   static const String _primaryFontFamily = 'PlusJakartaSans';
   static const Color _primaryColor = Color(0xFF4CAF50);
@@ -399,8 +446,10 @@ class _UserProfileState extends State<UserProfile> {
         }
 
         final data = snapshot.data!;
-        final double weight = double.tryParse(data["currentWeight"].toString()) ?? 0.0;
-        final double height = double.tryParse(data["height"].toString()) ?? 0.0;
+        final double weight =
+            double.tryParse(data["currentWeight"].toString()) ?? 0.0;
+        final double height =
+            double.tryParse(data["height"].toString()) ?? 0.0;
         final double bmi = _calculateBMI(weight, height);
         final String displayName = user.displayName ?? "Unknown User";
         final String? profileUrl = data['profile'];
@@ -421,403 +470,481 @@ class _UserProfileState extends State<UserProfile> {
             elevation: 1,
             iconTheme: const IconThemeData(color: _textColorOnPrimary),
           ),
-          body: SingleChildScrollView(
-            physics: const ClampingScrollPhysics(),
-            child: Column(
-              children: [
-                // Profile Header
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
-                  decoration: BoxDecoration(
-                    color: _primaryColor,
-                    borderRadius: const BorderRadius.vertical(
-                      bottom: Radius.circular(24),
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
-                        blurRadius: 8,
-                        offset: const Offset(0, 3),
-                      )
-                    ],
-                  ),
-                  child: Column(
-                    children: [
-                      Stack(
+          // --- BODY IS NOW A STACK ---
+          body: Stack(
+            children: [
+              // 1. NEW: THE BACKGROUND SHAPES
+              _buildProfileBackground(context),
+
+              // 2. YOUR ORIGINAL SCROLLABLE CONTENT
+              SingleChildScrollView(
+                physics: const ClampingScrollPhysics(),
+                child: Column(
+                  children: [
+                    // Profile Header
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+                      decoration: BoxDecoration(
+                        color: _primaryColor,
+                        borderRadius: const BorderRadius.vertical(
+                          bottom: Radius.circular(24),
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 8,
+                            offset: const Offset(0, 3),
+                          )
+                        ],
+                      ),
+                      child: Column(
                         children: [
-                          Container(
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              border: Border.all(color: Colors.white, width: 3),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.15),
-                                  spreadRadius: 1,
-                                  blurRadius: 6,
-                                  offset: const Offset(0, 2),
-                                )
-                              ],
-                            ),
-                            child: CircleAvatar(
-                              radius: 40,
-                              backgroundColor: Colors.white,
-                              backgroundImage: (profileUrl != null &&
-                                  profileUrl.isNotEmpty)
-                                  ? NetworkImage(profileUrl)
-                                  : null,
-                              child: (profileUrl == null || profileUrl.isEmpty)
-                                  ? const Icon(
-                                Icons.person_outline,
-                                size: 42,
-                                color: _primaryColor,
-                              )
-                                  : null,
-                            ),
-                          ),
-                          Positioned(
-                            bottom: 0,
-                            right: 0,
-                            child: Material(
-                              color: Colors.white,
-                              shape: const CircleBorder(),
-                              elevation: 2,
-                              child: InkWell(
-                                onTap: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) =>
-                                      const EditProfilePage(),
-                                    ),
-                                  );
-                                },
-                                customBorder: const CircleBorder(),
-                                child: const Padding(
-                                  padding: EdgeInsets.all(6.0),
-                                  child: Icon(
-                                    Icons.edit_outlined,
-                                    size: 18,
+                          Stack(
+                            children: [
+                              Container(
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  border:
+                                  Border.all(color: Colors.white, width: 3),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.15),
+                                      spreadRadius: 1,
+                                      blurRadius: 6,
+                                      offset: const Offset(0, 2),
+                                    )
+                                  ],
+                                ),
+                                child: CircleAvatar(
+                                  radius: 40,
+                                  backgroundColor: Colors.white,
+                                  backgroundImage: (profileUrl != null &&
+                                      profileUrl.isNotEmpty)
+                                      ? NetworkImage(profileUrl)
+                                      : null,
+                                  child:
+                                  (profileUrl == null || profileUrl.isEmpty)
+                                      ? const Icon(
+                                    Icons.person_outline,
+                                    size: 42,
                                     color: _primaryColor,
+                                  )
+                                      : null,
+                                ),
+                              ),
+                              Positioned(
+                                bottom: 0,
+                                right: 0,
+                                child: Material(
+                                  color: Colors.white,
+                                  shape: const CircleBorder(),
+                                  elevation: 2,
+                                  child: InkWell(
+                                    onTap: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) =>
+                                          const EditProfilePage(),
+                                        ),
+                                      );
+                                    },
+                                    customBorder: const CircleBorder(),
+                                    child: const Padding(
+                                      padding: EdgeInsets.all(6.0),
+                                      child: Icon(
+                                        Icons.edit_outlined,
+                                        size: 18,
+                                        color: _primaryColor,
+                                      ),
+                                    ),
                                   ),
                                 ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          Text(
+                            displayName,
+                            style: _getTextStyle(
+                              context,
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: _textColorOnPrimary,
+                            ),
+                          ),
+                          if (user.email != null && user.email!.isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              user.email!,
+                              style: _getTextStyle(
+                                context,
+                                fontSize: 14,
+                                color: _textColorOnPrimary.withOpacity(0.8),
+                              ),
+                            ),
+                          ]
+                        ],
+                      ),
+                    ),
+
+                    // Health Overview
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            "Health Overview",
+                            style: _getTextStyle(
+                              context,
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          Card(
+                            elevation: 3,
+                            color: _cardBgColor(context),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Column(
+                                children: [
+                                  Row(
+                                    mainAxisAlignment:
+                                    MainAxisAlignment.spaceAround,
+                                    children: [
+                                      _InfoCard(
+                                        icon: Icons.monitor_weight_outlined,
+                                        label: "Weight",
+                                        value:
+                                        "${weight.toStringAsFixed(1)} kg",
+                                        context: context,
+                                      ),
+                                      _InfoCard(
+                                        icon: Icons.height_outlined,
+                                        label: "Height",
+                                        value:
+                                        "${height.toStringAsFixed(1)} cm",
+                                        context: context,
+                                      ),
+                                      _InfoCard(
+                                        icon: Icons.assessment_outlined,
+                                        label: "BMI",
+                                        value: bmi > 0
+                                            ? bmi.toStringAsFixed(1)
+                                            : "--",
+                                        context: context,
+                                        bmiCategory:
+                                        data['bmiCategory'] ?? 'Unknown',
+                                        categoryColor: _getBMICategoryColor(
+                                            data['bmiCategory']),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 16),
+                                  _buildBMIStatusCard(data, context),
+                                ],
                               ),
                             ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 10),
-                      Text(
-                        displayName,
-                        style: _getTextStyle(
-                          context,
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: _textColorOnPrimary,
-                        ),
-                      ),
-                      if (user.email != null && user.email!.isNotEmpty) ...[
-                        const SizedBox(height: 4),
-                        Text(
-                          user.email!,
-                          style: _getTextStyle(
-                            context,
-                            fontSize: 14,
-                            color: _textColorOnPrimary.withOpacity(0.8),
+                    ),
+
+                    // BMI History Card
+                    _buildBMIHistoryCard(data, context),
+
+                    // Meal Plans Section
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 8),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            "My Meal Plans",
+                            style: _getTextStyle(
+                              context,
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
-                        ),
-                      ]
-                    ],
-                  ),
-                ),
-
-                // Health Overview
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        "Health Overview",
-                        style: _getTextStyle(
-                          context,
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      Card(
-                        elevation: 3,
-                        color: _cardBgColor(context),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Column(
-                            children: [
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                          const SizedBox(height: 10),
+                          Card(
+                            elevation: 3,
+                            color: _cardBgColor(context),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Column(
                                 children: [
-                                  _InfoCard(
-                                    icon: Icons.monitor_weight_outlined,
-                                    label: "Weight",
-                                    value: "${weight.toStringAsFixed(1)} kg",
-                                    context: context,
-                                  ),
-                                  _InfoCard(
-                                    icon: Icons.height_outlined,
-                                    label: "Height",
-                                    value: "${height.toStringAsFixed(1)} cm",
-                                    context: context,
-                                  ),
-                                  _InfoCard(
-                                    icon: Icons.assessment_outlined,
-                                    label: "BMI",
-                                    value: bmi > 0 ? bmi.toStringAsFixed(1) : "--",
-                                    context: context,
-                                    bmiCategory: data['bmiCategory'] ?? 'Unknown',
-                                    categoryColor: _getBMICategoryColor(data['bmiCategory']),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 16),
-                              _buildBMIStatusCard(data, context),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                // BMI History Card
-                _buildBMIHistoryCard(data, context),
-
-                // Meal Plans Section
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        "My Meal Plans",
-                        style: _getTextStyle(
-                          context,
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      Card(
-                        elevation: 3,
-                        color: _cardBgColor(context),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Column(
-                            children: [
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: ElevatedButton(
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: _isFavoritesActive
-                                            ? _primaryColor
-                                            : _cardBgColor(context),
-                                        foregroundColor: _isFavoritesActive
-                                            ? _textColorOnPrimary
-                                            : _textColorPrimary(context),
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                          BorderRadius.circular(12),
-                                          side: _isFavoritesActive
-                                              ? BorderSide.none
-                                              : BorderSide(
-                                              color: _primaryColor
-                                                  .withOpacity(0.3)),
-                                        ),
-                                        padding: const EdgeInsets.symmetric(
-                                            vertical: 12),
-                                        elevation: _isFavoritesActive ? 2 : 0,
-                                      ),
-                                      onPressed: () {
-                                        if (!_isFavoritesActive) {
-                                          setState(() {
-                                            _isFavoritesActive = true;
-                                          });
-                                        }
-                                      },
-                                      child: Text(
-                                        "Favorites",
-                                        style: _getTextStyle(
-                                          context,
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.bold,
-                                          color: _isFavoritesActive
-                                              ? _textColorOnPrimary
-                                              : _primaryColor,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 10),
-                                  Expanded(
-                                    child: ElevatedButton(
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: !_isFavoritesActive
-                                            ? _primaryColor
-                                            : _cardBgColor(context),
-                                        foregroundColor: !_isFavoritesActive
-                                            ? _textColorOnPrimary
-                                            : _textColorPrimary(context),
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                          BorderRadius.circular(12),
-                                          side: !_isFavoritesActive
-                                              ? BorderSide.none
-                                              : BorderSide(
-                                              color: _primaryColor
-                                                  .withOpacity(0.3)),
-                                        ),
-                                        padding: const EdgeInsets.symmetric(
-                                            vertical: 12),
-                                        elevation: !_isFavoritesActive ? 2 : 0,
-                                      ),
-                                      onPressed: () {
-                                        if (_isFavoritesActive) {
-                                          setState(() {
-                                            _isFavoritesActive = false;
-                                          });
-                                        }
-                                      },
-                                      child: Text(
-                                        "My Plans",
-                                        style: _getTextStyle(
-                                          context,
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.bold,
-                                          color: !_isFavoritesActive
-                                              ? _textColorOnPrimary
-                                              : _primaryColor,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 16),
-                              if (_isFavoritesActive)
-                                FutureBuilder<List<Map<String, dynamic>>>(
-                                  future: _getFavoriteMealPlans(user.uid),
-                                  builder: (context, snapshot) {
-                                    if (snapshot.connectionState == ConnectionState.waiting) {
-                                      return const Center(
-                                        child: CircularProgressIndicator(color: _primaryColor),
-                                      );
-                                    }
-
-                                    if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                                      return Container(
-                                        height: 120,
-                                        alignment: Alignment.center,
-                                        child: Text(
-                                          "No favorite meal plans yet",
-                                          style: _getTextStyle(
-                                            context,
-                                            fontSize: 14,
-                                            color: _textColorSecondary(context),
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: ElevatedButton(
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: _isFavoritesActive
+                                                ? _primaryColor
+                                                : _cardBgColor(context),
+                                            foregroundColor: _isFavoritesActive
+                                                ? _textColorOnPrimary
+                                                : _textColorPrimary(context),
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                              BorderRadius.circular(12),
+                                              side: _isFavoritesActive
+                                                  ? BorderSide.none
+                                                  : BorderSide(
+                                                  color: _primaryColor
+                                                      .withOpacity(0.3)),
+                                            ),
+                                            padding: const EdgeInsets.symmetric(
+                                                vertical: 12),
+                                            elevation:
+                                            _isFavoritesActive ? 2 : 0,
                                           ),
-                                          textAlign: TextAlign.center,
-                                        ),
-                                      );
-                                    }
-
-                                    final mealPlans = snapshot.data!;
-
-                                    return Column(
-                                      children: mealPlans.map((plan) {
-                                        final dietitianId = plan['owner'] ?? '';
-
-                                        return FutureBuilder<bool>(
-                                          future: _checkSubscriptionToDietitian(user.uid, dietitianId),
-                                          builder: (context, subSnapshot) {
-                                            bool isSubscribed = subSnapshot.data ?? false;
-
-                                            return Column(
-                                              crossAxisAlignment: CrossAxisAlignment.start,
-                                              children: [
-                                                Padding(
-                                                  padding: const EdgeInsets.only(bottom: 8.0),
-                                                  child: Column(
-                                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                                    children: [
-                                                      Text(
-                                                        "Dietitian name: ${plan['ownerName'] ?? 'Unknown'}",
-                                                        style: _getTextStyle(context, fontSize: 14, fontWeight: FontWeight.bold),
-                                                      ),
-                                                      const SizedBox(height: 4),
-                                                      Text(
-                                                        "Meal plan type: ${plan['planType'] ?? 'N/A'}",
-                                                        style: _getTextStyle(context, fontSize: 13),
-                                                      ),
-                                                    ],
-                                                  ),
-                                                ),
-                                                Table(
-                                                  columnWidths: const {
-                                                    0: FlexColumnWidth(1.5),
-                                                    1: FlexColumnWidth(2.5),
-                                                    2: FlexColumnWidth(1.2),
-                                                  },
-                                                  border: TableBorder.symmetric(
-                                                    inside: BorderSide(color: Colors.grey.shade300),
-                                                  ),
-                                                  children: [
-                                                    _buildMealRow3("Breakfast", plan['breakfast'], plan['breakfastTime'], true),
-                                                    _buildMealRow3("AM Snack", plan['amSnack'], plan['amSnackTime'], isSubscribed),
-                                                    _buildMealRow3("Lunch", plan['lunch'], plan['lunchTime'], isSubscribed),
-                                                    _buildMealRow3("PM Snack", plan['pmSnack'], plan['pmSnackTime'], isSubscribed),
-                                                    _buildMealRow3("Dinner", plan['dinner'], plan['dinnerTime'], isSubscribed),
-                                                    _buildMealRow3("Midnight Snack", plan['midnightSnack'], plan['midnightSnackTime'], isSubscribed),
-                                                  ],
-                                                ),
-                                                const SizedBox(height: 16),
-                                              ],
-                                            );
+                                          onPressed: () {
+                                            if (!_isFavoritesActive) {
+                                              setState(() {
+                                                _isFavoritesActive = true;
+                                              });
+                                            }
                                           },
-                                        );
-                                      }).toList(),
-                                    );
-                                  },
-                                )
-                              else
-                                Container(
-                                  height: 120,
-                                  alignment: Alignment.center,
-                                  child: Text(
-                                    "Your created meal plans will appear here",
-                                    style: _getTextStyle(
-                                      context,
-                                      fontSize: 14,
-                                      color: _textColorSecondary(context),
-                                    ),
-                                    textAlign: TextAlign.center,
+                                          child: Text(
+                                            "Favorites",
+                                            style: _getTextStyle(
+                                              context,
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.bold,
+                                              color: _isFavoritesActive
+                                                  ? _textColorOnPrimary
+                                                  : _primaryColor,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        child: ElevatedButton(
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: !_isFavoritesActive
+                                                ? _primaryColor
+                                                : _cardBgColor(context),
+                                            foregroundColor: !_isFavoritesActive
+                                                ? _textColorOnPrimary
+                                                : _textColorPrimary(context),
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                              BorderRadius.circular(12),
+                                              side: !_isFavoritesActive
+                                                  ? BorderSide.none
+                                                  : BorderSide(
+                                                  color: _primaryColor
+                                                      .withOpacity(0.3)),
+                                            ),
+                                            padding: const EdgeInsets.symmetric(
+                                                vertical: 12),
+                                            elevation:
+                                            !_isFavoritesActive ? 2 : 0,
+                                          ),
+                                          onPressed: () {
+                                            if (_isFavoritesActive) {
+                                              setState(() {
+                                                _isFavoritesActive = false;
+                                              });
+                                            }
+                                          },
+                                          child: Text(
+                                            "My Plans",
+                                            style: _getTextStyle(
+                                              context,
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.bold,
+                                              color: !_isFavoritesActive
+                                                  ? _textColorOnPrimary
+                                                  : _primaryColor,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                ),
-                            ],
+                                  const SizedBox(height: 16),
+                                  if (_isFavoritesActive)
+                                    FutureBuilder<
+                                        List<Map<String, dynamic>>>(
+                                      future: _getFavoriteMealPlans(user.uid),
+                                      builder: (context, snapshot) {
+                                        if (snapshot.connectionState ==
+                                            ConnectionState.waiting) {
+                                          return const Center(
+                                            child: CircularProgressIndicator(
+                                                color: _primaryColor),
+                                          );
+                                        }
+
+                                        if (!snapshot.hasData ||
+                                            snapshot.data!.isEmpty) {
+                                          return Container(
+                                            height: 120,
+                                            alignment: Alignment.center,
+                                            child: Text(
+                                              "No favorite meal plans yet",
+                                              style: _getTextStyle(
+                                                context,
+                                                fontSize: 14,
+                                                color: _textColorSecondary(
+                                                    context),
+                                              ),
+                                              textAlign: TextAlign.center,
+                                            ),
+                                          );
+                                        }
+
+                                        final mealPlans = snapshot.data!;
+
+                                        return Column(
+                                          children: mealPlans.map((plan) {
+                                            final dietitianId =
+                                                plan['owner'] ?? '';
+
+                                            return FutureBuilder<bool>(
+                                              future:
+                                              _checkSubscriptionToDietitian(
+                                                  user.uid, dietitianId),
+                                              builder: (context, subSnapshot) {
+                                                bool isSubscribed =
+                                                    subSnapshot.data ?? false;
+
+                                                return Column(
+                                                  crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                                  children: [
+                                                    Padding(
+                                                      padding:
+                                                      const EdgeInsets.only(
+                                                          bottom: 8.0),
+                                                      child: Column(
+                                                        crossAxisAlignment:
+                                                        CrossAxisAlignment
+                                                            .start,
+                                                        children: [
+                                                          Text(
+                                                            "Dietitian name: ${plan['ownerName'] ?? 'Unknown'}",
+                                                            style:
+                                                            _getTextStyle(
+                                                                context,
+                                                                fontSize:
+                                                                14,
+                                                                fontWeight:
+                                                                FontWeight
+                                                                    .bold),
+                                                          ),
+                                                          const SizedBox(
+                                                              height: 4),
+                                                          Text(
+                                                            "Meal plan type: ${plan['planType'] ?? 'N/A'}",
+                                                            style:
+                                                            _getTextStyle(
+                                                                context,
+                                                                fontSize:
+                                                                13),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ),
+                                                    Table(
+                                                      columnWidths: const {
+                                                        0: FlexColumnWidth(1.5),
+                                                        1: FlexColumnWidth(2.5),
+                                                        2: FlexColumnWidth(1.2),
+                                                      },
+                                                      border:
+                                                      TableBorder.symmetric(
+                                                        inside: BorderSide(
+                                                            color: Colors
+                                                                .grey.shade300),
+                                                      ),
+                                                      children: [
+                                                        _buildMealRow3(
+                                                            "Breakfast",
+                                                            plan['breakfast'],
+                                                            plan[
+                                                            'breakfastTime'],
+                                                            true),
+                                                        _buildMealRow3(
+                                                            "AM Snack",
+                                                            plan['amSnack'],
+                                                            plan['amSnackTime'],
+                                                            isSubscribed),
+                                                        _buildMealRow3(
+                                                            "Lunch",
+                                                            plan['lunch'],
+                                                            plan['lunchTime'],
+                                                            isSubscribed),
+                                                        _buildMealRow3(
+                                                            "PM Snack",
+                                                            plan['pmSnack'],
+                                                            plan['pmSnackTime'],
+                                                            isSubscribed),
+                                                        _buildMealRow3(
+                                                            "Dinner",
+                                                            plan['dinner'],
+                                                            plan['dinnerTime'],
+                                                            isSubscribed),
+                                                        _buildMealRow3(
+                                                            "Midnight Snack",
+                                                            plan[
+                                                            'midnightSnack'],
+                                                            plan[
+                                                            'midnightSnackTime'],
+                                                            isSubscribed),
+                                                      ],
+                                                    ),
+                                                    const SizedBox(height: 16),
+                                                  ],
+                                                );
+                                              },
+                                            );
+                                          }).toList(),
+                                        );
+                                      },
+                                    )
+                                  else
+                                    Container(
+                                      height: 120,
+                                      alignment: Alignment.center,
+                                      child: Text(
+                                        "Your created meal plans will appear here",
+                                        style: _getTextStyle(
+                                          context,
+                                          fontSize: 14,
+                                          color: _textColorSecondary(context),
+                                        ),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
                           ),
-                        ),
+                        ],
                       ),
-                    ],
-                  ),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
                 ),
-                const SizedBox(height: 16),
-              ],
-            ),
+              ),
+            ],
           ),
+          // --- BOTTOM NAV BAR (Unchanged) ---
           bottomNavigationBar: Container(
             decoration: BoxDecoration(
               color: _primaryColor,

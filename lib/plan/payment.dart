@@ -9,6 +9,8 @@ import '../email/paymentNotifDietitian.dart';
 import '../pages/home.dart';
 import 'package:dotted_border/dotted_border.dart'; // Import for receipt preview
 
+import 'package:mamas_recipe/widget/custom_snackbar.dart';
+
 // --- Theme Helpers ---
 const String _primaryFontFamily = 'PlusJakartaSans';
 const Color _primaryColor = Color(0xFF4CAF50);
@@ -194,8 +196,12 @@ class _PaymentPageState extends State<PaymentPage> {
     final fileSizeMB = imageFile.lengthSync() / (1024 * 1024);
 
     if (fileSizeMB > 10) {
-      _showErrorSnackBar(
-          "Image too large (${fileSizeMB.toStringAsFixed(2)} MB). Max 10 MB.");
+      CustomSnackBar.show(
+        context,
+        'Image too large (${fileSizeMB.toStringAsFixed(2)} MB). Max 10 MB.',
+        backgroundColor: Colors.redAccent,
+        icon: Icons.error_outline,
+      );
       return;
     }
 
@@ -206,9 +212,19 @@ class _PaymentPageState extends State<PaymentPage> {
       setState(() {
         _uploadedReceiptUrl = uploadedUrl;
       });
-      _showSuccessSnackBar("Receipt uploaded successfully");
+      CustomSnackBar.show(
+        context,
+        'Receipt uploaded successfully',
+        backgroundColor: const Color(0xFF4CAF50),
+        icon: Icons.check_circle_outline,
+      );
     } else {
-      _showErrorSnackBar("Failed to upload receipt");
+      CustomSnackBar.show(
+        context,
+        'Failed to upload receipt',
+        backgroundColor: Colors.redAccent,
+        icon: Icons.error_outline,
+      );
     }
     setState(() => _isUploading = false);
   }
@@ -216,15 +232,30 @@ class _PaymentPageState extends State<PaymentPage> {
   Future<void> _saveReceiptData() async {
     final user = _auth.currentUser;
     if (user == null) {
-      _showErrorSnackBar("User not logged in.");
+      CustomSnackBar.show(
+        context,
+        'User not logged in.',
+        backgroundColor: Colors.redAccent,
+        icon: Icons.lock_outline,
+      );
       return;
     }
     if (_uploadedReceiptUrl == null) {
-      _showErrorSnackBar("Please upload your receipt first.");
+      CustomSnackBar.show(
+        context,
+        'Please upload your receipt first.',
+        backgroundColor: Colors.orange,
+        icon: Icons.warning_outlined,
+      );
       return;
     }
     if (_resolvedDietitianId == null) {
-      _showErrorSnackBar("Error: Dietitian information not found.");
+      CustomSnackBar.show(
+        context,
+        'Error: Dietitian information not found.',
+        backgroundColor: Colors.redAccent,
+        icon: Icons.error_outline,
+      );
       return;
     }
 
@@ -269,8 +300,13 @@ class _PaymentPageState extends State<PaymentPage> {
       await _updateDietitianStats();
       if (!mounted) return;
 
-      _showSuccessSnackBar(
-          "Receipt submitted! Your subscription will be activated after approval.");
+      CustomSnackBar.show(
+        context,
+        'Receipt submitted! Your subscription will be activated after approval.',
+        backgroundColor: const Color(0xFF4CAF50),
+        icon: Icons.check_circle_outline,
+        duration: const Duration(seconds: 4),
+      );
 
       Navigator.pushAndRemoveUntil(
         context,
@@ -280,7 +316,12 @@ class _PaymentPageState extends State<PaymentPage> {
     } catch (e) {
       debugPrint("Error saving receipt: $e");
       if (!mounted) return;
-      _showErrorSnackBar("Error: $e");
+      CustomSnackBar.show(
+        context,
+        'Error: $e',
+        backgroundColor: Colors.redAccent,
+        icon: Icons.error_outline,
+      );
     } finally {
       if (mounted) setState(() => _isUploading = false);
     }
@@ -337,41 +378,7 @@ class _PaymentPageState extends State<PaymentPage> {
   // --- End backend logic functions ---
 
   // --- Styled SnackBars ---
-  void _showErrorSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            Icon(Icons.error_outline, color: _textColorOnPrimary),
-            const SizedBox(width: 12),
-            Expanded(child: Text(message)),
-          ],
-        ),
-        backgroundColor: Colors.redAccent,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        margin: const EdgeInsets.all(16),
-      ),
-    );
-  }
 
-  void _showSuccessSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            Icon(Icons.check_circle_outline, color: _textColorOnPrimary),
-            const SizedBox(width: 12),
-            Expanded(child: Text(message)),
-          ],
-        ),
-        backgroundColor: _primaryColor,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        margin: const EdgeInsets.all(16),
-      ),
-    );
-  }
   // --- End Styled SnackBars ---
 
   @override
