@@ -2278,14 +2278,20 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
     }
   }
 
-  void _showCancelConfirmationDialog(String appointmentId, Map<String, dynamic> appointmentData) {
+  void _showCancelConfirmationDialog(
+      String appointmentId, Map<String, dynamic> appointmentData) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: const Text('Cancel Appointment?', style: TextStyle(fontWeight: FontWeight.bold)),
-          content: const Text('Are you sure you want to cancel this appointment? This action cannot be undone.'),
+          title: const Text(
+            'Cancel Appointment?',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+          content: const Text(
+            'Are you sure you want to cancel this appointment? This action cannot be undone.',
+          ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
@@ -2299,7 +2305,9 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.red,
                 foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
               child: const Text('Yes, Cancel'),
             ),
@@ -2308,240 +2316,261 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
       },
     );
   }
-  void _showCancellationReasonDialog(String appointmentId, Map<String, dynamic> appointmentData) {
-    final TextEditingController reasonController = TextEditingController();
+
+  void _showCancellationReasonDialog(
+      String appointmentId, Map<String, dynamic> appointmentData) {
+    final ValueNotifier<String?> selectedReason = ValueNotifier(null);
+
+    final List<String> cancellationReasons = [
+      'Schedule conflict',
+      'Feeling unwell',
+      'Emergency situation',
+      'Need to reschedule',
+      'Financial reasons',
+      'Found another provider',
+      'No longer needed',
+      'Personal reasons',
+    ];
 
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (BuildContext dialogContext) {
-        return Dialog(
+        return AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          insetPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-          child: SingleChildScrollView(
-            child: Padding(
-              padding: EdgeInsets.all(20),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Title
-                  Row(
-                    children: [
-                      Container(
-                        padding: EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.red.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Icon(
-                          Icons.warning_outlined,
-                          color: Colors.red,
-                          size: 24,
-                        ),
-                      ),
-                      SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          'Cancellation Reason',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontFamily: _primaryFontFamily,
-                            fontSize: 18,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: 20),
-
-                  // Description
-                  Text(
-                    'Please provide a reason for cancelling this appointment:',
-                    style: TextStyle(
-                      fontFamily: _primaryFontFamily,
-                      fontSize: 14,
-                      color: Colors.black87,
-                    ),
-                  ),
-                  SizedBox(height: 16),
-
-                  // Text field with fixed height
-                  Container(
-                    constraints: BoxConstraints(maxHeight: 120),
-                    child: TextField(
-                      controller: reasonController,
-                      maxLines: 4,
-                      minLines: 3,
-                      keyboardType: TextInputType.multiline,
-                      textInputAction: TextInputAction.done,
-                      decoration: InputDecoration(
-                        hintText: 'Enter your reason here...',
-                        hintStyle: TextStyle(color: Colors.grey.shade500),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: Colors.grey.shade300),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: _primaryColor, width: 2),
-                        ),
-                        filled: true,
-                        fillColor: Colors.grey[50],
-                        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                      ),
-                    ),
-                  ),
-                  SizedBox(height: 20),
-
-                  // Buttons
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      TextButton(
-                        onPressed: () {
-                          reasonController.dispose();
-                          Navigator.of(dialogContext).pop();
-                        },
-                        child: Text(
-                          'Back',
-                          style: TextStyle(
-                            fontFamily: _primaryFontFamily,
-                            fontSize: 14,
-                          ),
-                        ),
-                      ),
-                      SizedBox(width: 12),
-                      ElevatedButton(
-                        onPressed: () {
-                          if (reasonController.text.trim().isEmpty) {
-                            CustomSnackBar.show(
-                              context,
-                              'Please provide a reason for cancellation',
-                              backgroundColor: Colors.orange,
-                              icon: Icons.warning,
-                              duration: const Duration(seconds: 2),
-                            );
-                            return;
-                          }
-                          final reason = reasonController.text.trim();
-                          reasonController.dispose();
-                          Navigator.of(dialogContext).pop();
-
-                          // Call cancel with proper parameters
-                          _cancelAppointment(appointmentId, reason, appointmentData);
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.red,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                        ),
-                        child: Text(
-                          'Submit',
-                          style: TextStyle(
-                            fontFamily: _primaryFontFamily,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+          title: Row(
+            children: const [
+              Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 28),
+              SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Cancellation Reason',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                ),
               ),
+            ],
+          ),
+          contentPadding: const EdgeInsets.fromLTRB(24, 12, 24, 0),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Please select a reason for cancelling:',
+                  style: TextStyle(fontSize: 14),
+                ),
+                const SizedBox(height: 12),
+                ValueListenableBuilder<String?>(
+                  valueListenable: selectedReason,
+                  builder: (context, selected, child) {
+                    return Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: cancellationReasons.map((reason) {
+                        return RadioListTile<String>(
+                          title: Text(
+                            reason,
+                            style: const TextStyle(fontSize: 14),
+                          ),
+                          value: reason,
+                          groupValue: selected,
+                          activeColor: Colors.orange,
+                          contentPadding: EdgeInsets.zero,
+                          dense: true,
+                          onChanged: (value) {
+                            selectedReason.value = value;
+                          },
+                        );
+                      }).toList(),
+                    );
+                  },
+                ),
+                const SizedBox(height: 8),
+                const Row(
+                  children: [
+                    Icon(Icons.info_outline, size: 16, color: Colors.grey),
+                    SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        'A reason is required to cancel.',
+                        style: TextStyle(fontSize: 12, color: Colors.grey),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop();
+                selectedReason.dispose();
+              },
+              child: const Text('Back', style: TextStyle(color: Colors.grey)),
+            ),
+            ValueListenableBuilder<String?>(
+              valueListenable: selectedReason,
+              builder: (context, selected, child) {
+                return ElevatedButton(
+                  onPressed: selected != null
+                      ? () async {
+                    final reason = selected;
+
+                    // Close the reason dialog
+                    Navigator.of(dialogContext).pop();
+
+                    // Dispose the notifier
+                    selectedReason.dispose();
+
+                    // Show progress dialog using root context
+                    if (!mounted) return;
+
+                    showDialog(
+                      context: this.context,
+                      barrierDismissible: false,
+                      builder: (progressContext) => WillPopScope(
+                        onWillPop: () async => false,
+                        child: Center(
+                          child: Material(
+                            color: Colors.transparent,
+                            child: Container(
+                              constraints: const BoxConstraints(
+                                maxWidth: 200,
+                                minHeight: 100,
+                              ),
+                              child: Card(
+                                shape: const RoundedRectangleBorder(
+                                  borderRadius:
+                                  BorderRadius.all(Radius.circular(16)),
+                                ),
+                                child: const Padding(
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: 24,
+                                    vertical: 20,
+                                  ),
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      CircularProgressIndicator(
+                                          color: Colors.orange),
+                                      SizedBox(height: 16),
+                                      Text(
+                                        'Cancelling appointment...',
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+
+                    // Perform cancellation
+                    await _cancelAppointment(
+                        appointmentId, reason, appointmentData);
+
+                    // Close progress dialog
+                    if (mounted && Navigator.of(this.context).canPop()) {
+                      Navigator.of(this.context).pop();
+                    }
+                  }
+                      : null,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor:
+                    selected != null ? Colors.red : Colors.grey.shade300,
+                    foregroundColor:
+                    selected != null ? Colors.white : Colors.grey.shade500,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  ),
+                  child: const Text('Submit'),
+                );
+              },
+            ),
+          ],
+          actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
         );
       },
-    );
+    ).then((_) {
+      // Clean up if dialog is dismissed
+      if (selectedReason.hasListeners) {
+        selectedReason.dispose();
+      }
+    });
   }
-  Future<void> _cancelAppointment(String appointmentId, String reason, Map<String, dynamic> appointmentData) async {
-    try {
-      // Get the reference first
-      final appointmentRef = FirebaseFirestore.instance
-          .collection('schedules')
-          .doc(appointmentId);
 
-      // Check if the document exists before updating
+  Future<void> _cancelAppointment(String appointmentId, String reason,
+      Map<String, dynamic> appointmentData) async {
+    if (reason.trim().isEmpty) {
+      if (mounted) {
+        CustomSnackBar.show(
+          context,
+          'Cancellation reason is required',
+          backgroundColor: Colors.redAccent,
+          icon: Icons.error,
+        );
+      }
+      return;
+    }
+
+    try {
+      final appointmentRef =
+      FirebaseFirestore.instance.collection('schedules').doc(appointmentId);
+
       final docSnapshot = await appointmentRef.get();
 
       if (!docSnapshot.exists) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text('Appointment not found'),
-              backgroundColor: Colors.redAccent,
-              behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            ),
+          CustomSnackBar.show(
+            context,
+            'Appointment not found',
+            backgroundColor: Colors.redAccent,
+            icon: Icons.error,
           );
         }
         return;
       }
 
-      // Perform the update with proper error handling
       await appointmentRef.update({
         'status': 'cancelled',
-        'cancellationReason': reason,
+        'cancellationReason': reason.trim(),
         'cancelledBy': 'client',
         'cancelledAt': FieldValue.serverTimestamp(),
-      }).catchError((error) {
-        throw Exception('Failed to update appointment: $error');
       });
 
-      // Use post frame callback to avoid build issues
-      if (mounted) {
-        WidgetsBinding.instance.addPostFrameCallback((_) async {
-          await _loadAppointmentsForCalendar();
+      await _loadAppointmentsForCalendar();
 
-          if (mounted) {
-            if (mounted) {
-              CustomSnackBar.show(
-                context,
-                'Appointment cancelled successfully',
-                backgroundColor: Colors.orange,
-                icon: Icons.cancel,
-                duration: const Duration(seconds: 2),
-              );
-            }
-
-          }
-        });
-      }
-    } on FirebaseException catch (e) {
-      print("FirebaseException cancelling appointment: $e");
       if (mounted) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) {
-            CustomSnackBar.show(
-              context,
-              'Error: ${e.message}',
-              backgroundColor: Colors.redAccent,
-              icon: Icons.error,
-              duration: const Duration(seconds: 3),
-            );
-          }
-        });
+        CustomSnackBar.show(
+          context,
+          'Appointment cancelled successfully',
+          backgroundColor: Colors.orange,
+          icon: Icons.check_circle,
+          duration: const Duration(seconds: 2),
+        );
       }
     } catch (e) {
-      print("Error cancelling appointment: $e");
+      debugPrint("Error cancelling appointment: $e");
       if (mounted) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Error cancelling appointment: $e'),
-                backgroundColor: Colors.redAccent,
-                behavior: SnackBarBehavior.floating,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              ),
-            );
-          }
-        });
+        CustomSnackBar.show(
+          context,
+          'Failed to cancel appointment. Please try again.',
+          backgroundColor: Colors.redAccent,
+          icon: Icons.error,
+          duration: const Duration(seconds: 3),
+        );
       }
     }
   }
+
 
   Future<List<Map<String, dynamic>>> _fetchLikedMealPlansWithOwners(String? userId) async {
     if (userId == null) return [];
@@ -2920,18 +2949,37 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Container(
-                        padding: const EdgeInsets.all(12),
+                        padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: _primaryColor.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(10),
+                          gradient: LinearGradient(
+                            colors: [
+                              _primaryColor.withOpacity(0.15),
+                              _primaryColor.withOpacity(0.05),
+                            ],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: _primaryColor.withOpacity(0.3),
+                            width: 1,
+                          ),
                         ),
                         child: Row(
                           children: [
-                            Icon(Icons.info_outline, color: _primaryColor),
-                            const SizedBox(width: 10),
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: _primaryColor.withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Icon(Icons.touch_app,
+                                  color: _primaryColor, size: 24),
+                            ),
+                            const SizedBox(width: 12),
                             Expanded(
                               child: Text(
-                                "Drag and drop meal plans to schedule your week",
+                                "Long press and drag meal plans to schedule your week",
                                 style: _getTextStyle(
                                   context,
                                   color: _primaryColor,
@@ -2944,10 +2992,16 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
                         ),
                       ),
                       const SizedBox(height: 24),
-                      Text(
-                        "Your Meal Plans",
-                        style: _getTextStyle(context,
-                            fontSize: 18, fontWeight: FontWeight.w700),
+                      Row(
+                        children: [
+                          Icon(Icons.favorite, color: _primaryColor, size: 22),
+                          const SizedBox(width: 8),
+                          Text(
+                            "Your Meal Plans",
+                            style: _getTextStyle(context,
+                                fontSize: 18, fontWeight: FontWeight.w700),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 16),
                       Wrap(
@@ -2960,28 +3014,36 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
                                 color: Colors.transparent,
                                 child: _planCard(plan, isDragging: true)),
                             childWhenDragging:
-                            Opacity(opacity: 0.5, child: _planCard(plan)),
+                            Opacity(opacity: 0.3, child: _planCard(plan)),
                             child: _planCard(plan),
                           );
                         }).toList(),
                       ),
                       const SizedBox(height: 32),
-                      Text(
-                        "Weekly Schedule",
-                        style: _getTextStyle(context,
-                            fontSize: 18, fontWeight: FontWeight.w700),
+                      Row(
+                        children: [
+                          Icon(Icons.calendar_month,
+                              color: _primaryColor, size: 22),
+                          const SizedBox(width: 8),
+                          Text(
+                            "Weekly Schedule",
+                            style: _getTextStyle(context,
+                                fontSize: 18, fontWeight: FontWeight.w700),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 16),
                       if (_isLoadingSchedule)
                         const Center(
                           child: Padding(
                             padding: EdgeInsets.all(40.0),
-                            child: CircularProgressIndicator(color: _primaryColor),
+                            child:
+                            CircularProgressIndicator(color: _primaryColor),
                           ),
                         )
                       else
                         SizedBox(
-                          height: 280, // Increased height for better padding
+                          height: 320,
                           child: ListView.builder(
                             scrollDirection: Axis.horizontal,
                             itemCount: orderedDays.length,
@@ -2992,26 +3054,38 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
                               final formattedDate =
                                   "${_monthAbbrev(date.month)} ${date.day}";
                               final plan = _weeklySchedule[day];
+                              final isToday = date.day == now.day &&
+                                  date.month == now.month &&
+                                  date.year == now.year;
 
                               return DragTarget<Map<String, dynamic>>(
                                 onAccept: (receivedPlan) {
-                                  _saveMealPlanToSchedule(
-                                      day, date, receivedPlan);
+                                  _saveMealPlanToSchedule(day, date, receivedPlan);
                                 },
-                                builder:
-                                    (context, candidateData, rejectedData) {
+                                builder: (context, candidateData, rejectedData) {
+                                  final isHovering = candidateData.isNotEmpty;
                                   return Container(
-                                    width: 250,
+                                    width: 270,
                                     margin: const EdgeInsets.only(right: 12),
-                                    padding: const EdgeInsets.all(12.0),
+                                    padding: const EdgeInsets.all(14.0),
                                     decoration: BoxDecoration(
-                                      color: _cardBgColor(context),
-                                      borderRadius: BorderRadius.circular(12),
+                                      color: isHovering
+                                          ? _primaryColor.withOpacity(0.1)
+                                          : _cardBgColor(context),
+                                      borderRadius: BorderRadius.circular(16),
+                                      border: Border.all(
+                                        color: isToday
+                                            ? _primaryColor
+                                            : isHovering
+                                            ? _primaryColor.withOpacity(0.5)
+                                            : Colors.transparent,
+                                        width: isToday ? 2 : 1,
+                                      ),
                                       boxShadow: [
                                         BoxShadow(
-                                          color: Colors.black.withOpacity(0.05),
-                                          blurRadius: 8,
-                                          offset: const Offset(0, 2),
+                                          color: Colors.black.withOpacity(0.08),
+                                          blurRadius: 12,
+                                          offset: const Offset(0, 4),
                                         ),
                                       ],
                                     ),
@@ -3019,89 +3093,300 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
                                       crossAxisAlignment:
                                       CrossAxisAlignment.start,
                                       children: [
-                                        Text(
-                                          day,
-                                          style: _getTextStyle(context,
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 16),
+                                        Row(
+                                          mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            Column(
+                                              crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                              children: [
+                                                Row(
+                                                  children: [
+                                                    Text(
+                                                      day,
+                                                      style: _getTextStyle(context,
+                                                          fontWeight:
+                                                          FontWeight.bold,
+                                                          fontSize: 16),
+                                                    ),
+                                                    if (isToday) ...[
+                                                      const SizedBox(width: 6),
+                                                      Container(
+                                                        padding: const EdgeInsets
+                                                            .symmetric(
+                                                            horizontal: 6,
+                                                            vertical: 2),
+                                                        decoration: BoxDecoration(
+                                                          color: _primaryColor,
+                                                          borderRadius:
+                                                          BorderRadius.circular(
+                                                              4),
+                                                        ),
+                                                        child: Text(
+                                                          'TODAY',
+                                                          style: _getTextStyle(
+                                                            context,
+                                                            fontSize: 10,
+                                                            fontWeight:
+                                                            FontWeight.bold,
+                                                            color: Colors.white,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ],
+                                                ),
+                                                Text(
+                                                  formattedDate,
+                                                  style: _getTextStyle(context,
+                                                      color: _textColorSecondary(
+                                                          context),
+                                                      fontSize: 12),
+                                                ),
+                                              ],
+                                            ),
+                                            if (plan != null)
+                                              IconButton(
+                                                padding: EdgeInsets.zero,
+                                                constraints:
+                                                const BoxConstraints(),
+                                                icon: const Icon(Icons.close,
+                                                    color: Colors.redAccent,
+                                                    size: 20),
+                                                onPressed: () {
+                                                  _deleteMealPlanFromSchedule(
+                                                      day, date);
+                                                },
+                                              ),
+                                          ],
                                         ),
-                                        Text(
-                                          formattedDate,
-                                          style: _getTextStyle(context,
-                                              color: _textColorSecondary(context),
-                                              fontSize: 13),
-                                        ),
-                                        const SizedBox(height: 10),
+                                        const SizedBox(height: 12),
                                         if (plan == null)
                                           Expanded(
-                                            child: Center(
-                                              child: Text(
-                                                "Drop plan here",
-                                                style: _getTextStyle(context,
-                                                    fontSize: 13,
-                                                    color: _textColorSecondary(
-                                                        context)),
+                                            child: Container(
+                                              decoration: BoxDecoration(
+                                                color: _primaryColor
+                                                    .withOpacity(0.05),
+                                                borderRadius:
+                                                BorderRadius.circular(12),
+                                                border: Border.all(
+                                                  color: _primaryColor
+                                                      .withOpacity(0.2),
+                                                  width: 2,
+                                                  style: BorderStyle.solid,
+                                                ),
+                                              ),
+                                              child: Center(
+                                                child: Column(
+                                                  mainAxisAlignment:
+                                                  MainAxisAlignment.center,
+                                                  children: [
+                                                    Icon(
+                                                      Icons.add_circle_outline,
+                                                      color: _primaryColor
+                                                          .withOpacity(0.4),
+                                                      size: 32,
+                                                    ),
+                                                    const SizedBox(height: 8),
+                                                    Text(
+                                                      "Drop plan here",
+                                                      style: _getTextStyle(context,
+                                                          fontSize: 13,
+                                                          fontWeight:
+                                                          FontWeight.w500,
+                                                          color:
+                                                          _textColorSecondary(
+                                                              context)),
+                                                    ),
+                                                  ],
+                                                ),
                                               ),
                                             ),
                                           )
                                         else
                                           Expanded(
-                                            child: SingleChildScrollView(
-                                              physics:
-                                              const BouncingScrollPhysics(),
-                                              child: Column(
-                                                crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                                children: [
-                                                  Row(
-                                                    mainAxisAlignment:
-                                                    MainAxisAlignment
-                                                        .spaceBetween,
+                                            child: Column(
+                                              crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                              children: [
+                                                Container(
+                                                  padding:
+                                                  const EdgeInsets.symmetric(
+                                                      horizontal: 10,
+                                                      vertical: 6),
+                                                  decoration: BoxDecoration(
+                                                    gradient: LinearGradient(
+                                                      colors: [
+                                                        _primaryColor,
+                                                        _primaryColor
+                                                            .withOpacity(0.7),
+                                                      ],
+                                                    ),
+                                                    borderRadius:
+                                                    BorderRadius.circular(8),
+                                                  ),
+                                                  child: Row(
+                                                    mainAxisSize:
+                                                    MainAxisSize.min,
                                                     children: [
-                                                      Expanded(
+                                                      const Icon(
+                                                          Icons
+                                                              .restaurant_menu_rounded,
+                                                          color: Colors.white,
+                                                          size: 16),
+                                                      const SizedBox(width: 6),
+                                                      Flexible(
                                                         child: Text(
                                                           plan['planType'] ??
                                                               'Meal Plan',
                                                           style: _getTextStyle(
-                                                              context,
-                                                              fontWeight:
-                                                              FontWeight
-                                                                  .w600),
+                                                            context,
+                                                            fontWeight:
+                                                            FontWeight.bold,
+                                                            fontSize: 13,
+                                                            color: Colors.white,
+                                                          ),
                                                           overflow: TextOverflow
                                                               .ellipsis,
                                                         ),
                                                       ),
-                                                      IconButton(
-                                                        padding: EdgeInsets.zero,
-                                                        constraints:
-                                                        const BoxConstraints(),
-                                                        icon: const Icon(
-                                                            Icons.close,
-                                                            color: Colors
-                                                                .redAccent,
-                                                            size: 20),
-                                                        onPressed: () {
-                                                          _deleteMealPlanFromSchedule(
-                                                              day, date);
-                                                        },
-                                                      ),
                                                     ],
                                                   ),
-                                                  const Divider(),
-                                                  _mealRow("Breakfast",
-                                                      plan['breakfast']),
-                                                  _mealRow("AM Snack",
-                                                      plan['amSnack']),
-                                                  _mealRow("Lunch",
-                                                      plan['lunch']),
-                                                  _mealRow("PM Snack",
-                                                      plan['pmSnack']),
-                                                  _mealRow("Dinner",
-                                                      plan['dinner']),
-                                                  _mealRow("Midnight Snack",
-                                                      plan['midnightSnack']),
-                                                ],
-                                              ),
+                                                ),
+                                                const SizedBox(height: 12),
+                                                Expanded(
+                                                  child: FutureBuilder<bool>(
+                                                    future: _isUserSubscribedToOwner(
+                                                        user?.uid,
+                                                        plan['owner']),
+                                                    builder: (context, snapshot) {
+                                                      final isSubscribed =
+                                                          snapshot.data ?? false;
+                                                      return SingleChildScrollView(
+                                                        physics:
+                                                        const BouncingScrollPhysics(),
+                                                        child: Column(
+                                                          crossAxisAlignment:
+                                                          CrossAxisAlignment
+                                                              .start,
+                                                          children: [
+                                                            _mealRowWithTime(
+                                                              "Breakfast",
+                                                              plan['breakfast'],
+                                                              plan[
+                                                              'breakfastTime'],
+                                                              isLocked: false,
+                                                            ),
+                                                            _mealRowWithTime(
+                                                              "AM Snack",
+                                                              plan['amSnack'],
+                                                              plan['amSnackTime'],
+                                                              isLocked:
+                                                              !isSubscribed,
+                                                            ),
+                                                            _mealRowWithTime(
+                                                              "Lunch",
+                                                              plan['lunch'],
+                                                              plan['lunchTime'],
+                                                              isLocked:
+                                                              !isSubscribed,
+                                                            ),
+                                                            _mealRowWithTime(
+                                                              "PM Snack",
+                                                              plan['pmSnack'],
+                                                              plan['pmSnackTime'],
+                                                              isLocked:
+                                                              !isSubscribed,
+                                                            ),
+                                                            _mealRowWithTime(
+                                                              "Dinner",
+                                                              plan['dinner'],
+                                                              plan['dinnerTime'],
+                                                              isLocked:
+                                                              !isSubscribed,
+                                                            ),
+                                                            _mealRowWithTime(
+                                                              "Midnight Snack",
+                                                              plan[
+                                                              'midnightSnack'],
+                                                              plan[
+                                                              'midnightSnackTime'],
+                                                              isLocked:
+                                                              !isSubscribed,
+                                                            ),
+                                                            if (!isSubscribed)
+                                                              Padding(
+                                                                padding:
+                                                                const EdgeInsets
+                                                                    .only(
+                                                                    top: 8.0),
+                                                                child: InkWell(
+                                                                  onTap: () {
+                                                                    _showSubscriptionDialog(
+                                                                        plan[
+                                                                        'ownerName'],
+                                                                        plan[
+                                                                        'owner']);
+                                                                  },
+                                                                  child: Container(
+                                                                    padding:
+                                                                    const EdgeInsets
+                                                                        .all(8),
+                                                                    decoration:
+                                                                    BoxDecoration(
+                                                                      color: Colors
+                                                                          .orange
+                                                                          .withOpacity(
+                                                                          0.1),
+                                                                      borderRadius:
+                                                                      BorderRadius.circular(
+                                                                          8),
+                                                                      border: Border
+                                                                          .all(
+                                                                        color: Colors
+                                                                            .orange
+                                                                            .withOpacity(
+                                                                            0.3),
+                                                                      ),
+                                                                    ),
+                                                                    child: Row(
+                                                                      mainAxisSize:
+                                                                      MainAxisSize
+                                                                          .min,
+                                                                      children: [
+                                                                        const Icon(
+                                                                          Icons
+                                                                              .lock_open,
+                                                                          size: 14,
+                                                                          color: Colors
+                                                                              .orange,
+                                                                        ),
+                                                                        const SizedBox(
+                                                                            width:
+                                                                            6),
+                                                                        Text(
+                                                                          'Subscribe to unlock',
+                                                                          style: _getTextStyle(
+                                                                              context,
+                                                                              fontSize:
+                                                                              11,
+                                                                              fontWeight:
+                                                                              FontWeight.w600,
+                                                                              color: Colors.orange),
+                                                                        ),
+                                                                      ],
+                                                                    ),
+                                                                  ),
+                                                                ),
+                                                              ),
+                                                          ],
+                                                        ),
+                                                      );
+                                                    },
+                                                  ),
+                                                ),
+                                              ],
                                             ),
                                           ),
                                       ],
@@ -3126,64 +3411,267 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
 
   Widget _planCard(Map<String, dynamic> plan, {bool isDragging = false}) {
     return Container(
-      width: 160,
-      padding: const EdgeInsets.all(12),
+      width: 170,
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: _cardBgColor(context),
-        borderRadius: BorderRadius.circular(12),
+        gradient: LinearGradient(
+          colors: [
+            _primaryColor.withOpacity(0.1),
+            _primaryColor.withOpacity(0.05),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: _primaryColor.withOpacity(0.3),
+          width: 1.5,
+        ),
         boxShadow: [
           if (!isDragging)
             BoxShadow(
-              color: Colors.black.withOpacity(0.06),
-              blurRadius: 6,
-              offset: const Offset(0, 2),
+              color: _primaryColor.withOpacity(0.2),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
             )
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.restaurant_menu_rounded, color: _primaryColor),
-          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: _primaryColor.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(Icons.restaurant_menu_rounded,
+                color: _primaryColor, size: 22),
+          ),
+          const SizedBox(height: 10),
           Text(
             plan['planType'] ?? 'Meal Plan',
             style: _getTextStyle(context,
                 fontWeight: FontWeight.bold, fontSize: 14),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
           ),
           const SizedBox(height: 6),
-          Text(
-            plan['ownerName'] ?? 'Unknown Owner',
-            style: _getTextStyle(context,
-                fontSize: 12, color: _textColorSecondary(context)),
+          Row(
+            children: [
+              Icon(Icons.person, size: 14, color: _textColorSecondary(context)),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  plan['ownerName'] ?? 'Unknown Owner',
+                  style: _getTextStyle(context,
+                      fontSize: 12, color: _textColorSecondary(context)),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
           ),
         ],
       ),
     );
   }
 
-  Widget _mealRow(String label, String? value) {
-    if (value == null || value.trim().isEmpty || value.trim() == '-') {
+  Widget _mealRowWithTime(String label, String? value, String? time,
+      {bool isLocked = false}) {
+    if ((value == null || value.trim().isEmpty || value.trim() == '-') &&
+        (time == null || time.trim().isEmpty)) {
       return const SizedBox.shrink();
     }
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 3.0),
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: isLocked
+            ? Colors.grey.withOpacity(0.1)
+            : _primaryColor.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: isLocked
+              ? Colors.grey.withOpacity(0.2)
+              : _primaryColor.withOpacity(0.1),
+        ),
+      ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(
-            width: 90,
-            child: Text(
-              "$label:",
-              style: _getTextStyle(context,
-                  fontSize: 13, color: _textColorSecondary(context)),
+          if (isLocked)
+            Padding(
+              padding: const EdgeInsets.only(right: 8.0, top: 2),
+              child: Icon(Icons.lock, size: 14, color: Colors.grey.shade600),
+            ),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        label,
+                        style: _getTextStyle(context,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: isLocked
+                                ? Colors.grey.shade600
+                                : _primaryColor),
+                      ),
+                    ),
+                    if (time != null && time.isNotEmpty && !isLocked)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: _primaryColor.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.access_time,
+                                size: 10, color: _primaryColor),
+                            const SizedBox(width: 3),
+                            Text(
+                              time,
+                              style: _getTextStyle(context,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w600,
+                                  color: _primaryColor),
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
+                if (value != null && value.isNotEmpty && value != '-')
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4.0),
+                    child: Text(
+                      isLocked ? '•••••••••' : value,
+                      style: _getTextStyle(context,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                          color: isLocked
+                              ? Colors.grey.shade500
+                              : _getTextStyle(context, fontSize: 13).color),
+                    ),
+                  ),
+              ],
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+// Add this method to check subscription status
+  Future<bool> _isUserSubscribedToOwner(String? userId, String? ownerId) async {
+    if (userId == null || ownerId == null || userId == ownerId) {
+      return true; // User is the owner or not logged in
+    }
+
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('subscriptions')
+          .doc('${userId}_$ownerId')
+          .get();
+
+      return doc.exists && (doc.data()?['status'] == 'active');
+    } catch (e) {
+      debugPrint('Error checking subscription: $e');
+      return false;
+    }
+  }
+
+// Add this method to show subscription dialog
+  void _showSubscriptionDialog(String? ownerName, String? ownerId) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Row(
+            children: [
+              Icon(Icons.star, color: Colors.orange, size: 28),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Premium Content',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                ),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Subscribe to ${ownerName ?? "this creator"} to unlock all meal details and times.',
+                style: TextStyle(fontSize: 14),
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: _primaryColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _benefitRow('Full meal plans with times'),
+                    _benefitRow('Personalized nutrition guidance'),
+                    _benefitRow('Exclusive recipes'),
+                    _benefitRow('Direct creator support'),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Maybe Later'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                // Navigate to subscription page
+                // You'll need to implement this navigation
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.orange,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: const Text('Subscribe Now'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _benefitRow(String text) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4.0),
+      child: Row(
+        children: [
+          Icon(Icons.check_circle, size: 16, color: _primaryColor),
+          const SizedBox(width: 8),
           Expanded(
             child: Text(
-              value,
-              style: _getTextStyle(context,
-                  fontSize: 13, fontWeight: FontWeight.w500),
+              text,
+              style: _getTextStyle(context, fontSize: 13),
             ),
           ),
         ],
