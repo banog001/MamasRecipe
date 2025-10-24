@@ -915,14 +915,6 @@ class _AdminHomeState extends State<AdminHome> {
                           ),
                         ),
                         const SizedBox(width: 16),
-                        Expanded(
-                          child: _buildMetricCard(
-                            "Growth Trend",
-                            _calculateGrowthTrend(users, chartFilter),
-                            Colors.green,
-                            Icons.trending_up,
-                          ),
-                        ),
                       ],
                     ),
                     const SizedBox(height: 24),
@@ -4880,11 +4872,17 @@ class _AdminHomeState extends State<AdminHome> {
   void _showMealPlanDetails(Map<String, dynamic> mealPlan) {
     final planType = mealPlan['planType'] ?? "Unknown";
     final breakfast = mealPlan['breakfast'] ?? "Not specified";
+    final breakfastTime = mealPlan['breakfastTime'] ?? "";
     final amSnack = mealPlan['amSnack'] ?? "Not specified";
+    final amSnackTime = mealPlan['amSnackTime'] ?? "";
     final lunch = mealPlan['lunch'] ?? "Not specified";
+    final lunchTime = mealPlan['lunchTime'] ?? "";
     final pmSnack = mealPlan['pmSnack'] ?? "Not specified";
+    final pmSnackTime = mealPlan['pmSnackTime'] ?? "";
     final dinner = mealPlan['dinner'] ?? "Not specified";
+    final dinnerTime = mealPlan['dinnerTime'] ?? "";
     final midnightSnack = mealPlan['midnightSnack'] ?? "Not specified";
+    final midnightSnackTime = mealPlan['midnightSnackTime'] ?? "";
 
     showDialog(
       context: context,
@@ -4956,20 +4954,21 @@ class _AdminHomeState extends State<AdminHome> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _buildMealSection("Breakfast", breakfast, Icons.wb_sunny),
+                      _buildMealSection("Breakfast", breakfast, Icons.wb_sunny, breakfastTime),
                       const SizedBox(height: 16),
-                      _buildMealSection("AM Snack", amSnack, Icons.fastfood),
+                      _buildMealSection("AM Snack", amSnack, Icons.fastfood, amSnackTime),
                       const SizedBox(height: 16),
-                      _buildMealSection("Lunch", lunch, Icons.lunch_dining),
+                      _buildMealSection("Lunch", lunch, Icons.lunch_dining, lunchTime),
                       const SizedBox(height: 16),
-                      _buildMealSection("PM Snack", pmSnack, Icons.cookie),
+                      _buildMealSection("PM Snack", pmSnack, Icons.cookie, pmSnackTime),
                       const SizedBox(height: 16),
-                      _buildMealSection("Dinner", dinner, Icons.dinner_dining),
+                      _buildMealSection("Dinner", dinner, Icons.dinner_dining, dinnerTime),
                       const SizedBox(height: 16),
                       _buildMealSection(
                         "Midnight Snack",
                         midnightSnack,
                         Icons.nightlight,
+                        midnightSnackTime,
                       ),
                     ],
                   ),
@@ -4982,34 +4981,83 @@ class _AdminHomeState extends State<AdminHome> {
     );
   }
 
-  Widget _buildMealSection(String title, String content, IconData icon) {
+  Widget _buildMealSection(String title, String meal, IconData icon, String time) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: _cardBgColor(context),
+        color: _scaffoldBgColor(context),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.purple.withOpacity(0.2), width: 1),
+        border: Border.all(
+          color: Colors.purple.withOpacity(0.2),
+        ),
       ),
-      child: Column(
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Icon(icon, color: Colors.purple, size: 24),
-              const SizedBox(width: 12),
-              Text(
-                title,
-                style: _getTextStyle(
-                  context,
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.purple,
-                ),
-              ),
-            ],
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.purple.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, color: Colors.purple, size: 24),
           ),
-          const SizedBox(height: 12),
-          Text(content, style: _getTextStyle(context, fontSize: 14)),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      title,
+                      style: _getTextStyle(
+                        context,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 16,
+                      ),
+                    ),
+                    if (time.isNotEmpty)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.purple.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.access_time,
+                              size: 14,
+                              color: Colors.purple,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              time,
+                              style: _getTextStyle(
+                                context,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                                color: Colors.purple,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  meal,
+                  style: _cardSubtitleStyle(context),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -7382,7 +7430,7 @@ class _AdminHomeState extends State<AdminHome> {
                   children: [
                     // Summary Cards
                     FutureBuilder<Map<String, dynamic>>(
-                      future: _calculateTotalRevenue(dietitians),
+                      future: _calculateTotalRevenueFromReceipts(dietitians),
                       builder: (context, summarySnapshot) {
                         if (!summarySnapshot.hasData) {
                           return const CircularProgressIndicator(
@@ -7422,10 +7470,10 @@ class _AdminHomeState extends State<AdminHome> {
                                 const SizedBox(width: 12),
                                 Expanded(
                                   child: _buildRevenueMetricCard(
-                                    "Active Subscribers",
+                                    "Total Receipts",
                                     totalSubscriptions.toString(),
                                     Colors.purple,
-                                    Icons.people,
+                                    Icons.receipt_long,
                                   ),
                                 ),
                               ],
@@ -7525,7 +7573,7 @@ class _AdminHomeState extends State<AdminHome> {
                 ),
                 DataColumn(
                   label: Text(
-                    "Active Subs",
+                    "Total Receipts",
                     style: _getTextStyle(
                       context,
                       fontWeight: FontWeight.bold,
@@ -7618,10 +7666,10 @@ class _AdminHomeState extends State<AdminHome> {
                         ),
                       ),
                     ),
-                    // Active Subscriptions (approved only)
+                    // Total Receipts Count
                     DataCell(
                       FutureBuilder<int>(
-                        future: _getActiveSubscriberCount(dietitianId),
+                        future: _getTotalReceiptCount(dietitianId),
                         builder: (context, snapshot) {
                           return Text(
                             snapshot.hasData ? snapshot.data.toString() : '0',
@@ -7630,10 +7678,10 @@ class _AdminHomeState extends State<AdminHome> {
                         },
                       ),
                     ),
-                    // Weekly Count (all statuses)
+                    // Weekly Count
                     DataCell(
                       FutureBuilder<int>(
-                        future: _getSubscriberCountByType(
+                        future: _getReceiptCountByType(
                           dietitianId,
                           'weekly',
                         ),
@@ -7645,10 +7693,10 @@ class _AdminHomeState extends State<AdminHome> {
                         },
                       ),
                     ),
-                    // Monthly Count (all statuses)
+                    // Monthly Count
                     DataCell(
                       FutureBuilder<int>(
-                        future: _getSubscriberCountByType(
+                        future: _getReceiptCountByType(
                           dietitianId,
                           'monthly',
                         ),
@@ -7660,10 +7708,10 @@ class _AdminHomeState extends State<AdminHome> {
                         },
                       ),
                     ),
-                    // Yearly Count (all statuses)
+                    // Yearly Count
                     DataCell(
                       FutureBuilder<int>(
-                        future: _getSubscriberCountByType(
+                        future: _getReceiptCountByType(
                           dietitianId,
                           'yearly',
                         ),
@@ -7675,10 +7723,10 @@ class _AdminHomeState extends State<AdminHome> {
                         },
                       ),
                     ),
-                    // Total Revenue (all statuses)
+                    // Total Revenue
                     DataCell(
                       FutureBuilder<Map<String, double>>(
-                        future: _getDietitianRevenueAndCommission(dietitianId),
+                        future: _getDietitianRevenueAndCommissionFromReceipts(dietitianId),
                         builder: (context, snapshot) {
                           final revenue = snapshot.hasData
                               ? snapshot.data!['revenue']!
@@ -7694,10 +7742,10 @@ class _AdminHomeState extends State<AdminHome> {
                         },
                       ),
                     ),
-                    // Your Commission (approved and cancelled only)
+                    // Your Commission
                     DataCell(
                       FutureBuilder<Map<String, double>>(
-                        future: _getDietitianRevenueAndCommission(dietitianId),
+                        future: _getDietitianRevenueAndCommissionFromReceipts(dietitianId),
                         builder: (context, snapshot) {
                           final commission = snapshot.hasData
                               ? snapshot.data!['commission']!
@@ -7728,7 +7776,7 @@ class _AdminHomeState extends State<AdminHome> {
                             vertical: 8,
                           ),
                         ),
-                        onPressed: () => _showDietitianSubscriberDetails(
+                        onPressed: () => _showDietitianReceiptDetails(
                           dietitianId,
                           "$firstName $lastName",
                         ),
@@ -7772,7 +7820,7 @@ class _AdminHomeState extends State<AdminHome> {
     );
   }
 
-  // Helper method to parse price string to double
+// Helper method to parse price string to double
   double _parsePriceString(String priceStr) {
     // Remove currency symbol and commas, then parse
     // "₱ 1,199.00" -> "1199.00" -> 1199.00
@@ -7780,98 +7828,84 @@ class _AdminHomeState extends State<AdminHome> {
     return double.tryParse(cleanPrice) ?? 0.0;
   }
 
-  // Helper Methods
+// Helper Methods - Updated to use receipts collection
 
-  Future<Map<String, dynamic>> _calculateTotalRevenue(
+  Future<Map<String, dynamic>> _calculateTotalRevenueFromReceipts(
       List<QueryDocumentSnapshot> dietitians,
       ) async {
     double totalRevenue = 0;
     double totalCommission = 0;
-    int totalSubscriptions = 0;
+    int totalReceipts = 0;
 
     for (var dietitianDoc in dietitians) {
       final dietitianId = dietitianDoc.id;
 
-      // Get ALL subscribers for counts and revenue
-      final allSubscribers = await FirebaseFirestore.instance
-          .collection('Users')
-          .doc(dietitianId)
-          .collection('subscriber')
+      // Get ALL receipts for this dietitian
+      final receipts = await FirebaseFirestore.instance
+          .collection('receipts')
+          .where('dietitianID', isEqualTo: dietitianId)
           .get();
 
-      // Count only approved subscribers for active count
-      final approvedCount = allSubscribers.docs
-          .where((doc) => (doc.data()['status'] as String?)?.toLowerCase() == 'approved')
-          .length;
-      totalSubscriptions += approvedCount;
+      totalReceipts += receipts.docs.length;
 
-      for (var sub in allSubscribers.docs) {
-        final data = sub.data();
+      for (var receipt in receipts.docs) {
+        final data = receipt.data();
         final planType = (data['planType'] as String?)?.toLowerCase() ?? '';
-        final priceStr = data['price'] as String? ?? '₱ 0.00';
+        final priceStr = data['planPrice'] as String? ?? '₱ 0.00';
         final price = _parsePriceString(priceStr);
-        final status = (data['status'] as String?)?.toLowerCase() ?? '';
 
         // Add to total revenue regardless of status
         totalRevenue += price;
 
-        // Calculate commission only for approved and cancelled (exclude expired)
-        if (status == 'approved' || status == 'cancelled') {
-          double commission = 0;
-          if (planType == 'weekly') {
-            commission = price * 0.10; // 10%
-          } else if (planType == 'monthly') {
-            commission = price * 0.15; // 15%
-          } else if (planType == 'yearly') {
-            commission = price * 0.08; // 8%
-          }
-          totalCommission += commission;
+        // Calculate commission for ALL receipts regardless of status
+        double commission = 0;
+        if (planType == 'weekly') {
+          commission = price * 0.15; // 15%
+        } else if (planType == 'monthly') {
+          commission = price * 0.10; // 10%
+        } else if (planType == 'yearly') {
+          commission = price * 0.08; // 8%
         }
+        totalCommission += commission;
       }
     }
 
     return {
       'totalRevenue': totalRevenue,
       'totalCommission': totalCommission,
-      'totalSubscriptions': totalSubscriptions,
+      'totalSubscriptions': totalReceipts,
     };
   }
 
-  Future<int> _getActiveSubscriberCount(String dietitianId) async {
+  Future<int> _getTotalReceiptCount(String dietitianId) async {
     final snapshot = await FirebaseFirestore.instance
-        .collection('Users')
-        .doc(dietitianId)
-        .collection('subscriber')
-        .where('status', isEqualTo: 'approved')
+        .collection('receipts')
+        .where('dietitianID', isEqualTo: dietitianId)
         .get();
 
     return snapshot.docs.length;
   }
 
-  Future<int> _getSubscriberCountByType(
+  Future<int> _getReceiptCountByType(
       String dietitianId,
       String planType,
       ) async {
-    // Count ALL subscribers regardless of status
     final snapshot = await FirebaseFirestore.instance
-        .collection('Users')
-        .doc(dietitianId)
-        .collection('subscriber')
+        .collection('receipts')
+        .where('dietitianID', isEqualTo: dietitianId)
         .where('planType', isEqualTo: planType)
         .get();
 
     return snapshot.docs.length;
   }
 
-  Future<Map<String, double>> _getDietitianRevenueAndCommission(
+  Future<Map<String, double>> _getDietitianRevenueAndCommissionFromReceipts(
       String dietitianId,
-      )
-  async {
-    // Get ALL subscribers for revenue calculation
+      ) async {
+    // Get ALL receipts for this dietitian
     final snapshot = await FirebaseFirestore.instance
-        .collection('Users')
-        .doc(dietitianId)
-        .collection('subscriber')
+        .collection('receipts')
+        .where('dietitianID', isEqualTo: dietitianId)
         .get();
 
     double totalRevenue = 0;
@@ -7880,22 +7914,19 @@ class _AdminHomeState extends State<AdminHome> {
     for (var doc in snapshot.docs) {
       final data = doc.data();
       final planType = (data['planType'] as String?)?.toLowerCase() ?? '';
-      final priceStr = data['price'] as String? ?? '₱ 0.00';
+      final priceStr = data['planPrice'] as String? ?? '₱ 0.00';
       final price = _parsePriceString(priceStr);
-      final status = (data['status'] as String?)?.toLowerCase() ?? '';
 
       // Add to total revenue regardless of status
       totalRevenue += price;
 
-      // Calculate commission only for approved and cancelled (exclude expired)
-      if (status == 'approved' || status == 'cancelled') {
-        if (planType == 'weekly') {
-          totalCommission += price * 0.10; // 10%
-        } else if (planType == 'monthly') {
-          totalCommission += price * 0.15; // 15%
-        } else if (planType == 'yearly') {
-          totalCommission += price * 0.08; // 8%
-        }
+      // Calculate commission for ALL receipts regardless of status
+      if (planType == 'weekly') {
+        totalCommission += price * 0.15; // 15%
+      } else if (planType == 'monthly') {
+        totalCommission += price * 0.10; // 10%
+      } else if (planType == 'yearly') {
+        totalCommission += price * 0.08; // 8%
       }
     }
 
@@ -7905,7 +7936,7 @@ class _AdminHomeState extends State<AdminHome> {
     };
   }
 
-  void _showDietitianSubscriberDetails(
+  void _showDietitianReceiptDetails(
       String dietitianId,
       String dietitianName,
       ) {
@@ -7929,7 +7960,7 @@ class _AdminHomeState extends State<AdminHome> {
                 child: Row(
                   children: [
                     const Icon(
-                      Icons.people,
+                      Icons.receipt_long,
                       color: _textColorOnPrimary,
                       size: 28,
                     ),
@@ -7939,7 +7970,7 @@ class _AdminHomeState extends State<AdminHome> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const Text(
-                            "Subscriber Details",
+                            "Receipt Details",
                             style: TextStyle(
                               color: _textColorOnPrimary,
                               fontWeight: FontWeight.bold,
@@ -7968,9 +7999,8 @@ class _AdminHomeState extends State<AdminHome> {
               Expanded(
                 child: StreamBuilder<QuerySnapshot>(
                   stream: FirebaseFirestore.instance
-                      .collection('Users')
-                      .doc(dietitianId)
-                      .collection('subscriber')
+                      .collection('receipts')
+                      .where('dietitianID', isEqualTo: dietitianId)
                       .snapshots(),
                   builder: (context, snapshot) {
                     if (!snapshot.hasData) {
@@ -7979,21 +8009,21 @@ class _AdminHomeState extends State<AdminHome> {
                       );
                     }
 
-                    final subscribers = snapshot.data!.docs;
+                    final receipts = snapshot.data!.docs;
 
-                    if (subscribers.isEmpty) {
+                    if (receipts.isEmpty) {
                       return Center(
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Icon(
-                              Icons.person_off_outlined,
+                              Icons.receipt_long_outlined,
                               size: 64,
                               color: Colors.grey[400],
                             ),
                             const SizedBox(height: 16),
                             Text(
-                              "No subscribers",
+                              "No receipts found",
                               style: _cardSubtitleStyle(context),
                             ),
                           ],
@@ -8003,39 +8033,37 @@ class _AdminHomeState extends State<AdminHome> {
 
                     return ListView.builder(
                       padding: const EdgeInsets.all(16),
-                      itemCount: subscribers.length,
+                      itemCount: receipts.length,
                       itemBuilder: (context, index) {
-                        final subData =
-                        subscribers[index].data() as Map<String, dynamic>;
-                        final userId = subData['userId'] ?? '';
+                        final receiptData =
+                        receipts[index].data() as Map<String, dynamic>;
+                        final clientId = receiptData['clientID'] ?? '';
                         final planType =
-                            (subData['planType'] as String?)?.toLowerCase() ?? '';
-                        final priceStr = subData['price'] as String? ?? '₱ 0.00';
+                            (receiptData['planType'] as String?)?.toLowerCase() ?? '';
+                        final priceStr = receiptData['planPrice'] as String? ?? '₱ 0.00';
                         final price = _parsePriceString(priceStr);
-                        final startDate = subData['timestamp'] as Timestamp?;
-                        final endDate = subData['expirationDate'] as Timestamp?;
-                        final status = (subData['status'] as String?)?.toLowerCase() ?? '';
+                        final timestamp = receiptData['timeStamp'] as Timestamp?;
+                        final status = (receiptData['status'] as String?)?.toLowerCase() ?? '';
+                        final receiptImg = receiptData['receiptImg'] as String? ?? '';
 
-                        // Calculate commission for this subscription (only if approved or cancelled)
+                        // Calculate commission for this receipt
                         double commission = 0;
                         String commissionRate = '0%';
-                        if (status == 'approved' || status == 'cancelled') {
-                          if (planType == 'weekly') {
-                            commission = price * 0.10;
-                            commissionRate = '10%';
-                          } else if (planType == 'monthly') {
-                            commission = price * 0.15;
-                            commissionRate = '15%';
-                          } else if (planType == 'yearly') {
-                            commission = price * 0.08;
-                            commissionRate = '8%';
-                          }
+                        if (planType == 'weekly') {
+                          commission = price * 0.15;
+                          commissionRate = '15%';
+                        } else if (planType == 'monthly') {
+                          commission = price * 0.10;
+                          commissionRate = '10%';
+                        } else if (planType == 'yearly') {
+                          commission = price * 0.08;
+                          commissionRate = '8%';
                         }
 
                         return FutureBuilder<DocumentSnapshot>(
                           future: FirebaseFirestore.instance
                               .collection('Users')
-                              .doc(userId)
+                              .doc(clientId)
                               .get(),
                           builder: (context, userSnapshot) {
                             String userName = 'Loading...';
@@ -8211,32 +8239,13 @@ class _AdminHomeState extends State<AdminHome> {
                                             CrossAxisAlignment.start,
                                             children: [
                                               Text(
-                                                "Start Date",
+                                                "Date Submitted",
                                                 style: _cardSubtitleStyle(context),
                                               ),
                                               Text(
-                                                startDate != null
-                                                    ? DateFormat('MMM dd, yyyy')
-                                                    .format(startDate.toDate())
-                                                    : 'N/A',
-                                                style: _getTextStyle(context),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                "Expiration Date",
-                                                style: _cardSubtitleStyle(context),
-                                              ),
-                                              Text(
-                                                endDate != null
-                                                    ? DateFormat('MMM dd, yyyy')
-                                                    .format(endDate.toDate())
+                                                timestamp != null
+                                                    ? DateFormat('MMM dd, yyyy hh:mm a')
+                                                    .format(timestamp.toDate())
                                                     : 'N/A',
                                                 style: _getTextStyle(context),
                                               ),
@@ -8245,6 +8254,129 @@ class _AdminHomeState extends State<AdminHome> {
                                         ),
                                       ],
                                     ),
+                                    if (receiptImg.isNotEmpty) ...[
+                                      const SizedBox(height: 12),
+                                      GestureDetector(
+                                        onTap: () {
+                                          // Show image in a constrained dialog
+                                          showDialog(
+                                            context: context,
+                                            builder: (context) => Dialog(
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius: BorderRadius.circular(16),
+                                              ),
+                                              child: Container(
+                                                constraints: const BoxConstraints(
+                                                  maxWidth: 500,
+                                                  maxHeight: 600,
+                                                ),
+                                                child: Column(
+                                                  mainAxisSize: MainAxisSize.min,
+                                                  children: [
+                                                    Container(
+                                                      padding: const EdgeInsets.all(16),
+                                                      decoration: BoxDecoration(
+                                                        color: Colors.green,
+                                                        borderRadius: const BorderRadius.only(
+                                                          topLeft: Radius.circular(16),
+                                                          topRight: Radius.circular(16),
+                                                        ),
+                                                      ),
+                                                      child: Row(
+                                                        children: [
+                                                          const Icon(
+                                                            Icons.receipt_long,
+                                                            color: Colors.white,
+                                                          ),
+                                                          const SizedBox(width: 12),
+                                                          const Expanded(
+                                                            child: Text(
+                                                              'Receipt Image',
+                                                              style: TextStyle(
+                                                                color: Colors.white,
+                                                                fontWeight: FontWeight.bold,
+                                                                fontSize: 16,
+                                                                fontFamily: _primaryFontFamily,
+                                                              ),
+                                                            ),
+                                                          ),
+                                                          IconButton(
+                                                            icon: const Icon(
+                                                              Icons.close,
+                                                              color: Colors.white,
+                                                            ),
+                                                            onPressed: () => Navigator.pop(context),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ),
+                                                    Flexible(
+                                                      child: SingleChildScrollView(
+                                                        child: Padding(
+                                                          padding: const EdgeInsets.all(16),
+                                                          child: ClipRRect(
+                                                            borderRadius: BorderRadius.circular(8),
+                                                            child: Image.network(
+                                                              receiptImg,
+                                                              fit: BoxFit.contain,
+                                                              errorBuilder: (context, error, stackTrace) {
+                                                                return Center(
+                                                                  child: Column(
+                                                                    children: [
+                                                                      Icon(
+                                                                        Icons.broken_image,
+                                                                        size: 64,
+                                                                        color: Colors.grey[400],
+                                                                      ),
+                                                                      const SizedBox(height: 8),
+                                                                      Text(
+                                                                        'Failed to load image',
+                                                                        style: TextStyle(
+                                                                          color: Colors.grey[600],
+                                                                        ),
+                                                                      ),
+                                                                    ],
+                                                                  ),
+                                                                );
+                                                              },
+                                                            ),
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ),
+                                          );
+                                        },
+                                        child: Container(
+                                          height: 150,
+                                          decoration: BoxDecoration(
+                                            borderRadius: BorderRadius.circular(8),
+                                            border: Border.all(
+                                              color: Colors.grey.withOpacity(0.3),
+                                            ),
+                                          ),
+                                          child: ClipRRect(
+                                            borderRadius: BorderRadius.circular(8),
+                                            child: Image.network(
+                                              receiptImg,
+                                              fit: BoxFit.cover,
+                                              width: double.infinity,
+                                              errorBuilder: (context, error, stackTrace) {
+                                                return Center(
+                                                  child: Icon(
+                                                    Icons.broken_image,
+                                                    color: Colors.grey[400],
+                                                  ),
+                                                );
+                                              },
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
                                   ],
                                 ),
                               ),
@@ -8596,7 +8728,7 @@ class _AdminHomeState extends State<AdminHome> {
                     final dietitian = topDietitians[index];
                     final rank = index + 1;
                     final revenue = dietitian['revenue'] as double;
-                    final commission = revenue * 0.10;
+                    final commission = dietitian['commission'] as double; // Get actual commission
 
                     return Container(
                       margin: const EdgeInsets.only(bottom: 12),
@@ -8655,7 +8787,7 @@ class _AdminHomeState extends State<AdminHome> {
                             crossAxisAlignment: CrossAxisAlignment.end,
                             children: [
                               Text(
-                                "\$${revenue.toStringAsFixed(2)}",
+                                "₱${revenue.toStringAsFixed(2)}", // Changed to ₱
                                 style: _getTextStyle(
                                   context,
                                   fontWeight: FontWeight.bold,
@@ -8665,7 +8797,7 @@ class _AdminHomeState extends State<AdminHome> {
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                "Commission: \$${commission.toStringAsFixed(2)}",
+                                "Commission: ₱${commission.toStringAsFixed(2)}", // Changed to ₱
                                 style: _getTextStyle(
                                   context,
                                   fontSize: 11,
@@ -8761,95 +8893,95 @@ class _AdminHomeState extends State<AdminHome> {
               .reduce((a, b) => a < b ? a : b);
   }
 
-  Future<Map<String, int>> _getSubscriptionStatuses() async {
-    final active = await FirebaseFirestore.instance
-        .collection('subscriptions')
-        .where('status', isEqualTo: 'active')
-        .count()
-        .get();
-
-    final canceled = await FirebaseFirestore.instance
-        .collection('subscriptions')
-        .where('status', isEqualTo: 'canceled')
-        .count()
-        .get();
-
-    final expired = await FirebaseFirestore.instance
-        .collection('subscriptions')
-        .where('status', isEqualTo: 'expired')
-        .count()
-        .get();
-
-    return {
-      'active': ?active.count,
-      'canceled': ?canceled.count,
-      'expired': ?expired.count,
-    };
-  }
-
-  Future<double> _getChurnRate() async {
-    final now = DateTime.now();
-    final sevenDaysAgo = now.subtract(const Duration(days: 7));
-
-    final canceledSnapshot = await FirebaseFirestore.instance
-        .collection('subscriptions')
-        .where(
-          'cancelledAt',
-          isGreaterThanOrEqualTo: Timestamp.fromDate(sevenDaysAgo),
-        )
-        .get();
-
-    final totalSnapshot = await FirebaseFirestore.instance
-        .collection('subscriptions')
-        .where(
-          'createdAt',
-          isLessThanOrEqualTo: Timestamp.fromDate(sevenDaysAgo),
-        )
-        .get();
-
-    final canceled = canceledSnapshot.docs.length;
-    final total = totalSnapshot.docs.length;
-
-    return total > 0 ? (canceled / total) * 100 : 0;
-  }
-
   Future<List<Map<String, dynamic>>> _getTopPerformingDietitians() async {
-    final dietitians = await FirebaseFirestore.instance
-        .collection('Users')
-        .where('role', isEqualTo: 'dietitian')
-        .get();
-
-    List<Map<String, dynamic>> performanceData = [];
-
-    for (var dietitianDoc in dietitians.docs) {
-      final dietitian = dietitianDoc.data();
-      final firstName = dietitian['firstName'] ?? '';
-      final lastName = dietitian['lastName'] ?? '';
-
-      final subscriptions = await FirebaseFirestore.instance
-          .collection('subscriptions')
-          .where('dietitianId', isEqualTo: dietitianDoc.id)
-          .where('status', isEqualTo: 'active')
+    try {
+      // Fetch all receipts from Firestore
+      final receiptsSnapshot = await FirebaseFirestore.instance
+          .collection('receipts')
           .get();
 
-      double revenue = 0;
-      for (var sub in subscriptions.docs) {
-        revenue += (sub.data()['price'] as num?)?.toDouble() ?? 0.0;
+      if (receiptsSnapshot.docs.isEmpty) {
+        return [];
       }
 
-      if (revenue > 0) {
-        performanceData.add({
-          'name': "$firstName $lastName".trim(),
-          'revenue': revenue,
-          'subscriberCount': subscriptions.docs.length,
-        });
+      // Map to store dietitian revenue and commission
+      Map<String, Map<String, dynamic>> dietitianRevenueMap = {};
+
+      for (var receiptDoc in receiptsSnapshot.docs) {
+        final data = receiptDoc.data();
+        final dietitianID = data['dietitianID'] as String?;
+        final planPriceStr = data['planPrice'] as String?;
+        final planType = data['planType'] as String?;
+
+        if (dietitianID == null || planPriceStr == null || planType == null) continue;
+
+        // Parse the price (remove ₱ symbol and convert to double)
+        final priceStr = planPriceStr.replaceAll('₱', '').replaceAll(',', '').trim();
+        final price = double.tryParse(priceStr) ?? 0.0;
+
+        // Calculate commission based on plan type
+        double commissionRate = 0.0;
+        switch (planType.toLowerCase()) {
+          case 'weekly':
+            commissionRate = 0.15; // 15%
+            break;
+          case 'monthly':
+            commissionRate = 0.10; // 10%
+            break;
+          case 'yearly':
+            commissionRate = 0.08; // 8%
+            break;
+          default:
+            commissionRate = 0.10; // Default to 10%
+        }
+
+        final commission = price * commissionRate;
+
+        if (dietitianRevenueMap.containsKey(dietitianID)) {
+          dietitianRevenueMap[dietitianID]!['revenue'] += price;
+          dietitianRevenueMap[dietitianID]!['commission'] += commission;
+          dietitianRevenueMap[dietitianID]!['subscriberCount'] += 1;
+        } else {
+          dietitianRevenueMap[dietitianID] = {
+            'dietitianID': dietitianID,
+            'revenue': price,
+            'commission': commission,
+            'subscriberCount': 1,
+          };
+        }
       }
+
+      // Fetch dietitian names
+      for (var dietitianID in dietitianRevenueMap.keys) {
+        try {
+          final dietitianDoc = await FirebaseFirestore.instance
+              .collection('Users')
+              .doc(dietitianID)
+              .get();
+
+          if (dietitianDoc.exists) {
+            final dietitianData = dietitianDoc.data();
+            final firstName = dietitianData?['firstName'] ?? '';
+            final lastName = dietitianData?['lastName'] ?? '';
+            dietitianRevenueMap[dietitianID]!['name'] = '$firstName $lastName'.trim();
+          } else {
+            dietitianRevenueMap[dietitianID]!['name'] = 'Unknown Dietitian';
+          }
+        } catch (e) {
+          dietitianRevenueMap[dietitianID]!['name'] = 'Unknown Dietitian';
+        }
+      }
+
+      // Convert map to list and sort by revenue (descending)
+      List<Map<String, dynamic>> dietitiansList = dietitianRevenueMap.values.toList();
+      dietitiansList.sort((a, b) => (b['revenue'] as double).compareTo(a['revenue'] as double));
+
+      // Return top 5
+      return dietitiansList.take(5).toList();
+
+    } catch (e) {
+      print('Error fetching top performing dietitians: $e');
+      return [];
     }
-
-    // Sort by revenue descending and take top 5
-    performanceData.sort(
-      (a, b) => (b['revenue'] as double).compareTo(a['revenue'] as double),
-    );
-    return performanceData.take(5).toList();
   }
 }
