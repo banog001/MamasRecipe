@@ -12,6 +12,12 @@ import 'package:intl/intl.dart';
 
 const Color primaryColor = Color(0xFF4CAF50);
 
+// 👇 PASTE THIS NEW FUNCTION HERE
+Color inputFillColor(BuildContext context) =>
+    Theme.of(context).brightness == Brightness.dark
+        ? Colors.grey.shade800
+        : Colors.grey.shade200;
+
 class DietitianProfile extends StatefulWidget {
   const DietitianProfile({super.key});
 
@@ -736,10 +742,7 @@ class _PricingDialogState extends State<PricingDialog> {
     }
 
     try {
-      // Step 1: Apply any pending prices first
       await PriceHelper.checkAndApplyPendingPrices(user.uid);
-
-      // Step 2: Fetch the updated user data
       final userDoc = await FirebaseFirestore.instance
           .collection('Users')
           .doc(user.uid)
@@ -755,7 +758,6 @@ class _PricingDialogState extends State<PricingDialog> {
       final monthly = data['monthlyPrice'];
       final yearly = data['yearlyPrice'];
 
-      // Check if there's existing pricing
       _hasExistingPricing = (weekly != null && weekly > 0) ||
           (monthly != null && monthly > 0) ||
           (yearly != null && yearly > 0);
@@ -785,9 +787,8 @@ class _PricingDialogState extends State<PricingDialog> {
   Future<void> _savePricing() async {
     if (!_formKey.currentState!.validate()) return;
 
-    // Show confirmation dialog if there's existing pricing
     if (_hasExistingPricing) {
-      final confirmed = await _showConfirmationDialog();
+      final confirmed = await _showConfirmationDialog(); // --- MODIFIED ---
       if (confirmed != true) return;
     }
 
@@ -803,11 +804,9 @@ class _PricingDialogState extends State<PricingDialog> {
       final monthlyPrice = double.tryParse(_monthlyController.text) ?? 0.0;
       final yearlyPrice = double.tryParse(_yearlyController.text) ?? 0.0;
 
-      // Calculate the effective date (7 business days from now)
       final effectiveDate = _calculateBusinessDays(DateTime.now(), 7);
 
       if (_hasExistingPricing) {
-        // Store pending price changes
         await FirebaseFirestore.instance
             .collection("Users")
             .doc(user.uid)
@@ -818,11 +817,8 @@ class _PricingDialogState extends State<PricingDialog> {
           'priceChangeEffectiveDate': Timestamp.fromDate(effectiveDate),
           'priceChangeStatus': 'pending',
         });
-
-        // Send notifications to all subscribers
         await _notifySubscribers(user.uid, effectiveDate);
       } else {
-        // First time setting prices - apply immediately
         await FirebaseFirestore.instance
             .collection("Users")
             .doc(user.uid)
@@ -866,157 +862,232 @@ class _PricingDialogState extends State<PricingDialog> {
     }
   }
 
-  Future<bool?> _showConfirmationDialog() async {
-    return showDialog<bool>(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-        title: Row(
+  // --- NEW: Helper to build the dialog background shapes ---
+  Widget _buildDialogBackground(BuildContext context) {
+    return Positioned.fill(
+      child: Container(
+        color: cardBgColor(context),
+        child: Stack(
+          clipBehavior: Clip.none,
           children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.orange.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Icon(
-                Icons.schedule_outlined,
-                color: Colors.orange,
-                size: 24,
+            Positioned(
+              top: -50,
+              left: -80,
+              child: Container(
+                width: 200,
+                height: 200,
+                decoration: BoxDecoration(
+                  color: primaryColor.withOpacity(0.06),
+                  shape: BoxShape.circle,
+                ),
               ),
             ),
-            const SizedBox(width: 12),
-            const Expanded(
-              child: Text(
-                "Confirm Price Change",
-                style: TextStyle(fontSize: 18),
+            Positioned(
+              bottom: -60,
+              right: -90,
+              child: Container(
+                width: 250,
+                height: 250,
+                decoration: BoxDecoration(
+                  color: primaryColor.withOpacity(0.06),
+                  shape: BoxShape.circle,
+                ),
               ),
             ),
           ],
         ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              "Your pricing will be updated after 7 business days.",
-              style: TextStyle(fontSize: 14),
-            ),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.blue.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.blue.withOpacity(0.3)),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.info_outline, size: 20, color: Colors.blue),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      "Effective Date: ${_formatDate(_calculateBusinessDays(DateTime.now(), 7))}",
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.blue,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 12),
-            const Text(
-              "All your subscribers will be notified about this change.",
-              style: TextStyle(fontSize: 13, color: Colors.black54),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text(
-              "Cancel",
-              style: TextStyle(color: Colors.grey),
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: primaryColor,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-            child: const Text(
-              "Confirm",
-              style: TextStyle(color: Colors.white),
-            ),
-          ),
-        ],
       ),
     );
   }
 
-  Future<void> _notifySubscribers(String dietitianId, DateTime effectiveDate) async {
+  // --- NEW: Redesigned Confirmation Dialog ---
+  Future<bool?> _showConfirmationDialog() async {
+    return showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      // Use Dialog for custom shape
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent, // Make dialog transparent
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: Stack(
+            children: [
+              // 1. Background shapes (from your chat dialog)
+              _buildDialogBackground(context),
+
+              // 2. Content
+              Padding(
+                padding:
+                const EdgeInsets.symmetric(horizontal: 24.0, vertical: 32.0),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.orange.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Icon(
+                            Icons.schedule_outlined,
+                            color: Colors.orange,
+                            size: 24,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            "Confirm Price Change",
+                            style: getTextStyle(context,
+                                fontSize: 18, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      "Your pricing will be updated after 7 business days.",
+                      style: getTextStyle(context,
+                          fontSize: 14, color: textColorSecondary(context)),
+                    ),
+                    const SizedBox(height: 16),
+                    // The blue info box
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.blue.withOpacity(0.3)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.info_outline,
+                              size: 20, color: Colors.blue),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              "Effective Date: ${_formatDate(_calculateBusinessDays(DateTime.now(), 7))}",
+                              style: const TextStyle(
+                                fontFamily: 'PlusJakartaSans',
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.blue,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      "All your subscribers will be notified.",
+                      style: getTextStyle(context,
+                          fontSize: 13, color: textColorSecondary(context)),
+                    ),
+                    const SizedBox(height: 24),
+                    // Buttons (styled like your profile buttons)
+                    Row(
+                      children: [
+                        Expanded(
+                          child: SizedBox(
+                            height: 48, // Match profile button height
+                            child: OutlinedButton(
+                              onPressed: () => Navigator.of(context).pop(false),
+                              style: OutlinedButton.styleFrom(
+                                side: BorderSide(
+                                    color: primaryColor.withOpacity(0.5)),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                              ),
+                              child: Text(
+                                "Cancel",
+                                style: getTextStyle(context,
+                                    color: textColorSecondary(context),
+                                    fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: SizedBox(
+                            height: 48, // Match profile button height
+                            child: ElevatedButton(
+                              onPressed: () => Navigator.of(context).pop(true),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: primaryColor,
+                                foregroundColor: textColorOnPrimary,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                elevation: 4,
+                              ),
+                              child: Text(
+                                "Confirm",
+                                style: getTextStyle(context,
+                                    color: textColorOnPrimary,
+                                    fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _notifySubscribers(
+      String dietitianId, DateTime effectiveDate) async {
+    // ... (This logic remains unchanged)
     try {
-      // Get dietitian info
       final dietitianDoc = await FirebaseFirestore.instance
           .collection('Users')
           .doc(dietitianId)
           .get();
-
       if (!dietitianDoc.exists) return;
-
       final dietitianData = dietitianDoc.data()!;
       final dietitianName =
       "${dietitianData['firstName'] ?? ''} ${dietitianData['lastName'] ?? ''}"
           .trim();
-
-      // Get current and pending prices - handle both int and double
       final monthlyOld =
           (dietitianData['monthlyPrice'] as num?)?.toString() ?? 'N/A';
       final monthlyNew =
           (dietitianData['pendingMonthlyPrice'] as num?)?.toString() ??
               monthlyOld;
-
       final weeklyOld =
           (dietitianData['weeklyPrice'] as num?)?.toString() ?? 'N/A';
       final weeklyNew =
           (dietitianData['pendingWeeklyPrice'] as num?)?.toString() ?? weeklyOld;
-
       final yearlyOld =
           (dietitianData['yearlyPrice'] as num?)?.toString() ?? 'N/A';
       final yearlyNew =
           (dietitianData['pendingYearlyPrice'] as num?)?.toString() ?? yearlyOld;
-
-      // Get all subscribers (regardless of status)
       final subscribersSnapshot = await FirebaseFirestore.instance
           .collection('Users')
           .doc(dietitianId)
           .collection('subscriber')
           .get();
-
-      print('Raw dietitian data: $dietitianData');
-      print(
-          'Monthly price type: ${dietitianData['monthlyPrice'].runtimeType}');
-      print(
-          'Pending monthly price type: ${dietitianData['pendingMonthlyPrice'].runtimeType}');
-      // Send notification to each subscriber
       for (var subDoc in subscribersSnapshot.docs) {
         final clientId = subDoc.id;
-
         final notificationRef = FirebaseFirestore.instance
             .collection('Users')
             .doc(clientId)
             .collection('notifications')
             .doc();
-
         await notificationRef.set({
           'isRead': false,
           'message':
@@ -1027,15 +1098,12 @@ class _PricingDialogState extends State<PricingDialog> {
           'timestamp': FieldValue.serverTimestamp(),
           'title': 'Price Change',
           'type': 'priceChange',
-
-          // Store all price information
           'monthlyOldPrice': monthlyOld,
           'monthlyNewPrice': monthlyNew,
           'weeklyOldPrice': weeklyOld,
           'weeklyNewPrice': weeklyNew,
           'yearlyOldPrice': yearlyOld,
           'yearlyNewPrice': yearlyNew,
-
           'effectiveDate': effectiveDate,
         });
       }
@@ -1045,22 +1113,21 @@ class _PricingDialogState extends State<PricingDialog> {
   }
 
   DateTime _calculateBusinessDays(DateTime startDate, int businessDays) {
+    // ... (This logic remains unchanged)
     DateTime currentDate = startDate;
     int daysAdded = 0;
-
     while (daysAdded < businessDays) {
       currentDate = currentDate.add(const Duration(days: 1));
-      // Skip weekends (Saturday = 6, Sunday = 7)
       if (currentDate.weekday != DateTime.saturday &&
           currentDate.weekday != DateTime.sunday) {
         daysAdded++;
       }
     }
-
     return currentDate;
   }
 
   String _formatDate(DateTime date) {
+    // ... (This logic remains unchanged)
     return DateFormat('MMMM d, yyyy').format(date);
   }
 
@@ -1068,26 +1135,32 @@ class _PricingDialogState extends State<PricingDialog> {
   Widget build(BuildContext context) {
     if (_isLoadingPrices) {
       return Dialog(
+        backgroundColor: cardBgColor(context),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(16), // --- MODIFIED ---
         ),
-        child: const Padding(
-          padding: EdgeInsets.all(40.0),
+        child: Padding(
+          padding: const EdgeInsets.all(40.0),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              CircularProgressIndicator(color: primaryColor),
-              SizedBox(height: 16),
-              Text('Loading current prices...'),
+              const CircularProgressIndicator(color: primaryColor),
+              const SizedBox(height: 16),
+              Text(
+                'Loading current prices...',
+                style: getTextStyle(context, color: textColorSecondary(context)),
+              ),
             ],
           ),
         ),
       );
     }
 
+    // --- Main Dialog Build Method ---
     return Dialog(
+      backgroundColor: cardBgColor(context),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(16), // --- MODIFIED ---
       ),
       child: SingleChildScrollView(
         child: Padding(
@@ -1113,18 +1186,16 @@ class _PricingDialogState extends State<PricingDialog> {
                       ),
                     ),
                     const SizedBox(width: 12),
-                    const Expanded(
+                    Expanded(
                       child: Text(
                         "Set Your Pricing",
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
+                        style: getTextStyle(context,
+                            fontSize: 20, fontWeight: FontWeight.bold),
                       ),
                     ),
                     IconButton(
                       onPressed: () => Navigator.of(context).pop(),
-                      icon: const Icon(Icons.close),
+                      icon: Icon(Icons.close, color: textColorSecondary(context)),
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(),
                     ),
@@ -1135,13 +1206,12 @@ class _PricingDialogState extends State<PricingDialog> {
                   _hasExistingPricing
                       ? "Update your consultation rates (7-day notice)"
                       : "Configure your consultation rates",
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey.shade600,
-                  ),
+                  style: getTextStyle(context,
+                      fontSize: 14, color: textColorSecondary(context)),
                 ),
                 const SizedBox(height: 24),
                 _buildPriceField(
+                  context: context,
                   controller: _weeklyController,
                   label: "Weekly Price",
                   hint: "Enter weekly rate",
@@ -1149,6 +1219,7 @@ class _PricingDialogState extends State<PricingDialog> {
                 ),
                 const SizedBox(height: 16),
                 _buildPriceField(
+                  context: context,
                   controller: _monthlyController,
                   label: "Monthly Price",
                   hint: "Enter monthly rate",
@@ -1156,59 +1227,70 @@ class _PricingDialogState extends State<PricingDialog> {
                 ),
                 const SizedBox(height: 16),
                 _buildPriceField(
+                  context: context,
                   controller: _yearlyController,
                   label: "Yearly Price",
                   hint: "Enter yearly rate",
                   icon: Icons.calendar_today_outlined,
                 ),
                 const SizedBox(height: 24),
+                // --- MODIFIED: Button Row ---
                 Row(
                   children: [
                     Expanded(
-                      child: OutlinedButton(
-                        onPressed:
-                        _isSaving ? null : () => Navigator.of(context).pop(),
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
+                      child: SizedBox(
+                        height: 48, // Match profile button height
+                        child: OutlinedButton(
+                          onPressed: _isSaving
+                              ? null
+                              : () => Navigator.of(context).pop(),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            side: BorderSide(color: primaryColor.withOpacity(0.5)),
                           ),
-                          side: const BorderSide(color: primaryColor),
-                        ),
-                        child: const Text(
-                          "Cancel",
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: primaryColor,
+                          child: Text(
+                            "Cancel",
+                            style: getTextStyle(context,
+                                fontSize: 16,
+                                color: textColorSecondary(context),
+                                fontWeight: FontWeight.w600),
                           ),
                         ),
                       ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
-                      child: ElevatedButton(
-                        onPressed: _isSaving ? null : _savePricing,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: primaryColor,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
+                      child: SizedBox(
+                        height: 48, // Match profile button height
+                        child: ElevatedButton(
+                          onPressed: _isSaving ? null : _savePricing,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: primaryColor,
+                            foregroundColor: textColorOnPrimary,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            elevation: 4,
                           ),
-                        ),
-                        child: _isSaving
-                            ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 2,
-                          ),
-                        )
-                            : const Text(
-                          "Save",
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: Colors.white,
+                          child: _isSaving
+                              ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          )
+                              : Text(
+                            "Save",
+                            style: getTextStyle(context,
+                                fontSize: 16,
+                                color: textColorOnPrimary,
+                                fontWeight: FontWeight.bold),
                           ),
                         ),
                       ),
@@ -1223,7 +1305,9 @@ class _PricingDialogState extends State<PricingDialog> {
     );
   }
 
+  // --- Price field widget (unchanged from last time) ---
   Widget _buildPriceField({
+    required BuildContext context,
     required TextEditingController controller,
     required String label,
     required String hint,
@@ -1234,40 +1318,39 @@ class _PricingDialogState extends State<PricingDialog> {
       children: [
         Text(
           label,
-          style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-          ),
+          style: getTextStyle(context,
+              fontSize: 14, fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: 8),
         TextFormField(
           controller: controller,
+          style: getTextStyle(context),
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
           inputFormatters: [
             FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
           ],
           decoration: InputDecoration(
             hintText: hint,
+            hintStyle:
+            getTextStyle(context, color: textColorSecondary(context)),
             prefixIcon: Icon(icon, color: primaryColor),
             prefixText: "₱ ",
-            prefixStyle: const TextStyle(
-              color: Colors.black87,
-              fontWeight: FontWeight.w500,
-            ),
+            prefixStyle:
+            getTextStyle(context, fontWeight: FontWeight.w500),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide(color: Colors.grey.shade300),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: Colors.grey.shade300),
+              borderSide: BorderSide.none,
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: const BorderSide(color: primaryColor, width: 2),
             ),
             filled: true,
-            fillColor: Colors.grey.shade50,
+            fillColor: inputFillColor(context),
             contentPadding:
             const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           ),
@@ -1287,11 +1370,11 @@ class _PricingDialogState extends State<PricingDialog> {
   }
 }
 
-// Function to show the pricing dialog
+// --- Function to show the pricing dialog (unchanged) ---
 Future<void> showPricingDialog(
     BuildContext context, Map<String, dynamic>? currentPricing) async {
   await showDialog(
     context: context,
-    builder: (context) => PricingDialog(currentPricing: currentPricing),
+    builder: (dialogContext) => PricingDialog(currentPricing: currentPricing),
   );
 }

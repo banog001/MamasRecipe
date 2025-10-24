@@ -393,19 +393,25 @@ class _DietitianPublicProfileState extends State<DietitianPublicProfile> {
                         Expanded(
                           child: Text(
                             data["planType"] ?? "Meal Plan",
-                            style: _getTextStyle(context, fontWeight: FontWeight.bold, fontSize: 16, color: _primaryColor),
+                            style: _getTextStyle(context,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                                color: _primaryColor),
                           ),
                         ),
                         // Show time
-                        if (data["timestamp"] != null && data["timestamp"] is Timestamp)
+                        if (data["timestamp"] != null &&
+                            data["timestamp"] is Timestamp)
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 4),
                             decoration: BoxDecoration(
                               color: _primaryColor.withOpacity(0.1),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Text(
-                              DateFormat('hh:mm a').format((data["timestamp"] as Timestamp).toDate()),
+                              DateFormat('hh:mm a')
+                                  .format((data["timestamp"] as Timestamp).toDate()),
                               style: _getTextStyle(
                                 context,
                                 fontSize: 11,
@@ -417,27 +423,44 @@ class _DietitianPublicProfileState extends State<DietitianPublicProfile> {
                       ],
                     ),
                     // Date
-                    if (data["timestamp"] != null && data["timestamp"] is Timestamp)
+                    if (data["timestamp"] != null &&
+                        data["timestamp"] is Timestamp)
                       Padding(
                         padding: const EdgeInsets.only(top: 4.0, bottom: 8.0),
                         child: Text(
-                          DateFormat('MMM dd, yyyy').format((data["timestamp"] as Timestamp).toDate()),
-                          style: _getTextStyle(context, fontSize: 12, color: _textColorSecondary(context)),
+                          DateFormat('MMM dd, yyyy')
+                              .format((data["timestamp"] as Timestamp).toDate()),
+                          style: _getTextStyle(context,
+                              fontSize: 12,
+                              color: _textColorSecondary(context)),
                         ),
                       ),
                     const Divider(height: 16),
-                    if (data["breakfast"] != null && data["breakfast"].isNotEmpty)
-                      _buildMealDetailRow(context, "🍳", "Breakfast", data["breakfast"], isLocked),
+
+                    // --- MODIFIED SECTION ---
+                    // Replaced emojis with IconData
+                    if (data["breakfast"] != null &&
+                        data["breakfast"].isNotEmpty)
+                      _buildMealDetailRow(context, Icons.wb_sunny_outlined,
+                          "Breakfast", data["breakfast"], isLocked),
                     if (data["amSnack"] != null && data["amSnack"].isNotEmpty)
-                      _buildMealDetailRow(context, "🍎", "AM Snack", data["amSnack"], isLocked),
+                      _buildMealDetailRow(context, Icons.coffee_outlined,
+                          "AM Snack", data["amSnack"], isLocked),
                     if (data["lunch"] != null && data["lunch"].isNotEmpty)
-                      _buildMealDetailRow(context, "🥗", "Lunch", data["lunch"], isLocked),
+                      _buildMealDetailRow(context, Icons.restaurant_outlined,
+                          "Lunch", data["lunch"], isLocked),
                     if (data["pmSnack"] != null && data["pmSnack"].isNotEmpty)
-                      _buildMealDetailRow(context, "🥜", "PM Snack", data["pmSnack"], isLocked),
+                      _buildMealDetailRow(context, Icons.local_cafe_outlined,
+                          "PM Snack", data["pmSnack"], isLocked),
                     if (data["dinner"] != null && data["dinner"].isNotEmpty)
-                      _buildMealDetailRow(context, "🍛", "Dinner", data["dinner"], isLocked),
-                    if (data["midnightSnack"] != null && data["midnightSnack"].isNotEmpty)
-                      _buildMealDetailRow(context, "🍪", "Midnight Snack", data["midnightSnack"], isLocked),
+                      _buildMealDetailRow(context, Icons.nightlight_outlined,
+                          "Dinner", data["dinner"], isLocked),
+                    if (data["midnightSnack"] != null &&
+                        data["midnightSnack"].isNotEmpty)
+                      _buildMealDetailRow(context, Icons.bedtime_outlined,
+                          "Midnight Snack", data["midnightSnack"], isLocked),
+                    // --- END MODIFIED SECTION ---
+
                   ],
                 ),
               ),
@@ -448,7 +471,7 @@ class _DietitianPublicProfileState extends State<DietitianPublicProfile> {
             Positioned.fill(
               child: InkWell(
                 onTap: () async {
-                  // Navigate to ChoosePlanPage when tapping the lock overlay
+                  // ... (rest of your InkWell logic is correct)
                   try {
                     final dietitianDoc = await FirebaseFirestore.instance
                         .collection('Users')
@@ -536,18 +559,35 @@ class _DietitianPublicProfileState extends State<DietitianPublicProfile> {
   }
 
   // UPDATED: Helper for meal detail row with blur effect when locked
-  Widget _buildMealDetailRow(BuildContext context, String emoji, String label, String value, bool isLocked) {
+// UPDATED: Helper for meal detail row (now using IconData)
+  Widget _buildMealDetailRow(
+      BuildContext context,
+      IconData icon, // Changed from String emoji
+      String label,
+      String value,
+      bool isLocked,
+      ) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4.0),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(emoji, style: const TextStyle(fontSize: 16)),
+          // --- THIS IS THE FIX ---
+          Icon(
+            icon,
+            size: 18, // You can adjust the size
+            color: _primaryColor.withOpacity(0.8), // Use your theme color
+          ),
+          // --- END FIX ---
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               isLocked ? "$label: ••••••••••" : "$label: ${value.trim()}",
-              style: _getTextStyle(context, fontSize: 14, color: _textColorPrimary(context)),
+              style: _getTextStyle(
+                context,
+                fontSize: 14,
+                color: _textColorPrimary(context),
+              ),
             ),
           ),
         ],
@@ -708,7 +748,7 @@ class _DietitianPublicProfileState extends State<DietitianPublicProfile> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              "About",
+                              "",
                               style: _getTextStyle(context, fontSize: 18, fontWeight: FontWeight.bold),
                             ),
                             const SizedBox(height: 8),

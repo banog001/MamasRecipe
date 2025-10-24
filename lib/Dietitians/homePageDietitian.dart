@@ -1034,27 +1034,47 @@ class _AnalyticsDashboardState extends State<AnalyticsDashboard> {
   }
 
   Widget _buildStatRow(
-    BuildContext context,
-    IconData icon,
-    String label,
-    String value,
-  ) {
+      BuildContext context,
+      IconData icon,
+      String label,
+      String value,
+      ) {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      // mainAxisAlignment: MainAxisAlignment.spaceBetween, // We don't need this
       children: [
-        Row(
-          children: [
-            Icon(icon, color: _primaryColor, size: 18),
-            const SizedBox(width: 10),
-            Text(label, style: _getTextStyle(context, fontSize: 14)),
-          ],
+        // Left side (icon and label)
+        Expanded(
+          flex: 3, // Give more space to the label
+          child: Row(
+            children: [
+              Icon(icon, color: _primaryColor, size: 18),
+              const SizedBox(width: 10),
+              // Expanded allows the text to truncate
+              Expanded(
+                child: Text(
+                  label,
+                  style: _getTextStyle(context, fontSize: 14),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
         ),
-        Text(
-          value,
-          style: _getTextStyle(
-            context,
-            fontSize: 15,
-            fontWeight: FontWeight.bold,
+        const SizedBox(width: 12), // Spacer
+        // Right side (value)
+        Expanded(
+          flex: 2, // Give less space to the value
+          child: Text(
+            value,
+            style: _getTextStyle(
+              context,
+              fontSize: 15,
+              fontWeight: FontWeight.bold,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.end, // Aligns text to the right
           ),
         ),
       ],
@@ -1287,9 +1307,9 @@ class _AnalyticsDashboardState extends State<AnalyticsDashboard> {
   }
 
   Widget _buildAppointmentCard(
-    BuildContext context,
-    Map<String, dynamic> apptData,
-  ) {
+      BuildContext context,
+      Map<String, dynamic> apptData,
+      ) {
     return Container(
       decoration: BoxDecoration(
         color: _cardBgColor(context),
@@ -1303,6 +1323,7 @@ class _AnalyticsDashboardState extends State<AnalyticsDashboard> {
         ],
       ),
       child: Padding(
+        // Use 16.0 for consistency with your other cards
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1322,14 +1343,21 @@ class _AnalyticsDashboardState extends State<AnalyticsDashboard> {
                   ),
                 ),
                 const SizedBox(width: 12),
-                Text(
-                  'Appointments & Schedule',
-                  style: _getTextStyle(
-                    context,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
+                // --- FIX ---
+                // Wrapped in Expanded to prevent overflow
+                Expanded(
+                  child: Text(
+                    'Appointments & Schedule',
+                    style: _getTextStyle(
+                      context,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
+                // --- END FIX ---
               ],
             ),
             const SizedBox(height: 16),

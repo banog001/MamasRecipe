@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../Dietitians/dietitianPublicProfile.dart';
-
+import 'package:mamas_recipe/widget/custom_snackbar.dart';
 
 // --- Theme Helpers (Copied from other files) ---
 const String _primaryFontFamily = 'PlusJakartaSans';
@@ -280,8 +280,11 @@ class _MessagesPageState extends State<MessagesPage> {
   /// ✅ Request appointment from dietitian
   Future<void> _requestAppointment() async {
     if (currentUserName.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('User data not loaded yet')),
+      CustomSnackBar.show(
+        context,
+        'User data not loaded yet',
+        backgroundColor: Colors.redAccent,
+        icon: Icons.lock_outline,
       );
       return;
     }
@@ -324,13 +327,11 @@ class _MessagesPageState extends State<MessagesPage> {
         setState(() {
           _isSubmittingRequest = false;
         });
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Appointment request sent successfully!'),
-            backgroundColor: Color(0xFF4CAF50),
-            duration: Duration(seconds: 2),
-          ),
+        CustomSnackBar.show(
+          context,
+          'Appointment request sent successfully!',
+          backgroundColor: Colors.redAccent,
+          icon: Icons.lock_outline,
         );
       }
     } catch (e) {
@@ -339,13 +340,13 @@ class _MessagesPageState extends State<MessagesPage> {
         setState(() {
           _isSubmittingRequest = false;
         });
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: $e'),
-            backgroundColor: Colors.redAccent,
-          ),
+        CustomSnackBar.show(
+          context,
+          'Error: $e',
+          backgroundColor: Colors.redAccent,
+          icon: Icons.lock_outline,
         );
+
       }
     }
   }
