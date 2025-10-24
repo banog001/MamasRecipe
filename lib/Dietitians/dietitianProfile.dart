@@ -983,6 +983,16 @@ class _PricingDialogState extends State<PricingDialog> {
       final dietitianData = dietitianDoc.data()!;
       final dietitianName = "${dietitianData['firstName'] ?? ''} ${dietitianData['lastName'] ?? ''}".trim();
 
+      // Get current and pending prices - handle both int and double
+      final monthlyOld = (dietitianData['monthlyPrice'] as num?)?.toString() ?? 'N/A';
+      final monthlyNew = (dietitianData['pendingMonthlyPrice'] as num?)?.toString() ?? monthlyOld;
+
+      final weeklyOld = (dietitianData['weeklyPrice'] as num?)?.toString() ?? 'N/A';
+      final weeklyNew = (dietitianData['pendingWeeklyPrice'] as num?)?.toString() ?? weeklyOld;
+
+      final yearlyOld = (dietitianData['yearlyPrice'] as num?)?.toString() ?? 'N/A';
+      final yearlyNew = (dietitianData['pendingYearlyPrice'] as num?)?.toString() ?? yearlyOld;
+
       // Get all subscribers (regardless of status)
       final subscribersSnapshot = await FirebaseFirestore.instance
           .collection('Users')
@@ -990,6 +1000,9 @@ class _PricingDialogState extends State<PricingDialog> {
           .collection('subscriber')
           .get();
 
+      print('Raw dietitian data: $dietitianData');
+      print('Monthly price type: ${dietitianData['monthlyPrice'].runtimeType}');
+      print('Pending monthly price type: ${dietitianData['pendingMonthlyPrice'].runtimeType}');
       // Send notification to each subscriber
       for (var subDoc in subscribersSnapshot.docs) {
         final clientId = subDoc.id;
@@ -1005,9 +1018,20 @@ class _PricingDialogState extends State<PricingDialog> {
           'message': '$dietitianName has updated their pricing. New rates will be effective on ${_formatDate(effectiveDate)}.',
           'senderId': dietitianId,
           'senderName': dietitianName,
+          'dietitianName': dietitianName,
           'timestamp': FieldValue.serverTimestamp(),
           'title': 'Price Change',
           'type': 'priceChange',
+
+          // Store all price information
+          'monthlyOldPrice': monthlyOld,
+          'monthlyNewPrice': monthlyNew,
+          'weeklyOldPrice': weeklyOld,
+          'weeklyNewPrice': weeklyNew,
+          'yearlyOldPrice': yearlyOld,
+          'yearlyNewPrice': yearlyNew,
+
+          'effectiveDate': effectiveDate,
         });
       }
     } catch (e) {

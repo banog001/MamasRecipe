@@ -7,6 +7,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'home.dart';
 
+import 'package:mamas_recipe/widget/custom_snackbar.dart';
+
 class EditProfilePage extends StatefulWidget {
   const EditProfilePage({super.key});
 
@@ -139,37 +141,45 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
     String? imageUrl;
 
-    // 🔹 If a new profile image was chosen, upload it first
+    // 📹 If a new profile image was chosen, upload it first
     if (_profileImage != null) {
       imageUrl = await _uploadToCloudinary(_profileImage!);
       if (imageUrl == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Failed to upload image.")),
+        CustomSnackBar.show(
+          context,
+          'Failed to upload image.',
+          backgroundColor: Colors.red,
+          icon: Icons.error,
+          duration: const Duration(seconds: 2),
         );
         return;
       }
     }
 
-    // 🔹 Prepare data to update
+    // 📹 Prepare data to update
     final updateData = <String, dynamic>{};
 
     // Add new image URL only if user picked one
     if (imageUrl != null) updateData['profile'] = imageUrl;
 
-    // Add current weight (if it’s not empty)
+    // Add current weight (if it's not empty)
     if (_weightController.text.trim().isNotEmpty) {
       updateData['currentWeight'] = _weightController.text.trim();
     }
 
-    // 🔹 Update Firestore only if there’s something to change
+    // 📹 Update Firestore only if there's something to change
     if (updateData.isNotEmpty) {
       await FirebaseFirestore.instance
           .collection("Users")
           .doc(user.uid)
           .update(updateData);
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("✅ Profile updated successfully!")),
+      CustomSnackBar.show(
+        context,
+        'Profile updated successfully!',
+        backgroundColor: Colors.green,
+        icon: Icons.check_circle,
+        duration: const Duration(seconds: 2),
       );
 
       // Refresh data on screen
@@ -178,8 +188,12 @@ class _EditProfilePageState extends State<EditProfilePage> {
         _profileImage = null;
       });
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("No changes to save.")),
+      CustomSnackBar.show(
+        context,
+        'No changes to save.',
+        backgroundColor: Colors.orange,
+        icon: Icons.info,
+        duration: const Duration(seconds: 2),
       );
     }
   }

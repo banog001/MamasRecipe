@@ -6809,8 +6809,8 @@ class _AdminHomeState extends State<AdminHome> {
               ],
             ),
             const SizedBox(height: 16),
-            StreamBuilder<List<QueryDocumentSnapshot>>(
-              stream: _subscribersStream(),
+            FutureBuilder<Map<String, int>>(
+              future: _getSubscriptionStats(),
               builder: (context, snapshot) {
                 if (!snapshot.hasData) {
                   return const Center(
@@ -6818,25 +6818,10 @@ class _AdminHomeState extends State<AdminHome> {
                   );
                 }
 
-                final subscribers = snapshot.data!;
-                int approvedSubscribers = 0;
-                int canceledSubscribers = 0;
-                int expiredSubscribers = 0;
-                final now = DateTime.now();
-                final monthAgo = now.subtract(const Duration(days: 30));
-
-                // Count subscribers by status
-                for (var subDoc in subscribers) {
-                  final status = subDoc['status'] as String?;
-
-                  if (status == 'approved') {
-                    approvedSubscribers++;
-                  } else if (status == 'cancelled') {
-                    canceledSubscribers++;
-                  } else if (status == 'expired') {
-                    expiredSubscribers++;
-                  }
-                }
+                final stats = snapshot.data!;
+                final approvedSubscribers = stats['approved'] ?? 0;
+                final canceledSubscribers = stats['cancelled'] ?? 0;
+                final expiredSubscribers = stats['expired'] ?? 0;
 
                 final total = approvedSubscribers + canceledSubscribers + expiredSubscribers;
                 final approvedRate = total > 0
@@ -6855,7 +6840,7 @@ class _AdminHomeState extends State<AdminHome> {
                       children: [
                         Expanded(
                           child: _buildStatCard(
-                            "Approved",
+                            "Active",
                             approvedSubscribers.toString(),
                             Colors.green,
                             Icons.check_circle,
@@ -6894,7 +6879,7 @@ class _AdminHomeState extends State<AdminHome> {
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               Text(
-                                "Approved Rate",
+                                "Active Rate",
                                 style: _getTextStyle(
                                   context,
                                   fontWeight: FontWeight.w600,
@@ -6966,6 +6951,78 @@ class _AdminHomeState extends State<AdminHome> {
         ),
       ),
     );
+  }
+
+// Get subscription statistics from different sources
+  Future<Map<String, int>> _getSubscriptionStats() async {
+    int approvedCount = 0;
+    int canceledCount = 0;
+    int expiredCount = 0;
+    final now = DateTime.now();
+
+    try {
+      // Get all users
+      final usersSnapshot = await FirebaseFirestore.instance
+          .collection('Users')
+          .where('role', whereIn: ['user', 'dietitian'])
+          .get();
+
+      // Track unique users for each category
+      Set<String> activeUsers = {};
+      Set<String> cancelledUsers = {};
+      Set<String> expiredUsers = {};
+
+      // 1. Check subscribeTo subcollection for ACTIVE subscriptions
+      for (var userDoc in usersSnapshot.docs) {
+        final subscribeToSnapshot = await FirebaseFirestore.instance
+            .collection('Users')
+            .doc(userDoc.id)
+            .collection('subscribeTo')
+            .get();
+
+        for (var subDoc in subscribeToSnapshot.docs) {
+          final data = subDoc.data();
+          final status = data['status'] as String?;
+          final endDate = (data['expirationDate'] as Timestamp?)?.toDate();
+
+          // Check if subscription is active (approved and not expired)
+          if (status == 'approved' && endDate != null && endDate.isAfter(now)) {
+            activeUsers.add(userDoc.id);
+          }
+          // Check if subscription is expired
+          else if (endDate != null && endDate.isBefore(now)) {
+            expiredUsers.add(userDoc.id);
+          }
+        }
+      }
+
+      // 2. Check receipts collection for CANCELLED subscriptions
+      final receiptsSnapshot = await FirebaseFirestore.instance
+          .collection('receipts')
+          .where('status', isEqualTo: 'cancelled')
+          .get();
+
+      for (var receipt in receiptsSnapshot.docs) {
+        final userId = receipt['clientID'] as String?;
+        if (userId != null) {
+          cancelledUsers.add(userId);
+        }
+      }
+
+      // Count unique users
+      approvedCount = activeUsers.length;
+      canceledCount = cancelledUsers.length;
+      expiredCount = expiredUsers.length;
+
+    } catch (e) {
+      print("❌ Error fetching subscription stats: $e");
+    }
+
+    return {
+      'approved': approvedCount,
+      'cancelled': canceledCount,
+      'expired': expiredCount,
+    };
   }
 
   // Stream of all subscriber docs from each user's subscribeTo subcollection

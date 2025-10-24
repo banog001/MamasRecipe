@@ -4,6 +4,91 @@ import 'start4.dart';
 import 'package:mamas_recipe/widget/custom_snackbar.dart';
 import 'package:intl/intl.dart';
 
+// --- Theme Helpers ---
+const String _primaryFontFamily = 'PlusJakartaSans';
+const Color _primaryColor = Color(0xFF4CAF50);
+const Color _textColorOnPrimary = Colors.white;
+
+Color _scaffoldBgColor(BuildContext context) =>
+    Theme.of(context).brightness == Brightness.dark
+        ? Colors.grey.shade900
+        : Colors.white;
+
+Color _cardBgColor(BuildContext context) =>
+    Theme.of(context).brightness == Brightness.dark
+        ? Colors.grey.shade800
+        : Colors.white;
+
+Color _textColorPrimary(BuildContext context) =>
+    Theme.of(context).brightness == Brightness.dark
+        ? Colors.white70
+        : Colors.black87;
+
+Color _textColorSecondary(BuildContext context) =>
+    Theme.of(context).brightness == Brightness.dark
+        ? Colors.white54
+        : Colors.black54;
+
+TextStyle _getTextStyle(
+    BuildContext context, {
+      double fontSize = 16,
+      FontWeight fontWeight = FontWeight.normal,
+      Color? color,
+      String fontFamily = _primaryFontFamily,
+      double? letterSpacing,
+      FontStyle? fontStyle,
+      double? height,
+    }) {
+  final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+  final defaultTextColor =
+      color ?? (isDarkMode ? Colors.white70 : Colors.black87);
+  return TextStyle(
+    fontFamily: fontFamily,
+    fontSize: fontSize,
+    fontWeight: fontWeight,
+    color: defaultTextColor,
+    letterSpacing: letterSpacing,
+    fontStyle: fontStyle,
+    height: height,
+  );
+}
+
+Widget _buildBackgroundShapes(BuildContext context) {
+  return Container(
+    width: double.infinity,
+    height: double.infinity,
+    color: _scaffoldBgColor(context),
+    child: Stack(
+      children: [
+        Positioned(
+          top: -100,
+          left: -150,
+          child: Container(
+            width: 300,
+            height: 300,
+            decoration: BoxDecoration(
+              color: _primaryColor.withOpacity(0.08),
+              shape: BoxShape.circle,
+            ),
+          ),
+        ),
+        Positioned(
+          bottom: -120,
+          right: -180,
+          child: Container(
+            width: 400,
+            height: 400,
+            decoration: BoxDecoration(
+              color: _primaryColor.withOpacity(0.08),
+              shape: BoxShape.circle,
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
 class MealPlanningScreen3 extends StatefulWidget {
   final String userId;
 
@@ -12,8 +97,6 @@ class MealPlanningScreen3 extends StatefulWidget {
   @override
   State<MealPlanningScreen3> createState() => _MealPlanningScreen3State();
 }
-
-
 
 class CustomBirthdayPicker extends StatefulWidget {
   final DateTime initialDate;
@@ -72,14 +155,12 @@ class _CustomBirthdayPickerState extends State<CustomBirthdayPicker> {
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       backgroundColor: cardColor,
-      // CHANGE THIS: Adjust the dialog width (0.85 = 85% of screen width)
       insetPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 24),
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Header
             Text(
               'Select Your Birthday',
               style: TextStyle(
@@ -100,8 +181,6 @@ class _CustomBirthdayPickerState extends State<CustomBirthdayPicker> {
               ),
             ),
             const SizedBox(height: 24),
-
-            // Month and Year Row
             Row(
               children: [
                 Expanded(
@@ -291,8 +370,6 @@ class _CustomBirthdayPickerState extends State<CustomBirthdayPicker> {
               ],
             ),
             const SizedBox(height: 24),
-
-            // Buttons
             Row(
               children: [
                 Expanded(
@@ -350,13 +427,7 @@ class _CustomBirthdayPickerState extends State<CustomBirthdayPicker> {
   }
 }
 
-
-
 class _MealPlanningScreen3State extends State<MealPlanningScreen3> {
-  // MODIFIED: Removed _formKey as we are doing manual validation
-  // final _formKey = GlobalKey<FormState>();
-
-  // GlobalKeys for scrolling to error sections
   final _personalInfoKey = GlobalKey();
   final _healthGoalKey = GlobalKey();
   final _activityLevelKey = GlobalKey();
@@ -365,7 +436,6 @@ class _MealPlanningScreen3State extends State<MealPlanningScreen3> {
   final TextEditingController _weightController = TextEditingController();
   final TextEditingController _heightController = TextEditingController();
 
-  // FocusNodes for weight and height fields
   final FocusNode _weightFocusNode = FocusNode();
   final FocusNode _heightFocusNode = FocusNode();
 
@@ -373,10 +443,15 @@ class _MealPlanningScreen3State extends State<MealPlanningScreen3> {
   int? selectedHealthGoalIndex;
   int? selectedActivityLevelIndex;
 
+  // --- NEW: BMI and category tracking ---
+  double? currentBMI;
+  String? bmiCategory;
+  List<String>? suggestedHealthGoals;
+
   final List<Map<String, dynamic>> healthGoals = [
     {"icon": Icons.person_remove_outlined, "text": "Weight Loss"},
     {"icon": Icons.person_add_alt_1_outlined, "text": "Weight Gain"},
-    {"icon":Icons.monitor_weight_outlined, "text": "Maintain Weight"},
+    {"icon": Icons.monitor_weight_outlined, "text": "Maintain Weight"},
     {"icon": Icons.fitness_center, "text": "Workout"},
   ];
 
@@ -447,6 +522,181 @@ class _MealPlanningScreen3State extends State<MealPlanningScreen3> {
     );
   }
 
+  // --- NEW: Validate realistic height and weight ---
+  Map<String, dynamic> _validateHeightWeight(double weight, double height) {
+    // Height validation (50-250 cm)
+    if (height < 50) {
+      return {
+        'isValid': false,
+        'message': 'Height is too low (minimum: 50 cm)',
+        'type': 'height'
+      };
+    }
+    if (height > 250) {
+      return {
+        'isValid': false,
+        'message': 'Height is too high (maximum: 250 cm)',
+        'type': 'height'
+      };
+    }
+
+    // Weight validation (30-500 kg - realistic human range)
+    if (weight < 30) {
+      return {
+        'isValid': false,
+        'message': 'Weight is too low (minimum: 30 kg)',
+        'type': 'weight'
+      };
+    }
+    if (weight > 500) {
+      return {
+        'isValid': false,
+        'message': 'Weight is too high (maximum: 500 kg)',
+        'type': 'weight'
+      };
+    }
+
+    // BMI validation (realistic BMI range: 10-60)
+    double bmi = _calculateBMI(weight, height);
+    if (bmi < 10) {
+      return {
+        'isValid': false,
+        'message': 'Weight seems too low for this height (BMI: ${bmi.toStringAsFixed(1)})',
+        'type': 'combination'
+      };
+    }
+    if (bmi > 60) {
+      return {
+        'isValid': false,
+        'message': 'Weight seems too high for this height (BMI: ${bmi.toStringAsFixed(1)})',
+        'type': 'combination'
+      };
+    }
+
+    // Additional realistic validation: Check height-weight proportions
+    // Using Devine formula as reference
+    double idealWeightMin = _calculateIdealWeightMin(height);
+    double idealWeightMax = _calculateIdealWeightMax(height);
+
+    if (weight < (idealWeightMin * 0.5)) {
+      return {
+        'isValid': false,
+        'message': 'Weight is unrealistically low for this height',
+        'type': 'proportion'
+      };
+    }
+    if (weight > (idealWeightMax * 2)) {
+      return {
+        'isValid': false,
+        'message': 'Weight is unrealistically high for this height',
+        'type': 'proportion'
+      };
+    }
+
+    return {
+      'isValid': true,
+      'message': 'Valid',
+      'type': 'valid'
+    };
+  }
+
+  // --- Helper: Calculate ideal weight minimum using Devine formula ---
+  double _calculateIdealWeightMin(double heightCm) {
+    // Devine formula: 50 kg + 2.3 kg per inch over 5 feet
+    // For metric: 50 + 2.3 * ((height - 152.4) / 2.54)
+    if (heightCm < 150) return 40;
+    return 50 + (2.3 * ((heightCm - 152.4) / 2.54)) * 0.85;
+  }
+
+  // --- Helper: Calculate ideal weight maximum ---
+  double _calculateIdealWeightMax(double heightCm) {
+    if (heightCm < 150) return 50;
+    return 50 + (2.3 * ((heightCm - 152.4) / 2.54)) * 1.15;
+  }
+
+  // --- NEW: Calculate BMI ---
+  double _calculateBMI(double weightKg, double heightCm) {
+    double heightM = heightCm / 100;
+    return weightKg / (heightM * heightM);
+  }
+
+  // --- NEW: Get BMI Category and color ---
+  Map<String, dynamic> _getBMICategory(double bmi) {
+    if (bmi < 18.5) {
+      return {
+        'category': 'Underweight',
+        'color': Colors.blue,
+        'goals': ['Weight Gain']
+      };
+    } else if (bmi < 25) {
+      return {
+        'category': 'Normal Weight',
+        'color': Colors.green,
+        'goals': ['Maintain Weight', 'Workout']
+      };
+    } else if (bmi < 30) {
+      return {
+        'category': 'Overweight',
+        'color': Colors.orange,
+        'goals': ['Weight Loss', 'Workout']
+      };
+    } else {
+      return {
+        'category': 'Obese',
+        'color': Colors.red,
+        'goals': ['Weight Loss']
+      };
+    }
+  }
+
+  // --- NEW: Auto-compute BMI on input change with validation ---
+  void _updateBMI() {
+    final weightText = _weightController.text.trim();
+    final heightText = _heightController.text.trim();
+
+    if (weightText.isEmpty || heightText.isEmpty) {
+      setState(() {
+        currentBMI = null;
+        bmiCategory = null;
+        suggestedHealthGoals = null;
+      });
+      return;
+    }
+
+    final weight = double.tryParse(weightText);
+    final height = double.tryParse(heightText);
+
+    if (weight == null || height == null || weight <= 0 || height <= 0) {
+      setState(() {
+        currentBMI = null;
+        bmiCategory = null;
+        suggestedHealthGoals = null;
+      });
+      return;
+    }
+
+    // Validate realistic height and weight
+    final validation = _validateHeightWeight(weight, height);
+
+    if (!validation['isValid']) {
+      setState(() {
+        currentBMI = null;
+        bmiCategory = null;
+        suggestedHealthGoals = null;
+      });
+      return;
+    }
+
+    final bmi = _calculateBMI(weight, height);
+    final categoryData = _getBMICategory(bmi);
+
+    setState(() {
+      currentBMI = bmi;
+      bmiCategory = categoryData['category'];
+      suggestedHealthGoals = List<String>.from(categoryData['goals']);
+    });
+  }
+
   int _calculateAge(DateTime birthDate) {
     final today = DateTime.now();
     int age = today.year - birthDate.year;
@@ -457,17 +707,6 @@ class _MealPlanningScreen3State extends State<MealPlanningScreen3> {
     return age;
   }
 
-  double _calculateBMI(double weightKg, double heightCm) {
-    double heightM = heightCm / 100;
-    return weightKg / (heightM * heightM);
-  }
-
-  bool _isValidWeightHeightCombination(double weightKg, double heightCm) {
-    double bmi = _calculateBMI(weightKg, heightCm);
-    return bmi >= 10 && bmi <= 60;
-  }
-
-  // Helper function to scroll to a specific widget
   void _scrollToKey(GlobalKey key) {
     final context = key.currentContext;
     if (context != null) {
@@ -475,12 +714,11 @@ class _MealPlanningScreen3State extends State<MealPlanningScreen3> {
         context,
         duration: const Duration(milliseconds: 500),
         curve: Curves.easeInOut,
-        alignment: 0.1, // Align near the top
+        alignment: 0.1,
       );
     }
   }
 
-  // NEW: Helper to show error snackbar
   void _showErrorSnackBar(String message) {
     CustomSnackBar.show(
       context,
@@ -500,28 +738,23 @@ class _MealPlanningScreen3State extends State<MealPlanningScreen3> {
   }
 
   Future<void> _saveUserData() async {
-    // --- NEW: Manual Validation Logic ---
-
     final weightText = _weightController.text.trim();
     final heightText = _heightController.text.trim();
     final weight = double.tryParse(weightText);
     final height = double.tryParse(heightText);
 
-    // 1. Check Birthday
     if (selectedBirthday == null) {
       _showErrorSnackBar("Please select your birthday");
       _scrollToKey(_personalInfoKey);
       return;
     }
 
-    // 2. Check Gender
     if (selectedGender == null) {
       _showErrorSnackBar("Please select your gender");
       _scrollToKey(_personalInfoKey);
       return;
     }
 
-    // 3. Check Weight
     if (weightText.isEmpty) {
       _showErrorSnackBar("Please enter your weight");
       _scrollToKey(_personalInfoKey);
@@ -529,13 +762,12 @@ class _MealPlanningScreen3State extends State<MealPlanningScreen3> {
       return;
     }
     if (weight == null || weight <= 0) {
-      _showErrorSnackBar("Please enter a valid weight");
+      _showErrorSnackBar("Please enter a valid weight (must be a number)");
       _scrollToKey(_personalInfoKey);
       _weightFocusNode.requestFocus();
       return;
     }
 
-    // 4. Check Height
     if (heightText.isEmpty) {
       _showErrorSnackBar("Please enter your height");
       _scrollToKey(_personalInfoKey);
@@ -543,52 +775,41 @@ class _MealPlanningScreen3State extends State<MealPlanningScreen3> {
       return;
     }
     if (height == null || height <= 0) {
-      _showErrorSnackBar("Please enter a valid height");
-      _scrollToKey(_personalInfoKey);
-      _heightFocusNode.requestFocus();
-      return;
-    }
-    if (height < 50 || height > 250) {
-      _showErrorSnackBar("Height must be between 50-250 cm");
+      _showErrorSnackBar("Please enter a valid height (must be a number)");
       _scrollToKey(_personalInfoKey);
       _heightFocusNode.requestFocus();
       return;
     }
 
-    // 5. Check Weight/Height Combination (BMI)
-    if (!_isValidWeightHeightCombination(weight, height)) {
-      final bmi = _calculateBMI(weight, height);
-      if (bmi < 10) {
-        _showErrorSnackBar("Weight seems too low for this height");
-      } else {
-        _showErrorSnackBar("Weight seems too high for this height");
+    // Validate realistic height and weight
+    final validation = _validateHeightWeight(weight, height);
+    if (!validation['isValid']) {
+      _showErrorSnackBar(validation['message']);
+      _scrollToKey(_personalInfoKey);
+      if (validation['type'] == 'weight') {
+        _weightFocusNode.requestFocus();
+      } else if (validation['type'] == 'height') {
+        _heightFocusNode.requestFocus();
       }
-      _scrollToKey(_personalInfoKey);
-      _weightFocusNode.requestFocus(); // Default to focusing weight on BMI error
       return;
     }
 
-    // 6. Check Health Goal
     if (selectedHealthGoalIndex == null) {
       _showErrorSnackBar("Please select a health goal");
       _scrollToKey(_healthGoalKey);
       return;
     }
 
-    // 7. Check Activity Level
     if (selectedActivityLevelIndex == null) {
       _showErrorSnackBar("Please select an activity level");
       _scrollToKey(_activityLevelKey);
       return;
     }
 
-    // --- End of Validation ---
-
-    // All checks passed, proceed to save data
     final int age = _calculateAge(selectedBirthday!);
     final String healthGoal = healthGoals[selectedHealthGoalIndex!]["text"];
-    final String activityLevel =
-    activityLevels[selectedActivityLevelIndex!]["text"];
+    final String activityLevel = activityLevels[selectedActivityLevelIndex!]["text"];
+    final double bmi = _calculateBMI(weight, height);
 
     try {
       await FirebaseFirestore.instance
@@ -597,11 +818,14 @@ class _MealPlanningScreen3State extends State<MealPlanningScreen3> {
           .set({
         "age": age,
         "gender": selectedGender,
-        "currentWeight": weight, // MODIFIED: Save the parsed double
-        "height": height, // MODIFIED: Save the parsed double
+        "currentWeight": weight,
+        "height": height,
+        "bmi": bmi.toStringAsFixed(2),
+        "bmiCategory": bmiCategory,
         "goals": healthGoal,
         "activityLevel": activityLevel,
         "tutorialStep": 3,
+        "bmiUpdatedAt": FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
 
       if (mounted) {
@@ -674,7 +898,7 @@ class _MealPlanningScreen3State extends State<MealPlanningScreen3> {
                 Expanded(
                   child: Text(
                     selectedBirthday != null
-                        ? "${selectedBirthday!.day}/${selectedBirthday!.month}/${selectedBirthday!.year} "
+                        ? "${selectedBirthday!.day}/${selectedBirthday!.month}/${selectedBirthday!.year}"
                         : "Select your birthday",
                     style: _getTextStyle(
                       context,
@@ -775,6 +999,204 @@ class _MealPlanningScreen3State extends State<MealPlanningScreen3> {
     );
   }
 
+  // --- NEW: Build validation indicator widget ---
+  Widget _buildValidationIndicator() {
+    final weightText = _weightController.text.trim();
+    final heightText = _heightController.text.trim();
+
+    if (weightText.isEmpty || heightText.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    final weight = double.tryParse(weightText);
+    final height = double.tryParse(heightText);
+
+    if (weight == null || height == null || weight <= 0 || height <= 0) {
+      return Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.red.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.red.withOpacity(0.3), width: 1),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.warning_rounded, color: Colors.red, size: 18),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'Please enter valid numbers',
+                style: _getTextStyle(
+                  context,
+                  fontSize: 12,
+                  color: Colors.red,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final validation = _validateHeightWeight(weight, height);
+
+    if (!validation['isValid']) {
+      return Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.red.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.red.withOpacity(0.3), width: 1),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.error_outline_rounded, color: Colors.red, size: 18),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                validation['message'] ?? 'Invalid input',
+                style: _getTextStyle(
+                  context,
+                  fontSize: 12,
+                  color: Colors.red,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return const SizedBox.shrink();
+  }
+
+  // --- NEW: Build BMI Display Widget ---
+  Widget _buildBMIDisplay() {
+    if (currentBMI == null) {
+      return _buildValidationIndicator();
+    }
+
+    final categoryData = _getBMICategory(currentBMI!);
+    final categoryColor = categoryData['color'] as Color;
+
+    return Column(
+      children: [
+        Container(
+          margin: const EdgeInsets.only(bottom: 16),
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: categoryColor.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: categoryColor.withOpacity(0.3),
+              width: 2,
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "Your BMI",
+                        style: _getTextStyle(
+                          context,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: _textColorSecondary(context),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        currentBMI!.toStringAsFixed(1),
+                        style: _getTextStyle(
+                          context,
+                          fontSize: 28,
+                          fontWeight: FontWeight.bold,
+                          color: categoryColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: categoryColor.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Column(
+                      children: [
+                        Icon(Icons.health_and_safety_rounded, color: categoryColor, size: 20),
+                        const SizedBox(height: 4),
+                        Text(
+                          bmiCategory ?? "Unknown",
+                          style: _getTextStyle(
+                            context,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: categoryColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              if (suggestedHealthGoals != null && suggestedHealthGoals!.isNotEmpty)
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Divider(color: categoryColor.withOpacity(0.2), height: 12),
+                    const SizedBox(height: 8),
+                    Text(
+                      "Recommended Goals for Your BMI:",
+                      style: _getTextStyle(
+                        context,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: _textColorSecondary(context),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: suggestedHealthGoals!.map((goal) {
+                        return Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: categoryColor.withOpacity(0.3),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            goal,
+                            style: _getTextStyle(
+                              context,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: categoryColor,
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ],
+                ),
+            ],
+          ),
+        ),
+        _buildValidationIndicator(),
+      ],
+    );
+  }
+
   Widget _buildSectionContainer({
     required String title,
     required List<Widget> children,
@@ -783,12 +1205,12 @@ class _MealPlanningScreen3State extends State<MealPlanningScreen3> {
   }) {
     return Card(
       key: key,
-      elevation: 4,
-      shadowColor: _primaryColor.withOpacity(0.1),
+      elevation: 0,
+      shadowColor: Colors.transparent,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
       ),
-      color: _cardBgColor(context),
+      color: Colors.transparent,
       margin: const EdgeInsets.only(bottom: 16),
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -910,325 +1332,252 @@ class _MealPlanningScreen3State extends State<MealPlanningScreen3> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: _scaffoldBgColor(context),
-      body: SafeArea(
-        // MODIFIED: Removed Form widget
-        child: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
-          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const SizedBox(height: 12),
-              Container(
-                width: 56,
-                height: 56,
-                decoration: BoxDecoration(
-                  color: _primaryColor,
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: _primaryColor.withOpacity(0.3),
-                      blurRadius: 15,
-                      offset: const Offset(0, 5),
-                    ),
-                  ],
-                ),
-                child: const Icon(
-                  Icons.person_outline,
-                  color: _textColorOnPrimary,
-                  size: 28,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                'Tell Us About Yourself',
-                textAlign: TextAlign.center,
-                style: _getTextStyle(
-                  context,
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: _textColorPrimary(context),
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'Step 3 of 4: Profile Details',
-                textAlign: TextAlign.center,
-                style: _getTextStyle(
-                  context,
-                  fontSize: 13,
-                  color: _textColorSecondary(context),
-                ),
-              ),
-              const SizedBox(height: 20),
-              _buildSectionContainer(
-                key: _personalInfoKey,
-                title: 'Personal Information',
+      body: Stack(
+        children: [
+          _buildBackgroundShapes(context),
+          SafeArea(
+            child: SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
+              padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  _buildBirthdayPicker(),
-                  _buildGenderSelection(),
-                  Row(
+                  const SizedBox(height: 12),
+                  Container(
+                    width: 56,
+                    height: 56,
+                    decoration: BoxDecoration(
+                      color: _primaryColor,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: _primaryColor.withOpacity(0.3),
+                          blurRadius: 15,
+                          offset: const Offset(0, 5),
+                        ),
+                      ],
+                    ),
+                    child: const Icon(
+                      Icons.person_pin_circle_outlined,
+                      color: _textColorOnPrimary,
+                      size: 28,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Tell Us About Yourself',
+                    textAlign: TextAlign.center,
+                    style: _getTextStyle(
+                      context,
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      color: _textColorPrimary(context),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Step 3 of 4: Profile Details',
+                    textAlign: TextAlign.center,
+                    style: _getTextStyle(
+                      context,
+                      fontSize: 13,
+                      color: _textColorSecondary(context),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  _buildSectionContainer(
+                    key: _personalInfoKey,
+                    title: 'Personal Information',
                     children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              "Weight (kg)",
-                              style: _getTextStyle(
-                                context,
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                                color: _textColorSecondary(context),
-                              ),
+                      _buildBirthdayPicker(),
+                      _buildGenderSelection(),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  "Weight (kg)",
+                                  style: _getTextStyle(
+                                    context,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: _textColorSecondary(context),
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                TextFormField(
+                                  controller: _weightController,
+                                  focusNode: _weightFocusNode,
+                                  keyboardType: TextInputType.number,
+                                  style: _getTextStyle(context, fontSize: 16),
+                                  onChanged: (_) => _updateBMI(),
+                                  decoration: InputDecoration(
+                                    hintText: 'e.g., 70',
+                                    hintStyle: _getTextStyle(
+                                      context,
+                                      fontSize: 14,
+                                      color: _textColorSecondary(context),
+                                    ),
+                                    filled: true,
+                                    fillColor: _scaffoldBgColor(context),
+                                    prefixIcon: const Icon(
+                                      Icons.monitor_weight_outlined,
+                                      color: _primaryColor,
+                                      size: 20,
+                                    ),
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                      borderSide:
+                                      BorderSide(color: Colors.grey.shade300),
+                                    ),
+                                    enabledBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                      borderSide:
+                                      BorderSide(color: Colors.grey.shade300),
+                                    ),
+                                    focusedBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                      borderSide: const BorderSide(
+                                          color: _primaryColor, width: 2),
+                                    ),
+                                    contentPadding: const EdgeInsets.symmetric(
+                                        horizontal: 16, vertical: 14),
+                                    isDense: true,
+                                  ),
+                                ),
+                              ],
                             ),
-                            const SizedBox(height: 8),
-                            TextFormField(
-                              controller: _weightController,
-                              focusNode: _weightFocusNode,
-                              keyboardType: TextInputType.number,
-                              style: _getTextStyle(context, fontSize: 16),
-                              onFieldSubmitted: (_) {
-                                // This "soft warning" logic can remain
-                                final weightText =
-                                _weightController.text.trim();
-                                if (weightText.isNotEmpty) {
-                                  final weight = double.tryParse(weightText);
-                                  final heightText =
-                                  _heightController.text.trim();
-                                  final height = double.tryParse(heightText);
-
-                                  if (weight != null &&
-                                      height != null &&
-                                      weight > 0 &&
-                                      height > 0) {
-                                    if (!_isValidWeightHeightCombination(
-                                        weight, height)) {
-                                      final bmi =
-                                      _calculateBMI(weight, height);
-                                      if (bmi < 10) {
-                                        _showErrorSnackBar(
-                                            'Weight seems too low for this height (BMI: ${bmi.toStringAsFixed(1)})');
-                                      } else {
-                                        _showErrorSnackBar(
-                                            'Weight seems too high for this height (BMI: ${bmi.toStringAsFixed(1)})');
-                                      }
-                                    }
-                                  }
-                                }
-                              },
-                              decoration: InputDecoration(
-                                hintText: 'e.g., 70',
-                                hintStyle: _getTextStyle(
-                                  context,
-                                  fontSize: 14,
-                                  color: _textColorSecondary(context),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  "Height (cm)",
+                                  style: _getTextStyle(
+                                    context,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: _textColorSecondary(context),
+                                  ),
                                 ),
-                                filled: true,
-                                fillColor: _scaffoldBgColor(context),
-                                prefixIcon: const Icon(
-                                  Icons.monitor_weight_outlined,
-                                  color: _primaryColor,
-                                  size: 20,
+                                const SizedBox(height: 8),
+                                TextFormField(
+                                  controller: _heightController,
+                                  focusNode: _heightFocusNode,
+                                  keyboardType: TextInputType.number,
+                                  style: _getTextStyle(context, fontSize: 16),
+                                  onChanged: (_) => _updateBMI(),
+                                  decoration: InputDecoration(
+                                    hintText: 'e.g., 175',
+                                    hintStyle: _getTextStyle(
+                                      context,
+                                      fontSize: 14,
+                                      color: _textColorSecondary(context),
+                                    ),
+                                    filled: true,
+                                    fillColor: _scaffoldBgColor(context),
+                                    prefixIcon: const Icon(
+                                      Icons.height_outlined,
+                                      color: _primaryColor,
+                                      size: 20,
+                                    ),
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                      borderSide:
+                                      BorderSide(color: Colors.grey.shade300),
+                                    ),
+                                    enabledBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                      borderSide:
+                                      BorderSide(color: Colors.grey.shade300),
+                                    ),
+                                    focusedBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                      borderSide: const BorderSide(
+                                          color: _primaryColor, width: 2),
+                                    ),
+                                    contentPadding: const EdgeInsets.symmetric(
+                                        horizontal: 16, vertical: 14),
+                                    isDense: true,
+                                  ),
                                 ),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  borderSide:
-                                  BorderSide(color: Colors.grey.shade300),
-                                ),
-                                enabledBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  borderSide:
-                                  BorderSide(color: Colors.grey.shade300),
-                                ),
-                                focusedBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  borderSide: const BorderSide(
-                                      color: _primaryColor, width: 2),
-                                ),
-                                // MODIFIED: Removed error borders
-                                errorBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  borderSide: BorderSide(
-                                      color: Colors.grey.shade300),
-                                ),
-                                focusedErrorBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  borderSide: const BorderSide(
-                                      color: _primaryColor, width: 2),
-                                ),
-                                contentPadding: const EdgeInsets.symmetric(
-                                    horizontal: 16, vertical: 14),
-                                isDense: true,
-                              ),
-                              // MODIFIED: Removed validator
+                              ],
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              "Height (cm)",
-                              style: _getTextStyle(
-                                context,
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                                color: _textColorSecondary(context),
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            TextFormField(
-                              controller: _heightController,
-                              focusNode: _heightFocusNode,
-                              keyboardType: TextInputType.number,
-                              style: _getTextStyle(context, fontSize: 16),
-                              onFieldSubmitted: (_) {
-                                // This "soft warning" logic can remain
-                                final heightText =
-                                _heightController.text.trim();
-                                if (heightText.isNotEmpty) {
-                                  final height = double.tryParse(heightText);
-                                  final weightText =
-                                  _weightController.text.trim();
-                                  final weight = double.tryParse(weightText);
+                      const SizedBox(height: 16),
+                      _buildBMIDisplay(),
+                    ],
+                  ),
 
-                                  if (height != null &&
-                                      weight != null &&
-                                      height > 0 &&
-                                      weight > 0) {
-                                    if (height < 50 || height > 250) {
-                                      _showErrorSnackBar(
-                                          'Height must be between 50-250 cm');
-                                    } else if (!_isValidWeightHeightCombination(
-                                        weight, height)) {
-                                      final bmi =
-                                      _calculateBMI(weight, height);
-                                      if (bmi < 10) {
-                                        _showErrorSnackBar(
-                                            'Height seems too high for this weight (BMI: ${bmi.toStringAsFixed(1)})');
-                                      } else {
-                                        _showErrorSnackBar(
-                                            'Height seems too low for this weight (BMI: ${bmi.toStringAsFixed(1)})');
-                                      }
-                                    }
-                                  }
-                                }
-                              },
-                              decoration: InputDecoration(
-                                hintText: 'e.g., 175',
-                                hintStyle: _getTextStyle(
-                                  context,
-                                  fontSize: 14,
-                                  color: _textColorSecondary(context),
-                                ),
-                                filled: true,
-                                fillColor: _scaffoldBgColor(context),
-                                prefixIcon: const Icon(
-                                  Icons.height_outlined,
-                                  color: _primaryColor,
-                                  size: 20,
-                                ),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  borderSide:
-                                  BorderSide(color: Colors.grey.shade300),
-                                ),
-                                enabledBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  borderSide:
-                                  BorderSide(color: Colors.grey.shade300),
-                                ),
-                                focusedBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  borderSide: const BorderSide(
-                                      color: _primaryColor, width: 2),
-                                ),
-                                // MODIFIED: Removed error borders
-                                errorBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  borderSide: BorderSide(
-                                      color: Colors.grey.shade300),
-                                ),
-                                focusedErrorBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  borderSide: const BorderSide(
-                                      color: _primaryColor, width: 2),
-                                ),
-                                contentPadding: const EdgeInsets.symmetric(
-                                    horizontal: 16, vertical: 14),
-                                isDense: true,
-                              ),
-                              // MODIFIED: Removed validator
-                            ),
-                          ],
-                        ),
+                  _buildSectionContainer(
+                    key: _healthGoalKey,
+                    title: 'Health Goals',
+                    subtitle: 'What would you like to achieve?',
+                    children: [
+                      _buildSelectionList(
+                        items: healthGoals,
+                        selectedIndex: selectedHealthGoalIndex,
+                        onSelected: (index) {
+                          setState(() => selectedHealthGoalIndex = index);
+                        },
                       ),
                     ],
                   ),
-                ],
-              ),
-              _buildSectionContainer(
-                key: _healthGoalKey,
-                title: 'Health Goals',
-                subtitle: 'What would you like to achieve?',
-                children: [
-                  _buildSelectionList(
-                    items: healthGoals,
-                    selectedIndex: selectedHealthGoalIndex,
-                    onSelected: (index) {
-                      setState(() => selectedHealthGoalIndex = index);
-                    },
+
+                  _buildSectionContainer(
+                    key: _activityLevelKey,
+                    title: 'Activity & Lifestyle',
+                    subtitle: 'How would you describe your activity level?',
+                    children: [
+                      _buildSelectionList(
+                        items: activityLevels,
+                        selectedIndex: selectedActivityLevelIndex,
+                        onSelected: (index) {
+                          setState(() => selectedActivityLevelIndex = index);
+                        },
+                      ),
+                    ],
                   ),
-                ],
-              ),
-              _buildSectionContainer(
-                key: _activityLevelKey,
-                title: 'Activity & Lifestyle',
-                subtitle: 'How would you describe your activity level?',
-                children: [
-                  _buildSelectionList(
-                    items: activityLevels,
-                    selectedIndex: selectedActivityLevelIndex,
-                    onSelected: (index) {
-                      setState(() => selectedActivityLevelIndex = index);
-                    },
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              SizedBox(
-                width: double.infinity,
-                height: 48,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _primaryColor,
-                    foregroundColor: _textColorOnPrimary,
-                    elevation: 4,
-                    shadowColor: _primaryColor.withOpacity(0.4),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                  const SizedBox(height: 8),
+
+                  SizedBox(
+                    width: double.infinity,
+                    height: 56,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _primaryColor,
+                        foregroundColor: _textColorOnPrimary,
+                        elevation: 4,
+                        shadowColor: _primaryColor.withOpacity(0.4),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                      ),
+                      onPressed: _saveUserData,
+                      child: Text(
+                        'NEXT',
+                        style: _getTextStyle(
+                          context,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: _textColorOnPrimary,
+                        ),
+                      ),
                     ),
                   ),
-                  onPressed: _saveUserData,
-                  child: Text(
-                    'NEXT',
-                    style: _getTextStyle(
-                      context,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: _textColorOnPrimary,
-                    ),
-                  ),
-                ),
+                  const SizedBox(height: 16),
+                ],
               ),
-              const SizedBox(height: 16),
-            ],
+            ),
           ),
-        ),
+        ],
       ),
     );
   }

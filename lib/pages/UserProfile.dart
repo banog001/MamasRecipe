@@ -20,6 +20,196 @@ class _UserProfileState extends State<UserProfile> {
   static const Color _accentColor = Color(0xFF66BB6A);
   static const Color _textColorOnPrimary = Colors.white;
 
+  Widget _buildBMIStatusCard(Map<String, dynamic> data, BuildContext context) {
+    final double weight = double.tryParse(data["currentWeight"].toString()) ?? 0.0;
+    final double height = double.tryParse(data["height"].toString()) ?? 0.0;
+    final double bmi = _calculateBMI(weight, height);
+    final String? bmiCategory = data['bmiCategory'];
+    final Color categoryColor = _getBMICategoryColor(bmiCategory);
+
+    if (bmiCategory == null || bmi <= 0) {
+      return const SizedBox.shrink();
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: categoryColor.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: categoryColor.withOpacity(0.3),
+          width: 1.5,
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: categoryColor.withOpacity(0.2),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.health_and_safety_rounded,
+              color: categoryColor,
+              size: 18,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "BMI Status",
+                  style: _getTextStyle(
+                    context,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: _textColorSecondary(context),
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  bmiCategory,
+                  style: _getTextStyle(
+                    context,
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: categoryColor,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Icon(
+            _getBMIStatusIcon(bmiCategory),
+            color: categoryColor,
+            size: 24,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Color _getBMICategoryColor(String? category) {
+    if (category == null) return const Color(0xFF4CAF50);
+
+    switch (category.toLowerCase()) {
+      case 'underweight':
+        return Colors.blue;
+      case 'normal weight':
+        return Colors.green;
+      case 'overweight':
+        return Colors.orange;
+      case 'obese':
+        return Colors.red;
+      default:
+        return const Color(0xFF4CAF50);
+    }
+  }
+
+  IconData _getBMIStatusIcon(String? category) {
+    if (category == null) return Icons.help_outline;
+
+    switch (category.toLowerCase()) {
+      case 'underweight':
+        return Icons.trending_down;
+      case 'normal weight':
+        return Icons.check_circle_outline;
+      case 'overweight':
+        return Icons.trending_up;
+      case 'obese':
+        return Icons.warning_amber;
+      default:
+        return Icons.help_outline;
+    }
+  }
+
+  Widget _buildBMIHistoryCard(Map<String, dynamic> data, BuildContext context) {
+    final String? bmiValue = data['bmi'];
+    final Timestamp? updatedAt = data['bmiUpdatedAt'] as Timestamp?;
+
+    if (bmiValue == null) {
+      return const SizedBox.shrink();
+    }
+
+    String formattedDate = 'Unknown';
+    if (updatedAt != null) {
+      final date = updatedAt.toDate();
+      final now = DateTime.now();
+      final difference = now.difference(date);
+
+      if (difference.inDays == 0) {
+        formattedDate = 'Today';
+      } else if (difference.inDays == 1) {
+        formattedDate = 'Yesterday';
+      } else if (difference.inDays < 7) {
+        formattedDate = '${difference.inDays} days ago';
+      } else {
+        formattedDate = '${(difference.inDays / 7).floor()} weeks ago';
+      }
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Card(
+        elevation: 2,
+        color: _cardBgColor(context),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    "Last BMI Update",
+                    style: _getTextStyle(
+                      context,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: _textColorSecondary(context),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    formattedDate,
+                    style: _getTextStyle(
+                      context,
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF4CAF50).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  'BMI: $bmiValue',
+                  style: _getTextStyle(
+                    context,
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: const Color(0xFF4CAF50),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Color _scaffoldBgColor(BuildContext context) =>
       Theme.of(context).brightness == Brightness.dark
           ? Colors.grey.shade900
@@ -75,7 +265,6 @@ class _UserProfileState extends State<UserProfile> {
     try {
       final firestore = FirebaseFirestore.instance;
 
-      // Get all likes for this user
       final likesSnapshot = await firestore
           .collection('likes')
           .where('userID', isEqualTo: userId)
@@ -86,7 +275,6 @@ class _UserProfileState extends State<UserProfile> {
       final mealPlanIDs = likesSnapshot.docs.map((doc) => doc['mealPlanID'] as String).toList();
       final List<Map<String, dynamic>> mealPlans = [];
 
-      // Get meal plan details for each liked meal plan
       for (String id in mealPlanIDs) {
         final mealPlanDoc = await firestore.collection('mealPlans').doc(id).get();
         if (mealPlanDoc.exists) {
@@ -165,14 +353,14 @@ class _UserProfileState extends State<UserProfile> {
         Padding(
           padding: const EdgeInsets.symmetric(vertical: 6),
           child: Text(
-            isSubscribed ? (value ?? "—") : "Locked 🔒",
+            isSubscribed ? (value ?? "–") : "Locked 🔒",
             style: textStyle,
           ),
         ),
         Padding(
           padding: const EdgeInsets.symmetric(vertical: 6),
           child: Text(
-            time ?? "—",
+            time ?? "–",
             style: greyStyle,
           ),
         ),
@@ -237,7 +425,7 @@ class _UserProfileState extends State<UserProfile> {
             physics: const ClampingScrollPhysics(),
             child: Column(
               children: [
-                // Profile Header - matching home.dart style
+                // Profile Header
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
@@ -343,7 +531,7 @@ class _UserProfileState extends State<UserProfile> {
                   ),
                 ),
 
-                // Health Overview - matching home.dart card style
+                // Health Overview
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
                   child: Column(
@@ -366,27 +554,35 @@ class _UserProfileState extends State<UserProfile> {
                         ),
                         child: Padding(
                           padding: const EdgeInsets.all(16),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceAround,
+                          child: Column(
                             children: [
-                              _InfoCard(
-                                icon: Icons.monitor_weight_outlined,
-                                label: "Weight",
-                                value: "${weight.toStringAsFixed(1)} kg",
-                                context: context,
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                                children: [
+                                  _InfoCard(
+                                    icon: Icons.monitor_weight_outlined,
+                                    label: "Weight",
+                                    value: "${weight.toStringAsFixed(1)} kg",
+                                    context: context,
+                                  ),
+                                  _InfoCard(
+                                    icon: Icons.height_outlined,
+                                    label: "Height",
+                                    value: "${height.toStringAsFixed(1)} cm",
+                                    context: context,
+                                  ),
+                                  _InfoCard(
+                                    icon: Icons.assessment_outlined,
+                                    label: "BMI",
+                                    value: bmi > 0 ? bmi.toStringAsFixed(1) : "--",
+                                    context: context,
+                                    bmiCategory: data['bmiCategory'] ?? 'Unknown',
+                                    categoryColor: _getBMICategoryColor(data['bmiCategory']),
+                                  ),
+                                ],
                               ),
-                              _InfoCard(
-                                icon: Icons.height_outlined,
-                                label: "Height",
-                                value: "${height.toStringAsFixed(1)} cm",
-                                context: context,
-                              ),
-                              _InfoCard(
-                                icon: Icons.assessment_outlined,
-                                label: "BMI",
-                                value: bmi > 0 ? bmi.toStringAsFixed(1) : "--",
-                                context: context,
-                              ),
+                              const SizedBox(height: 16),
+                              _buildBMIStatusCard(data, context),
                             ],
                           ),
                         ),
@@ -395,7 +591,10 @@ class _UserProfileState extends State<UserProfile> {
                   ),
                 ),
 
-                // Meal Plans Section - matching home.dart style
+                // BMI History Card
+                _buildBMIHistoryCard(data, context),
+
+                // Meal Plans Section
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   child: Column(
@@ -685,12 +884,16 @@ class _InfoCard extends StatelessWidget {
   final String label;
   final String value;
   final BuildContext context;
+  final String? bmiCategory;
+  final Color? categoryColor;
 
   const _InfoCard({
     required this.icon,
     required this.label,
     required this.value,
     required this.context,
+    this.bmiCategory,
+    this.categoryColor,
   });
 
   @override
@@ -701,10 +904,14 @@ class _InfoCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: const Color(0xFF4CAF50).withOpacity(0.12),
+              color: (categoryColor ?? const Color(0xFF4CAF50)).withOpacity(0.12),
               shape: BoxShape.circle,
             ),
-            child: Icon(icon, color: const Color(0xFF4CAF50), size: 20),
+            child: Icon(
+              icon,
+              color: categoryColor ?? const Color(0xFF4CAF50),
+              size: 20,
+            ),
           ),
           const SizedBox(height: 6),
           Text(
@@ -728,6 +935,26 @@ class _InfoCard extends StatelessWidget {
             ),
             textAlign: TextAlign.center,
           ),
+          if (bmiCategory != null && bmiCategory!.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: (categoryColor ?? const Color(0xFF4CAF50)).withOpacity(0.2),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                bmiCategory!,
+                style: TextStyle(
+                  fontFamily: 'PlusJakartaSans',
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                  color: categoryColor ?? const Color(0xFF4CAF50),
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ],
         ],
       ),
     );

@@ -156,88 +156,123 @@ class _LoginPageState extends State<LoginPageMobile> with TickerProviderStateMix
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(24),
               ),
-              backgroundColor: Colors.transparent,
-              child: Container(
-                padding: const EdgeInsets.all(32),
-                decoration: BoxDecoration(
-                  color: _cardBgColor(context),
-                  borderRadius: BorderRadius.circular(24),
-                  boxShadow: [
-                    BoxShadow(
-                      color: _primaryColor.withOpacity(0.3),
-                      blurRadius: 30,
-                      offset: const Offset(0, 15),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
+              backgroundColor: Colors.transparent, // Keep dialog background transparent
+              child: ClipRRect( // <-- 1. ADD ClipRRect to contain the background
+                borderRadius: BorderRadius.circular(24),
+                child: Stack( // <-- 2. WRAP content with Stack
                   children: [
-                    Container(
-                      width: 100,
-                      height: 100,
-                      decoration: BoxDecoration(
-                        color: _primaryColor,
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: _primaryColor.withOpacity(0.4),
-                            blurRadius: 20,
-                            offset: const Offset(0, 8),
+                    // --- 3. ADD the background shapes ---
+                    // Use a slightly different opacity for subtlety in the dialog
+                    Positioned.fill(
+                      child: Container(
+                        color: _cardBgColor(context), // Base color for dialog content area
+                        child: Stack(
+                          children: [
+                            Positioned(
+                              top: -50,  // Adjusted position for dialog
+                              left: -80, // Adjusted position for dialog
+                              child: Container(
+                                width: 200, // Adjusted size
+                                height: 200, // Adjusted size
+                                decoration: BoxDecoration(
+                                  color: _primaryColor.withOpacity(0.06), // Slightly less opacity
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                            ),
+                            Positioned(
+                              bottom: -60, // Adjusted position for dialog
+                              right: -90, // Adjusted position for dialog
+                              child: Container(
+                                width: 250, // Adjusted size
+                                height: 250, // Adjusted size
+                                decoration: BoxDecoration(
+                                  color: _primaryColor.withOpacity(0.06), // Slightly less opacity
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    // --- END of background shapes ---
+
+                    // --- 4. Your original dialog content ---
+                    Padding( // Added Padding back, was implicitly handled by Container before
+                      padding: const EdgeInsets.all(32),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: 100,
+                            height: 100,
+                            decoration: BoxDecoration(
+                              color: _primaryColor,
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: _primaryColor.withOpacity(0.4),
+                                  blurRadius: 20,
+                                  offset: const Offset(0, 8),
+                                ),
+                              ],
+                            ),
+                            child: const Icon(
+                              Icons.health_and_safety_outlined,
+                              color: _textColorOnPrimary,
+                              size: 50,
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+                          Text(
+                            'Welcome!',
+                            style: _getTextStyle(
+                              context,
+                              fontSize: 28,
+                              fontWeight: FontWeight.bold,
+                              color: _textColorPrimary(context),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            'Sign in to continue your health journey',
+                            textAlign: TextAlign.center,
+                            style: _getTextStyle(
+                              context,
+                              fontSize: 16,
+                              color: _textColorSecondary(context),
+                            ),
+                          ),
+                          const SizedBox(height: 32),
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton(
+                              onPressed: () => Navigator.of(context).pop(),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: _primaryColor,
+                                foregroundColor: _textColorOnPrimary,
+                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                elevation: 4,
+                              ),
+                              child: Text(
+                                'Get Started',
+                                style: _getTextStyle(
+                                  context,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: _textColorOnPrimary,
+                                ),
+                              ),
+                            ),
                           ),
                         ],
                       ),
-                      child: const Icon(
-                        Icons.health_and_safety_outlined,
-                        color: _textColorOnPrimary,
-                        size: 50,
-                      ),
                     ),
-                    const SizedBox(height: 24),
-                    Text(
-                      'Welcome!',
-                      style: _getTextStyle(
-                        context,
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                        color: _textColorPrimary(context),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      'Sign in to continue your health journey',
-                      textAlign: TextAlign.center,
-                      style: _getTextStyle(
-                        context,
-                        fontSize: 16,
-                        color: _textColorSecondary(context),
-                      ),
-                    ),
-                    const SizedBox(height: 32),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: () => Navigator.of(context).pop(),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: _primaryColor,
-                          foregroundColor: _textColorOnPrimary,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          elevation: 4,
-                        ),
-                        child: Text(
-                          'Get Started',
-                          style: _getTextStyle(
-                            context,
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: _textColorOnPrimary,
-                          ),
-                        ),
-                      ),
-                    ),
+                    // --- END of original content ---
                   ],
                 ),
               ),
@@ -247,7 +282,6 @@ class _LoginPageState extends State<LoginPageMobile> with TickerProviderStateMix
       },
     );
   }
-
   Future<String?> _askUserRoleDialog() async {
     return showDialog<String>(
       context: context,
@@ -810,6 +844,44 @@ class _LoginPageState extends State<LoginPageMobile> with TickerProviderStateMix
     );
   }
 
+  // --- ADD THIS NEW WIDGET ---
+  Widget _buildBackgroundShapes(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      height: double.infinity,
+      color: _scaffoldBgColor(context), // Use your existing background color
+      child: Stack(
+        children: [
+          Positioned(
+            top: -100,
+            left: -150,
+            child: Container(
+              width: 300,
+              height: 300,
+              decoration: BoxDecoration(
+                color: _primaryColor.withOpacity(0.08),
+                shape: BoxShape.circle,
+              ),
+            ),
+          ),
+          Positioned(
+            bottom: -120,
+            right: -180,
+            child: Container(
+              width: 400,
+              height: 400,
+              decoration: BoxDecoration(
+                color: _primaryColor.withOpacity(0.08),
+                shape: BoxShape.circle,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  // --- END OF NEW WIDGET ---
+
   @override
   Widget build(BuildContext context) {
     final screenHeight = MediaQuery.of(context).size.height;
@@ -818,127 +890,139 @@ class _LoginPageState extends State<LoginPageMobile> with TickerProviderStateMix
     return Scaffold(
       backgroundColor: _scaffoldBgColor(context),
       resizeToAvoidBottomInset: true,
-      body: SafeArea(
-        child: FadeTransition(
-          opacity: _fadeAnimation,
-          child: SlideTransition(
-            position: _slideAnimation,
-            child: Center(
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  return SingleChildScrollView(
-                    physics: const BouncingScrollPhysics(),
-                    child: ConstrainedBox(
-                      constraints: BoxConstraints(
-                        minHeight: constraints.maxHeight,
-                        maxWidth: 500,
-                      ),
-                      child: IntrinsicHeight(
-                        child: Padding(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: 24,
-                            vertical: 24,
+      body: Stack( // <-- WRAP with Stack
+        fit: StackFit.expand,
+        children: [
+          // --- ADD THIS LINE ---
+          _buildBackgroundShapes(context), // This is the new background
+
+          // Your existing content
+          SafeArea(
+            child: FadeTransition(
+              opacity: _fadeAnimation,
+              child: SlideTransition(
+                position: _slideAnimation,
+                child: Center(
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      return SingleChildScrollView(
+                        physics: const BouncingScrollPhysics(),
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(
+                            minHeight: constraints.maxHeight,
+                            maxWidth: 500,
                           ),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(
-                                'Welcome!',
-                                style: _getTextStyle(
-                                  context,
-                                  fontSize: 28,
-                                  fontWeight: FontWeight.bold,
-                                ),
+                          child: IntrinsicHeight(
+                            child: Padding(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: 24,
+                                vertical: 24,
                               ),
-                              const SizedBox(height: 8),
-                              Text(
-                                'Sign in to continue',
-                                style: _getTextStyle(
-                                  context,
-                                  fontSize: 16,
-                                  color: _textColorSecondary(context),
-                                ),
-                              ),
-                              const SizedBox(height: 32),
-                              Form(
-                                key: _formKey,
-                                child: Column(
-                                  children: [
-                                    _buildTextField(
-                                      controller: emailController,
-                                      label: 'Email',
-                                      icon: Icons.email_outlined,
-                                      keyboardType: TextInputType.emailAddress,
-                                    ),
-                                    const SizedBox(height: 16),
-                                    _buildTextField(
-                                      controller: passController,
-                                      label: 'Password',
-                                      icon: Icons.lock_outline,
-                                      obscureText: _obscurePassword,
-                                      suffixIcon: IconButton(
-                                        icon: Icon(
-                                          _obscurePassword
-                                              ? Icons.visibility_off
-                                              : Icons.visibility,
-                                          color: Colors.grey,
-                                        ),
-                                        onPressed: () => setState(() {
-                                          _obscurePassword = !_obscurePassword;
-                                        }),
-                                      ),
-                                    ),
-                                    const SizedBox(height: 24),
-                                    _buildLoginButton(),
-                                    const SizedBox(height: 16),
-                                    _buildGoogleSignInButton(),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(height: 24),
-                              Row(
+                              child: Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
                                   Text(
-                                    "Don't have an account? ",
+                                    'Welcome!',
                                     style: _getTextStyle(
                                       context,
+                                      fontSize: 28,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'Sign in to continue',
+                                    style: _getTextStyle(
+                                      context,
+                                      fontSize: 16,
                                       color: _textColorSecondary(context),
-                                      fontSize: 14,
                                     ),
                                   ),
-                                  GestureDetector(
-                                    onTap: () {
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                            builder: (_) => const signUpPage()),
-                                      );
-                                    },
-                                    child: Text(
-                                      "Sign Up",
-                                      style: _getTextStyle(
-                                        context,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 14,
-                                        color: _primaryColor,
+                                  const SizedBox(height: 32),
+                                  Form(
+                                    key: _formKey,
+                                    child: Column(
+                                      children: [
+                                        _buildTextField(
+                                          controller: emailController,
+                                          label: 'Email',
+                                          icon: Icons.email_outlined,
+                                          keyboardType:
+                                          TextInputType.emailAddress,
+                                        ),
+                                        const SizedBox(height: 16),
+                                        _buildTextField(
+                                          controller: passController,
+                                          label: 'Password',
+                                          icon: Icons.lock_outline,
+                                          obscureText: _obscurePassword,
+                                          suffixIcon: IconButton(
+                                            icon: Icon(
+                                              _obscurePassword
+                                                  ? Icons.visibility_off
+                                                  : Icons.visibility,
+                                              color: Colors.grey,
+                                            ),
+                                            onPressed: () => setState(() {
+                                              _obscurePassword =
+                                              !_obscurePassword;
+                                            }),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 24),
+                                        _buildLoginButton(),
+                                        const SizedBox(height: 16),
+                                        _buildGoogleSignInButton(),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(height: 24),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Text(
+                                        "Don't have an account? ",
+                                        style: _getTextStyle(
+                                          context,
+                                          color: _textColorSecondary(context),
+                                          fontSize: 14,
+                                        ),
                                       ),
-                                    ),
+                                      GestureDetector(
+                                        onTap: () {
+                                          Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                                builder: (_) =>
+                                                const signUpPage()),
+                                          );
+                                        },
+                                        child: Text(
+                                          "Sign Up",
+                                          style: _getTextStyle(
+                                            context,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 14,
+                                            color: _primaryColor,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
                                   ),
+                                  const SizedBox(height: 24),
                                 ],
                               ),
-                              const SizedBox(height: 24),
-                            ],
+                            ),
                           ),
                         ),
-                      ),
-                    ),
-                  );
-                },
+                      );
+                    },
+                  ),
+                ),
               ),
             ),
           ),
-        ),
+        ],
       ),
     );
   }

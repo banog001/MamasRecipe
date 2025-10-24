@@ -375,163 +375,172 @@ class _SignUpPageState extends State<signUpPage> with TickerProviderStateMixin {
     return Scaffold(
       backgroundColor: _scaffoldBgColor(context),
       resizeToAvoidBottomInset: true,
-      body: SafeArea(
-        child: FadeTransition(
-          opacity: _fadeAnimation,
-          child: SlideTransition(
-            position: _slideAnimation,
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                return SingleChildScrollView(
-                  physics: const BouncingScrollPhysics(),
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(
-                      minHeight: constraints.maxHeight,
-                    ),
-                    child: IntrinsicHeight(
-                      child: Padding(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: 24.0,
-                          vertical: keyboardHeight > 0 ? 12.0 : 16.0,
+      body: Stack( // <-- 1. WRAP with Stack
+        fit: StackFit.expand,
+        children: [
+          // --- 2. ADD This ---
+          _buildBackgroundShapes(context), // This is the new background
+
+          // --- 3. All your original code is below ---
+          SafeArea(
+            child: FadeTransition(
+              opacity: _fadeAnimation,
+              child: SlideTransition(
+                position: _slideAnimation,
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    return SingleChildScrollView(
+                      physics: const BouncingScrollPhysics(),
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          minHeight: constraints.maxHeight,
                         ),
-                        child: Form(
-                          key: _formKey,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              SizedBox(height: keyboardHeight > 0 ? 12 : 16),
+                        child: IntrinsicHeight(
+                          child: Padding(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: 7.0,
+                              vertical: keyboardHeight > 0 ? 12.0 : 16.0,
+                            ),
+                            child: Form(
+                              key: _formKey,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  SizedBox(height: keyboardHeight > 0 ? 12 : 16),
 
-                              _buildHeaderSection(),
-                              SizedBox(height: keyboardHeight > 0 ? 12 : 16),
+                                  _buildHeaderSection(),
+                                  SizedBox(height: keyboardHeight > 0 ? 12 : 16),
 
-                              Flexible(
-                                child: Card(
-                                  elevation: 8,
-                                  shadowColor: _primaryColor.withOpacity(0.2),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
-                                  color: _cardBgColor(context),
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(16.0),
-                                    child: Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        _buildTextField(
-                                          controller: _firstNameController,
-                                          label: 'First Name',
-                                          icon: Icons.person_outline,
-                                          validator: (v) =>
-                                          (v == null || v.isEmpty) ? 'Enter your first name' : null,
-                                        ),
-                                        const SizedBox(height: 12),
-
-                                        _buildTextField(
-                                          controller: _lastNameController,
-                                          label: 'Last Name',
-                                          icon: Icons.person_outline,
-                                          validator: (v) =>
-                                          (v == null || v.isEmpty) ? 'Enter your last name' : null,
-                                        ),
-                                        const SizedBox(height: 12),
-
-                                        _buildTextField(
-                                          controller: _emailController,
-                                          label: 'Email Address',
-                                          icon: Icons.email_outlined,
-                                          keyboardType: TextInputType.emailAddress,
-                                          validator: (value) {
-                                            if (value == null || value.isEmpty) {
-                                              return 'Enter your email';
-                                            }
-                                            final ok = RegExp(r'^[\w-.]+@([\w-]+\.)+[\w-]{2,4}$')
-                                                .hasMatch(value);
-                                            return ok ? null : 'Enter a valid email';
-                                          },
-                                        ),
-                                        const SizedBox(height: 12),
-
-                                        _buildTextField(
-                                          controller: _passwordController,
-                                          label: 'Password',
-                                          icon: Icons.lock_outline,
-                                          obscureText: !_isPasswordVisible,
-                                          suffixIcon: IconButton(
-                                            icon: Icon(
-                                              _isPasswordVisible
-                                                  ? Icons.visibility_outlined
-                                                  : Icons.visibility_off_outlined,
-                                              color: _textColorSecondary(context),
+                                  Flexible(
+                                    child: Card(
+                                      elevation: 0, // <-- 1. SET to 0
+                                      shadowColor: Colors.transparent, // <-- 2. SET to transparent
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(20),
+                                      ),
+                                      color: Colors.transparent, // <-- 3. SET to transparent
+                                      child: Padding(
+                                        padding: const EdgeInsets.all(16.0), // <-- 4. REMOVE this padding
+                                        child: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            _buildTextField(
+                                              controller: _firstNameController,
+                                              label: 'First Name',
+                                              icon: Icons.person_outline,
+                                              validator: (v) =>
+                                              (v == null || v.isEmpty) ? 'Enter your first name' : null,
                                             ),
-                                            onPressed: () =>
-                                                setState(() => _isPasswordVisible = !_isPasswordVisible),
-                                          ),
-                                          validator: (value) {
-                                            if (value == null || value.isEmpty) {
-                                              return 'Enter password';
-                                            }
-                                            if (value.length < 8) {
-                                              return 'Password must be at least 8 characters';
-                                            }
-                                            return null;
-                                          },
-                                        ),
-                                        const SizedBox(height: 12),
+                                            const SizedBox(height: 12),
 
-                                        _buildTextField(
-                                          controller: _confirmPasswordController,
-                                          label: 'Confirm Password',
-                                          icon: Icons.lock_outline,
-                                          obscureText: !_isConfirmPasswordVisible,
-                                          suffixIcon: IconButton(
-                                            icon: Icon(
-                                              _isConfirmPasswordVisible
-                                                  ? Icons.visibility_outlined
-                                                  : Icons.visibility_off_outlined,
-                                              color: _textColorSecondary(context),
+                                            _buildTextField(
+                                              controller: _lastNameController,
+                                              label: 'Last Name',
+                                              icon: Icons.person_outline,
+                                              validator: (v) =>
+                                              (v == null || v.isEmpty) ? 'Enter your last name' : null,
                                             ),
-                                            onPressed: () => setState(() =>
-                                            _isConfirmPasswordVisible = !_isConfirmPasswordVisible),
-                                          ),
-                                          validator: (value) {
-                                            if (value == null || value.isEmpty) {
-                                              return 'Confirm password';
-                                            }
-                                            if (value != _passwordController.text) {
-                                              return 'Passwords do not match';
-                                            }
-                                            return null;
-                                          },
+                                            const SizedBox(height: 12),
+
+                                            _buildTextField(
+                                              controller: _emailController,
+                                              label: 'Email Address',
+                                              icon: Icons.email_outlined,
+                                              keyboardType: TextInputType.emailAddress,
+                                              validator: (value) {
+                                                if (value == null || value.isEmpty) {
+                                                  return 'Enter your email';
+                                                }
+                                                final ok = RegExp(r'^[\w-.]+@([\w-]+\.)+[\w-]{2,4}$')
+                                                    .hasMatch(value);
+                                                return ok ? null : 'Enter a valid email';
+                                              },
+                                            ),
+                                            const SizedBox(height: 12),
+
+                                            _buildTextField(
+                                              controller: _passwordController,
+                                              label: 'Password',
+                                              icon: Icons.lock_outline,
+                                              obscureText: !_isPasswordVisible,
+                                              suffixIcon: IconButton(
+                                                icon: Icon(
+                                                  _isPasswordVisible
+                                                      ? Icons.visibility_outlined
+                                                      : Icons.visibility_off_outlined,
+                                                  color: _textColorSecondary(context),
+                                                ),
+                                                onPressed: () =>
+                                                    setState(() => _isPasswordVisible = !_isPasswordVisible),
+                                              ),
+                                              validator: (value) {
+                                                if (value == null || value.isEmpty) {
+                                                  return 'Enter password';
+                                                }
+                                                if (value.length < 8) {
+                                                  return 'Password must be at least 8 characters';
+                                                }
+                                                return null;
+                                              },
+                                            ),
+                                            const SizedBox(height: 12),
+
+                                            _buildTextField(
+                                              controller: _confirmPasswordController,
+                                              label: 'Confirm Password',
+                                              icon: Icons.lock_outline,
+                                              obscureText: !_isConfirmPasswordVisible,
+                                              suffixIcon: IconButton(
+                                                icon: Icon(
+                                                  _isConfirmPasswordVisible
+                                                      ? Icons.visibility_outlined
+                                                      : Icons.visibility_off_outlined,
+                                                  color: _textColorSecondary(context),
+                                                ),
+                                                onPressed: () => setState(() =>
+                                                _isConfirmPasswordVisible = !_isConfirmPasswordVisible),
+                                              ),
+                                              validator: (value) {
+                                                if (value == null || value.isEmpty) {
+                                                  return 'Confirm password';
+                                                }
+                                                if (value != _passwordController.text) {
+                                                  return 'Passwords do not match';
+                                                }
+                                                return null;
+                                              },
+                                            ),
+                                            const SizedBox(height: 16),
+
+                                            _buildSignUpButton(),
+                                            const SizedBox(height: 12),
+
+                                            _buildDivider(),
+                                            const SizedBox(height: 12),
+
+                                            _buildGoogleSignUpButton(),
+                                          ],
                                         ),
-                                        const SizedBox(height: 16),
-
-                                        _buildSignUpButton(),
-                                        const SizedBox(height: 12),
-
-                                        _buildDivider(),
-                                        const SizedBox(height: 12),
-
-                                        _buildGoogleSignUpButton(),
-                                      ],
+                                      ),
                                     ),
                                   ),
-                                ),
-                              ),
 
-                              const SizedBox(height: 16),
-                              _buildLoginLink(),
-                              SizedBox(height: keyboardHeight > 0 ? 8 : 12),
-                            ],
+                                  const SizedBox(height: 16),
+                                  _buildLoginLink(),
+                                  SizedBox(height: keyboardHeight > 0 ? 8 : 12),
+                                ],
+                              ),
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                  ),
-                );
-              },
+                    );
+                  },
+                ),
+              ),
             ),
           ),
-        ),
+        ],
       ),
     );
   }
@@ -862,4 +871,46 @@ class _SignUpPageState extends State<signUpPage> with TickerProviderStateMixin {
       }
     }
   }
+
+
+
+
+
+  // --- ADD THIS NEW WIDGET ---
+  Widget _buildBackgroundShapes(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      height: double.infinity,
+      color: _scaffoldBgColor(context), // Use your existing background color
+      child: Stack(
+        children: [
+          Positioned(
+            top: -100,
+            left: -150,
+            child: Container(
+              width: 300,
+              height: 300,
+              decoration: BoxDecoration(
+                color: _primaryColor.withOpacity(0.08),
+                shape: BoxShape.circle,
+              ),
+            ),
+          ),
+          Positioned(
+            bottom: -120,
+            right: -180,
+            child: Container(
+              width: 400,
+              height: 400,
+              decoration: BoxDecoration(
+                color: _primaryColor.withOpacity(0.08),
+                shape: BoxShape.circle,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+// --- END OF NEW WIDGET ---
 }

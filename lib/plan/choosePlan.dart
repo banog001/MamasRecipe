@@ -251,7 +251,7 @@ class _ChoosePlanPageState extends State<ChoosePlanPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  "Go Premium",
+                  "Subscribe Now!",
                   style: _getTextStyle(
                     context,
                     fontSize: 22,

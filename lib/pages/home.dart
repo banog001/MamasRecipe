@@ -15,6 +15,8 @@ import '../Dietitians/dietitianPublicProfile.dart';
 
 import 'package:mamas_recipe/about/about_page.dart';
 
+import 'package:mamas_recipe/widget/custom_snackbar.dart';
+
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:intl/intl.dart';
@@ -795,11 +797,11 @@ class _HomeState extends State<home> {
                                     .collection("Users")
                                     .doc(currentUserId)
                                     .collection("subscribeTo")
-                                    .doc(ownerId); // client → dietitian
+                                    .doc(ownerId);
 
                                 final subscriberRef = firestore
                                     .collection("Users")
-                                    .doc(ownerId) // dietitian → client
+                                    .doc(ownerId)
                                     .collection("subscriber")
                                     .doc(currentUserId);
 
@@ -811,7 +813,6 @@ class _HomeState extends State<home> {
 
                                   bool isSubscribed = false;
 
-                                  // Check if either document exists AND has status "approved"
                                   if (results[0].exists) {
                                     final data = results[0].data() as Map<String, dynamic>;
                                     if (data["status"] == "approved") isSubscribed = true;
@@ -837,31 +838,23 @@ class _HomeState extends State<home> {
 
                                     // Call the download function
                                     await _downloadMealPlanAsPdf(context, data, ownerName, doc.id);
-                                    // ✅ User has approved subscription
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text("Meal plan downloaded for offline use."),
-                                        duration: Duration(seconds: 2),
-                                      ),
-                                    );
-
-                                    // TODO: Add your actual download logic here
                                   } else {
-                                    // ❌ Subscription not approved or missing
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text("You must have an approved subscription to this dietitian to download this meal plan."),
-                                        backgroundColor: Colors.redAccent,
-                                        duration: Duration(seconds: 3),
-                                      ),
+                                    // Not subscribed
+                                    CustomSnackBar.show(
+                                      context,
+                                      'You must have an approved subscription to this dietitian to download this meal plan.',
+                                      backgroundColor: Colors.redAccent,
+                                      icon: Icons.lock,
+                                      duration: const Duration(seconds: 3),
                                     );
                                   }
                                 } catch (e) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text("Error checking subscription: $e"),
-                                      backgroundColor: Colors.redAccent,
-                                    ),
+                                  CustomSnackBar.show(
+                                    context,
+                                    'Error checking subscription: $e',
+                                    backgroundColor: Colors.redAccent,
+                                    icon: Icons.error,
+                                    duration: const Duration(seconds: 3),
                                   );
                                 }
                               },
@@ -1531,27 +1524,39 @@ class _HomeState extends State<home> {
       final savedFilePath = await FlutterFileDialog.saveFile(params: params);
 
       if (savedFilePath != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Meal plan downloaded: $filename'),
+        // Success - show custom snackbar
+        if (mounted) {
+          CustomSnackBar.show(
+            context,
+            'Meal plan downloaded: $filename',
             backgroundColor: Colors.green,
-          ),
-        );
+            icon: Icons.download_done,
+            duration: const Duration(seconds: 3),
+          );
+        }
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Download canceled by user'),
+        // Cancelled by user
+        if (mounted) {
+          CustomSnackBar.show(
+            context,
+            'Download canceled by user',
             backgroundColor: Colors.orange,
-          ),
-        );
+            icon: Icons.info,
+            duration: const Duration(seconds: 2),
+          );
+        }
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error generating PDF: $e'),
+      // Error occurred
+      if (mounted) {
+        CustomSnackBar.show(
+          context,
+          'Error generating PDF: $e',
           backgroundColor: Colors.red,
-        ),
-      );
+          icon: Icons.error,
+          duration: const Duration(seconds: 3),
+        );
+      }
     }
   }
 
@@ -2216,21 +2221,23 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
       _loadAppointmentsForCalendar();
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Appointment status updated to $newStatus'),
-            backgroundColor: _primaryColor,
-          ),
+        CustomSnackBar.show(
+          context,
+          'Appointment status updated to $newStatus',
+          backgroundColor: _primaryColor,
+          icon: Icons.check_circle,
+          duration: const Duration(seconds: 2),
         );
       }
     } catch (e) {
       print("Error updating appointment status: $e");
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error updating appointment: $e'),
-            backgroundColor: Colors.redAccent,
-          ),
+        CustomSnackBar.show(
+          context,
+          'Error updating appointment: $e',
+          backgroundColor: Colors.redAccent,
+          icon: Icons.error,
+          duration: const Duration(seconds: 3),
         );
       }
     }
@@ -2249,25 +2256,23 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
       _loadAppointmentsForCalendar();
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Appointment confirmed successfully!'),
-            backgroundColor: Colors.green,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          ),
-        );
+        CustomSnackBar.show(
+        context,
+        'Appointment confirmed successfully!',
+        backgroundColor: Colors.green,
+        icon: Icons.verified,
+        duration: const Duration(seconds: 2),
+      );
       }
     } catch (e) {
       print("Error confirming appointment: $e");
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error confirming appointment: $e'),
-            backgroundColor: Colors.redAccent,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          ),
+        CustomSnackBar.show(
+          context,
+          'Error confirming appointment: $e',
+          backgroundColor: Colors.redAccent,
+          icon: Icons.error,
+          duration: const Duration(seconds: 3),
         );
       }
     }
@@ -2303,108 +2308,237 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
       },
     );
   }
-
   void _showCancellationReasonDialog(String appointmentId, Map<String, dynamic> appointmentData) {
     final TextEditingController reasonController = TextEditingController();
 
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (BuildContext context) {
-        return AlertDialog(
+      builder: (BuildContext dialogContext) {
+        return Dialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: const Text('Cancellation Reason', style: TextStyle(fontWeight: FontWeight.bold)),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('Please provide a reason for cancelling this appointment:'),
-              const SizedBox(height: 16),
-              TextField(
-                controller: reasonController,
-                maxLines: 4,
-                decoration: InputDecoration(
-                  hintText: 'Enter your reason here...',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                  filled: true,
-                  fillColor: Colors.grey[100],
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                reasonController.dispose();
-                Navigator.of(context).pop();
-              },
-              child: const Text('Back'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                if (reasonController.text.trim().isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: const Text('Please provide a reason for cancellation'),
-                      backgroundColor: Colors.orange,
-                      behavior: SnackBarBehavior.floating,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          insetPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: EdgeInsets.all(20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Title
+                  Row(
+                    children: [
+                      Container(
+                        padding: EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.red.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Icon(
+                          Icons.warning_outlined,
+                          color: Colors.red,
+                          size: 24,
+                        ),
+                      ),
+                      SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'Cancellation Reason',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontFamily: _primaryFontFamily,
+                            fontSize: 18,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 20),
+
+                  // Description
+                  Text(
+                    'Please provide a reason for cancelling this appointment:',
+                    style: TextStyle(
+                      fontFamily: _primaryFontFamily,
+                      fontSize: 14,
+                      color: Colors.black87,
                     ),
-                  );
-                  return;
-                }
-                Navigator.of(context).pop();
-                _cancelAppointment(appointmentId, reasonController.text.trim(), appointmentData);
-                reasonController.dispose();
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  SizedBox(height: 16),
+
+                  // Text field with fixed height
+                  Container(
+                    constraints: BoxConstraints(maxHeight: 120),
+                    child: TextField(
+                      controller: reasonController,
+                      maxLines: 4,
+                      minLines: 3,
+                      keyboardType: TextInputType.multiline,
+                      textInputAction: TextInputAction.done,
+                      decoration: InputDecoration(
+                        hintText: 'Enter your reason here...',
+                        hintStyle: TextStyle(color: Colors.grey.shade500),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.grey.shade300),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: _primaryColor, width: 2),
+                        ),
+                        filled: true,
+                        fillColor: Colors.grey[50],
+                        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: 20),
+
+                  // Buttons
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(
+                        onPressed: () {
+                          reasonController.dispose();
+                          Navigator.of(dialogContext).pop();
+                        },
+                        child: Text(
+                          'Back',
+                          style: TextStyle(
+                            fontFamily: _primaryFontFamily,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ),
+                      SizedBox(width: 12),
+                      ElevatedButton(
+                        onPressed: () {
+                          if (reasonController.text.trim().isEmpty) {
+                            CustomSnackBar.show(
+                              context,
+                              'Please provide a reason for cancellation',
+                              backgroundColor: Colors.orange,
+                              icon: Icons.warning,
+                              duration: const Duration(seconds: 2),
+                            );
+                            return;
+                          }
+                          final reason = reasonController.text.trim();
+                          reasonController.dispose();
+                          Navigator.of(dialogContext).pop();
+
+                          // Call cancel with proper parameters
+                          _cancelAppointment(appointmentId, reason, appointmentData);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.red,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                        ),
+                        child: Text(
+                          'Submit',
+                          style: TextStyle(
+                            fontFamily: _primaryFontFamily,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
-              child: const Text('Submit'),
             ),
-          ],
+          ),
         );
       },
     );
   }
-
   Future<void> _cancelAppointment(String appointmentId, String reason, Map<String, dynamic> appointmentData) async {
     try {
-      await FirebaseFirestore.instance
+      // Get the reference first
+      final appointmentRef = FirebaseFirestore.instance
           .collection('schedules')
-          .doc(appointmentId)
-          .update({
+          .doc(appointmentId);
+
+      // Check if the document exists before updating
+      final docSnapshot = await appointmentRef.get();
+
+      if (!docSnapshot.exists) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Appointment not found'),
+              backgroundColor: Colors.redAccent,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+          );
+        }
+        return;
+      }
+
+      // Perform the update with proper error handling
+      await appointmentRef.update({
         'status': 'cancelled',
         'cancellationReason': reason,
         'cancelledBy': 'client',
         'cancelledAt': FieldValue.serverTimestamp(),
+      }).catchError((error) {
+        throw Exception('Failed to update appointment: $error');
       });
 
-      _loadAppointmentsForCalendar();
-
+      // Use post frame callback to avoid build issues
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Appointment cancelled successfully'),
-            backgroundColor: Colors.orange,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          ),
-        );
+        WidgetsBinding.instance.addPostFrameCallback((_) async {
+          await _loadAppointmentsForCalendar();
+
+          if (mounted) {
+            if (mounted) {
+              CustomSnackBar.show(
+                context,
+                'Appointment cancelled successfully',
+                backgroundColor: Colors.orange,
+                icon: Icons.cancel,
+                duration: const Duration(seconds: 2),
+              );
+            }
+
+          }
+        });
+      }
+    } on FirebaseException catch (e) {
+      print("FirebaseException cancelling appointment: $e");
+      if (mounted) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            CustomSnackBar.show(
+              context,
+              'Error: ${e.message}',
+              backgroundColor: Colors.redAccent,
+              icon: Icons.error,
+              duration: const Duration(seconds: 3),
+            );
+          }
+        });
       }
     } catch (e) {
       print("Error cancelling appointment: $e");
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error cancelling appointment: $e'),
-            backgroundColor: Colors.redAccent,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          ),
-        );
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Error cancelling appointment: $e'),
+                backgroundColor: Colors.redAccent,
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+            );
+          }
+        });
       }
     }
   }
@@ -2515,13 +2649,21 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
         _weeklySchedule[day] = null;
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Meal plan removed')),
+      CustomSnackBar.show(
+        context,
+        'Meal plan removed',
+        backgroundColor: Colors.orange,
+        icon: Icons.delete,
+        duration: const Duration(seconds: 2),
       );
     } catch (e) {
       print('Error deleting meal plan: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to delete meal plan')),
+      CustomSnackBar.show(
+        context,
+        'Failed to delete meal plan',
+        backgroundColor: Colors.redAccent,
+        icon: Icons.error,
+        duration: const Duration(seconds: 2),
       );
     }
   }
@@ -2557,13 +2699,21 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
         _weeklySchedule[day] = plan;
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Meal plan scheduled!')),
+      CustomSnackBar.show(
+        context,
+        'Meal plan scheduled!',
+        backgroundColor: Colors.green,
+        icon: Icons.check_circle,
+        duration: const Duration(seconds: 2),
       );
     } catch (e) {
       print('Error saving meal plan: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to schedule meal plan')),
+      CustomSnackBar.show(
+        context,
+        'Failed to schedule meal plan',
+        backgroundColor: Colors.redAccent,
+        icon: Icons.error,
+        duration: const Duration(seconds: 2),
       );
     }
   }
@@ -3223,6 +3373,329 @@ class _UsersListPageState extends State<UsersListPage> {
     super.initState();
     _loadAndSortChats();
   }
+  void _showPriceChangeDialog(BuildContext context, Map<String, dynamic> notificationData) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        final String title = notificationData['title'] ?? 'Price Change Notification';
+        final String message = notificationData['message'] ?? 'No details available';
+        final String dietitianName = notificationData['dietitianName'] ?? 'Dietitian';
+        final Timestamp? timestamp = notificationData['timestamp'] as Timestamp?;
+
+        // Get all prices
+        final monthlyOld = notificationData['monthlyOldPrice']?.toString() ?? 'N/A';
+        final monthlyNew = notificationData['monthlyNewPrice']?.toString() ?? 'N/A';
+        final weeklyOld = notificationData['weeklyOldPrice']?.toString() ?? 'N/A';
+        final weeklyNew = notificationData['weeklyNewPrice']?.toString() ?? 'N/A';
+        final yearlyOld = notificationData['yearlyOldPrice']?.toString() ?? 'N/A';
+        final yearlyNew = notificationData['yearlyNewPrice']?.toString() ?? 'N/A';
+
+        String formattedDate = '';
+        if (timestamp != null) {
+          formattedDate = DateFormat('MMMM dd, yyyy – hh:mm a').format(timestamp.toDate());
+        }
+
+        return Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          elevation: 16,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Header with icon
+                Container(
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: Colors.orange.withOpacity(0.1),
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(20),
+                      topRight: Radius.circular(20),
+                    ),
+                  ),
+                  padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+                  child: Column(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(15),
+                        ),
+                        child: const Icon(
+                          Icons.price_change_outlined,
+                          color: Colors.orange,
+                          size: 32,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        title,
+                        style: const TextStyle(
+                          fontFamily: _primaryFontFamily,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 20,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                ),
+                // Content
+                Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Date and time
+                      if (formattedDate.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 16.0),
+                          child: Row(
+                            children: [
+                              Icon(Icons.access_time, size: 16, color: Colors.grey.shade600),
+                              const SizedBox(width: 8),
+                              Text(
+                                formattedDate,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: Colors.grey.shade600,
+                                  fontFamily: _primaryFontFamily,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                      // Dietitian name
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade100,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.person_outline, size: 18, color: _primaryColor),
+                            const SizedBox(width: 10),
+                            Text(
+                              dietitianName,
+                              style: const TextStyle(
+                                fontFamily: _primaryFontFamily,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 15,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Message
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.withOpacity(0.08),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: Colors.blue.withOpacity(0.2)),
+                        ),
+                        child: Text(
+                          message,
+                          style: const TextStyle(
+                            fontFamily: _primaryFontFamily,
+                            fontSize: 14,
+                            height: 1.6,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+
+                      // Monthly Price
+                      _buildPriceComparison('Monthly', monthlyOld, monthlyNew),
+                      const SizedBox(height: 12),
+
+                      // Weekly Price
+                      _buildPriceComparison('Weekly', weeklyOld, weeklyNew),
+                      const SizedBox(height: 12),
+
+                      // Yearly Price
+                      _buildPriceComparison('Yearly', yearlyOld, yearlyNew),
+                    ],
+                  ),
+                ),
+                // Close button
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _primaryColor,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: const Text(
+                        'Got it!',
+                        style: TextStyle(
+                          fontFamily: _primaryFontFamily,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+// Helper widget to build price comparison rows
+  Widget _buildPriceComparison(String label, String oldPrice, String newPrice) {
+    final bool priceChanged = oldPrice != newPrice;
+
+    return Row(
+      children: [
+        Expanded(
+          child: Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade100,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: Colors.grey.shade300),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Colors.grey.shade600,
+                    fontFamily: _primaryFontFamily,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Text(
+                      '₱$oldPrice',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                        color: priceChanged ? Colors.grey.shade500 : Colors.grey.shade700,
+                        decoration: priceChanged ? TextDecoration.lineThrough : null,
+                        fontFamily: _primaryFontFamily,
+                      ),
+                    ),
+                    if (priceChanged) ...[
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        child: Icon(Icons.arrow_forward, size: 14, color: Colors.grey.shade400),
+                      ),
+                      Text(
+                        '₱$newPrice',
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.green,
+                          fontFamily: _primaryFontFamily,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+
+
+  /// Navigates to the specific appointment in the schedule
+  Future<void> _navigateToAppointment(BuildContext context, Map<String, dynamic> notificationData) async {
+    // Debug: Print all notification data to see what fields are available
+    print('=== APPOINTMENT NOTIFICATION DATA ===');
+    notificationData.forEach((key, value) {
+      print('$key: $value');
+    });
+    print('======================================');
+
+    // Extract date from the message text since there's no separate date field
+    final String message = notificationData['message'] ?? '';
+    DateTime? targetDate;
+
+    // Try to parse date from message like: "scheduled an appointment with you on October 25, 2025 at 1:52 PM"
+    try {
+      final datePattern = RegExp(r'on\s+([A-Za-z]+\s+\d+,\s+\d{4})\s+at\s+(\d+:\d+\s+[AP]M)');
+      final match = datePattern.firstMatch(message);
+
+      if (match != null) {
+        final dateStr = match.group(1); // "October 25, 2025"
+        final timeStr = match.group(2); // "1:52 PM"
+        final fullDateStr = '$dateStr $timeStr';
+
+        print('Extracted date string: $fullDateStr');
+        targetDate = DateFormat('MMMM d, yyyy h:mm a').parse(fullDateStr);
+        print('Parsed date: $targetDate');
+      }
+    } catch (e) {
+      print('Error parsing date from message: $e');
+    }
+
+    // Navigate to home with schedule tab selected
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (context) => home(initialIndex: 1), // 1 is the Schedule tab
+      ),
+    );
+
+    // Show a snackbar indicating the appointment
+    Future.delayed(const Duration(milliseconds: 500), () {
+      if (targetDate != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Showing appointments for ${DateFormat('MMM dd, yyyy').format(targetDate)}',
+              style: const TextStyle(fontFamily: _primaryFontFamily),
+            ),
+            backgroundColor: _primaryColor,
+            duration: const Duration(seconds: 3),
+            action: SnackBarAction(
+              label: 'OK',
+              textColor: Colors.white,
+              onPressed: () {},
+            ),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Navigated to your appointments schedule',
+              style: TextStyle(fontFamily: _primaryFontFamily),
+            ),
+            backgroundColor: _primaryColor,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    });
+  }
+
+
 
   String getChatRoomId(String userA, String userB) {
     if (userA.compareTo(userB) > 0) {
@@ -3731,6 +4204,7 @@ class _UsersListPageState extends State<UsersListPage> {
                         child: InkWell(
                           borderRadius: BorderRadius.circular(14),
                           onTap: () async {
+                            // Mark as read
                             if (!isRead) {
                               await FirebaseFirestore.instance
                                   .collection("Users")
@@ -3740,7 +4214,10 @@ class _UsersListPageState extends State<UsersListPage> {
                                   .update({"isRead": true});
                             }
 
-                            if (data["type"] == "message" && data["senderId"] != null && data["senderName"] != null) {
+                            // Handle different notification types
+                            if (data["type"] == "priceChange") {
+                              _showPriceChangeDialog(context, data);
+                            } else if (data["type"] == "message" && data["senderId"] != null && data["senderName"] != null) {
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
@@ -3752,14 +4229,11 @@ class _UsersListPageState extends State<UsersListPage> {
                                   ),
                                 ),
                               ).then((_) {
-                                // When returning, reload chats in case a new chat was started
                                 _loadAndSortChats();
                               });
+                            } else if (data["type"] == "appointment" || data["type"] == "appointment_update") {
+                              await _navigateToAppointment(context, data);
                             }
-
-                            // TODO: Add navigation for other notification types
-                            // if (data["type"] == "appointment") { ... }
-
                           },
                           child: Padding(
                             padding: const EdgeInsets.all(14.0),
