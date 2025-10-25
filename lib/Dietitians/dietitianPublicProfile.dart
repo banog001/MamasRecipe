@@ -736,7 +736,6 @@ class _DietitianPublicProfileState extends State<DietitianPublicProfile> {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 32),
 
                       if (_isLoadingBio)
                         const Padding(
@@ -747,16 +746,66 @@ class _DietitianPublicProfileState extends State<DietitianPublicProfile> {
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              "",
-                              style: _getTextStyle(context, fontSize: 18, fontWeight: FontWeight.bold),
+                            const SizedBox(height: 12),
+                            // --- BIO CARD ---
+                            Container(
+                              margin: const EdgeInsets.only(bottom: 24.0),
+                              padding: const EdgeInsets.all(16.0),
+                              decoration: BoxDecoration(
+                                color: _cardBgColor(context),
+                                borderRadius: BorderRadius.circular(16),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.05),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 4),
+                                  )
+                                ],
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.all(8),
+                                        decoration: BoxDecoration(
+                                          color: _primaryColor.withOpacity(0.1),
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        child: Icon(
+                                          Icons.info_outlined,
+                                          color: _primaryColor,
+                                          size: 20,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 10),
+                                      Text(
+                                        "About me",
+                                        style: _getTextStyle(
+                                          context,
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w600,
+                                          color: _textColorPrimary(context),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Text(
+                                    _bio,
+                                    style: _getTextStyle(
+                                      context,
+                                      fontSize: 14,
+                                      color: _textColorSecondary(context),
+                                      fontWeight: FontWeight.w400,
+                                      height: 1.6,
+                                    ),
+                                    // Remove maxLines to show full bio
+                                  ),
+                                ],
+                              ),
                             ),
-                            const SizedBox(height: 8),
-                            Text(
-                              _bio,
-                              style: _getTextStyle(context, fontSize: 14, color: _textColorSecondary(context), height: 1.5),
-                            ),
-                            const SizedBox(height: 24),
                           ],
                         ),
 

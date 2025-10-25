@@ -186,7 +186,7 @@ class _DietitianProfileState extends State<DietitianProfile> {
                                 child: Material(
                                   color: Colors.white,
                                   shape: const CircleBorder(),
-                                  elevation: 2,
+                                  elevation: 1,
                                   child: InkWell(
                                     onTap: () {
                                       Navigator.push(
@@ -238,7 +238,100 @@ class _DietitianProfileState extends State<DietitianProfile> {
                       ),
                     ),
 
-                    // --- PROFESSIONAL SUMMARY ---
+// --- REPLACE THE PROFESSIONAL SUMMARY SECTION IN dietitianProfile.dart WITH THIS CODE ---
+
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            "About",
+                            style: getTextStyle(
+                              context,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: textPrimary,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          // --- BIO CARD ---
+                          Container(
+                            margin: const EdgeInsets.only(bottom: 12.0),
+                            padding: const EdgeInsets.all(16.0),
+                            decoration: BoxDecoration(
+                              color: cardColor,
+                              borderRadius: BorderRadius.circular(16),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.05),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 4),
+                                )
+                              ],
+                            ),
+                            child: FutureBuilder<Map<String, dynamic>?>(
+                              future: _getUserData(),
+                              builder: (context, snapshot) {
+                                if (snapshot.connectionState == ConnectionState.waiting) {
+                                  return const Center(
+                                    child: CircularProgressIndicator(color: primaryColor),
+                                  );
+                                }
+
+                                final bio = snapshot.data?['bio'] as String? ?? 'No bio added yet';
+
+                                return Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.all(8),
+                                          decoration: BoxDecoration(
+                                            color: primaryColor.withOpacity(0.1),
+                                            borderRadius: BorderRadius.circular(8),
+                                          ),
+                                          child: const Icon(
+                                            Icons.info_outlined,
+                                            color: primaryColor,
+                                            size: 20,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 10),
+                                        Text(
+                                          "Bio",
+                                          style: getTextStyle(
+                                            context,
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w600,
+                                            color: textPrimary,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 12),
+                                    Text(
+                                      bio,
+                                      style: getTextStyle(
+                                        context,
+                                        fontSize: 14,
+                                        color: textSecondary,
+                                        fontWeight: FontWeight.w400,
+                                      ),
+                                      maxLines: 3,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ],
+                                );
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+// --- PROFESSIONAL SUMMARY ---
                     Padding(
                       padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
                       child: Column(
@@ -254,61 +347,172 @@ class _DietitianProfileState extends State<DietitianProfile> {
                             ),
                           ),
                           const SizedBox(height: 12),
-                          Card(
-                            elevation: 2,
-                            color: cardColor,
-                            shape: RoundedRectangleBorder(
+                          // --- NEW: Redesigned Professional Summary Card ---
+                          Container(
+                            margin: const EdgeInsets.only(bottom: 12.0),
+                            padding: const EdgeInsets.all(20.0),
+                            decoration: BoxDecoration(
+                              color: cardColor,
                               borderRadius: BorderRadius.circular(16),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.05),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 4),
+                                )
+                              ],
                             ),
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(
-                                  vertical: 20, horizontal: 16),
-                              child: Row(
-                                mainAxisAlignment:
-                                MainAxisAlignment.spaceAround,
-                                children: [
-                                  FutureBuilder<int>(
-                                    future: _getSubscriberCount(),
-                                    builder: (context, snapshot) {
-                                      return _summaryItem(
-                                        Icons.group_outlined,
-                                        "Subscribers",
-                                        snapshot.data?.toString() ?? "0",
-                                        textPrimary,
-                                      );
-                                    },
-                                  ),
-                                  FutureBuilder<int>(
-                                    future: _getPlansCreatedCount(),
-                                    builder: (context, snapshot) {
-                                      return _summaryItem(
-                                        Icons.article_outlined,
-                                        "Plans Created",
-                                        snapshot.data?.toString() ?? "0",
-                                        textPrimary,
-                                      );
-                                    },
-                                  ),
-                                  FutureBuilder<int>(
-                                    future: _getFollowersCount(),
-                                    builder: (context, snapshot) {
-                                      return _summaryItem(
-                                        Icons.people_alt_outlined,
-                                        "Followers",
-                                        snapshot.data?.toString() ?? "0",
-                                        textPrimary,
-                                      );
-                                    },
-                                  ),
-                                ],
-                              ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceAround,
+                              children: [
+                                // --- SUBSCRIBERS STAT ---
+                                FutureBuilder<int>(
+                                  future: _getSubscriberCount(),
+                                  builder: (context, snapshot) {
+                                    return Column(
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.all(12),
+                                          decoration: BoxDecoration(
+                                            color: primaryColor.withOpacity(0.1),
+                                            shape: BoxShape.circle,
+                                          ),
+                                          child: const Icon(
+                                            Icons.group_outlined,
+                                            color: primaryColor,
+                                            size: 24,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 12),
+                                        Text(
+                                          "Subscribers",
+                                          style: getTextStyle(
+                                            context,
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w500,
+                                            color: textSecondary,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 6),
+                                        Text(
+                                          snapshot.data?.toString() ?? "0",
+                                          style: getTextStyle(
+                                            context,
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.bold,
+                                            color: textPrimary,
+                                          ),
+                                        ),
+                                      ],
+                                    );
+                                  },
+                                ),
+                                // --- DIVIDER ---
+                                Container(
+                                  width: 1,
+                                  height: 80,
+                                  color: textSecondary.withOpacity(0.1),
+                                ),
+                                // --- PLANS CREATED STAT ---
+                                FutureBuilder<int>(
+                                  future: _getPlansCreatedCount(),
+                                  builder: (context, snapshot) {
+                                    return Column(
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.all(12),
+                                          decoration: BoxDecoration(
+                                            color: primaryColor.withOpacity(0.1),
+                                            shape: BoxShape.circle,
+                                          ),
+                                          child: const Icon(
+                                            Icons.article_outlined,
+                                            color: primaryColor,
+                                            size: 24,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 12),
+                                        Text(
+                                          "Plans Created",
+                                          style: getTextStyle(
+                                            context,
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w500,
+                                            color: textSecondary,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 6),
+                                        Text(
+                                          snapshot.data?.toString() ?? "0",
+                                          style: getTextStyle(
+                                            context,
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.bold,
+                                            color: textPrimary,
+                                          ),
+                                        ),
+                                      ],
+                                    );
+                                  },
+                                ),
+                                // --- DIVIDER ---
+                                Container(
+                                  width: 1,
+                                  height: 80,
+                                  color: textSecondary.withOpacity(0.1),
+                                ),
+                                // --- FOLLOWERS STAT ---
+                                FutureBuilder<int>(
+                                  future: _getFollowersCount(),
+                                  builder: (context, snapshot) {
+                                    return Column(
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.all(12),
+                                          decoration: BoxDecoration(
+                                            color: primaryColor.withOpacity(0.1),
+                                            shape: BoxShape.circle,
+                                          ),
+                                          child: const Icon(
+                                            Icons.people_alt_outlined,
+                                            color: primaryColor,
+                                            size: 24,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 12),
+                                        Text(
+                                          "Followers",
+                                          style: getTextStyle(
+                                            context,
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w500,
+                                            color: textSecondary,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 6),
+                                        Text(
+                                          snapshot.data?.toString() ?? "0",
+                                          style: getTextStyle(
+                                            context,
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.bold,
+                                            color: textPrimary,
+                                          ),
+                                        ),
+                                      ],
+                                    );
+                                  },
+                                ),
+                              ],
                             ),
                           ),
                         ],
                       ),
                     ),
 
-                    // --- SERVICE PRICING ---
+// --- REPLACE BOTH SERVICE PRICING AND DIETITIAN TOOLS SECTIONS WITH THIS ---
+
+// --- SERVICE PRICING ---
                     Padding(
                       padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
                       child: Column(
@@ -324,53 +528,84 @@ class _DietitianProfileState extends State<DietitianProfile> {
                             ),
                           ),
                           const SizedBox(height: 12),
-                          Card(
-                            elevation: 2,
-                            color: cardColor,
-                            shape: RoundedRectangleBorder(
+                          // --- PRICING CARD ---
+                          Container(
+                            margin: const EdgeInsets.only(bottom: 12.0),
+                            padding: const EdgeInsets.all(16.0),
+                            decoration: BoxDecoration(
+                              color: cardColor,
                               borderRadius: BorderRadius.circular(16),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.05),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 4),
+                                )
+                              ],
                             ),
-                            child: ListTile(
-                              contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 20, vertical: 12),
-                              leading: const Icon(
-                                  Icons.attach_money_outlined,
-                                  color: primaryColor,
-                                  size: 28),
-                              title: Text(
-                                "Set Your Pricing",
-                                style: getTextStyle(
-                                  context,
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w500,
-                                  color: textPrimary,
-                                ),
-                              ),
-                              subtitle: Text(
-                                "Configure your consultation rates",
-                                style: getTextStyle(
-                                  context,
-                                  fontSize: 12,
-                                  color: textSecondary,
-                                ),
-                              ),
-                              trailing: Icon(Icons.arrow_forward_ios_rounded,
-                                  color: textSecondary, size: 18),
+                            child: InkWell(
                               onTap: () async {
                                 final currentData = await _getUserData();
                                 if (mounted) {
-                                  await showPricingDialog(
-                                      context, currentData);
+                                  await showPricingDialog(context, currentData);
                                   setState(() {});
                                 }
                               },
+                              borderRadius: BorderRadius.circular(16),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      color: primaryColor.withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: const Icon(
+                                      Icons.attach_money_outlined,
+                                      color: primaryColor,
+                                      size: 24,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 16),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          "Set Your Pricing",
+                                          style: getTextStyle(
+                                            context,
+                                            fontSize: 15,
+                                            fontWeight: FontWeight.w600,
+                                            color: textPrimary,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          "Configure your consultation rates",
+                                          style: getTextStyle(
+                                            context,
+                                            fontSize: 12,
+                                            color: textSecondary,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  Icon(
+                                    Icons.arrow_forward_ios_rounded,
+                                    color: textSecondary,
+                                    size: 18,
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                         ],
                       ),
                     ),
 
-                    // --- DIETITIAN TOOLS ---
+// --- DIETITIAN TOOLS ---
                     Padding(
                       padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
                       child: Column(
@@ -386,99 +621,154 @@ class _DietitianProfileState extends State<DietitianProfile> {
                             ),
                           ),
                           const SizedBox(height: 12),
-                          Card(
-                            elevation: 2,
-                            color: cardColor,
-                            shape: RoundedRectangleBorder(
+
+                          // --- MY QR CODE CARD ---
+                          Container(
+                            margin: const EdgeInsets.only(bottom: 12.0),
+                            padding: const EdgeInsets.all(16.0),
+                            decoration: BoxDecoration(
+                              color: cardColor,
                               borderRadius: BorderRadius.circular(16),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.05),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 4),
+                                )
+                              ],
                             ),
-                            child: Column(
-                              children: [
-                                ListTile(
-                                  contentPadding: const EdgeInsets.symmetric(
-                                      horizontal: 20, vertical: 12),
-                                  leading: const Icon(
+                            child: InkWell(
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => const DietitianQRCodePage(),
+                                  ),
+                                );
+                              },
+                              borderRadius: BorderRadius.circular(16),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      color: primaryColor.withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: const Icon(
                                       Icons.qr_code_2_outlined,
                                       color: primaryColor,
-                                      size: 28),
-                                  title: Text(
-                                    "My QR Code",
-                                    style: getTextStyle(
-                                      context,
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.w500,
-                                      color: textPrimary,
+                                      size: 24,
                                     ),
                                   ),
-                                  subtitle: Text(
-                                    "Upload & share with clients",
-                                    style: getTextStyle(
-                                      context,
-                                      fontSize: 12,
-                                      color: textSecondary,
+                                  const SizedBox(width: 16),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          "My QR Code",
+                                          style: getTextStyle(
+                                            context,
+                                            fontSize: 15,
+                                            fontWeight: FontWeight.w600,
+                                            color: textPrimary,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          "Upload & share with clients",
+                                          style: getTextStyle(
+                                            context,
+                                            fontSize: 12,
+                                            color: textSecondary,
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ),
-                                  trailing: Icon(
-                                      Icons.arrow_forward_ios_rounded,
-                                      color: textSecondary,
-                                      size: 18),
-                                  onTap: () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) =>
-                                        const DietitianQRCodePage(),
-                                      ),
-                                    );
-                                  },
-                                ),
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 16.0),
-                                  child: Divider(
-                                    height: 1,
-                                    color: textSecondary.withOpacity(0.1),
+                                  Icon(
+                                    Icons.arrow_forward_ios_rounded,
+                                    color: textSecondary,
+                                    size: 18,
                                   ),
-                                ),
-                                ListTile(
-                                  contentPadding: const EdgeInsets.symmetric(
-                                      horizontal: 20, vertical: 12),
-                                  leading: const Icon(
+                                ],
+                              ),
+                            ),
+                          ),
+
+                          // --- CREATE & MANAGE PLANS CARD ---
+                          Container(
+                            margin: const EdgeInsets.only(bottom: 12.0),
+                            padding: const EdgeInsets.all(16.0),
+                            decoration: BoxDecoration(
+                              color: cardColor,
+                              borderRadius: BorderRadius.circular(16),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.05),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 4),
+                                )
+                              ],
+                            ),
+                            child: InkWell(
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => const CreateMealPlanPage(),
+                                  ),
+                                );
+                              },
+                              borderRadius: BorderRadius.circular(16),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      color: primaryColor.withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: const Icon(
                                       Icons.edit_note_outlined,
                                       color: primaryColor,
-                                      size: 28),
-                                  title: Text(
-                                    "Create & Manage Plans",
-                                    style: getTextStyle(
-                                      context,
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.w500,
-                                      color: textPrimary,
+                                      size: 24,
                                     ),
                                   ),
-                                  subtitle: Text(
-                                    "Build new meal plans for clients",
-                                    style: getTextStyle(
-                                      context,
-                                      fontSize: 12,
-                                      color: textSecondary,
+                                  const SizedBox(width: 16),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          "Create & Manage Plans",
+                                          style: getTextStyle(
+                                            context,
+                                            fontSize: 15,
+                                            fontWeight: FontWeight.w600,
+                                            color: textPrimary,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          "Build new meal plans for clients",
+                                          style: getTextStyle(
+                                            context,
+                                            fontSize: 12,
+                                            color: textSecondary,
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ),
-                                  trailing: Icon(
-                                      Icons.arrow_forward_ios_rounded,
-                                      color: textSecondary,
-                                      size: 18),
-                                  onTap: () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) =>
-                                        const CreateMealPlanPage(),
-                                      ),
-                                    );
-                                  },
-                                ),
-                              ],
+                                  Icon(
+                                    Icons.arrow_forward_ios_rounded,
+                                    color: textSecondary,
+                                    size: 18,
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                         ],
@@ -1027,7 +1317,7 @@ class _PricingDialogState extends State<PricingDialog> {
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(16),
                                 ),
-                                elevation: 4,
+                                elevation: 1,
                               ),
                               child: Text(
                                 "Confirm",
@@ -1274,7 +1564,7 @@ class _PricingDialogState extends State<PricingDialog> {
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(16),
                             ),
-                            elevation: 4,
+                            elevation: 1,
                           ),
                           child: _isSaving
                               ? const SizedBox(

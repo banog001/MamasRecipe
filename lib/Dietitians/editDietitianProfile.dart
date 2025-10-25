@@ -158,10 +158,10 @@ class _EditProfilePageState extends State<EditProfileDietitianPage> {
     }
     // 🔹 Add bio if it has content
     if (_bioController.text.trim().isNotEmpty) {
-      if (_bioController.text.trim().length > 30) {
+      if (_bioController.text.trim().length > 100) {
         CustomSnackBar.show(
           context,
-          'Bio cannot exceed 30 characters.',
+          'Bio cannot exceed 100 characters.',
           backgroundColor: Colors.orange,
           icon: Icons.warning_outlined,
         );
@@ -382,7 +382,7 @@ class _EditProfilePageState extends State<EditProfileDietitianPage> {
                               vertical: keyboardHeight > 0 ? 12.0 : 16.0,
                             ),
                             child: Card(
-                              elevation: 2,
+                              elevation: 1,
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(16),
                               ),
@@ -402,11 +402,64 @@ class _EditProfilePageState extends State<EditProfileDietitianPage> {
                                         color: _primaryColor,
                                       ),
                                     ),
-                                    const SizedBox(height: 12),
-                                    _buildTextField(
+                                    const SizedBox(height: 16),
+                                    // --- BIO LABEL ---
+                                    Text(
                                       "Bio",
-                                      controller: _bioController,
-                                      helperText: "Maximum of 30 characters",
+                                      style: const TextStyle(
+                                        fontFamily: _primaryFontFamily,
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.black87,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    // --- WIDE BIO TEXTFIELD (Social Media Style) ---
+                                    Container(
+                                      decoration: BoxDecoration(
+                                        color: Colors.grey.shade100,
+                                        borderRadius: BorderRadius.circular(12),
+                                        border: Border.all(color: Colors.grey.shade300),
+                                      ),
+                                      child: TextField(
+                                        controller: _bioController,
+                                        maxLines: 4,
+                                        maxLength: 100,
+                                        style: const TextStyle(
+                                          fontFamily: _primaryFontFamily,
+                                          fontSize: 15,
+                                          color: Colors.black87,
+                                        ),
+                                        decoration: InputDecoration(
+                                          hintText: "Tell us about yourself...",
+                                          hintStyle: TextStyle(
+                                            fontFamily: _primaryFontFamily,
+                                            fontSize: 14,
+                                            color: Colors.grey.shade500,
+                                          ),
+                                          border: InputBorder.none,
+                                          focusedBorder: OutlineInputBorder(
+                                            borderRadius: BorderRadius.circular(12),
+                                            borderSide: const BorderSide(color: _primaryColor, width: 2),
+                                          ),
+                                          contentPadding: const EdgeInsets.all(14),
+                                          counterStyle: const TextStyle(
+                                            fontFamily: _primaryFontFamily,
+                                            fontSize: 12,
+                                            color: Colors.black54,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      "Maximum of 100 characters",
+                                      style: TextStyle(
+                                        fontFamily: _primaryFontFamily,
+                                        fontSize: 11,
+                                        color: Colors.grey.shade600,
+                                        fontStyle: FontStyle.italic,
+                                      ),
                                     ),
                                   ],
                                 ),
@@ -504,7 +557,7 @@ class _EditProfilePageState extends State<EditProfileDietitianPage> {
         TextField(
           controller: controller,
           obscureText: obscure,
-          maxLength: label == "Bio" ? 30 : null, // ✅ Limit Bio to 30 chars
+          maxLength: label == "Bio" ? 100 : null, // ✅ Limit Bio to 30 chars
           style: const TextStyle(
             fontFamily: _primaryFontFamily,
             fontSize: 15,

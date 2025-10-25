@@ -1611,9 +1611,9 @@ class SubscriptionApprovalPage extends StatelessWidget {
               fontFamily: 'PlusJakartaSans',
             ),
             tabs: [
-              Tab(text: "Pending Requests"),
-              Tab(text: "Approved History"),
-              Tab(text: "Declined History"),
+              Tab(text: "Pending"),
+              Tab(text: "Approved"),
+              Tab(text: "Declined"),
             ],
           ),
         ),
@@ -3438,6 +3438,8 @@ class _UsersListPageState extends State<UsersListPage> {
 
 }
 
+// --- REDESIGNED SCHEDULE CALENDAR PAGE WITH DASHBOARD CARD STYLES ---
+
 class ScheduleCalendarPage extends StatefulWidget {
   final String dietitianFirstName;
   final String dietitianLastName;
@@ -3537,14 +3539,12 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
     final normalizedToday = DateTime.utc(now.year, now.month, now.day);
     final normalizedDay = DateTime.utc(day.year, day.month, day.day);
 
-    // Only show overdue marker for PAST dates
     if (!normalizedDay.isBefore(normalizedToday)) {
       return false;
     }
 
     for (var event in events) {
       final status = (event['status'] ?? '').toString().toLowerCase().trim();
-      // Only mark as overdue if CONFIRMED and NOT COMPLETED
       if (status == 'confirmed') {
         return true;
       }
@@ -3561,21 +3561,16 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
     for (var event in events) {
       final status = (event['status'] ?? '').toString().toLowerCase().trim();
 
-      // SKIP completed and cancelled appointments entirely
       if (status == 'completed' ||
           status == 'cancelled' ||
           status == 'cancel') {
         continue;
       }
 
-      // Show red dot for:
-      // 1. Current/future dates with any pending/waiting/confirmed status
       if (normalizedDay.isAfter(normalizedToday) ||
           isSameDay(normalizedDay, normalizedToday)) {
         return true;
-      }
-      // 2. Past dates - only show if NOT completed/cancelled (already checked above)
-      else if (normalizedDay.isBefore(normalizedToday)) {
+      } else if (normalizedDay.isBefore(normalizedToday)) {
         return true;
       }
     }
@@ -3619,7 +3614,6 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
         );
       }
 
-      // Add small delay to ensure Firestore updates
       await Future.delayed(const Duration(milliseconds: 500));
 
       if (mounted) {
@@ -3645,7 +3639,7 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
         context,
         'You must be logged in.',
         backgroundColor: Colors.redAccent,
-        icon: Icons.warning_outlined
+        icon: Icons.warning_outlined,
       );
       return;
     }
@@ -3658,7 +3652,6 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
     List<DocumentSnapshot> clients = [];
 
     try {
-      // ✅ Fetch only clients with pending appointment requests
       QuerySnapshot appointmentRequestSnapshot = await FirebaseFirestore
           .instance
           .collection('appointmentRequest')
@@ -3682,7 +3675,6 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
         return;
       }
 
-      // Fetch user data for pending clients
       QuerySnapshot userSnapshot = await FirebaseFirestore.instance
           .collection('Users')
           .get();
@@ -3694,237 +3686,407 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
       }
     } catch (e) {
       print("Error fetching clients with pending requests: $e");
-      CustomSnackBar.show(context, 'Error fetching clients: $e', backgroundColor: Colors.red, icon: Icons.error_outline);
+      CustomSnackBar.show(context, 'Error fetching clients: $e',
+          backgroundColor: Colors.red, icon: Icons.error_outline);
       return;
     }
 
     if (clients.isEmpty && mounted) {
-      CustomSnackBar.show(context, 'No clients found with pending appointment requests.', backgroundColor: Colors.orange, icon: Icons.info_outline);
+      CustomSnackBar.show(context,
+          'No clients found with pending appointment requests.',
+          backgroundColor: Colors.orange,
+          icon: Icons.info_outline);
       return;
     }
 
     return showDialog<void>(
       context: context,
       barrierDismissible: false,
+      barrierColor: Colors.black.withOpacity(0.7),
       builder: (BuildContext dialogContext) {
         return StatefulBuilder(
           builder: (BuildContext context, StateSetter setStateDialog) {
-            return AlertDialog(
-              title: Text(
-                'Schedule for ${DateFormat.yMMMMd().format(selectedDate)}',
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 18,
-                ),
-              ),
-              backgroundColor: Colors.white,
+            return Dialog(
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(15),
+                borderRadius: BorderRadius.circular(24),
               ),
-              content: SingleChildScrollView(
-                child: ListBody(
-                  children: <Widget>[
-                    if (clients.isNotEmpty)
-                      DropdownButtonFormField<String>(
-                        decoration: InputDecoration(
-                          labelText: 'Select Client',
-                          labelStyle: const TextStyle(fontSize: 14),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          filled: true,
-                          fillColor: Colors.grey.shade100,
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 10,
-                          ),
-                        ),
-                        value: selectedClientId,
-                        hint: Text(
-                          selectedClientName,
-                          style: const TextStyle(
-                            color: Colors.grey,
-                            fontSize: 14,
-                          ),
-                        ),
-                        dropdownColor: Colors.white,
-                        items: clients.map((DocumentSnapshot document) {
-                          Map<String, dynamic> data =
-                              document.data()! as Map<String, dynamic>;
-                          String name =
-                              "${data['firstName'] ?? ''} ${data['lastName'] ?? ''}"
-                                  .trim();
-                          if (name.isEmpty) {
-                            name = "Client ID: ${document.id.substring(0, 5)}";
-                          }
-                          return DropdownMenuItem<String>(
-                            value: document.id,
-                            child: Text(
-                              name,
-                              style: const TextStyle(fontSize: 14),
+              backgroundColor: Colors.transparent,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(24),
+                child: Stack(
+                  children: [
+                    Positioned.fill(
+                      child: Container(
+                        color: _cardBgColor(dialogContext),
+                        child: Stack(
+                          children: [
+                            Positioned(
+                              top: -50,
+                              left: -80,
+                              child: Container(
+                                width: 200,
+                                height: 200,
+                                decoration: BoxDecoration(
+                                  color: _primaryColor.withOpacity(0.06),
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
                             ),
-                          );
-                        }).toList(),
-                        onChanged: (String? newValue) {
-                          setStateDialog(() {
-                            selectedClientId = newValue;
-                            if (newValue != null) {
-                              final clientDoc = clients.firstWhere(
-                                (doc) => doc.id == newValue,
-                              );
-                              final clientData =
-                                  clientDoc.data() as Map<String, dynamic>;
-                              selectedClientName =
-                                  "${clientData['firstName'] ?? ''} ${clientData['lastName'] ?? ''}"
-                                      .trim();
-                              selectedClientEmail = clientData['email'] ?? '';
-                              if (selectedClientName.isEmpty) {
-                                selectedClientName =
-                                    "Client ID: ${newValue.substring(0, 5)}";
-                              }
-                            } else {
-                              selectedClientName = "Select Client";
-                              selectedClientEmail = null;
-                            }
-                          });
-                        },
-                        validator: (value) =>
-                            value == null ? 'Please select a client' : null,
-                      )
-                    else
-                      const Text(
-                        "No clients available.",
-                        style: TextStyle(fontSize: 14),
+                            Positioned(
+                              bottom: -60,
+                              right: -90,
+                              child: Container(
+                                width: 250,
+                                height: 250,
+                                decoration: BoxDecoration(
+                                  color: _primaryColor.withOpacity(0.06),
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    const SizedBox(height: 15),
-                    ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      leading: const Icon(
-                        Icons.access_time_filled_rounded,
-                        color: Color(0xFF4CAF50),
-                      ),
-                      title: Text(
-                        'Time: ${selectedTime?.format(dialogContext) ?? 'Tap to select'}',
-                        style: const TextStyle(fontSize: 14),
-                      ),
-                      onTap: () async {
-                        final TimeOfDay? pickedTime = await showTimePicker(
-                          context: dialogContext,
-                          initialTime: selectedTime ?? TimeOfDay.now(),
-                        );
-                        if (pickedTime != null) {
-                          setStateDialog(() {
-                            selectedTime = pickedTime;
-                          });
-                        }
-                      },
                     ),
-                    const SizedBox(height: 15),
-                    TextFormField(
-                      controller: notesController,
-                      decoration: InputDecoration(
-                        labelText: 'Notes (Optional)',
-                        labelStyle: const TextStyle(fontSize: 14),
-                        hintText: 'Details for this appointment?',
-                        hintStyle: const TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey,
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        filled: true,
-                        fillColor: Colors.grey.shade100,
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 10,
-                        ),
+                    Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'Schedule Appointment',
+                            style: _getTextStyle(
+                              dialogContext,
+                              fontSize: 28,
+                              fontWeight: FontWeight.bold,
+                              color: _textColorPrimary(dialogContext),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            'For ${DateFormat.yMMMMd().format(selectedDate)}',
+                            textAlign: TextAlign.center,
+                            style: _getTextStyle(
+                              dialogContext,
+                              fontSize: 14,
+                              color: _textColorSecondary(dialogContext),
+                            ),
+                          ),
+                          const SizedBox(height: 32),
+                          SingleChildScrollView(
+                            child: Column(
+                              children: [
+                                if (clients.isNotEmpty)
+                                  DropdownButtonFormField<String>(
+                                    decoration: InputDecoration(
+                                      labelText: 'Select Client',
+                                      labelStyle: _getTextStyle(
+                                        dialogContext,
+                                        fontSize: 14,
+                                        color: _textColorSecondary(
+                                            dialogContext),
+                                      ),
+                                      prefixIcon: Icon(Icons.person_outline,
+                                          color: _primaryColor),
+                                      filled: true,
+                                      fillColor: _scaffoldBgColor(dialogContext),
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                        borderSide: BorderSide(
+                                            color: Colors.grey.shade300),
+                                      ),
+                                      enabledBorder: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                        borderSide: BorderSide(
+                                            color: Colors.grey.shade300),
+                                      ),
+                                      focusedBorder: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                        borderSide: BorderSide(
+                                            color: _primaryColor, width: 2),
+                                      ),
+                                      contentPadding:
+                                      const EdgeInsets.symmetric(
+                                        horizontal: 16,
+                                        vertical: 14,
+                                      ),
+                                      isDense: true,
+                                    ),
+                                    value: selectedClientId,
+                                    hint: Text(
+                                      selectedClientName,
+                                      style: _getTextStyle(
+                                        dialogContext,
+                                        fontSize: 14,
+                                        color: _textColorSecondary(
+                                            dialogContext),
+                                      ),
+                                    ),
+                                    dropdownColor: _cardBgColor(dialogContext),
+                                    items: clients
+                                        .map((DocumentSnapshot document) {
+                                      Map<String, dynamic> data = document
+                                          .data()! as Map<String, dynamic>;
+                                      String name =
+                                      "${data['firstName'] ?? ''} ${data['lastName'] ?? ''}"
+                                          .trim();
+                                      if (name.isEmpty) {
+                                        name =
+                                        "Client ID: ${document.id.substring(0, 5)}";
+                                      }
+                                      return DropdownMenuItem<String>(
+                                        value: document.id,
+                                        child: Text(
+                                          name,
+                                          style: _getTextStyle(
+                                            dialogContext,
+                                            fontSize: 14,
+                                          ),
+                                        ),
+                                      );
+                                    }).toList(),
+                                    onChanged: (String? newValue) {
+                                      setStateDialog(() {
+                                        selectedClientId = newValue;
+                                        if (newValue != null) {
+                                          final clientDoc = clients.firstWhere(
+                                                (doc) => doc.id == newValue,
+                                          );
+                                          final clientData = clientDoc.data()
+                                          as Map<String, dynamic>;
+                                          selectedClientName =
+                                              "${clientData['firstName'] ?? ''} ${clientData['lastName'] ?? ''}"
+                                                  .trim();
+                                          selectedClientEmail =
+                                              clientData['email'] ?? '';
+                                          if (selectedClientName.isEmpty) {
+                                            selectedClientName =
+                                            "Client ID: ${newValue.substring(0, 5)}";
+                                          }
+                                        } else {
+                                          selectedClientName = "Select Client";
+                                          selectedClientEmail = null;
+                                        }
+                                      });
+                                    },
+                                  )
+                                else
+                                  Text(
+                                    "No clients available.",
+                                    style: _getTextStyle(
+                                      dialogContext,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                const SizedBox(height: 16),
+                                GestureDetector(
+                                  onTap: () async {
+                                    final TimeOfDay? pickedTime =
+                                    await showTimePicker(
+                                      context: dialogContext,
+                                      initialTime: selectedTime ?? TimeOfDay.now(),
+                                    );
+                                    if (pickedTime != null) {
+                                      setStateDialog(() {
+                                        selectedTime = pickedTime;
+                                      });
+                                    }
+                                  },
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                      vertical: 14,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: _scaffoldBgColor(dialogContext),
+                                      border: Border.all(
+                                        color: Colors.grey.shade300,
+                                      ),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Icon(
+                                          Icons.access_time_filled_rounded,
+                                          color: _primaryColor,
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: Text(
+                                            'Time: ${selectedTime?.format(dialogContext) ?? 'Select Time'}',
+                                            style: _getTextStyle(
+                                              dialogContext,
+                                              fontSize: 14,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                                TextField(
+                                  controller: notesController,
+                                  style: _getTextStyle(dialogContext),
+                                  decoration: InputDecoration(
+                                    labelText: 'Notes (Optional)',
+                                    labelStyle: _getTextStyle(
+                                      dialogContext,
+                                      fontSize: 14,
+                                      color: _textColorSecondary(dialogContext),
+                                    ),
+                                    prefixIcon: Icon(Icons.note_outlined,
+                                        color: _primaryColor),
+                                    filled: true,
+                                    fillColor: _scaffoldBgColor(dialogContext),
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                      borderSide: BorderSide(
+                                          color: Colors.grey.shade300),
+                                    ),
+                                    enabledBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                      borderSide: BorderSide(
+                                          color: Colors.grey.shade300),
+                                    ),
+                                    focusedBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                      borderSide: BorderSide(
+                                          color: _primaryColor, width: 2),
+                                    ),
+                                    contentPadding:
+                                    const EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                      vertical: 14,
+                                    ),
+                                    isDense: true,
+                                  ),
+                                  maxLines: 3,
+                                  textCapitalization:
+                                  TextCapitalization.sentences,
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 32),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: OutlinedButton(
+                                  onPressed: () =>
+                                      Navigator.of(dialogContext).pop(),
+                                  style: OutlinedButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: 14),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    side: BorderSide(
+                                        color: _primaryColor, width: 1.5),
+                                    foregroundColor: _primaryColor,
+                                  ),
+                                  child: Text(
+                                    'Cancel',
+                                    style: _getTextStyle(
+                                      dialogContext,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.bold,
+                                      color: _primaryColor,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: ElevatedButton.icon(
+                                  onPressed: () {
+                                    if (selectedClientId == null) {
+                                      CustomSnackBar.show(
+                                        dialogContext,
+                                        'Please select a client.',
+                                        backgroundColor: Colors.redAccent,
+                                        icon: Icons.warning_outlined,
+                                      );
+                                      return;
+                                    }
+                                    if (selectedTime == null) {
+                                      CustomSnackBar.show(dialogContext,
+                                          'Please select an appointment time.',
+                                          backgroundColor: Colors.redAccent,
+                                          icon: Icons.schedule_outlined);
+                                      return;
+                                    }
+
+                                    final DateTime finalAppointmentDateTime =
+                                    DateTime(
+                                      selectedDate.year,
+                                      selectedDate.month,
+                                      selectedDate.day,
+                                      selectedTime!.hour,
+                                      selectedTime!.minute,
+                                    );
+
+                                    String dietitianDisplayName;
+                                    if (widget.isDietitianNameLoading) {
+                                      dietitianDisplayName =
+                                          currentDietitian.displayName ??
+                                              "Dietitian";
+                                    } else {
+                                      dietitianDisplayName =
+                                      (widget.dietitianFirstName.isNotEmpty ||
+                                          widget.dietitianLastName
+                                              .isNotEmpty)
+                                          ? "${widget.dietitianFirstName} ${widget.dietitianLastName}"
+                                          .trim()
+                                          : currentDietitian.displayName ??
+                                          "Dietitian";
+                                    }
+
+                                    _saveScheduleToFirestore(
+                                      dietitianId: currentDietitian.uid,
+                                      dietitianName: dietitianDisplayName,
+                                      clientId: selectedClientId!,
+                                      clientName: selectedClientName,
+                                      clientEmail: selectedClientEmail ?? '',
+                                      appointmentDateTime:
+                                      finalAppointmentDateTime,
+                                      notes: notesController.text.trim(),
+                                      status: 'Waiting for client response.',
+                                      contextForSnackBar: this.context,
+                                    );
+                                    Navigator.of(dialogContext).pop();
+                                  },
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: _primaryColor,
+                                    foregroundColor: _textColorOnPrimary,
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: 14),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    elevation: 4,
+                                  ),
+                                  icon: const Icon(Icons.send_rounded,
+                                      size: 18),
+                                  label: Text(
+                                    'Schedule',
+                                    style: _getTextStyle(
+                                      dialogContext,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.bold,
+                                      color: _textColorOnPrimary,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
-                      style: const TextStyle(fontSize: 14),
-                      maxLines: 3,
-                      textCapitalization: TextCapitalization.sentences,
                     ),
                   ],
                 ),
               ),
-              actions: <Widget>[
-                TextButton(
-                  child: const Text(
-                    'Cancel',
-                    style: TextStyle(color: Colors.grey, fontSize: 14),
-                  ),
-                  onPressed: () {
-                    Navigator.of(dialogContext).pop();
-                  },
-                ),
-                ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF4CAF50),
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                  icon: const Icon(Icons.send_rounded, size: 18),
-                  label: const Text(
-                    'Send Schedule',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
-                    ),
-                  ),
-                  onPressed: () {
-                    if (selectedClientId == null) {
-                      CustomSnackBar.show(
-                        dialogContext,
-                        'Please select a client.',
-                        backgroundColor: Colors.redAccent,
-                        icon: Icons.warning_outlined
-                      );
-                      return;
-                    }
-                    if (selectedTime == null) {
-                      CustomSnackBar.show(dialogContext, 'Please select an appointment time.', backgroundColor: Colors.redAccent, icon: Icons.schedule_outlined);
-                      return;
-                    }
-
-                    final DateTime finalAppointmentDateTime = DateTime(
-                      selectedDate.year,
-                      selectedDate.month,
-                      selectedDate.day,
-                      selectedTime!.hour,
-                      selectedTime!.minute,
-                    );
-
-                    String dietitianDisplayName;
-                    if (widget.isDietitianNameLoading) {
-                      dietitianDisplayName =
-                          currentDietitian.displayName ?? "Dietitian";
-                    } else {
-                      dietitianDisplayName =
-                          (widget.dietitianFirstName.isNotEmpty ||
-                              widget.dietitianLastName.isNotEmpty)
-                          ? "${widget.dietitianFirstName} ${widget.dietitianLastName}"
-                                .trim()
-                          : currentDietitian.displayName ?? "Dietitian";
-                    }
-
-                    _saveScheduleToFirestore(
-                      dietitianId: currentDietitian.uid,
-                      dietitianName: dietitianDisplayName,
-                      clientId: selectedClientId!,
-                      clientName: selectedClientName,
-                      clientEmail: selectedClientEmail ?? '',
-                      appointmentDateTime: finalAppointmentDateTime,
-                      notes: notesController.text.trim(),
-                      status: 'Waiting for client response.',
-                      contextForSnackBar: this.context,
-                    );
-                    Navigator.of(dialogContext).pop();
-                  },
-                ),
-              ],
             );
           },
         );
@@ -3944,14 +4106,11 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
     required BuildContext contextForSnackBar,
   }) async {
     try {
-      final String appointmentDateStr = DateFormat(
-        'yyyy-MM-dd HH:mm',
-      ).format(appointmentDateTime);
-      final String createdAtStr = DateFormat(
-        'yyyy-MM-dd HH:mm:ss',
-      ).format(DateTime.now());
+      final String appointmentDateStr =
+      DateFormat('yyyy-MM-dd HH:mm').format(appointmentDateTime);
+      final String createdAtStr =
+      DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now());
 
-      // ✅ Update appointmentRequest status to approved
       final appointmentRequestSnapshot = await FirebaseFirestore.instance
           .collection('appointmentRequest')
           .where('clientId', isEqualTo: clientId)
@@ -3965,7 +4124,6 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
         }
       }
 
-      // ✅ Create schedule
       await FirebaseFirestore.instance.collection('schedules').add({
         'dietitianID': dietitianId,
         'dietitianName': dietitianName,
@@ -3977,25 +4135,23 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
         'createdAt': createdAtStr,
       });
 
-      // ✅ Add notification
       await FirebaseFirestore.instance
           .collection("Users")
           .doc(clientId)
           .collection("notifications")
           .add({
-            "isRead": false,
-            "title": "Appointment Scheduled",
-            "message":
-                "$dietitianName scheduled an appointment with you on ${DateFormat.yMMMMd().format(appointmentDateTime)} at ${DateFormat.jm().format(appointmentDateTime)}.",
-            "type": "appointment",
-            "receiverId": clientId,
-            "receiverName": clientName,
-            "senderId": dietitianId,
-            "senderName": dietitianName,
-            "timestamp": FieldValue.serverTimestamp(),
-          });
+        "isRead": false,
+        "title": "Appointment Scheduled",
+        "message":
+        "$dietitianName scheduled an appointment with you on ${DateFormat.yMMMMd().format(appointmentDateTime)} at ${DateFormat.jm().format(appointmentDateTime)}.",
+        "type": "appointment",
+        "receiverId": clientId,
+        "receiverName": clientName,
+        "senderId": dietitianId,
+        "senderName": dietitianName,
+        "timestamp": FieldValue.serverTimestamp(),
+      });
 
-      // ✅ Send email notification
       if (clientEmail.isNotEmpty) {
         final emailService = Appointmentemail();
         await emailService.sendAppointmentEmail(
@@ -4030,7 +4186,7 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey.shade50,
+      backgroundColor: _scaffoldBgColor(context),
       body: Column(
         children: [
           Card(
@@ -4039,7 +4195,7 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
             ),
-            color: Colors.white,
+            color: _cardBgColor(context),
             child: Padding(
               padding: const EdgeInsets.only(bottom: 8.0),
               child: TableCalendar(
@@ -4072,21 +4228,15 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
                   weekendTextStyle: TextStyle(
                     color: const Color(0xFF4CAF50).withOpacity(0.8),
                   ),
-                  defaultTextStyle: const TextStyle(color: Colors.black87),
-                  markersMaxCount: 1,
-                  markerSize: 5,
-                  markerDecoration: const BoxDecoration(
-                    color: Colors.redAccent,
-                    shape: BoxShape.circle,
-                  ),
+                  defaultTextStyle: _getTextStyle(context),
                 ),
                 headerStyle: HeaderStyle(
                   formatButtonVisible: true,
                   titleCentered: true,
-                  titleTextStyle: const TextStyle(
+                  titleTextStyle: _getTextStyle(
+                    context,
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: Colors.black87,
                   ),
                   formatButtonTextStyle: const TextStyle(
                     color: Colors.white,
@@ -4096,13 +4246,13 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
                     color: const Color(0xFF4CAF50),
                     borderRadius: BorderRadius.circular(20.0),
                   ),
-                  leftChevronIcon: const Icon(
+                  leftChevronIcon: Icon(
                     Icons.chevron_left,
-                    color: Colors.black87,
+                    color: _textColorPrimary(context),
                   ),
-                  rightChevronIcon: const Icon(
+                  rightChevronIcon: Icon(
                     Icons.chevron_right,
-                    color: Colors.black87,
+                    color: _textColorPrimary(context),
                   ),
                 ),
                 onDaySelected: _onDaySelected,
@@ -4133,50 +4283,35 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
                     );
                     final isPastDate = normalizedDay.isBefore(normalizedToday);
 
-                    // DEBUG: Print what we're checking
-                    if (normalizedDay.month == 10 && normalizedDay.day == 22) {
-                      print('📅 OCT 22 - isPastDate: $isPastDate');
-                      print('📅 Events: ${_getEventsForDay(date)}');
-                      for (var event in _getEventsForDay(date)) {
-                        print('📅 Status: ${event['status']}');
-                      }
-                      print('📅 hasOverdue: ${_hasOverdueAppointment(date)}');
-                      print(
-                        '📅 hasIncomplete: ${_hasIncompleteAppointment(date)}',
-                      );
-                    }
-
                     if (_hasOverdueAppointment(date) && isPastDate) {
-                      // Show exclamation mark for past confirmed appointments not completed
                       return Positioned(
-                        right: 1,
-                        bottom: 1,
+                        right: 0,
+                        bottom: 0,
                         child: Container(
+                          width: 14,
+                          height: 14,
                           decoration: const BoxDecoration(
                             color: Colors.red,
                             shape: BoxShape.circle,
                           ),
-                          width: 16,
-                          height: 16,
                           child: const Icon(
-                            Icons.error_outline,
+                            Icons.error,
                             color: Colors.white,
-                            size: 10,
+                            size: 8,
                           ),
                         ),
                       );
                     } else if (_hasIncompleteAppointment(date)) {
-                      // Show red dot for active appointments
                       return Positioned(
-                        right: 1,
-                        bottom: 1,
+                        right: 0,
+                        bottom: 0,
                         child: Container(
+                          width: 10,
+                          height: 10,
                           decoration: const BoxDecoration(
                             color: Colors.redAccent,
                             shape: BoxShape.circle,
                           ),
-                          width: 8,
-                          height: 8,
                         ),
                       );
                     }
@@ -4187,9 +4322,11 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
             ),
           ),
           if (_isLoadingEvents)
-            const Expanded(
+            Expanded(
               child: Center(
-                child: CircularProgressIndicator(color: Color(0xFF4CAF50)),
+                child: CircularProgressIndicator(
+                  color: _primaryColor,
+                ),
               ),
             )
           else if (_selectedDay != null)
@@ -4197,65 +4334,89 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
               child: SingleChildScrollView(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 16.0,
-                  vertical: 8.0,
+                  vertical: 16.0,
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      "Details for ${DateFormat.yMMMMd().format(_selectedDay!)}:",
-                      style: const TextStyle(
-                        fontSize: 18,
+                      DateFormat.yMMMMd().format(_selectedDay!),
+                      style: _getTextStyle(
+                        context,
+                        fontSize: 20,
                         fontWeight: FontWeight.bold,
-                        color: Colors.black87,
                       ),
                     ),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Appointments & Schedule',
+                      style: _getTextStyle(
+                        context,
+                        fontSize: 14,
+                        color: _textColorSecondary(context),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
                     _buildScheduledAppointmentsList(_selectedDay!),
                     const SizedBox(height: 20),
-                    Center(
+                    SizedBox(
+                      width: double.infinity,
                       child: ElevatedButton.icon(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF4CAF50),
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 20,
-                            vertical: 12,
+                          backgroundColor: _primaryColor,
+                          foregroundColor: _textColorOnPrimary,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
                           ),
-                          textStyle: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.white,
-                          ),
+                          elevation: 2,
                         ),
                         icon: const Icon(Icons.add_circle_outline_rounded),
-                        label: const Text("Schedule New Appointment"),
+                        label: Text(
+                          "Schedule New Appointment",
+                          style: _getTextStyle(
+                            context,
+                            color: _textColorOnPrimary,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                         onPressed: () {
                           if (_selectedDay != null) {
                             _showScheduleAppointmentDialog(_selectedDay!);
                           } else {
-                            CustomSnackBar.show(context, 'Please select a day on the calendar first!', backgroundColor: Colors.redAccent, icon: Icons.calendar_today_outlined);
+                            CustomSnackBar.show(
+                              context,
+                              'Please select a day on the calendar first!',
+                              backgroundColor: Colors.redAccent,
+                              icon: Icons.calendar_today_outlined,
+                            );
                           }
                         },
                       ),
                     ),
+                    const SizedBox(height: 24),
                   ],
                 ),
               ),
             )
           else if (!_isLoadingEvents)
-            Expanded(
-              child: Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Text(
-                    "Select a day to see appointments.",
-                    style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
-                    textAlign: TextAlign.center,
+              Expanded(
+                child: Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Text(
+                      "Select a day to see appointments.",
+                      style: _getTextStyle(
+                        context,
+                        fontSize: 14,
+                        color: _textColorSecondary(context),
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
                   ),
                 ),
               ),
-            ),
         ],
       ),
     );
@@ -4265,16 +4426,37 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
     final dayEvents = _getEventsForDay(selectedDate);
 
     if (dayEvents.isEmpty) {
-      return Card(
-        color: Colors.white,
-        elevation: 1,
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Center(
-            child: Text(
-              "No appointments scheduled for this day yet.",
-              style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
+      return Container(
+        decoration: BoxDecoration(
+          color: _cardBgColor(context),
+          borderRadius: BorderRadius.circular(14),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.06),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
             ),
+          ],
+        ),
+        padding: const EdgeInsets.all(24.0),
+        child: Center(
+          child: Column(
+            children: [
+              Icon(
+                Icons.event_available_outlined,
+                size: 48,
+                color: _primaryColor.withOpacity(0.3),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                "No appointments scheduled",
+                style: _getTextStyle(
+                  context,
+                  fontSize: 14,
+                  color: _textColorSecondary(context),
+                ),
+              ),
+            ],
           ),
         ),
       );
@@ -4282,12 +4464,8 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
 
     dayEvents.sort((a, b) {
       try {
-        final dateA = DateFormat(
-          'yyyy-MM-dd HH:mm',
-        ).parse(a['appointmentDate']);
-        final dateB = DateFormat(
-          'yyyy-MM-dd HH:mm',
-        ).parse(b['appointmentDate']);
+        final dateA = DateFormat('yyyy-MM-dd HH:mm').parse(a['appointmentDate']);
+        final dateB = DateFormat('yyyy-MM-dd HH:mm').parse(b['appointmentDate']);
         return dateA.compareTo(dateB);
       } catch (e) {
         return 0;
@@ -4299,9 +4477,8 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
         final data = eventData as Map<String, dynamic>;
         DateTime appointmentDateTime;
         try {
-          appointmentDateTime = DateFormat(
-            'yyyy-MM-dd HH:mm',
-          ).parse(data['appointmentDate']);
+          appointmentDateTime =
+              DateFormat('yyyy-MM-dd HH:mm').parse(data['appointmentDate']);
         } catch (e) {
           return const SizedBox.shrink();
         }
@@ -4312,81 +4489,228 @@ class _ScheduleCalendarPageState extends State<ScheduleCalendarPage> {
         final isCompleted = status.toLowerCase() == 'completed';
 
         final now = DateTime.now();
-        final normalizedToday = DateTime.utc(now.year, now.month, now.day);
+        final normalizedToday =
+        DateTime.utc(now.year, now.month, now.day);
         final normalizedAppointmentDate = DateTime.utc(
           appointmentDateTime.year,
           appointmentDateTime.month,
           appointmentDateTime.day,
         );
-        final isOverdue =
-            normalizedAppointmentDate.isBefore(normalizedToday) && !isCompleted;
 
-        return Card(
-          margin: const EdgeInsets.only(bottom: 8),
-          color: isOverdue ? Colors.red.shade50 : Colors.white,
-          child: ListTile(
-            title: Text(
-              "${data['clientName'] ?? 'Unknown Client'}",
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+        // --- START: CORRECTED LOGIC ---
+        // Only mark as "overdue" if the date is in the past AND the status is "confirmed".
+        final isOverdue =
+            normalizedAppointmentDate.isBefore(normalizedToday) &&
+                isConfirmed;
+        // --- END: CORRECTED LOGIC ---
+
+        return Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          decoration: BoxDecoration(
+            color: _cardBgColor(context),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: isOverdue
+                  ? Colors.red.withOpacity(0.3)
+                  : Colors.grey.withOpacity(0.1),
+              width: 1.5,
             ),
-            subtitle: Column(
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.06),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  "Time: $formattedTime",
-                  style: const TextStyle(fontSize: 13),
-                ),
-                Text(
-                  "Status: $status",
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.bold,
-                    color: statusColor,
-                  ),
-                ),
-                if (isOverdue)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 4.0),
-                    child: Text(
-                      "Please mark this appointment as complete",
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.red.shade700,
-                        fontWeight: FontWeight.bold,
+                // Client Name Row
+                Row(
+                  children: [
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: _primaryColor.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(
+                        Icons.person_rounded,
+                        color: _primaryColor,
+                        size: 22,
                       ),
                     ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        data['clientName'] ?? 'Unknown Client',
+                        style: _getTextStyle(
+                          context,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+
+                // Time and Status Layout
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Time section
+                    Row(
+                      mainAxisSize: MainAxisSize.min, // Takes only needed space
+                      children: [
+                        Icon(
+                          Icons.access_time,
+                          size: 16,
+                          color: _primaryColor,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          formattedTime,
+                          style: _getTextStyle(
+                            context,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: _textColorPrimary(context),
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 8.0), // Vertical space
+
+                    // Status section
+                    Row(
+                      mainAxisSize: MainAxisSize.min, // Takes only needed space
+                      children: [
+                        Icon(
+                          Icons.bookmark_outline_rounded,
+                          size: 16,
+                          color: statusColor,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          status, // "Waiting for client response."
+                          style: _getTextStyle(
+                            context,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: statusColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+
+                if ((data['notes'] ?? '').toString().isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  Divider(
+                    color: _textColorSecondary(context).withOpacity(0.2),
+                    height: 1,
                   ),
-                if ((data['notes'] ?? '').toString().isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 4.0),
-                    child: Text(
-                      "Notes: ${data['notes']}",
-                      style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  const SizedBox(height: 12),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(
+                        Icons.note_outlined,
+                        size: 16,
+                        color: _primaryColor,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          data['notes'],
+                          style: _getTextStyle(
+                            context,
+                            fontSize: 13,
+                            color: _textColorSecondary(context),
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+                if (isOverdue) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.red.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: Colors.red.withOpacity(0.3),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.warning_rounded,
+                          size: 16,
+                          color: Colors.red,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Please mark as complete',
+                            style: _getTextStyle(
+                              context,
+                              fontSize: 12,
+                              color: Colors.red,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-              ],
-            ),
-            trailing: isConfirmed && !isCompleted
-                ? SizedBox(
-                    width: 100,
+                ],
+                // The "Mark as Complete" button will still only show if
+                // it's "confirmed" but not "completed" (which is correct)
+                if (isConfirmed && !isCompleted) ...[
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
                     child: ElevatedButton.icon(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF4CAF50),
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 8),
-                        visualDensity: VisualDensity.compact,
+                        backgroundColor: _primaryColor,
+                        foregroundColor: _textColorOnPrimary,
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
                       ),
-                      icon: const Icon(Icons.check, size: 16),
-                      label: const Text(
-                        'Complete',
-                        style: TextStyle(fontSize: 12),
+                      icon: const Icon(Icons.check_rounded, size: 16),
+                      label: Text(
+                        'Mark as Complete',
+                        style: _getTextStyle(
+                          context,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: _textColorOnPrimary,
+                        ),
                       ),
                       onPressed: () {
                         _completeAppointment(data['id']);
                       },
                     ),
-                  )
-                : null,
+                  ),
+                ],
+              ],
+            ),
           ),
         );
       }).toList(),
