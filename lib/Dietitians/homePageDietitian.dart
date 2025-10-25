@@ -75,6 +75,7 @@ class _HomePageDietitianState extends State<HomePageDietitian> {
   String profileUrl = "";
   bool _isUserNameLoading = true;
 
+
   @override
   void initState() {
     super.initState();
@@ -2185,11 +2186,62 @@ class _UsersListPageState extends State<UsersListPage> {
     }
   }
 
+
+
+  Widget _buildCompactFilterChip(String filter) {
+    final isSelected = _selectedNotificationFilter == filter;
+    final chipColor = _getFilterChipColor(filter);
+    final chipIcon = _getFilterChipIcon(filter);
+    final chipLabel = _getFilterChipLabel(filter);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: isSelected ? chipColor.withOpacity(0.15) : Colors.transparent,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isSelected ? chipColor : Colors.grey.shade300,
+          width: isSelected ? 1.5 : 1,
+        ),
+      ),
+      child: GestureDetector(
+        onTap: () {
+          setState(() {
+            _selectedNotificationFilter = filter;
+          });
+        },
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              chipIcon,
+              size: 14,
+              color: isSelected ? chipColor : Colors.grey.shade600,
+            ),
+            const SizedBox(width: 4),
+            Text(
+              chipLabel,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                color: isSelected ? chipColor : Colors.grey.shade600,
+                fontFamily: _primaryFontFamily,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+
+
+
   Future<Map<String, dynamic>> getLastMessage(
-    BuildContext context,
-    String chatRoomId,
-    String otherUserName,
-  ) async {
+      BuildContext context,
+      String chatRoomId,
+      String otherUserName,
+      ) async {
     final query = await FirebaseFirestore.instance
         .collection("messages")
         .where("chatRoomID", isEqualTo: chatRoomId)
@@ -2225,6 +2277,955 @@ class _UsersListPageState extends State<UsersListPage> {
     };
   }
 
+// --- NEW: Notification filter state ---
+  String _selectedNotificationFilter = 'all'; // 'all', 'appointment', 'message',
+
+  // --- UPDATED: Show confirmation dialog with premium design ---
+  Future<void> _showClearAllDialog() async {
+    final bool? confirmed = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      barrierColor: Colors.black.withOpacity(0.6),
+      builder: (BuildContext dialogContext) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
+          backgroundColor: Colors.transparent,
+          child: Container(
+            padding: const EdgeInsets.all(32),
+            decoration: BoxDecoration(
+              color: _cardBgColor(dialogContext),
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 20,
+                  offset: const Offset(0, 10),
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // --- Icon Container ---
+                Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    color: Colors.red.withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.notifications_off_outlined,
+                    color: Colors.red,
+                    size: 40,
+                  ),
+                ),
+                const SizedBox(height: 24),
+
+                // --- Title ---
+                Text(
+                  'Clear Notifications?',
+                  style: _getTextStyle(
+                    dialogContext,
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: _textColorPrimary(dialogContext),
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                // --- Description ---
+                Text(
+                  'Are you sure you want to clear all notifications?)',
+                  textAlign: TextAlign.center,
+                  style: _getTextStyle(
+                    dialogContext,
+                    fontSize: 14,
+                    color: _textColorSecondary(dialogContext),
+                  ),
+                ),
+                const SizedBox(height: 32),
+
+                // --- Cancel Button (Outlined) ---
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.pop(dialogContext, false),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      side: BorderSide(color: _primaryColor, width: 1.5),
+                      foregroundColor: _primaryColor,
+                    ),
+                    child: Text(
+                      'Cancel',
+                      style: _getTextStyle(
+                        dialogContext,
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                        color: _primaryColor,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                // --- Clear Button (Elevated) ---
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: () => Navigator.pop(dialogContext, true),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      elevation: 4,
+                    ),
+                    icon: const Icon(Icons.delete_sweep_rounded, size: 20),
+                    label: Text(
+                      'Yes, Clear All',
+                      style: _getTextStyle(
+                        dialogContext,
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    if (confirmed == true) {
+      _clearAllNotifications();
+    }
+  }
+
+  // --- UPDATED: Clear all notifications function ---
+  Future<void> _clearAllNotifications() async {
+    try {
+      final notificationsSnapshot = await FirebaseFirestore.instance
+          .collection("Users")
+          .doc(widget.currentUserId)
+          .collection("notifications")
+          .where('isRead', isEqualTo: false)
+          .get();
+
+      final batch = FirebaseFirestore.instance.batch();
+      for (final doc in notificationsSnapshot.docs) {
+        batch.update(doc.reference, {'isRead': true});
+      }
+      await batch.commit();
+
+      if (mounted) {
+        CustomSnackBar.show(
+          context,
+          'All notifications cleared from view.',
+          backgroundColor: _primaryColor,
+          icon: Icons.done_all,
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        CustomSnackBar.show(
+          context,
+          'Error clearing notifications: $e',
+          backgroundColor: Colors.redAccent,
+          icon: Icons.error,
+        );
+      }
+    }
+  }
+
+  // --- NEW: Get notification type for filtering ---
+  String _getNotificationType(Map<String, dynamic> data) {
+    final type = (data["type"] ?? '').toString().toLowerCase();
+    if (type.contains('message')) return 'message';
+    if (type.contains('appointment') || type.contains('appointment_update')) return 'appointment';
+    return 'other';
+  }
+
+  // --- NEW: Get color for filter chip ---
+  Color _getFilterChipColor(String filter) {
+    switch (filter) {
+      case 'appointment':
+        return const Color(0xFFFF9800);
+      case 'message':
+        return const Color(0xFF2196F3);
+      default:
+        return _primaryColor;
+    }
+  }
+
+  // --- NEW: Get icon for filter chip ---
+  IconData _getFilterChipIcon(String filter) {
+    switch (filter) {
+      case 'appointment':
+        return Icons.event_available_outlined;
+      case 'message':
+        return Icons.chat_bubble_outline;
+      default:
+        return Icons.notifications_outlined;
+    }
+  }
+
+  // --- NEW: Get label for filter chip ---
+  String _getFilterChipLabel(String filter) {
+    switch (filter) {
+      case 'appointment':
+        return 'Appointments';
+      case 'message':
+        return 'Messages';
+      default:
+        return 'All';
+    }
+  }
+
+  // --- NEW: Filter notifications based on selected filter ---
+  bool _shouldShowNotification(Map<String, dynamic> data) {
+    if (_selectedNotificationFilter == 'all') return true;
+    final notificationType = _getNotificationType(data);
+    return notificationType == _selectedNotificationFilter;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bool isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final Color currentScaffoldBg =
+    isDarkMode ? Colors.grey.shade900 : Colors.grey.shade50;
+    final Color currentAppBarBg =
+    isDarkMode ? Colors.grey.shade800 : Colors.white;
+    final Color currentTabLabel = _textColorPrimary(context);
+    final Color currentIndicator = _primaryColor;
+
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        backgroundColor: currentScaffoldBg,
+        appBar: AppBar(
+          backgroundColor: currentAppBarBg,
+          elevation: 0.5,
+          automaticallyImplyLeading: false,
+          title: TabBar(
+            labelColor: currentTabLabel,
+            unselectedLabelColor: currentTabLabel.withOpacity(0.6),
+            indicatorColor: currentIndicator,
+            indicatorWeight: 2.5,
+            labelStyle: const TextStyle(
+              fontFamily: _primaryFontFamily,
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
+            ),
+            unselectedLabelStyle: const TextStyle(
+              fontFamily: _primaryFontFamily,
+              fontWeight: FontWeight.w500,
+              fontSize: 14,
+            ),
+            tabs: [
+              const Tab(text: "CHATS"),
+              Tab(
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    const Text("NOTIFICATIONS"),
+                    Positioned(
+                      top: -1,
+                      right: -1,
+                      child: StreamBuilder<QuerySnapshot>(
+                        stream: FirebaseFirestore.instance
+                            .collection('Users')
+                            .doc(widget.currentUserId)
+                            .collection('notifications')
+                            .where('isRead', isEqualTo: false)
+                            .snapshots(),
+                        builder: (context, snapshot) {
+                          if (!snapshot.hasData ||
+                              snapshot.data!.docs.isEmpty) {
+                            return const SizedBox.shrink();
+                          }
+                          final unreadCount = snapshot.data!.docs.length;
+                          return Container(
+                            padding: const EdgeInsets.all(4.0),
+                            decoration: const BoxDecoration(
+                              color: Colors.red,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Text(
+                              unreadCount > 99 ? '99+' : '$unreadCount',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        body: TabBarView(
+          children: [
+            // CHATS TAB
+            _buildChatsTab(),
+
+            // NOTIFICATIONS TAB - With Filters
+            // --- REPLACE THIS SECTION IN homePageDietitian.dart ---
+// This replaces the entire NOTIFICATIONS TAB StreamBuilder in the UsersListPage build method
+
+            StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection("Users")
+                  .doc(currentUserId)
+                  .collection("notifications")
+                  .orderBy("timestamp", descending: true)
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (!snapshot.hasData)
+                  return const Center(
+                    child: CircularProgressIndicator(color: _primaryColor),
+                  );
+
+                final docs = snapshot.data!.docs;
+                if (docs.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.notifications_off_outlined,
+                          size: 64,
+                          color: _primaryColor.withOpacity(0.3),
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          "No notifications yet",
+                          style: _getTextStyle(
+                            context,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: _textColorPrimary(context),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                final Map<String, DocumentSnapshot> groupedNotifications = {};
+                for (final doc in docs) {
+                  final data = doc.data() as Map<String, dynamic>;
+                  String groupingKey;
+                  if (data['type'] == 'message' && data['senderId'] != null) {
+                    groupingKey = data['senderId'];
+                  } else {
+                    groupingKey = doc.id;
+                  }
+                  if (!groupedNotifications.containsKey(groupingKey)) {
+                    groupedNotifications[groupingKey] = doc;
+                  }
+                }
+                var finalDocsToShow = groupedNotifications.values.toList();
+
+                // Filter notifications based on selected filter
+                finalDocsToShow = finalDocsToShow.where((doc) {
+                  final data = doc.data() as Map<String, dynamic>;
+                  return _shouldShowNotification(data);
+                }).toList();
+
+                return Column(
+                  children: [
+                    // --- COMPACT HEADER WITH FILTER CHIPS AND CLEAR BUTTON ---
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      child: Row(
+                        children: [
+                          // Filter chips in a horizontal scrollable row
+                          Expanded(
+                            child: SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              child: Row(
+                                children: [
+                                  _buildCompactFilterChip('all'),
+                                  const SizedBox(width: 6),
+                                  _buildCompactFilterChip('appointment'),
+                                  const SizedBox(width: 6),
+                                  _buildCompactFilterChip('message'),
+                                ],
+                              ),
+                            ),
+                          ),
+                          // Clear All button as icon button
+                          SizedBox(
+                            width: 40,
+                            height: 40,
+                            child: Material(
+                              color: Colors.transparent,
+                              child: InkWell(
+                                onTap: _showClearAllDialog,
+                                borderRadius: BorderRadius.circular(8),
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    color: Colors.redAccent.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(
+                                      color: Colors.redAccent.withOpacity(0.3),
+                                      width: 1,
+                                    ),
+                                  ),
+                                  child: Icon(
+                                    Icons.delete_sweep_outlined,
+                                    color: Colors.redAccent,
+                                    size: 18,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // --- NOTIFICATIONS LIST ---
+                    Expanded(
+                      child: finalDocsToShow.isEmpty
+                          ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.inbox_outlined,
+                              size: 64,
+                              color: _primaryColor.withOpacity(0.3),
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              "No notifications",
+                              style: _getTextStyle(
+                                context,
+                                fontSize: 16,
+                                color: _textColorSecondary(context),
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                          : ListView.builder(
+                        itemCount: finalDocsToShow.length,
+                        padding: const EdgeInsets.symmetric(
+                            vertical: 4.0, horizontal: 12.0),
+                        itemBuilder: (context, index) {
+                          final doc = finalDocsToShow[index];
+                          final data = doc.data() as Map<String, dynamic>;
+                          final Timestamp? timestamp =
+                          data["timestamp"] as Timestamp?;
+                          String formattedTime = "";
+
+                          if (timestamp != null) {
+                            final date = timestamp.toDate();
+                            final now = DateTime.now();
+                            if (date.year == now.year &&
+                                date.month == now.month &&
+                                date.day == now.day) {
+                              formattedTime = DateFormat.jm().format(date);
+                            } else if (date.year == now.year &&
+                                date.month == now.month &&
+                                date.day == now.day - 1) {
+                              formattedTime = "Yesterday";
+                            } else {
+                              formattedTime = DateFormat('MMM d').format(date);
+                            }
+                          }
+
+                          bool isRead = data["isRead"] == true;
+                          final notificationType = _getNotificationType(data);
+                          final iconBgColor = _getFilterChipColor(notificationType);
+                          final notificationIcon = _getFilterChipIcon(notificationType);
+
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 10.0),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(14),
+                              gradient: isRead
+                                  ? null
+                                  : LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [
+                                  iconBgColor.withOpacity(0.08),
+                                  iconBgColor.withOpacity(0.03),
+                                ],
+                              ),
+                            ),
+                            child: Card(
+                              margin: EdgeInsets.zero,
+                              elevation: isRead ? 0.5 : 2,
+                              color: isRead
+                                  ? _cardBgColor(context)
+                                  : _cardBgColor(context),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                                side: isRead
+                                    ? BorderSide(color: Colors.grey.shade300, width: 0.5)
+                                    : BorderSide(
+                                  color: iconBgColor.withOpacity(0.4),
+                                  width: 1.5,
+                                ),
+                              ),
+                              child: InkWell(
+                                borderRadius: BorderRadius.circular(14),
+                                onTap: () async {
+                                  if (!isRead) {
+                                    await FirebaseFirestore.instance
+                                        .collection("Users")
+                                        .doc(currentUserId)
+                                        .collection("notifications")
+                                        .doc(doc.id)
+                                        .update({"isRead": true});
+                                  }
+
+                                  if (data["type"] == "message" &&
+                                      data["senderId"] != null &&
+                                      data["senderName"] != null) {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => MessagesPageDietitian(
+                                          receiverId: data["senderId"],
+                                          receiverName: data["senderName"],
+                                          currentUserId: currentUserId,
+                                          receiverProfile:
+                                          data["receiverProfile"] ?? "",
+                                        ),
+                                      ),
+                                    );
+                                  } else if (data["type"] ==
+                                      "appointmentRequest" ||
+                                      data["type"] == "appointment" ||
+                                      data["type"] == "appointment_update") {
+                                    if (widget.onNavigateToSchedule != null) {
+                                      widget.onNavigateToSchedule!();
+                                    }
+                                  }
+                                },
+                                child: Padding(
+                                  padding: const EdgeInsets.all(14.0),
+                                  child: Row(
+                                    crossAxisAlignment:
+                                    CrossAxisAlignment.center,
+                                    children: [
+                                      Container(
+                                        width: 48,
+                                        height: 48,
+                                        decoration: BoxDecoration(
+                                          color:
+                                          iconBgColor.withOpacity(0.15),
+                                          borderRadius:
+                                          BorderRadius.circular(12),
+                                          border: Border.all(
+                                            color:
+                                            iconBgColor.withOpacity(0.2),
+                                            width: 1.5,
+                                          ),
+                                        ),
+                                        child: Icon(
+                                          notificationIcon,
+                                          color: iconBgColor,
+                                          size: 24,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                          children: [
+                                            Row(
+                                              mainAxisAlignment:
+                                              MainAxisAlignment
+                                                  .spaceBetween,
+                                              children: [
+                                                Expanded(
+                                                  child: Text(
+                                                    data["title"] ??
+                                                        "Notification",
+                                                    style: _getTextStyle(
+                                                      context,
+                                                      fontSize: 15,
+                                                      fontWeight: isRead
+                                                          ? FontWeight.w600
+                                                          : FontWeight.bold,
+                                                      color:
+                                                      _textColorPrimary(
+                                                          context),
+                                                    ),
+                                                    maxLines: 1,
+                                                    overflow:
+                                                    TextOverflow.ellipsis,
+                                                  ),
+                                                ),
+                                                if (!isRead)
+                                                  Container(
+                                                    width: 8,
+                                                    height: 8,
+                                                    margin:
+                                                    const EdgeInsets.only(
+                                                        left: 8.0),
+                                                    decoration: BoxDecoration(
+                                                      color: iconBgColor,
+                                                      shape: BoxShape.circle,
+                                                    ),
+                                                  ),
+                                              ],
+                                            ),
+                                            const SizedBox(height: 6),
+                                            Text(
+                                              data["message"] ?? "",
+                                              style: _getTextStyle(
+                                                context,
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.w400,
+                                                color:
+                                                _textColorSecondary(context),
+                                              ),
+                                              maxLines: 2,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      if (formattedTime.isNotEmpty)
+                                        Padding(
+                                          padding: const EdgeInsets.only(
+                                              left: 12.0),
+                                          child: Column(
+                                            crossAxisAlignment:
+                                            CrossAxisAlignment.end,
+                                            children: [
+                                              Text(
+                                                formattedTime,
+                                                style: _getTextStyle(
+                                                  context,
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.w500,
+                                                  color: isRead
+                                                      ? _textColorSecondary(
+                                                      context)
+                                                      : iconBgColor,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+
+
+          ],
+        ),
+      ),
+    );
+  }
+
+  // --- NEW: Build chats tab ---
+  Widget _buildChatsTab() {
+    return FutureBuilder<List<String>>(
+      future: getFollowerIds(),
+      builder: (context, followerSnapshot) {
+        if (followerSnapshot.connectionState == ConnectionState.waiting) {
+          return const Center(
+            child: CircularProgressIndicator(color: _primaryColor),
+          );
+        }
+
+        final followerIds = followerSnapshot.data ?? [];
+
+        return StreamBuilder<QuerySnapshot>(
+          stream: FirebaseFirestore.instance.collection("Users").snapshots(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(
+                child: CircularProgressIndicator(color: _primaryColor),
+              );
+            }
+            if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+              return Center(
+                child: Text(
+                  "No clients to chat with yet.",
+                  style: _getTextStyle(
+                    context,
+                    fontSize: 16,
+                    color: _textColorPrimary(context),
+                  ),
+                ),
+              );
+            }
+
+            final users = snapshot.data!.docs;
+            final filteredUsers = users.where((userDoc) {
+              if (userDoc.id == currentUserId) return false;
+              final data = userDoc.data() as Map<String, dynamic>;
+              final role = data["role"]?.toString().toLowerCase() ?? "";
+              if (role == "admin") return true;
+              if (followerIds.contains(userDoc.id)) return true;
+              return false;
+            }).toList();
+
+            if (filteredUsers.isEmpty) {
+              return Center(
+                child: Text(
+                  "No clients following you yet.",
+                  style: _getTextStyle(
+                    context,
+                    fontSize: 16,
+                    color: _textColorPrimary(context),
+                  ),
+                ),
+              );
+            }
+
+            return ListView.builder(
+              padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 8.0),
+              itemCount: filteredUsers.length,
+              itemBuilder: (context, index) {
+                final userDoc = filteredUsers[index];
+                final data = userDoc.data() as Map<String, dynamic>;
+                final senderName =
+                "${data["firstName"] ?? ""} ${data["lastName"] ?? ""}".trim();
+                final chatRoomId = getChatRoomId(currentUserId, userDoc.id);
+
+                return FutureBuilder<Map<String, dynamic>>(
+                  future: getLastMessage(context, chatRoomId, senderName),
+                  builder: (context, snapshotMessage) {
+                    String subtitleText = "No messages yet";
+                    String timeText = "";
+
+                    if (snapshotMessage.connectionState == ConnectionState.done &&
+                        snapshotMessage.hasData) {
+                      final lastMsg = snapshotMessage.data!;
+                      final lastMessage = lastMsg["message"] ?? "";
+                      final lastSenderName = lastMsg["senderName"] ?? "";
+                      timeText = lastMsg["time"] ?? "";
+
+                      if (lastMessage.isNotEmpty) {
+                        if (lastMsg["isMe"] ?? false) {
+                          subtitleText = "You: $lastMessage";
+                        } else {
+                          subtitleText = "$lastSenderName: $lastMessage";
+                        }
+                      }
+                    }
+
+                    return Container(
+                      margin: const EdgeInsets.symmetric(vertical: 6.0, horizontal: 4.0),
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(12),
+                          onTap: () async {
+                            await markMessagesAsRead(chatRoomId, userDoc.id);
+                            if (mounted) {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => MessagesPageDietitian(
+                                    currentUserId: currentUserId,
+                                    receiverId: userDoc.id,
+                                    receiverName: senderName,
+                                    receiverProfile: data["profile"] ?? "",
+                                  ),
+                                ),
+                              );
+                            }
+                          },
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: _cardBgColor(context),
+                              borderRadius: BorderRadius.circular(12),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.04),
+                                  blurRadius: 4,
+                                  offset: const Offset(0, 1),
+                                ),
+                              ],
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 10,
+                            ),
+                            child: Row(
+                              children: [
+                                Stack(
+                                  children: [
+                                    CircleAvatar(
+                                      radius: 24,
+                                      backgroundColor:
+                                      _primaryColor.withOpacity(0.2),
+                                      backgroundImage: (data["profile"] != null &&
+                                          data["profile"].toString().isNotEmpty)
+                                          ? NetworkImage(data["profile"])
+                                          : null,
+                                      child: (data["profile"] == null ||
+                                          data["profile"].toString().isEmpty)
+                                          ? Icon(
+                                        Icons.person_outline,
+                                        color: _primaryColor,
+                                        size: 24,
+                                      )
+                                          : null,
+                                    ),
+                                    Positioned(
+                                      bottom: 0,
+                                      right: 0,
+                                      child: Container(
+                                        width: 14,
+                                        height: 14,
+                                        decoration: BoxDecoration(
+                                          color: Colors.green,
+                                          shape: BoxShape.circle,
+                                          border: Border.all(
+                                            color: _cardBgColor(context),
+                                            width: 2,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                    CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        senderName,
+                                        style: _getTextStyle(
+                                          context,
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        subtitleText,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: _getTextStyle(
+                                          context,
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w400,
+                                          color:
+                                          _textColorSecondary(context),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                if (timeText.isNotEmpty)
+                                  Padding(
+                                    padding:
+                                    const EdgeInsets.only(left: 8.0),
+                                    child: Text(
+                                      timeText,
+                                      style: _getTextStyle(
+                                        context,
+                                        fontSize: 12,
+                                        color:
+                                        _textColorSecondary(context),
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                );
+              },
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // --- NEW: Build filter chip widget ---
+  Widget _buildFilterChip(String filter) {
+    final isSelected = _selectedNotificationFilter == filter;
+    final chipColor = _getFilterChipColor(filter);
+    final chipIcon = _getFilterChipIcon(filter);
+    final chipLabel = _getFilterChipLabel(filter);
+
+    return FilterChip(
+      selected: isSelected,
+      onSelected: (selected) {
+        setState(() {
+          _selectedNotificationFilter = filter;
+        });
+      },
+      backgroundColor: Colors.transparent,
+      selectedColor: chipColor.withOpacity(0.2),
+      side: BorderSide(
+        color: isSelected ? chipColor : Colors.grey.shade300,
+        width: isSelected ? 2 : 1,
+      ),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+      ),
+      label: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            chipIcon,
+            size: 16,
+            color: isSelected ? chipColor : Colors.grey.shade600,
+          ),
+          const SizedBox(width: 6),
+          Text(
+            chipLabel,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+              color: isSelected ? chipColor : Colors.grey.shade600,
+              fontFamily: _primaryFontFamily,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
   /// ✅ Get followers of current dietitian
   Future<List<String>> getFollowerIds() async {
     try {
@@ -2281,639 +3282,6 @@ class _UsersListPageState extends State<UsersListPage> {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final bool isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    final Color currentScaffoldBg = isDarkMode
-        ? Colors.grey.shade900
-        : Colors.grey.shade50;
-    final Color currentAppBarBg = isDarkMode
-        ? Colors.grey.shade800
-        : Colors.white;
-    final Color currentTabLabel = _textColorPrimary(context);
-    final Color currentIndicator = _primaryColor;
-
-    return DefaultTabController(
-      length: 2,
-      child: Scaffold(
-        backgroundColor: currentScaffoldBg,
-        appBar: AppBar(
-          backgroundColor: currentAppBarBg,
-          elevation: 0.5,
-          automaticallyImplyLeading: false,
-          title: TabBar(
-            labelColor: currentTabLabel,
-            unselectedLabelColor: currentTabLabel.withOpacity(0.6),
-            indicatorColor: currentIndicator,
-            indicatorWeight: 2.5,
-            labelStyle: const TextStyle(
-              fontFamily: _primaryFontFamily,
-              fontWeight: FontWeight.bold,
-              fontSize: 14,
-            ),
-            unselectedLabelStyle: const TextStyle(
-              fontFamily: _primaryFontFamily,
-              fontWeight: FontWeight.w500,
-              fontSize: 14,
-            ),
-            tabs: [
-              const Tab(text: "CHATS"),
-              Tab(
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    const Text("NOTIFICATIONS"),
-                    Positioned(
-                      top: -1,
-                      right: -1,
-                      child: StreamBuilder<QuerySnapshot>(
-                        stream: FirebaseFirestore.instance
-                            .collection('Users')
-                            .doc(currentUserId)
-                            .collection('notifications')
-                            .where('isRead', isEqualTo: false)
-                            .snapshots(),
-                        builder: (context, snapshot) {
-                          if (!snapshot.hasData ||
-                              snapshot.data!.docs.isEmpty) {
-                            return const SizedBox.shrink();
-                          }
-                          final unreadCount = snapshot.data!.docs.length;
-                          return Container(
-                            padding: const EdgeInsets.all(4.0),
-                            decoration: const BoxDecoration(
-                              color: Colors.red,
-                              shape: BoxShape.circle,
-                            ),
-                            child: Text(
-                              unreadCount > 99 ? '99+' : '$unreadCount',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-        body: TabBarView(
-          children: [
-            // CHATS TAB - Modern Card Design
-            FutureBuilder<List<String>>(
-              future: getFollowerIds(),
-              builder: (context, followerSnapshot) {
-                if (followerSnapshot.connectionState ==
-                    ConnectionState.waiting) {
-                  return const Center(
-                    child: CircularProgressIndicator(color: _primaryColor),
-                  );
-                }
-
-                final followerIds = followerSnapshot.data ?? [];
-
-                return StreamBuilder<QuerySnapshot>(
-                  stream: FirebaseFirestore.instance
-                      .collection("Users")
-                      .snapshots(),
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const Center(
-                        child: CircularProgressIndicator(color: _primaryColor),
-                      );
-                    }
-                    if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                      return Center(
-                        child: Text(
-                          "No clients to chat with yet.",
-                          style: _getTextStyle(
-                            context,
-                            fontSize: 16,
-                            color: _textColorPrimary(context),
-                          ),
-                        ),
-                      );
-                    }
-
-                    final users = snapshot.data!.docs;
-
-                    // Filter users: Only admin and followers
-                    final filteredUsers = users.where((userDoc) {
-                      if (userDoc.id == currentUserId) return false;
-
-                      final data = userDoc.data() as Map<String, dynamic>;
-                      final role = data["role"]?.toString().toLowerCase() ?? "";
-
-                      if (role == "admin") return true;
-                      if (followerIds.contains(userDoc.id)) {
-                        return true;
-                      }
-
-                      return false;
-                    }).toList();
-
-                    if (filteredUsers.isEmpty) {
-                      return Center(
-                        child: Text(
-                          "No clients following you yet.",
-                          style: _getTextStyle(
-                            context,
-                            fontSize: 16,
-                            color: _textColorPrimary(context),
-                          ),
-                        ),
-                      );
-                    }
-
-                    return ListView.builder(
-                      padding: const EdgeInsets.symmetric(
-                        vertical: 8.0,
-                        horizontal: 8.0,
-                      ),
-                      itemCount: filteredUsers.length,
-                      itemBuilder: (context, index) {
-                        final userDoc = filteredUsers[index];
-                        final data = userDoc.data() as Map<String, dynamic>;
-                        final senderName =
-                            "${data["firstName"] ?? ""} ${data["lastName"] ?? ""}"
-                                .trim();
-                        final chatRoomId = getChatRoomId(
-                          currentUserId,
-                          userDoc.id,
-                        );
-
-                        return FutureBuilder<Map<String, dynamic>>(
-                          future: getLastMessage(
-                            context,
-                            chatRoomId,
-                            senderName,
-                          ),
-                          builder: (context, snapshotMessage) {
-                            String subtitleText = "No messages yet";
-                            String timeText = "";
-
-                            if (snapshotMessage.connectionState ==
-                                    ConnectionState.done &&
-                                snapshotMessage.hasData) {
-                              final lastMsg = snapshotMessage.data!;
-                              final lastMessage = lastMsg["message"] ?? "";
-                              final lastSenderName =
-                                  lastMsg["senderName"] ?? "";
-                              timeText = lastMsg["time"] ?? "";
-
-                              if (lastMessage.isNotEmpty) {
-                                if (lastMsg["isMe"] ?? false) {
-                                  subtitleText = "You: $lastMessage";
-                                } else {
-                                  subtitleText =
-                                      "$lastSenderName: $lastMessage";
-                                }
-                              }
-                            }
-
-                            return Container(
-                              margin: const EdgeInsets.symmetric(
-                                vertical: 6.0,
-                                horizontal: 4.0,
-                              ),
-                              child: Material(
-                                color: Colors.transparent,
-                                child: InkWell(
-                                  borderRadius: BorderRadius.circular(12),
-                                  onTap: () async {
-                                    // Mark messages as read before navigating
-                                    final chatRoomId = getChatRoomId(
-                                      currentUserId,
-                                      userDoc.id,
-                                    );
-                                    await markMessagesAsRead(
-                                      chatRoomId,
-                                      userDoc.id,
-                                    );
-
-                                    if (mounted) {
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (context) =>
-                                              MessagesPageDietitian(
-                                                currentUserId: currentUserId,
-                                                receiverId: userDoc.id,
-                                                receiverName: senderName,
-                                                receiverProfile:
-                                                    data["profile"] ?? "",
-                                              ),
-                                        ),
-                                      );
-                                    }
-                                  },
-                                  child: Container(
-                                    decoration: BoxDecoration(
-                                      color: _cardBgColor(context),
-                                      borderRadius: BorderRadius.circular(12),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: Colors.black.withOpacity(0.04),
-                                          blurRadius: 4,
-                                          offset: const Offset(0, 1),
-                                        ),
-                                      ],
-                                    ),
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 12,
-                                      vertical: 10,
-                                    ),
-                                    child: Row(
-                                      children: [
-                                        // Avatar with online indicator
-                                        Stack(
-                                          children: [
-                                            CircleAvatar(
-                                              radius: 24,
-                                              backgroundColor: _primaryColor
-                                                  .withOpacity(0.2),
-                                              backgroundImage:
-                                                  (data["profile"] != null &&
-                                                      data["profile"]
-                                                          .toString()
-                                                          .isNotEmpty)
-                                                  ? NetworkImage(
-                                                      data["profile"],
-                                                    )
-                                                  : null,
-                                              child:
-                                                  (data["profile"] == null ||
-                                                      data["profile"]
-                                                          .toString()
-                                                          .isEmpty)
-                                                  ? Icon(
-                                                      Icons.person_outline,
-                                                      color: _primaryColor,
-                                                      size: 24,
-                                                    )
-                                                  : null,
-                                            ),
-                                            Positioned(
-                                              bottom: 0,
-                                              right: 0,
-                                              child: Container(
-                                                width: 14,
-                                                height: 14,
-                                                decoration: BoxDecoration(
-                                                  color: Colors.green,
-                                                  shape: BoxShape.circle,
-                                                  border: Border.all(
-                                                    color: _cardBgColor(
-                                                      context,
-                                                    ),
-                                                    width: 2,
-                                                  ),
-                                                ),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                        const SizedBox(width: 12),
-                                        // Chat info
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                senderName,
-                                                style: _getTextStyle(
-                                                  context,
-                                                  fontSize: 15,
-                                                  fontWeight: FontWeight.w600,
-                                                ),
-                                                maxLines: 1,
-                                                overflow: TextOverflow.ellipsis,
-                                              ),
-                                              const SizedBox(height: 4),
-                                              Text(
-                                                subtitleText,
-                                                maxLines: 1,
-                                                overflow: TextOverflow.ellipsis,
-                                                style: _getTextStyle(
-                                                  context,
-                                                  fontSize: 13,
-                                                  fontWeight: FontWeight.w400,
-                                                  color: _textColorSecondary(
-                                                    context,
-                                                  ),
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                        // Time
-                                        if (timeText.isNotEmpty)
-                                          Padding(
-                                            padding: const EdgeInsets.only(
-                                              left: 8.0,
-                                            ),
-                                            child: Text(
-                                              timeText,
-                                              style: _getTextStyle(
-                                                context,
-                                                fontSize: 12,
-                                                color: _textColorSecondary(
-                                                  context,
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            );
-                          },
-                        );
-                      },
-                    );
-                  },
-                );
-              },
-            ),
-
-            // NOTIFICATIONS TAB - Premium Design
-            StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection("Users")
-                  .doc(currentUserId)
-                  .collection("notifications")
-                  .orderBy("timestamp", descending: true)
-                  .snapshots(),
-              builder: (context, snapshot) {
-                if (!snapshot.hasData)
-                  return const Center(
-                    child: CircularProgressIndicator(color: _primaryColor),
-                  );
-
-                final docs = snapshot.data!.docs;
-                if (docs.isEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.notifications_off_outlined,
-                          size: 64,
-                          color: _primaryColor.withOpacity(0.3),
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          "No notifications yet",
-                          style: _getTextStyle(
-                            context,
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: _textColorPrimary(context),
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                }
-
-                return ListView.builder(
-                  itemCount: docs.length,
-                  padding: const EdgeInsets.symmetric(
-                    vertical: 12.0,
-                    horizontal: 12.0,
-                  ),
-                  itemBuilder: (context, index) {
-                    final doc = docs[index];
-                    final data = doc.data() as Map<String, dynamic>;
-                    final Timestamp? timestamp =
-                        data["timestamp"] as Timestamp?;
-                    String formattedTime = "";
-
-                    if (timestamp != null) {
-                      final date = timestamp.toDate();
-                      final now = DateTime.now();
-                      if (date.year == now.year &&
-                          date.month == now.month &&
-                          date.day == now.day) {
-                        formattedTime = DateFormat.jm().format(date);
-                      } else if (date.year == now.year &&
-                          date.month == now.month &&
-                          date.day == now.day - 1) {
-                        formattedTime = "Yesterday";
-                      } else {
-                        formattedTime = DateFormat('MMM d').format(date);
-                      }
-                    }
-
-                    bool isRead = data["isRead"] == true;
-
-                    // Determine icon and color based on type
-                    IconData notificationIcon = Icons.notifications_rounded;
-                    Color iconBgColor = _primaryColor;
-
-                    if (data["type"] == "message") {
-                      notificationIcon = Icons.chat_bubble_outline_rounded;
-                      iconBgColor = const Color(0xFF2196F3);
-                    } else if (data["type"] == "appointment" ||
-                        data["type"] == "appointment_update") {
-                      notificationIcon = Icons.event_available_outlined;
-                      iconBgColor = const Color(0xFFFF9800);
-                    }
-
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 10.0),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(14),
-                        gradient: isRead
-                            ? null
-                            : LinearGradient(
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                                colors: [
-                                  iconBgColor.withOpacity(0.08),
-                                  iconBgColor.withOpacity(0.03),
-                                ],
-                              ),
-                      ),
-                      child: Card(
-                        margin: EdgeInsets.zero,
-                        elevation: isRead ? 0.5 : 2,
-                        color: isRead
-                            ? _cardBgColor(context)
-                            : _cardBgColor(context),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                          side: isRead
-                              ? BorderSide(
-                                  color: Colors.grey.shade300,
-                                  width: 0.5,
-                                )
-                              : BorderSide(
-                                  color: iconBgColor.withOpacity(0.4),
-                                  width: 1.5,
-                                ),
-                        ),
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(14),
-                          onTap: () async {
-                            if (!isRead) {
-                              await FirebaseFirestore.instance
-                                  .collection("Users")
-                                  .doc(currentUserId)
-                                  .collection("notifications")
-                                  .doc(doc.id)
-                                  .update({"isRead": true});
-                            }
-
-                            if (data["type"] == "message" &&
-                                data["senderId"] != null &&
-                                data["senderName"] != null) {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => MessagesPageDietitian(
-                                    receiverId: data["senderId"],
-                                    receiverName: data["senderName"],
-                                    currentUserId: currentUserId,
-                                    receiverProfile:
-                                        data["receiverProfile"] ?? "",
-                                  ),
-                                ),
-                              );
-                            } else if (data["type"] == "appointmentRequest" ||
-                                data["type"] == "appointment" ||
-                                data["type"] == "appointment_update") {
-                              // Switch to Schedule tab using the callback
-                              if (widget.onNavigateToSchedule != null) {
-                                widget.onNavigateToSchedule!();
-                              }
-                            }
-                          },
-                          child: Padding(
-                            padding: const EdgeInsets.all(14.0),
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.center,
-                              children: [
-                                // Icon with colored background
-                                Container(
-                                  width: 48,
-                                  height: 48,
-                                  decoration: BoxDecoration(
-                                    color: iconBgColor.withOpacity(0.15),
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(
-                                      color: iconBgColor.withOpacity(0.2),
-                                      width: 1.5,
-                                    ),
-                                  ),
-                                  child: Icon(
-                                    notificationIcon,
-                                    color: iconBgColor,
-                                    size: 24,
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                // Title and message
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.spaceBetween,
-                                        children: [
-                                          Expanded(
-                                            child: Text(
-                                              data["title"] ?? "Notification",
-                                              style: _getTextStyle(
-                                                context,
-                                                fontSize: 15,
-                                                fontWeight: isRead
-                                                    ? FontWeight.w600
-                                                    : FontWeight.bold,
-                                                color: _textColorPrimary(
-                                                  context,
-                                                ),
-                                              ),
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                            ),
-                                          ),
-                                          if (!isRead)
-                                            Container(
-                                              width: 8,
-                                              height: 8,
-                                              margin: const EdgeInsets.only(
-                                                left: 8.0,
-                                              ),
-                                              decoration: BoxDecoration(
-                                                color: iconBgColor,
-                                                shape: BoxShape.circle,
-                                              ),
-                                            ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 6),
-                                      Text(
-                                        data["message"] ?? "",
-                                        style: _getTextStyle(
-                                          context,
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w400,
-                                          color: _textColorSecondary(context),
-                                        ),
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                if (formattedTime.isNotEmpty)
-                                  Padding(
-                                    padding: const EdgeInsets.only(left: 12.0),
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.end,
-                                      children: [
-                                        Text(
-                                          formattedTime,
-                                          style: _getTextStyle(
-                                            context,
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w500,
-                                            color: isRead
-                                                ? _textColorSecondary(context)
-                                                : iconBgColor,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                );
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }
 
 class ScheduleCalendarPage extends StatefulWidget {

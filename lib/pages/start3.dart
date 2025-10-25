@@ -826,6 +826,9 @@ class _MealPlanningScreen3State extends State<MealPlanningScreen3> {
         "activityLevel": activityLevel,
         "tutorialStep": 3,
         "bmiUpdatedAt": FieldValue.serverTimestamp(),
+        // NEW: Initialize follow counters if not present
+        "followingCount": FieldValue.increment(0),
+        "followerCount": FieldValue.increment(0),
       }, SetOptions(merge: true));
 
       if (mounted) {
@@ -1375,15 +1378,6 @@ class _MealPlanningScreen3State extends State<MealPlanningScreen3> {
                     ),
                   ),
                   const SizedBox(height: 4),
-                  Text(
-                    'Step 3 of 4: Profile Details',
-                    textAlign: TextAlign.center,
-                    style: _getTextStyle(
-                      context,
-                      fontSize: 13,
-                      color: _textColorSecondary(context),
-                    ),
-                  ),
                   const SizedBox(height: 20),
 
                   _buildSectionContainer(

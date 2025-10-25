@@ -79,8 +79,6 @@ class _LoginPageState extends State<LoginPageMobile> with TickerProviderStateMix
   void initState() {
     super.initState();
 
-
-
     _fadeController = AnimationController(
       duration: const Duration(milliseconds: 800),
       vsync: this,
@@ -113,10 +111,8 @@ class _LoginPageState extends State<LoginPageMobile> with TickerProviderStateMix
       CurvedAnimation(parent: _welcomeController, curve: Curves.easeInOut),
     );
 
-    // Show welcome popup automatically
     _showWelcomePopup();
   }
-
 
   void _showWelcomePopup() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -127,7 +123,6 @@ class _LoginPageState extends State<LoginPageMobile> with TickerProviderStateMix
         barrierColor: Colors.black.withOpacity(0.7),
         builder: (context) => _buildWelcomeDialog(),
       ).then((_) {
-        // Start main screen animations after dialog closes
         _fadeController.forward();
         _slideController.forward();
       });
@@ -156,38 +151,36 @@ class _LoginPageState extends State<LoginPageMobile> with TickerProviderStateMix
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(24),
               ),
-              backgroundColor: Colors.transparent, // Keep dialog background transparent
-              child: ClipRRect( // <-- 1. ADD ClipRRect to contain the background
+              backgroundColor: Colors.transparent,
+              child: ClipRRect(
                 borderRadius: BorderRadius.circular(24),
-                child: Stack( // <-- 2. WRAP content with Stack
+                child: Stack(
                   children: [
-                    // --- 3. ADD the background shapes ---
-                    // Use a slightly different opacity for subtlety in the dialog
                     Positioned.fill(
                       child: Container(
-                        color: _cardBgColor(context), // Base color for dialog content area
+                        color: _cardBgColor(context),
                         child: Stack(
                           children: [
                             Positioned(
-                              top: -50,  // Adjusted position for dialog
-                              left: -80, // Adjusted position for dialog
+                              top: -50,
+                              left: -80,
                               child: Container(
-                                width: 200, // Adjusted size
-                                height: 200, // Adjusted size
+                                width: 200,
+                                height: 200,
                                 decoration: BoxDecoration(
-                                  color: _primaryColor.withOpacity(0.06), // Slightly less opacity
+                                  color: _primaryColor.withOpacity(0.06),
                                   shape: BoxShape.circle,
                                 ),
                               ),
                             ),
                             Positioned(
-                              bottom: -60, // Adjusted position for dialog
-                              right: -90, // Adjusted position for dialog
+                              bottom: -60,
+                              right: -90,
                               child: Container(
-                                width: 250, // Adjusted size
-                                height: 250, // Adjusted size
+                                width: 250,
+                                height: 250,
                                 decoration: BoxDecoration(
-                                  color: _primaryColor.withOpacity(0.06), // Slightly less opacity
+                                  color: _primaryColor.withOpacity(0.06),
                                   shape: BoxShape.circle,
                                 ),
                               ),
@@ -196,10 +189,8 @@ class _LoginPageState extends State<LoginPageMobile> with TickerProviderStateMix
                         ),
                       ),
                     ),
-                    // --- END of background shapes ---
 
-                    // --- 4. Your original dialog content ---
-                    Padding( // Added Padding back, was implicitly handled by Container before
+                    Padding(
                       padding: const EdgeInsets.all(32),
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
@@ -272,7 +263,6 @@ class _LoginPageState extends State<LoginPageMobile> with TickerProviderStateMix
                         ],
                       ),
                     ),
-                    // --- END of original content ---
                   ],
                 ),
               ),
@@ -282,13 +272,13 @@ class _LoginPageState extends State<LoginPageMobile> with TickerProviderStateMix
       },
     );
   }
+
   Future<String?> _askUserRoleDialog() async {
     return showDialog<String>(
       context: context,
       barrierDismissible: false,
-      barrierColor: Colors.black.withOpacity(0.6), // Matches welcome dialog
+      barrierColor: Colors.black.withOpacity(0.6),
       builder: (dialogContext) {
-        // Use dialogContext to correctly resolve Theme-based helpers
         return Dialog(
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(24),
@@ -310,7 +300,6 @@ class _LoginPageState extends State<LoginPageMobile> with TickerProviderStateMix
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // 1. Icon
                 Container(
                   width: 80,
                   height: 80,
@@ -326,7 +315,6 @@ class _LoginPageState extends State<LoginPageMobile> with TickerProviderStateMix
                 ),
                 const SizedBox(height: 24),
 
-                // 2. Title
                 Text(
                   'Select Account Type',
                   style: _getTextStyle(
@@ -338,7 +326,6 @@ class _LoginPageState extends State<LoginPageMobile> with TickerProviderStateMix
                 ),
                 const SizedBox(height: 12),
 
-                // 3. Subtitle
                 Text(
                   'Please choose your role to continue.',
                   textAlign: TextAlign.center,
@@ -350,7 +337,6 @@ class _LoginPageState extends State<LoginPageMobile> with TickerProviderStateMix
                 ),
                 const SizedBox(height: 32),
 
-                // 4. User Button (Outlined Style)
                 SizedBox(
                   width: double.infinity,
                   child: OutlinedButton.icon(
@@ -377,7 +363,6 @@ class _LoginPageState extends State<LoginPageMobile> with TickerProviderStateMix
                 ),
                 const SizedBox(height: 16),
 
-                // 5. Dietitian Button (Elevated Style)
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton.icon(
@@ -411,6 +396,134 @@ class _LoginPageState extends State<LoginPageMobile> with TickerProviderStateMix
     );
   }
 
+  // ==================== FORGOT PASSWORD DIALOG ====================
+  Future<void> _showForgotPasswordDialog() async {
+    TextEditingController resetEmailController = TextEditingController();
+    await showDialog(
+      context: context,
+      builder: (_) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            color: _cardBgColor(context),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 60,
+                height: 60,
+                decoration: BoxDecoration(
+                  color: _primaryColor.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.lock_reset_outlined,
+                  color: _primaryColor,
+                  size: 30,
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                "Reset Password",
+                style: _getTextStyle(
+                  context,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: _textColorPrimary(context),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                "Enter your registered email to reset your password.",
+                textAlign: TextAlign.center,
+                style: _getTextStyle(
+                  context,
+                  fontSize: 14,
+                  color: _textColorSecondary(context),
+                ),
+              ),
+              const SizedBox(height: 20),
+              TextField(
+                controller: resetEmailController,
+                keyboardType: TextInputType.emailAddress,
+                style: _getTextStyle(context),
+                decoration: InputDecoration(
+                  labelText: "Email Address",
+                  labelStyle: _getTextStyle(
+                    context,
+                    color: _textColorSecondary(context),
+                  ),
+                  prefixIcon: Icon(Icons.email_outlined, color: _primaryColor),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: _primaryColor, width: 2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: Text(
+                        "Cancel",
+                        style: _getTextStyle(
+                          context,
+                          color: _textColorSecondary(context),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () async {
+                        String resetEmail = resetEmailController.text.trim();
+                        if (resetEmail.isEmpty) {
+                          _showErrorSnackBar("Please enter an email");
+                          return;
+                        }
+                        try {
+                          await FirebaseAuth.instance
+                              .sendPasswordResetEmail(email: resetEmail);
+                          Navigator.pop(context);
+                          _showSuccessSnackBar("Password reset email has been sent");
+                        } on FirebaseAuthException catch (e) {
+                          _showErrorSnackBar("Error: ${e.message}");
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _primaryColor,
+                        foregroundColor: _textColorOnPrimary,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: Text(
+                        "Send",
+                        style: _getTextStyle(
+                          context,
+                          fontWeight: FontWeight.bold,
+                          color: _textColorOnPrimary,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
   // ==================== UI Widgets (TextFields, Buttons, etc) ====================
 
@@ -582,7 +695,6 @@ class _LoginPageState extends State<LoginPageMobile> with TickerProviderStateMix
     String role = "user";
     bool hasCompletedTutorial = false;
 
-    // ===================== CASE 1: USER ALREADY EXISTS =====================
     if (userSnap.exists) {
       final userData = userSnap.data() as Map<String, dynamic>?;
 
@@ -591,27 +703,23 @@ class _LoginPageState extends State<LoginPageMobile> with TickerProviderStateMix
 
       if (role == "user") {
         if (hasCompletedTutorial) {
-          // User completed tutorial → go to home
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(builder: (_) => const home()),
           );
         }
       } else if (role == "dietitian") {
-        // Dietitian → go to dietitian homepage
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => const HomePageDietitian()),
         );
       }
-      return; // Already handled, exit function
+      return;
     }
 
-    // ===================== CASE 2: FIRST-TIME LOGIN =====================
-    // Not in Users or dietitianApproval → ask role
     if (!userSnap.exists && !dietitianSnap.exists) {
       String? selectedRole = await _askUserRoleDialog();
-      if (selectedRole == null) return; // user closed dialog
+      if (selectedRole == null) return;
       role = selectedRole;
 
       String displayName = user.displayName ?? "";
@@ -620,7 +728,6 @@ class _LoginPageState extends State<LoginPageMobile> with TickerProviderStateMix
       String lastName = nameParts.length > 1 ? nameParts.sublist(1).join(" ") : "";
 
       if (role == "user") {
-        // Add to Users collection
         await usersRef.set({
           "email": user.email,
           "firstName": firstName,
@@ -636,28 +743,25 @@ class _LoginPageState extends State<LoginPageMobile> with TickerProviderStateMix
           "creationDate": FieldValue.serverTimestamp(),
         });
 
-        // Go to start/tutorial
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) =>  MealPlanningScreen(userId: user.uid)),
         );
         return;
       } else if (role == "dietitian") {
-        // Add to dietitianApproval collection
         await dietitianRef.set({
           "email": user.email ?? "",
           "firstName": firstName,
           "lastName": lastName,
           "licenseNum": null,
           "prcImageurl": null,
-          "status": "pending", // first-time dietitian still passes
+          "status": "pending",
           "role": "dietitian",
           "hasCompletedTutorial": false,
           "tutorialStep": 0,
           "createdAt": FieldValue.serverTimestamp(),
         });
 
-        // First-time dietitian → go to start/tutorial
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) =>  MealPlanningScreen(userId: user.uid)),
@@ -666,14 +770,12 @@ class _LoginPageState extends State<LoginPageMobile> with TickerProviderStateMix
       }
     }
 
-    // ===================== CASE 3: DIETITIAN ALREADY IN dietitianApproval =====================
     if (!userSnap.exists && dietitianSnap.exists) {
       final dietitianData = dietitianSnap.data() as Map<String, dynamic>?;
 
       role = "dietitian";
 
       if (dietitianData != null && dietitianData['status'] == 'pending') {
-        // Show modal: account under review
         await showDialog(
           context: context,
           barrierDismissible: false,
@@ -725,7 +827,6 @@ class _LoginPageState extends State<LoginPageMobile> with TickerProviderStateMix
         );
         return;
       } else {
-        // Approved dietitian → go to dietitian homepage
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => const HomePageDietitian()),
@@ -770,11 +871,10 @@ class _LoginPageState extends State<LoginPageMobile> with TickerProviderStateMix
     try {
       final googleSignIn = GoogleSignIn();
 
-// Force account picker
       await googleSignIn.signOut();
 
       final googleUser = await googleSignIn.signIn();
-      if (googleUser == null) return false; // user canceled
+      if (googleUser == null) return false;
 
       List<String> signInMethods =
       await FirebaseAuth.instance.fetchSignInMethodsForEmail(googleUser.email);
@@ -844,12 +944,11 @@ class _LoginPageState extends State<LoginPageMobile> with TickerProviderStateMix
     );
   }
 
-  // --- ADD THIS NEW WIDGET ---
   Widget _buildBackgroundShapes(BuildContext context) {
     return Container(
       width: double.infinity,
       height: double.infinity,
-      color: _scaffoldBgColor(context), // Use your existing background color
+      color: _scaffoldBgColor(context),
       child: Stack(
         children: [
           Positioned(
@@ -880,7 +979,6 @@ class _LoginPageState extends State<LoginPageMobile> with TickerProviderStateMix
       ),
     );
   }
-  // --- END OF NEW WIDGET ---
 
   @override
   Widget build(BuildContext context) {
@@ -890,13 +988,11 @@ class _LoginPageState extends State<LoginPageMobile> with TickerProviderStateMix
     return Scaffold(
       backgroundColor: _scaffoldBgColor(context),
       resizeToAvoidBottomInset: true,
-      body: Stack( // <-- WRAP with Stack
+      body: Stack(
         fit: StackFit.expand,
         children: [
-          // --- ADD THIS LINE ---
-          _buildBackgroundShapes(context), // This is the new background
+          _buildBackgroundShapes(context),
 
-          // Your existing content
           SafeArea(
             child: FadeTransition(
               opacity: _fadeAnimation,
@@ -967,6 +1063,22 @@ class _LoginPageState extends State<LoginPageMobile> with TickerProviderStateMix
                                               _obscurePassword =
                                               !_obscurePassword;
                                             }),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 12),
+                                        Align(
+                                          alignment: Alignment.centerRight,
+                                          child: GestureDetector(
+                                            onTap: _showForgotPasswordDialog,
+                                            child: Text(
+                                              "Forgot Password?",
+                                              style: _getTextStyle(
+                                                context,
+                                                fontSize: 14,
+                                                color: _primaryColor,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
                                           ),
                                         ),
                                         const SizedBox(height: 24),
