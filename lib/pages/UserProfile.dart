@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'home.dart';
-import 'editProfile.dart'; // Import is no longer used by the pen icon, but kept for other references
-import 'package:mamas_recipe/widget/custom_snackbar.dart';
+import 'editProfile.dart';
 import 'package:intl/intl.dart';
+
+import '../Dietitians/dietitianPublicProfile.dart';
 
 const Color _primaryColor = Color(0xFF4CAF50);
 
@@ -17,54 +18,6 @@ class UserProfile extends StatefulWidget {
 
 class _UserProfileState extends State<UserProfile> {
   bool _isFavoritesActive = true;
-  bool _isEditing = false; // State to manage edit mode
-  final _formKey = GlobalKey<FormState>();
-
-  // Controllers and state for editing
-  final TextEditingController _weightController = TextEditingController();
-  final TextEditingController _heightController = TextEditingController();
-  final FocusNode _weightFocusNode = FocusNode();
-  final FocusNode _heightFocusNode = FocusNode();
-  int? selectedHealthGoalIndex;
-  int? selectedActivityLevelIndex;
-  double? currentBMI;
-  String? bmiCategory;
-  List<String>? suggestedHealthGoals;
-  bool _isSaving = false;
-
-  // Data from start3.dart
-  final List<Map<String, dynamic>> healthGoals = [
-    {"icon": Icons.person_remove_outlined, "text": "Weight Loss"},
-    {"icon": Icons.person_add_alt_1_outlined, "text": "Weight Gain"},
-    {"icon": Icons.monitor_weight_outlined, "text": "Maintain Weight"},
-    {"icon": Icons.fitness_center, "text": "Workout"},
-  ];
-
-  final List<Map<String, dynamic>> activityLevels = [
-    {
-      "icon": Icons.directions_walk,
-      "text": "Lightly Active",
-      "description":
-      "Minimal exercise, desk job, light walking or household chores"
-    },
-    {
-      "icon": Icons.directions_run,
-      "text": "Moderately Active",
-      "description":
-      "Exercise 3-5 days/week, regular physical activities like jogging or cycling"
-    },
-    {
-      "icon": Icons.pool,
-      "text": "Very Active",
-      "description":
-      "Exercise 6-7 days/week, sports training, or physically demanding job"
-    },
-    {
-      "icon": Icons.construction,
-      "text": "Heavy Work",
-      "description": "Construction, farming, or intense physical labor daily"
-    },
-  ];
 
   // --- Theme constants ---
   static const String _primaryFontFamily = 'PlusJakartaSans';
@@ -105,195 +58,6 @@ class _UserProfileState extends State<UserProfile> {
     );
   }
 
-  @override
-  void dispose() {
-    _weightController.dispose();
-    _heightController.dispose();
-    _weightFocusNode.dispose();
-    _heightFocusNode.dispose();
-    super.dispose();
-  }
-
-  // --- Initialize edit form data from user's current data ---
-  void _initEditData(Map<String, dynamic> data) {
-    _weightController.text = data['currentWeight']?.toString() ?? '';
-    _heightController.text = data['height']?.toString() ?? '';
-
-    final String currentGoal = data['goals'] ?? '';
-    final int goalIndex =
-    healthGoals.indexWhere((goal) => goal['text'] == currentGoal);
-    selectedHealthGoalIndex = (goalIndex != -1) ? goalIndex : null;
-
-    final String currentActivity = data['activityLevel'] ?? '';
-    final int activityIndex = activityLevels
-        .indexWhere((level) => level['text'] == currentActivity);
-    selectedActivityLevelIndex = (activityIndex != -1) ? activityIndex : null;
-
-    _updateBMI();
-  }
-
-  // --- Logic from start3.dart to save data ---
-  Future<void> _saveHealthData() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
-
-    setState(() => _isSaving = true);
-
-    final weightText = _weightController.text.trim();
-    final heightText = _heightController.text.trim();
-    final weight = double.tryParse(weightText);
-    final height = double.tryParse(heightText);
-
-    if (weightText.isEmpty) {
-      _showErrorSnackBar("Please enter your weight");
-      _weightFocusNode.requestFocus();
-      setState(() => _isSaving = false);
-      return;
-    }
-    if (weight == null || weight <= 0) {
-      _showErrorSnackBar("Please enter a valid weight");
-      _weightFocusNode.requestFocus();
-      setState(() => _isSaving = false);
-      return;
-    }
-
-    if (heightText.isEmpty) {
-      _showErrorSnackBar("Please enter your height");
-      _heightFocusNode.requestFocus();
-      setState(() => _isSaving = false);
-      return;
-    }
-    if (height == null || height <= 0) {
-      _showErrorSnackBar("Please enter a valid height");
-      _heightFocusNode.requestFocus();
-      setState(() => _isSaving = false);
-      return;
-    }
-
-    final validation = _validateHeightWeight(weight, height);
-    if (!validation['isValid']) {
-      _showErrorSnackBar(validation['message']);
-      if (validation['type'] == 'weight') {
-        _weightFocusNode.requestFocus();
-      } else if (validation['type'] == 'height') {
-        _heightFocusNode.requestFocus();
-      }
-      setState(() => _isSaving = false);
-      return;
-    }
-
-    if (selectedHealthGoalIndex == null) {
-      _showErrorSnackBar("Please select a health goal");
-      setState(() => _isSaving = false);
-      return;
-    }
-
-    if (selectedActivityLevelIndex == null) {
-      _showErrorSnackBar("Please select an activity level");
-      setState(() => _isSaving = false);
-      return;
-    }
-
-    final String healthGoal = healthGoals[selectedHealthGoalIndex!]["text"];
-    final String activityLevel =
-    activityLevels[selectedActivityLevelIndex!]["text"];
-    final double bmi = _calculateBMI(weight, height);
-    final calculatedBmiCategory = _getBMICategory(bmi)['category'];
-
-    try {
-      await FirebaseFirestore.instance.collection("Users").doc(user.uid).set({
-        "currentWeight": weight,
-        "height": height,
-        "bmi": bmi.toStringAsFixed(2),
-        "bmiCategory": calculatedBmiCategory,
-        "goals": healthGoal,
-        "activityLevel": activityLevel,
-        "bmiUpdatedAt": FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
-
-      if (mounted) {
-        CustomSnackBar.show(
-          context,
-          'Profile updated successfully!',
-          backgroundColor: Colors.green,
-          icon: Icons.check_circle,
-        );
-        setState(() {
-          _isEditing = false;
-          _isSaving = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        _showErrorSnackBar("Error saving data: $e");
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isSaving = false);
-      }
-    }
-  }
-
-  void _showErrorSnackBar(String message) {
-    CustomSnackBar.show(
-      context,
-      message,
-      backgroundColor: Colors.redAccent,
-      icon: Icons.error_outline,
-    );
-  }
-
-  // --- LOGIC COPIED FROM start3.dart ---
-
-  Map<String, dynamic> _validateHeightWeight(double weight, double height) {
-    if (height < 50) {
-      return {
-        'isValid': false,
-        'message': 'Height is too low (minimum: 50 cm)',
-        'type': 'height'
-      };
-    }
-    if (height > 250) {
-      return {
-        'isValid': false,
-        'message': 'Height is too high (maximum: 250 cm)',
-        'type': 'height'
-      };
-    }
-    if (weight < 30) {
-      return {
-        'isValid': false,
-        'message': 'Weight is too low (minimum: 30 kg)',
-        'type': 'weight'
-      };
-    }
-    if (weight > 500) {
-      return {
-        'isValid': false,
-        'message': 'Weight is too high (maximum: 500 kg)',
-        'type': 'weight'
-      };
-    }
-    double bmi = _calculateBMI(weight, height);
-    if (bmi < 10) {
-      return {
-        'isValid': false,
-        'message':
-        'Weight seems too low for this height (BMI: ${bmi.toStringAsFixed(1)})',
-        'type': 'combination'
-      };
-    }
-    if (bmi > 60) {
-      return {
-        'isValid': false,
-        'message':
-        'Weight seems too high for this height (BMI: ${bmi.toStringAsFixed(1)})',
-        'type': 'combination'
-      };
-    }
-    return {'isValid': true, 'message': 'Valid', 'type': 'valid'};
-  }
-
   double _calculateBMI(double weightKg, double heightCm) {
     if (weightKg <= 0 || heightCm <= 0) return 0;
     double heightM = heightCm / 100;
@@ -327,53 +91,6 @@ class _UserProfileState extends State<UserProfile> {
       };
     }
   }
-
-  void _updateBMI() {
-    final weightText = _weightController.text.trim();
-    final heightText = _heightController.text.trim();
-
-    if (weightText.isEmpty || heightText.isEmpty) {
-      setState(() {
-        currentBMI = null;
-        bmiCategory = null;
-        suggestedHealthGoals = null;
-      });
-      return;
-    }
-
-    final weight = double.tryParse(weightText);
-    final height = double.tryParse(heightText);
-
-    if (weight == null || height == null || weight <= 0 || height <= 0) {
-      setState(() {
-        currentBMI = null;
-        bmiCategory = null;
-        suggestedHealthGoals = null;
-      });
-      return;
-    }
-
-    final validation = _validateHeightWeight(weight, height);
-    if (!validation['isValid']) {
-      setState(() {
-        currentBMI = null;
-        bmiCategory = null;
-        suggestedHealthGoals = null;
-      });
-      return;
-    }
-
-    final bmi = _calculateBMI(weight, height);
-    final categoryData = _getBMICategory(bmi);
-
-    setState(() {
-      currentBMI = bmi;
-      bmiCategory = categoryData['category'];
-      suggestedHealthGoals = List<String>.from(categoryData['goals']);
-    });
-  }
-
-  // --- END OF LOGIC COPIED FROM start3.dart ---
 
   Widget _buildProfileBackground(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -514,23 +231,6 @@ class _UserProfileState extends State<UserProfile> {
     );
   }
 
-  Color _getBMICategoryColor(String? category) {
-    if (category == null) return _primaryColor;
-
-    switch (category.toLowerCase()) {
-      case 'underweight':
-        return Colors.blue;
-      case 'normal weight':
-        return Colors.green;
-      case 'overweight':
-        return Colors.orange;
-      case 'obese':
-        return Colors.red;
-      default:
-        return _primaryColor;
-    }
-  }
-
   IconData _getBMIStatusIcon(String? category) {
     if (category == null) return Icons.help_outline;
 
@@ -632,63 +332,74 @@ class _UserProfileState extends State<UserProfile> {
     );
   }
 
-  Future<Map<String, dynamic>?> _getUserData() async {
+  Stream<Map<String, dynamic>?> _getUserDataStream() {
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return null;
+    if (user == null) return Stream.value(null);
 
-    final snapshot = await FirebaseFirestore.instance
+    return FirebaseFirestore.instance
         .collection("Users")
         .doc(user.uid)
-        .get();
-    return snapshot.data();
+        .snapshots()
+        .map((snapshot) => snapshot.data());
   }
 
-  Future<List<Map<String, dynamic>>> _getFavoriteMealPlans(String userId) async {
+  Stream<List<Map<String, dynamic>>> _getFavoriteMealPlansStream(String userId) async* {
     try {
       final firestore = FirebaseFirestore.instance;
 
-      final likesSnapshot = await firestore
+      await for (var likesSnapshot in firestore
           .collection('likes')
           .where('userID', isEqualTo: userId)
-          .get();
+          .snapshots()) {
 
-      if (likesSnapshot.docs.isEmpty) return [];
-
-      final mealPlanIDs =
-      likesSnapshot.docs.map((doc) => doc['mealPlanID'] as String).toList();
-      final List<Map<String, dynamic>> mealPlans = [];
-
-      for (String id in mealPlanIDs) {
-        final mealPlanDoc =
-        await firestore.collection('mealPlans').doc(id).get();
-        if (mealPlanDoc.exists) {
-          final planData = mealPlanDoc.data()!;
-          planData['planId'] = id;
-
-          String ownerId = planData['owner'] ?? '';
-          String ownerName = 'Unknown Chef';
-
-          if (ownerId.isNotEmpty) {
-            final userDoc =
-            await firestore.collection('Users').doc(ownerId).get();
-            if (userDoc.exists) {
-              final userData = userDoc.data()!;
-              ownerName =
-                  "${userData['firstName'] ?? ''} ${userData['lastName'] ?? ''}"
-                      .trim();
-              if (ownerName.isEmpty) ownerName = 'Unknown Chef';
-            }
-          }
-
-          planData['ownerName'] = ownerName;
-          mealPlans.add(planData);
+        if (likesSnapshot.docs.isEmpty) {
+          yield [];
+          continue;
         }
-      }
 
-      return mealPlans;
+        final mealPlanIDs = likesSnapshot.docs
+            .map((doc) => doc['mealPlanID'] as String)
+            .toList();
+
+        final List<Map<String, dynamic>> mealPlans = [];
+
+        for (String id in mealPlanIDs) {
+          final mealPlanDoc = await firestore
+              .collection('mealPlans')
+              .doc(id)
+              .get();
+
+          if (mealPlanDoc.exists) {
+            final planData = mealPlanDoc.data()!;
+            planData['planId'] = id;
+
+            String ownerId = planData['owner'] ?? '';
+            String ownerName = 'Unknown Chef';
+
+            if (ownerId.isNotEmpty) {
+              final userDoc = await firestore
+                  .collection('Users')
+                  .doc(ownerId)
+                  .get();
+
+              if (userDoc.exists) {
+                final userData = userDoc.data()!;
+                ownerName = "${userData['firstName'] ?? ''} ${userData['lastName'] ?? ''}"
+                    .trim();
+                if (ownerName.isEmpty) ownerName = 'Unknown Chef';
+              }
+            }
+
+            planData['ownerName'] = ownerName;
+            mealPlans.add(planData);
+          }
+        }
+
+        yield mealPlans;
+      }
     } catch (e) {
-      print('Error fetching favorite meal plans: $e');
-      return [];
+      print('Error streaming favorite meal plans: $e');
+      yield [];
     }
   }
 
@@ -979,340 +690,169 @@ class _UserProfileState extends State<UserProfile> {
     );
   }
 
-  // --- WIDGETS COPIED FROM start3.dart FOR THE EDIT FORM ---
+  Stream<List<Map<String, dynamic>>> _getFollowedDietitiansStream(String userId) async* {
+    try {
+      await for (var followersSnapshot in FirebaseFirestore.instance
+          .collection('Users')
+          .doc(userId)
+          .collection('following')
+          .snapshots()) {
 
-  Widget _buildValidationIndicator() {
-    final weightText = _weightController.text.trim();
-    final heightText = _heightController.text.trim();
+        List<Map<String, dynamic>> dietitians = [];
 
-    if (weightText.isEmpty || heightText.isEmpty) {
-      return const SizedBox.shrink();
+        for (var doc in followersSnapshot.docs) {
+          final dietitianId = doc.id;
+
+          final dietitianDoc = await FirebaseFirestore.instance
+              .collection('Users')
+              .doc(dietitianId)
+              .get();
+
+          if (dietitianDoc.exists) {
+            final dietitianData = dietitianDoc.data()!;
+            dietitianData['id'] = dietitianId;
+            dietitians.add(dietitianData);
+          }
+        }
+
+        yield dietitians;
+      }
+    } catch (e) {
+      print('Error streaming followed dietitians: $e');
+      yield [];
     }
-
-    final weight = double.tryParse(weightText);
-    final height = double.tryParse(heightText);
-
-    if (weight == null || height == null || weight <= 0 || height <= 0) {
-      return Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: Colors.red.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: Colors.red.withOpacity(0.3), width: 1),
-        ),
-        child: Row(
-          children: [
-            const Icon(Icons.warning_rounded, color: Colors.red, size: 18),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                'Please enter valid numbers',
-                style: _getTextStyle(
-                  context,
-                  fontSize: 12,
-                  color: Colors.red,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    final validation = _validateHeightWeight(weight, height);
-
-    if (!validation['isValid']) {
-      return Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: Colors.red.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: Colors.red.withOpacity(0.3), width: 1),
-        ),
-        child: Row(
-          children: [
-            const Icon(Icons.error_outline_rounded,
-                color: Colors.red, size: 18),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                validation['message'] ?? 'Invalid input',
-                style: _getTextStyle(
-                  context,
-                  fontSize: 12,
-                  color: Colors.red,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return const SizedBox.shrink();
   }
 
-  Widget _buildBMIDisplay() {
-    if (currentBMI == null) {
-      return _buildValidationIndicator();
-    }
+  Widget _buildDietitianCard(BuildContext context, Map<String, dynamic> dietitian) {
+    final String dietitianName =
+    "${dietitian['firstName'] ?? ''} ${dietitian['lastName'] ?? ''}".trim();
+    final String? profileUrl = dietitian['profile'];
+    final String specialty = dietitian['specialty'] ?? 'Dietitian';
 
-    final categoryData = _getBMICategory(currentBMI!);
-    final categoryColor = categoryData['color'] as Color;
-
-    return Column(
-      children: [
-        Container(
-          margin: const EdgeInsets.only(bottom: 16),
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: categoryColor.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: categoryColor.withOpacity(0.3),
-              width: 2,
-            ),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        "Your BMI",
-                        style: _getTextStyle(
-                          context,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: _textColorSecondary(context),
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        currentBMI!.toStringAsFixed(1),
-                        style: _getTextStyle(
-                          context,
-                          fontSize: 28,
-                          fontWeight: FontWeight.bold,
-                          color: categoryColor,
-                        ),
-                      ),
-                    ],
-                  ),
-                  Container(
-                    padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: categoryColor.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Column(
-                      children: [
-                        Icon(Icons.health_and_safety_rounded,
-                            color: categoryColor, size: 20),
-                        const SizedBox(height: 4),
-                        Text(
-                          bmiCategory ?? "Unknown",
-                          style: _getTextStyle(
-                            context,
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: categoryColor,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+    return Card(
+      elevation: 2,
+      margin: const EdgeInsets.only(bottom: 12),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+      ),
+      color: _cardBgColor(context),
+      child: InkWell(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => DietitianPublicProfile(
+                dietitianId: dietitian['id'],
+                dietitianName: dietitianName.isEmpty ? 'Dietitian' : dietitianName,
+                dietitianProfile: profileUrl ?? '',
               ),
-              if (suggestedHealthGoals != null &&
-                  suggestedHealthGoals!.isNotEmpty)
-                Column(
+            ),
+          );
+        },
+        borderRadius: BorderRadius.circular(14),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Container(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: _primaryColor, width: 2),
+                ),
+                child: CircleAvatar(
+                  radius: 30,
+                  backgroundColor: Colors.white,
+                  backgroundImage: (profileUrl != null && profileUrl.isNotEmpty)
+                      ? NetworkImage(profileUrl)
+                      : null,
+                  child: (profileUrl == null || profileUrl.isEmpty)
+                      ? const Icon(
+                    Icons.person_outline,
+                    size: 32,
+                    color: _primaryColor,
+                  )
+                      : null,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Divider(color: categoryColor.withOpacity(0.2), height: 12),
-                    const SizedBox(height: 8),
                     Text(
-                      "Recommended Goals for Your BMI:",
+                      dietitianName.isEmpty ? 'Dietitian' : dietitianName,
                       style: _getTextStyle(
                         context,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      specialty,
+                      style: _getTextStyle(
+                        context,
+                        fontSize: 14,
                         color: _textColorSecondary(context),
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: suggestedHealthGoals!.map((goal) {
-                        return Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: categoryColor.withOpacity(0.3),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Text(
-                            goal,
-                            style: _getTextStyle(
-                              context,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              color: categoryColor,
-                            ),
-                          ),
-                        );
-                      }).toList(),
-                    ),
                   ],
                 ),
+              ),
+              Icon(
+                Icons.arrow_forward_ios,
+                size: 16,
+                color: _textColorSecondary(context),
+              ),
             ],
           ),
         ),
-        _buildValidationIndicator(),
-      ],
+      ),
     );
   }
 
-  Widget _buildSectionContainer({
-    required String title,
-    required List<Widget> children,
-    String? subtitle,
-    Key? key,
-  }) {
+  Widget _buildViewHealthData(
+      Map<String, dynamic> data, double weight, double height) {
     return Card(
-      key: key,
-      elevation: 0, // Give sections a slight elevation in edit mode
+      elevation: 0,
       color: _cardBgColor(context),
-      shadowColor: Colors.black.withOpacity(0.1),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
       ),
-      margin: const EdgeInsets.only(bottom: 16),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              title,
-              style: _getTextStyle(
-                context,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: _primaryColor,
-              ),
-            ),
-            if (subtitle != null) ...[
-              const SizedBox(height: 4),
-              Text(
-                subtitle,
-                style: _getTextStyle(
-                  context,
-                  fontSize: 13,
-                  color: _textColorSecondary(context),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                _InfoCard(
+                  icon: Icons.monitor_weight_outlined,
+                  label: "Weight",
+                  value: "${weight.toStringAsFixed(1)} kg",
+                  context: context,
                 ),
-              ),
-            ],
+                _InfoCard(
+                  icon: Icons.height_outlined,
+                  label: "Height",
+                  value: "${height.toStringAsFixed(1)} cm",
+                  context: context,
+                ),
+                _InfoCard(
+                  icon: Icons.flag_outlined,
+                  label: "Goal",
+                  value: data['goals'] ?? 'N/A',
+                  context: context,
+                ),
+              ],
+            ),
             const SizedBox(height: 16),
-            ...children,
+            _buildBMIStatusCard(data, context),
           ],
         ),
       ),
     );
   }
-
-  Widget _buildSelectionList({
-    required List<Map<String, dynamic>> items,
-    required int? selectedIndex,
-    required ValueChanged<int?> onSelected,
-  }) {
-    return ListView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: items.length,
-      padding: EdgeInsets.zero,
-      itemBuilder: (context, index) {
-        final item = items[index];
-        final bool isItemSelected = selectedIndex == index;
-
-        return GestureDetector(
-          onTap: () => onSelected(index),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            margin: const EdgeInsets.only(bottom: 10),
-            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
-            decoration: BoxDecoration(
-              color: isItemSelected
-                  ? _primaryColor.withOpacity(0.1)
-                  : _scaffoldBgColor(context),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: isItemSelected ? _primaryColor : Colors.grey.shade300,
-                width: isItemSelected ? 2 : 1,
-              ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(
-                      item["icon"],
-                      color:
-                      isItemSelected ? _primaryColor : Colors.grey.shade600,
-                      size: 22,
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Text(
-                        item["text"],
-                        style: _getTextStyle(
-                          context,
-                          fontSize: 15,
-                          fontWeight:
-                          isItemSelected ? FontWeight.bold : FontWeight.w500,
-                          color: isItemSelected
-                              ? _primaryColor
-                              : _textColorPrimary(context),
-                        ),
-                      ),
-                    ),
-                    if (isItemSelected)
-                      const Icon(Icons.check_circle,
-                          color: _primaryColor, size: 20),
-                  ],
-                ),
-                if (item["description"] != null) ...[
-                  const SizedBox(height: 6),
-                  Padding(
-                    padding: const EdgeInsets.only(left: 36),
-                    child: Text(
-                      item["description"],
-                      style: _getTextStyle(
-                        context,
-                        fontSize: 12,
-                        color: _textColorSecondary(context),
-                      ),
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  // --- END OF WIDGETS COPIED FROM start3.dart ---
 
   @override
   Widget build(BuildContext context) {
@@ -1325,8 +865,8 @@ class _UserProfileState extends State<UserProfile> {
       );
     }
 
-    return FutureBuilder<Map<String, dynamic>?>(
-      future: _getUserData(),
+    return StreamBuilder<Map<String, dynamic>?>(
+      stream: _getUserDataStream(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return Scaffold(
@@ -1359,7 +899,7 @@ class _UserProfileState extends State<UserProfile> {
           backgroundColor: _scaffoldBgColor(context),
           appBar: AppBar(
             title: Text(
-              _isEditing ? "Edit Profile" : "My Profile",
+              "My Profile",
               style: _getTextStyle(
                 context,
                 fontSize: 20,
@@ -1438,23 +978,19 @@ class _UserProfileState extends State<UserProfile> {
                                   shape: const CircleBorder(),
                                   elevation: 0,
                                   child: InkWell(
-                                    // --- THIS IS THE MODIFIED ONTAP ---
                                     onTap: () {
-                                      setState(() {
-                                        _isEditing = !_isEditing;
-                                        if (_isEditing) {
-                                          _initEditData(data);
-                                        }
-                                      });
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) => const EditProfilePage(),
+                                        ),
+                                      );
                                     },
                                     customBorder: const CircleBorder(),
-                                    // --- MODIFIED ICON ---
-                                    child: Padding(
-                                      padding: const EdgeInsets.all(6.0),
+                                    child: const Padding(
+                                      padding: EdgeInsets.all(6.0),
                                       child: Icon(
-                                        _isEditing
-                                            ? Icons.close
-                                            : Icons.edit_outlined,
+                                        Icons.edit_outlined,
                                         size: 18,
                                         color: _primaryColor,
                                       ),
@@ -1489,14 +1025,10 @@ class _UserProfileState extends State<UserProfile> {
                       ),
                     ),
 
-                    // --- Content below header ---
+                    // Content below header
                     Padding(
                       padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                      child: _isEditing
-                      // --- IF EDITING: Show the form ---
-                          ? _buildEditHealthForm(context)
-                      // --- IF VIEWING: Show normal content ---
-                          : Column(
+                      child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
@@ -1513,234 +1045,253 @@ class _UserProfileState extends State<UserProfile> {
                       ),
                     ),
 
-                    // --- These widgets only show when NOT editing ---
-                    if (!_isEditing) ...[
-                      _buildBMIHistoryCard(data, context),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 8),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              "My Meal Plans",
-                              style: _getTextStyle(
-                                context,
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                              ),
+                    _buildBMIHistoryCard(data, context),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 8),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            "My Meal Plans",
+                            style: _getTextStyle(
+                              context,
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
                             ),
-                            const SizedBox(height: 10),
-                            Card(
-                              elevation: 0,
-                              color: _cardBgColor(context),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              child: Padding(
-                                padding: const EdgeInsets.all(16),
-                                child: Column(
-                                  children: [
-                                    Row(
-                                      children: [
-                                        Expanded(
-                                          child: ElevatedButton(
-                                            style: ElevatedButton.styleFrom(
-                                              backgroundColor: _isFavoritesActive
-                                                  ? _primaryColor
-                                                  : _cardBgColor(context),
-                                              foregroundColor: _isFavoritesActive
+                          ),
+                          const SizedBox(height: 10),
+                          Card(
+                            elevation: 0,
+                            color: _cardBgColor(context),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Column(
+                                children: [
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: ElevatedButton(
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: _isFavoritesActive
+                                                ? _primaryColor
+                                                : _cardBgColor(context),
+                                            foregroundColor: _isFavoritesActive
+                                                ? _textColorOnPrimary
+                                                : _textColorPrimary(context),
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                              BorderRadius.circular(12),
+                                              side: _isFavoritesActive
+                                                  ? BorderSide.none
+                                                  : BorderSide(
+                                                  color: _primaryColor
+                                                      .withOpacity(0.3)),
+                                            ),
+                                            padding:
+                                            const EdgeInsets.symmetric(
+                                                vertical: 12),
+                                            elevation:
+                                            _isFavoritesActive ? 2 : 0,
+                                          ),
+                                          onPressed: () {
+                                            if (!_isFavoritesActive) {
+                                              setState(() {
+                                                _isFavoritesActive = true;
+                                              });
+                                            }
+                                          },
+                                          child: Text(
+                                            "Favorites",
+                                            style: _getTextStyle(
+                                              context,
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.bold,
+                                              color: _isFavoritesActive
                                                   ? _textColorOnPrimary
-                                                  : _textColorPrimary(context),
-                                              shape: RoundedRectangleBorder(
-                                                borderRadius:
-                                                BorderRadius.circular(12),
-                                                side: _isFavoritesActive
-                                                    ? BorderSide.none
-                                                    : BorderSide(
-                                                    color: _primaryColor
-                                                        .withOpacity(0.3)),
-                                              ),
-                                              padding:
-                                              const EdgeInsets.symmetric(
-                                                  vertical: 12),
-                                              elevation:
-                                              _isFavoritesActive ? 2 : 0,
-                                            ),
-                                            onPressed: () {
-                                              if (!_isFavoritesActive) {
-                                                setState(() {
-                                                  _isFavoritesActive = true;
-                                                });
-                                              }
-                                            },
-                                            child: Text(
-                                              "Favorites",
-                                              style: _getTextStyle(
-                                                context,
-                                                fontSize: 13,
-                                                fontWeight: FontWeight.bold,
-                                                color: _isFavoritesActive
-                                                    ? _textColorOnPrimary
-                                                    : _primaryColor,
-                                              ),
+                                                  : _primaryColor,
                                             ),
                                           ),
-                                        ),
-                                        const SizedBox(width: 10),
-                                        Expanded(
-                                          child: ElevatedButton(
-                                            style: ElevatedButton.styleFrom(
-                                              backgroundColor: !_isFavoritesActive
-                                                  ? _primaryColor
-                                                  : _cardBgColor(context),
-                                              foregroundColor: !_isFavoritesActive
-                                                  ? _textColorOnPrimary
-                                                  : _textColorPrimary(context),
-                                              shape: RoundedRectangleBorder(
-                                                borderRadius:
-                                                BorderRadius.circular(12),
-                                                side: !_isFavoritesActive
-                                                    ? BorderSide.none
-                                                    : BorderSide(
-                                                    color: _primaryColor
-                                                        .withOpacity(0.3)),
-                                              ),
-                                              padding:
-                                              const EdgeInsets.symmetric(
-                                                  vertical: 12),
-                                              elevation:
-                                              !_isFavoritesActive ? 2 : 0,
-                                            ),
-                                            onPressed: () {
-                                              if (_isFavoritesActive) {
-                                                setState(() {
-                                                  _isFavoritesActive = false;
-                                                });
-                                              }
-                                            },
-                                            child: Text(
-                                              "My Plans",
-                                              style: _getTextStyle(
-                                                context,
-                                                fontSize: 13,
-                                                fontWeight: FontWeight.bold,
-                                                color: !_isFavoritesActive
-                                                    ? _textColorOnPrimary
-                                                    : _primaryColor,
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 16),
-                                    if (_isFavoritesActive)
-                                      FutureBuilder<
-                                          List<Map<String, dynamic>>>(
-                                        future:
-                                        _getFavoriteMealPlans(user.uid),
-                                        builder: (context, snapshot) {
-                                          if (snapshot.connectionState ==
-                                              ConnectionState.waiting) {
-                                            return const Center(
-                                              child: Padding(
-                                                padding: EdgeInsets.all(16.0),
-                                                child:
-                                                CircularProgressIndicator(
-                                                    color: _primaryColor),
-                                              ),
-                                            );
-                                          }
-
-                                          if (!snapshot.hasData ||
-                                              snapshot.data!.isEmpty) {
-                                            return Container(
-                                              height: 120,
-                                              alignment: Alignment.center,
-                                              child: Text(
-                                                "No favorite meal plans yet",
-                                                style: _getTextStyle(
-                                                  context,
-                                                  fontSize: 14,
-                                                  color: _textColorSecondary(
-                                                      context),
-                                                ),
-                                                textAlign: TextAlign.center,
-                                              ),
-                                            );
-                                          }
-
-                                          final mealPlans = snapshot.data!;
-
-                                          return Column(
-                                            children: mealPlans.map((plan) {
-                                              final dietitianId =
-                                                  plan['owner'] ?? '';
-
-                                              return FutureBuilder<bool>(
-                                                future:
-                                                _checkSubscriptionToDietitian(
-                                                    user.uid, dietitianId),
-                                                builder:
-                                                    (context, subSnapshot) {
-                                                  if (subSnapshot
-                                                      .connectionState ==
-                                                      ConnectionState.waiting) {
-                                                    return Container(
-                                                      height: 150,
-                                                      margin:
-                                                      const EdgeInsets.only(
-                                                          bottom: 16),
-                                                      decoration:
-                                                      BoxDecoration(
-                                                        color: _cardBgColor(
-                                                            context)
-                                                            .withOpacity(0.5),
-                                                        borderRadius:
-                                                        BorderRadius
-                                                            .circular(14),
-                                                      ),
-                                                    );
-                                                  }
-
-                                                  bool isSubscribed =
-                                                      subSnapshot.data ?? false;
-
-                                                  return _buildFavoritePlanCard(
-                                                    context,
-                                                    plan,
-                                                    isSubscribed,
-                                                  );
-                                                },
-                                              );
-                                            }).toList(),
-                                          );
-                                        },
-                                      )
-                                    else
-                                      Container(
-                                        height: 120,
-                                        alignment: Alignment.center,
-                                        child: Text(
-                                          "Your created meal plans will appear here",
-                                          style: _getTextStyle(
-                                            context,
-                                            fontSize: 14,
-                                            color: _textColorSecondary(context),
-                                          ),
-                                          textAlign: TextAlign.center,
                                         ),
                                       ),
-                                  ],
-                                ),
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        child: ElevatedButton(
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: !_isFavoritesActive
+                                                ? _primaryColor
+                                                : _cardBgColor(context),
+                                            foregroundColor: !_isFavoritesActive
+                                                ? _textColorOnPrimary
+                                                : _textColorPrimary(context),
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                              BorderRadius.circular(12),
+                                              side: !_isFavoritesActive
+                                                  ? BorderSide.none
+                                                  : BorderSide(
+                                                  color: _primaryColor
+                                                      .withOpacity(0.3)),
+                                            ),
+                                            padding:
+                                            const EdgeInsets.symmetric(
+                                                vertical: 12),
+                                            elevation:
+                                            !_isFavoritesActive ? 2 : 0,
+                                          ),
+                                          onPressed: () {
+                                            if (_isFavoritesActive) {
+                                              setState(() {
+                                                _isFavoritesActive = false;
+                                              });
+                                            }
+                                          },
+                                          child: Text(
+                                            "Followed Dietitian",
+                                            style: _getTextStyle(
+                                              context,
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.bold,
+                                              color: !_isFavoritesActive
+                                                  ? _textColorOnPrimary
+                                                  : _primaryColor,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 16),
+                                  if (_isFavoritesActive)
+                                    StreamBuilder<List<Map<String, dynamic>>>(
+                                      stream: _getFavoriteMealPlansStream(user.uid),
+                                      builder: (context, snapshot) {
+                                        if (snapshot.connectionState ==
+                                            ConnectionState.waiting) {
+                                          return const Center(
+                                            child: Padding(
+                                              padding: EdgeInsets.all(16.0),
+                                              child:
+                                              CircularProgressIndicator(
+                                                  color: _primaryColor),
+                                            ),
+                                          );
+                                        }
+
+                                        if (!snapshot.hasData ||
+                                            snapshot.data!.isEmpty) {
+                                          return Container(
+                                            height: 120,
+                                            alignment: Alignment.center,
+                                            child: Text(
+                                              "No favorite meal plans yet",
+                                              style: _getTextStyle(
+                                                context,
+                                                fontSize: 14,
+                                                color: _textColorSecondary(
+                                                    context),
+                                              ),
+                                              textAlign: TextAlign.center,
+                                            ),
+                                          );
+                                        }
+
+                                        final mealPlans = snapshot.data!;
+
+                                        return Column(
+                                          children: mealPlans.map((plan) {
+                                            final dietitianId =
+                                                plan['owner'] ?? '';
+
+                                            return FutureBuilder<bool>(
+                                              future:
+                                              _checkSubscriptionToDietitian(
+                                                  user.uid, dietitianId),
+                                              builder:
+                                                  (context, subSnapshot) {
+                                                if (subSnapshot
+                                                    .connectionState ==
+                                                    ConnectionState.waiting) {
+                                                  return Container(
+                                                    height: 150,
+                                                    margin:
+                                                    const EdgeInsets.only(
+                                                        bottom: 16),
+                                                    decoration:
+                                                    BoxDecoration(
+                                                      color: _cardBgColor(
+                                                          context)
+                                                          .withOpacity(0.5),
+                                                      borderRadius:
+                                                      BorderRadius
+                                                          .circular(14),
+                                                    ),
+                                                  );
+                                                }
+
+                                                bool isSubscribed =
+                                                    subSnapshot.data ?? false;
+
+                                                return _buildFavoritePlanCard(
+                                                  context,
+                                                  plan,
+                                                  isSubscribed,
+                                                );
+                                              },
+                                            );
+                                          }).toList(),
+                                        );
+                                      },
+                                    )
+                                  else
+                                    StreamBuilder<List<Map<String, dynamic>>>(
+                                      stream: _getFollowedDietitiansStream(user.uid),
+                                      builder: (context, snapshot) {
+                                        if (snapshot.connectionState == ConnectionState.waiting) {
+                                          return const Center(
+                                            child: Padding(
+                                              padding: EdgeInsets.all(16.0),
+                                              child: CircularProgressIndicator(color: _primaryColor),
+                                            ),
+                                          );
+                                        }
+
+                                        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                                          return Container(
+                                            height: 120,
+                                            alignment: Alignment.center,
+                                            child: Text(
+                                              "You haven't followed any dietitians yet",
+                                              style: _getTextStyle(
+                                                context,
+                                                fontSize: 14,
+                                                color: _textColorSecondary(context),
+                                              ),
+                                              textAlign: TextAlign.center,
+                                            ),
+                                          );
+                                        }
+
+                                        final dietitians = snapshot.data!;
+
+                                        return Column(
+                                          children: dietitians.map((dietitian) {
+                                            return _buildDietitianCard(context, dietitian);
+                                          }).toList(),
+                                        );
+                                      },
+                                    ),
+                                ],
                               ),
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 16),
-                    ],
+                    ),
+                    const SizedBox(height: 16),
                   ],
                 ),
               ),
@@ -1803,269 +1354,6 @@ class _UserProfileState extends State<UserProfile> {
           ),
         );
       },
-    );
-  }
-
-  Widget _buildViewHealthData(
-      Map<String, dynamic> data, double weight, double height) {
-    return Card(
-      elevation: 0,
-      color: _cardBgColor(context),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _InfoCard(
-                  icon: Icons.monitor_weight_outlined,
-                  label: "Weight",
-                  value: "${weight.toStringAsFixed(1)} kg",
-                  context: context,
-                ),
-                _InfoCard(
-                  icon: Icons.height_outlined,
-                  label: "Height",
-                  value: "${height.toStringAsFixed(1)} cm",
-                  context: context,
-                ),
-                _InfoCard(
-                  icon: Icons.flag_outlined,
-                  label: "Goal",
-                  value: data['goals'] ?? 'N/A',
-                  context: context,
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            _buildBMIStatusCard(data, context),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildEditHealthForm(BuildContext context) {
-    return Form(
-      key: _formKey,
-      child: Column(
-        children: [
-          _buildSectionContainer(
-            title: 'Personal Information',
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          "Weight (kg)",
-                          style: _getTextStyle(
-                            context,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: _textColorSecondary(context),
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        TextFormField(
-                          controller: _weightController,
-                          focusNode: _weightFocusNode,
-                          keyboardType: TextInputType.number,
-                          style: _getTextStyle(context, fontSize: 16),
-                          onChanged: (_) => _updateBMI(),
-                          decoration: InputDecoration(
-                            hintText: 'e.g., 70',
-                            hintStyle: _getTextStyle(
-                              context,
-                              fontSize: 14,
-                              color: _textColorSecondary(context),
-                            ),
-                            filled: true,
-                            fillColor: _scaffoldBgColor(context),
-                            prefixIcon: const Icon(
-                              Icons.monitor_weight_outlined,
-                              color: _primaryColor,
-                              size: 20,
-                            ),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide(color: Colors.grey.shade300),
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide(color: Colors.grey.shade300),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide:
-                              const BorderSide(color: _primaryColor, width: 2),
-                            ),
-                            contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 16, vertical: 14),
-                            isDense: true,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          "Height (cm)",
-                          style: _getTextStyle(
-                            context,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: _textColorSecondary(context),
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        TextFormField(
-                          controller: _heightController,
-                          focusNode: _heightFocusNode,
-                          keyboardType: TextInputType.number,
-                          style: _getTextStyle(context, fontSize: 16),
-                          onChanged: (_) => _updateBMI(),
-                          decoration: InputDecoration(
-                            hintText: 'e.g., 175',
-                            hintStyle: _getTextStyle(
-                              context,
-                              fontSize: 14,
-                              color: _textColorSecondary(context),
-                            ),
-                            filled: true,
-                            fillColor: _scaffoldBgColor(context),
-                            prefixIcon: const Icon(
-                              Icons.height_outlined,
-                              color: _primaryColor,
-                              size: 20,
-                            ),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide(color: Colors.grey.shade300),
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide(color: Colors.grey.shade300),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide:
-                              const BorderSide(color: _primaryColor, width: 2),
-                            ),
-                            contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 16, vertical: 14),
-                            isDense: true,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              _buildBMIDisplay(),
-            ],
-          ),
-          _buildSectionContainer(
-            title: 'Health Goals',
-            subtitle: 'What would you like to achieve?',
-            children: [
-              _buildSelectionList(
-                items: healthGoals,
-                selectedIndex: selectedHealthGoalIndex,
-                onSelected: (index) {
-                  setState(() => selectedHealthGoalIndex = index);
-                },
-              ),
-            ],
-          ),
-          _buildSectionContainer(
-            title: 'Activity & Lifestyle',
-            subtitle: 'How would you describe your activity level?',
-            children: [
-              _buildSelectionList(
-                items: activityLevels,
-                selectedIndex: selectedActivityLevelIndex,
-                onSelected: (index) {
-                  setState(() => selectedActivityLevelIndex = index);
-                },
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Expanded(
-                child: TextButton(
-                  style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                      side: BorderSide(color: Colors.grey.shade400),
-                    ),
-                  ),
-                  onPressed: _isSaving
-                      ? null
-                      : () => setState(() => _isEditing = false),
-                  child: Text(
-                    'CANCEL',
-                    style: _getTextStyle(
-                      context,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: _textColorSecondary(context),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _primaryColor,
-                    foregroundColor: _textColorOnPrimary,
-                    elevation: 4,
-                    shadowColor: _primaryColor.withOpacity(0.4),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                  ),
-                  onPressed: _isSaving ? null : _saveHealthData,
-                  child: _isSaving
-                      ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      color: Colors.white,
-                      strokeWidth: 2.5,
-                    ),
-                  )
-                      : Text(
-                    'SAVE',
-                    style: _getTextStyle(
-                      context,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: _textColorOnPrimary,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
     );
   }
 }
