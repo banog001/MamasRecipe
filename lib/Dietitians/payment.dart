@@ -64,32 +64,31 @@ class _PaymentPageState extends State<PaymentPage> {
         backgroundColor: _primaryColor,
         foregroundColor: Colors.white,
       ),
-      body: StreamBuilder<QuerySnapshot>(
+      body: StreamBuilder<DocumentSnapshot>(
         stream: FirebaseFirestore.instance
-            .collection('receipts')
-            .where('dietitianID', isEqualTo: currentUserId)
-            .orderBy('timeStamp', descending: true)
+            .collection('Users')
+            .doc(currentUserId)
             .snapshots(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
+        builder: (context, userSnapshot) {
+          if (userSnapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
 
-          if (snapshot.hasError) {
+          if (userSnapshot.hasError) {
             return Center(
-              child: Text('Error: ${snapshot.error}'),
+              child: Text('Error: ${userSnapshot.error}'),
             );
           }
 
-          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          if (!userSnapshot.hasData || !userSnapshot.data!.exists) {
             return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.receipt_long, size: 64, color: Colors.grey[400]),
+                  Icon(Icons.person_off, size: 64, color: Colors.grey[400]),
                   const SizedBox(height: 16),
                   Text(
-                    'No payment records found',
+                    'User data not found',
                     style: TextStyle(
                       fontFamily: _primaryFontFamily,
                       fontSize: 18,
@@ -101,103 +100,129 @@ class _PaymentPageState extends State<PaymentPage> {
             );
           }
 
-          final docs = snapshot.data!.docs;
-          final paymentData = _calculateCommissionOwed(docs);
+          final userData = userSnapshot.data!.data() as Map<String, dynamic>;
 
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Amount Owed Card
-                _buildAmountOwedCard(paymentData),
-                const SizedBox(height: 24),
+          return StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('receipts')
+                .where('dietitianID', isEqualTo: currentUserId)
+                .orderBy('timeStamp', descending: true)
+                .snapshots(),
+            builder: (context, receiptsSnapshot) {
+              // Get payment data with actual receipt counts
+              final paymentData = _getPaymentDataFromUser(
+                userData,
+                receiptsSnapshot.hasData ? receiptsSnapshot.data!.docs : [],
+              );
 
-                // Commission Breakdown
-                _buildCommissionBreakdown(paymentData),
-                const SizedBox(height: 24),
+              return SingleChildScrollView(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Amount Owed Card
+                    _buildAmountOwedCard(paymentData),
+                    const SizedBox(height: 24),
 
-                // Transaction List
-                Text(
-                  'Transaction History',
-                  style: TextStyle(
-                    fontFamily: _primaryFontFamily,
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
+                    // Commission Breakdown
+                    _buildCommissionBreakdown(paymentData),
+                    const SizedBox(height: 24),
+
+                    // Transaction List
+                    Text(
+                      'Transaction History',
+                      style: TextStyle(
+                        fontFamily: _primaryFontFamily,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    _buildTransactionList(
+                      receiptsSnapshot.hasData ? receiptsSnapshot.data!.docs : [],
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 12),
-                _buildTransactionList(docs),
-              ],
-            ),
+              );
+            },
           );
         },
       ),
     );
   }
 
-  Map<String, dynamic> _calculateCommissionOwed(List<QueryDocumentSnapshot> docs) {
-    double totalRevenue = 0.0;
-    double totalCommissionOwed = 0.0;
-    double dietitianEarnings = 0.0;
-    int totalTransactions = 0;
+  Map<String, dynamic> _getPaymentDataFromUser(
+      Map<String, dynamic> userData,
+      List<QueryDocumentSnapshot> receipts,
+      ) {
+    // Get data directly from Users collection
+    final totalRevenue = (userData['totalRevenue'] as num?)?.toDouble() ?? 0.0;
+    final totalCommission = (userData['totalCommission'] as num?)?.toDouble() ?? 0.0;
+    final overallEarnings = (userData['overallEarnings'] as num?)?.toDouble() ?? 0.0;
+    final weeklyCommission = (userData['weeklyCommission'] as num?)?.toDouble() ?? 0.0;
+    final monthlyCommission = (userData['monthlyCommission'] as num?)?.toDouble() ?? 0.0;
+    final yearlyCommission = (userData['yearlyCommission'] as num?)?.toDouble() ?? 0.0;
 
-    Map<String, int> planTypeCounts = {
-      'weekly': 0,
-      'monthly': 0,
-      'yearly': 0,
-    };
+    // Count actual transactions from receipts (only unpaid, approved/completed)
+    int weeklyCount = 0;
+    int monthlyCount = 0;
+    int yearlyCount = 0;
+    double weeklyRevenue = 0.0;
+    double monthlyRevenue = 0.0;
+    double yearlyRevenue = 0.0;
 
-    Map<String, double> planTypeRevenue = {
-      'weekly': 0.0,
-      'monthly': 0.0,
-      'yearly': 0.0,
-    };
-
-    Map<String, double> planTypeCommission = {
-      'weekly': 0.0,
-      'monthly': 0.0,
-      'yearly': 0.0,
-    };
-
-    for (var doc in docs) {
+    for (var doc in receipts) {
       final data = doc.data() as Map<String, dynamic>;
       final status = (data['status'] ?? '').toString().toLowerCase();
-      final commissionPaid = data['commissionPaid'] ?? false; // NEW: Check if commission paid
+      final commissionPaid = data['commissionPaid'] ?? false;
 
-      // Skip pending, declined, and already paid commissions
-      if (status == 'pending' || status == 'declined' || commissionPaid) {
-        continue;
-      }
+      // Only count unpaid, non-pending, non-declined receipts
+      if (!commissionPaid && status != 'pending' && status != 'declined') {
+        final planType = (data['planType'] ?? '').toString().toLowerCase();
+        final priceString = data['planPrice'] ?? '₱ 0.00';
+        final price = _parsePrice(priceString);
 
-      final planType = (data['planType'] ?? '').toString().toLowerCase();
-      final priceString = data['planPrice'] ?? '₱ 0.00';
-      final price = _parsePrice(priceString);
-
-      if (price > 0 && commissionRates.containsKey(planType)) {
-        final commissionRate = commissionRates[planType]!;
-        final commission = price * commissionRate;
-        final earnings = price - commission;
-
-        totalRevenue += price;
-        totalCommissionOwed += commission;
-        dietitianEarnings += earnings;
-        totalTransactions++;
-
-        planTypeCounts[planType] = (planTypeCounts[planType] ?? 0) + 1;
-        planTypeRevenue[planType] = (planTypeRevenue[planType] ?? 0.0) + price;
-        planTypeCommission[planType] = (planTypeCommission[planType] ?? 0.0) + commission;
+        switch (planType) {
+          case 'weekly':
+            weeklyCount++;
+            weeklyRevenue += price;
+            break;
+          case 'monthly':
+            monthlyCount++;
+            monthlyRevenue += price;
+            break;
+          case 'yearly':
+            yearlyCount++;
+            yearlyRevenue += price;
+            break;
+        }
       }
     }
 
+    // Calculate current earnings from unpaid transactions
+    final currentEarnings = totalRevenue - totalCommission;
+
     return {
       'totalRevenue': totalRevenue,
-      'totalCommissionOwed': totalCommissionOwed,
-      'dietitianEarnings': dietitianEarnings,
-      'totalTransactions': totalTransactions,
-      'planTypeCounts': planTypeCounts,
-      'planTypeRevenue': planTypeRevenue,
-      'planTypeCommission': planTypeCommission,
+      'totalCommissionOwed': totalCommission,
+      'dietitianEarnings': currentEarnings, // Current period earnings
+      'overallEarnings': overallEarnings, // Lifetime accumulated earnings
+      'totalTransactions': weeklyCount + monthlyCount + yearlyCount,
+      'planTypeCounts': {
+        'weekly': weeklyCount,
+        'monthly': monthlyCount,
+        'yearly': yearlyCount,
+      },
+      'planTypeRevenue': {
+        'weekly': weeklyRevenue,
+        'monthly': monthlyRevenue,
+        'yearly': yearlyRevenue,
+      },
+      'planTypeCommission': {
+        'weekly': weeklyCommission,
+        'monthly': monthlyCommission,
+        'yearly': yearlyCommission,
+      },
     };
   }
 
@@ -299,15 +324,11 @@ class _PaymentPageState extends State<PaymentPage> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
-                // onPressed: isPaymentPeriod
-                //     ? () => _showPaymentDialog(data['totalCommissionOwed'])
-                //     : null,
                 onPressed: () => _showPaymentDialog(data['totalCommissionOwed']),
                 icon: const Icon(Icons.account_balance_wallet, color: Colors.white),
-                label: Text(
-                  // isPaymentPeriod ? 'Pay Commission' : 'Payment Unavailable',
+                label: const Text(
                   'Pay Commission',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontFamily: _primaryFontFamily,
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
@@ -315,7 +336,6 @@ class _PaymentPageState extends State<PaymentPage> {
                   ),
                 ),
                 style: ElevatedButton.styleFrom(
-                  // backgroundColor: isPaymentPeriod ? Colors.red[700] : Colors.grey,
                   backgroundColor: Colors.red[700],
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(
@@ -324,20 +344,6 @@ class _PaymentPageState extends State<PaymentPage> {
                 ),
               ),
             ),
-            // if (!isPaymentPeriod)
-            //   Padding(
-            //     padding: const EdgeInsets.only(top: 8),
-            //     child: Text(
-            //       'Payment can only be made between the 1st and 5th of each month',
-            //       style: TextStyle(
-            //         fontFamily: _primaryFontFamily,
-            //         fontSize: 12,
-            //         color: Colors.red[700],
-            //         fontStyle: FontStyle.italic,
-            //       ),
-            //       textAlign: TextAlign.center,
-            //     ),
-            //   ),
             const SizedBox(height: 12),
             Text(
               'Total Transactions: ${data['totalTransactions']}',
@@ -658,14 +664,20 @@ class _PaymentPageState extends State<PaymentPage> {
       final dietitianName = '${dietitianData?['firstName'] ?? ''} ${dietitianData?['lastName'] ?? ''}'.trim();
       final dietitianEmail = dietitianData?['email'] ?? '';
 
-      // Get all unpaid receipts (receipts without commissionPaid field or commissionPaid = false)
+      // Get all unpaid receipts
       final receiptsSnapshot = await FirebaseFirestore.instance
           .collection('receipts')
           .where('dietitianID', isEqualTo: currentUserId)
           .get();
 
-      // Collect receipt IDs that are being paid for
+      // Collect receipt IDs and calculate commissions by plan type
       List<String> receiptIds = [];
+      double weeklyComm = 0.0;
+      double monthlyComm = 0.0;
+      double yearlyComm = 0.0;
+      double totalRevenue = 0.0;
+      double totalEarnings = 0.0;
+
       for (var doc in receiptsSnapshot.docs) {
         final data = doc.data();
         final status = (data['status'] ?? '').toString().toLowerCase();
@@ -674,36 +686,80 @@ class _PaymentPageState extends State<PaymentPage> {
         // Only include receipts that haven't been paid and are not pending/declined
         if (!commissionPaid && status != 'pending' && status != 'declined') {
           receiptIds.add(doc.id);
+
+          // Calculate commission by plan type
+          final planType = (data['planType'] ?? '').toString().toLowerCase();
+          final priceString = data['planPrice'] ?? '₱ 0.00';
+          final price = _parsePrice(priceString);
+
+          totalRevenue += price;
+
+          if (commissionRates.containsKey(planType)) {
+            final commission = price * commissionRates[planType]!;
+            final earnings = price - commission;
+
+            totalEarnings += earnings;
+
+            switch (planType) {
+              case 'weekly':
+                weeklyComm += commission;
+                break;
+              case 'monthly':
+                monthlyComm += commission;
+                break;
+              case 'yearly':
+                yearlyComm += commission;
+                break;
+            }
+          }
         }
       }
 
-      // Create commission payment record with receipt references
+      // Create commission payment record
       final paymentDoc = await FirebaseFirestore.instance.collection('commissionPayments').add({
         'dietitianID': currentUserId,
         'dietitianName': dietitianName,
         'dietitianEmail': dietitianEmail,
         'amount': amount,
+        'totalRevenue': totalRevenue,
+        'totalEarnings': totalEarnings,
         'receiptImageUrl': receiptUrl,
-        'status': 'pending', // pending, verified, rejected
+        'status': 'pending',
         'paymentDate': FieldValue.serverTimestamp(),
         'submittedAt': FieldValue.serverTimestamp(),
         'paymentMethod': 'GCash/PayMaya',
         'verifiedAt': null,
         'verifiedBy': null,
         'notes': '',
-        'receiptIds': receiptIds, // Store which receipts this payment covers
+        'receiptIds': receiptIds,
+        'weeklyCommission': weeklyComm,
+        'monthlyCommission': monthlyComm,
+        'yearlyCommission': yearlyComm,
       });
 
-      // Mark all receipts as having commission paid (pending verification)
+      // Mark all receipts as having commission paid
       final batch = FirebaseFirestore.instance.batch();
       for (String receiptId in receiptIds) {
         final receiptRef = FirebaseFirestore.instance.collection('receipts').doc(receiptId);
         batch.update(receiptRef, {
           'commissionPaid': true,
-          'commissionPaymentId': paymentDoc.id, // Reference to the payment record
+          'commissionPaymentId': paymentDoc.id,
           'commissionPaidAt': FieldValue.serverTimestamp(),
         });
       }
+
+      // RESET commission fields AND totalRevenue using SET with merge
+      // This ensures fields are created if they don't exist
+      final userRef = FirebaseFirestore.instance.collection('Users').doc(currentUserId);
+      batch.set(userRef, {
+        'totalCommission': 0,
+        'weeklyCommission': 0,
+        'monthlyCommission': 0,
+        'yearlyCommission': 0,
+        'totalRevenue': 0,
+        'totalEarnings': 0,
+      }, SetOptions(merge: true)); // IMPORTANT: merge: true
+
       await batch.commit();
 
       // Close loading dialog
@@ -713,13 +769,13 @@ class _PaymentPageState extends State<PaymentPage> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Payment submitted successfully! Commission has been marked as paid.'),
+          content: Text('Payment submitted successfully! Commission has been reset to ₱0.00'),
           backgroundColor: Colors.green,
           duration: Duration(seconds: 3),
         ),
       );
     } catch (e) {
-      Navigator.pop(context); // Close loading dialog
+      Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error submitting payment: $e'),
@@ -847,29 +903,6 @@ class _PaymentPageState extends State<PaymentPage> {
                   fontFamily: _primaryFontFamily,
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Your Earnings:',
-                style: TextStyle(
-                  fontFamily: _primaryFontFamily,
-                  fontSize: 14,
-                  color: Colors.grey[600],
-                ),
-              ),
-              Text(
-                '₱ ${earnings.toStringAsFixed(2)}',
-                style: const TextStyle(
-                  fontFamily: _primaryFontFamily,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.green,
                 ),
               ),
             ],

@@ -2614,7 +2614,7 @@ class _AdminHomeState extends State<AdminHome> {
                 final adminName = adminDoc.data()?['name'] ?? 'Admin';
 
                 // Get dietitian ID - try multiple possible field names
-                String? dietitianId = data['dietitianId'] as String?;
+                String? dietitianId = data['dietitianID'] as String?;
 
                 // If dietitianId is null, try to get it from dietitianEmail by querying Users
                 if (dietitianId == null || dietitianId.isEmpty) {
@@ -2649,7 +2649,23 @@ class _AdminHomeState extends State<AdminHome> {
                 final rejectionReason = notesController.text.trim();
                 final receiptIds = data['receiptIds'] as List<dynamic>? ?? [];
 
-                // Reset commission paid status on receipts
+                // Get backup values for restoration
+                final backupTotalRevenue = (data['backupTotalRevenue'] as num?)?.toDouble() ?? 0.0;
+                final backupTotalCommission = (data['backupTotalCommission'] as num?)?.toDouble() ?? 0.0;
+                final backupTotalEarnings = (data['backupTotalEarnings'] as num?)?.toDouble() ?? 0.0;
+                final backupWeeklyCommission = (data['backupWeeklyCommission'] as num?)?.toDouble() ?? 0.0;
+                final backupMonthlyCommission = (data['backupMonthlyCommission'] as num?)?.toDouble() ?? 0.0;
+                final backupYearlyCommission = (data['backupYearlyCommission'] as num?)?.toDouble() ?? 0.0;
+
+                // Get current overallEarnings to subtract the rejected payment earnings
+                final dietitianDoc = await FirebaseFirestore.instance
+                    .collection('Users')
+                    .doc(dietitianId)
+                    .get();
+                final currentOverallEarnings = (dietitianDoc.data()?['overallEarnings'] as num?)?.toDouble() ?? 0.0;
+                final rejectedEarnings = backupTotalRevenue - backupTotalCommission;
+
+                // Reset commission paid status on receipts and restore backup values
                 final batch = FirebaseFirestore.instance.batch();
 
                 for (var receiptId in receiptIds) {
@@ -2673,6 +2689,19 @@ class _AdminHomeState extends State<AdminHome> {
                   'verifiedBy': adminId,
                   'notes': rejectionReason,
                 });
+
+                // RESTORE backup values to Users collection
+                final userRef = FirebaseFirestore.instance
+                    .collection('Users')
+                    .doc(dietitianId);
+                batch.set(userRef, {
+                  'totalRevenue': backupTotalRevenue,
+                  'totalCommission': backupTotalCommission,
+                  'totalEarnings': backupTotalEarnings,
+                  'weeklyCommission': backupWeeklyCommission,
+                  'monthlyCommission': backupMonthlyCommission,
+                  'yearlyCommission': backupYearlyCommission,
+                }, SetOptions(merge: true));
 
                 // Add notification to dietitian's subcollection
                 final notificationRef = FirebaseFirestore.instance
@@ -2714,7 +2743,7 @@ class _AdminHomeState extends State<AdminHome> {
                 Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                    content: Text('Payment rejected. Notification sent to dietitian.'),
+                    content: Text('Payment rejected. Values restored to dietitian account.'),
                     backgroundColor: Colors.orange,
                   ),
                 );
