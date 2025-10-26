@@ -2608,15 +2608,44 @@ class _AdminHomeState extends State<AdminHome> {
               try {
                 final adminId = FirebaseAuth.instance.currentUser!.uid;
                 final adminDoc = await FirebaseFirestore.instance
-                    .collection('users')
+                    .collection('Users')
                     .doc(adminId)
                     .get();
                 final adminName = adminDoc.data()?['name'] ?? 'Admin';
 
-                final dietitianId = data['dietitianId'] as String;
-                final dietitianEmail = data['dietitianEmail'] as String;
-                final dietitianName = data['dietitianName'] as String;
-                final amount = data['amount'] as double;
+                // Get dietitian ID - try multiple possible field names
+                String? dietitianId = data['dietitianId'] as String?;
+
+                // If dietitianId is null, try to get it from dietitianEmail by querying Users
+                if (dietitianId == null || dietitianId.isEmpty) {
+                  final dietitianEmail = data['dietitianEmail'] as String?;
+                  if (dietitianEmail != null && dietitianEmail.isNotEmpty) {
+                    final dietitianQuery = await FirebaseFirestore.instance
+                        .collection('Users')
+                        .where('email', isEqualTo: dietitianEmail)
+                        .limit(1)
+                        .get();
+
+                    if (dietitianQuery.docs.isNotEmpty) {
+                      dietitianId = dietitianQuery.docs.first.id;
+                    }
+                  }
+                }
+
+                // If still no dietitianId, show error
+                if (dietitianId == null || dietitianId.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Error: Could not find dietitian ID'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                  return;
+                }
+
+                final dietitianEmail = data['dietitianEmail'] as String? ?? '';
+                final dietitianName = data['dietitianName'] as String? ?? 'Unknown';
+                final amount = (data['amount'] as num?)?.toDouble() ?? 0.0;
                 final rejectionReason = notesController.text.trim();
                 final receiptIds = data['receiptIds'] as List<dynamic>? ?? [];
 
@@ -2647,7 +2676,7 @@ class _AdminHomeState extends State<AdminHome> {
 
                 // Add notification to dietitian's subcollection
                 final notificationRef = FirebaseFirestore.instance
-                    .collection('users')
+                    .collection('Users')
                     .doc(dietitianId)
                     .collection('notifications')
                     .doc();
@@ -2666,23 +2695,31 @@ class _AdminHomeState extends State<AdminHome> {
 
                 await batch.commit();
 
-                // Send email notification
-                await rejectPayment.sendPaymentRejectionEmail(
-                  dietitianEmail: dietitianEmail,
-                  dietitianName: dietitianName,
-                  amount: amount,
-                  rejectionReason: rejectionReason,
-                  adminName: adminName,
-                );
+                // Send email notification (only if email exists)
+                if (dietitianEmail.isNotEmpty) {
+                  try {
+                    await rejectPayment.sendPaymentRejectionEmail(
+                      dietitianEmail: dietitianEmail,
+                      dietitianName: dietitianName,
+                      amount: amount,
+                      rejectionReason: rejectionReason,
+                      adminName: adminName,
+                    );
+                  } catch (emailError) {
+                    print('Email sending failed: $emailError');
+                    // Continue even if email fails
+                  }
+                }
 
                 Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                    content: Text('Payment rejected. Notification and email sent to dietitian.'),
+                    content: Text('Payment rejected. Notification sent to dietitian.'),
                     backgroundColor: Colors.orange,
                   ),
                 );
               } catch (e) {
+                print('Error rejecting payment: $e');
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text('Error: $e'),
@@ -7811,7 +7848,6 @@ class _AdminHomeState extends State<AdminHome> {
     int approvedCount = 0;
     int canceledCount = 0;
     int expiredCount = 0;
-    final now = DateTime.now();
 
     try {
       // Get all users
@@ -7820,12 +7856,7 @@ class _AdminHomeState extends State<AdminHome> {
           .where('role', whereIn: ['user', 'dietitian'])
           .get();
 
-      // Track unique users for each category
-      Set<String> activeUsers = {};
-      Set<String> cancelledUsers = {};
-      Set<String> expiredUsers = {};
-
-      // 1. Check subscribeTo subcollection for ACTIVE subscriptions
+      // 1. Count APPROVED and EXPIRED from subscribeTo subcollection only
       for (var userDoc in usersSnapshot.docs) {
         final subscribeToSnapshot = await FirebaseFirestore.instance
             .collection('Users')
@@ -7836,36 +7867,22 @@ class _AdminHomeState extends State<AdminHome> {
         for (var subDoc in subscribeToSnapshot.docs) {
           final data = subDoc.data();
           final status = data['status'] as String?;
-          final endDate = (data['expirationDate'] as Timestamp?)?.toDate();
 
-          // Check if subscription is active (approved and not expired)
-          if (status == 'approved' && endDate != null && endDate.isAfter(now)) {
-            activeUsers.add(userDoc.id);
-          }
-          // Check if subscription is expired
-          else if (endDate != null && endDate.isBefore(now)) {
-            expiredUsers.add(userDoc.id);
+          if (status == 'approved') {
+            approvedCount++;
+          } else if (status == 'expired') {
+            expiredCount++;
           }
         }
       }
 
-      // 2. Check receipts collection for CANCELLED subscriptions
+      // 2. Count CANCELLED from receipts collection
       final receiptsSnapshot = await FirebaseFirestore.instance
           .collection('receipts')
           .where('status', isEqualTo: 'cancelled')
           .get();
 
-      for (var receipt in receiptsSnapshot.docs) {
-        final userId = receipt['clientID'] as String?;
-        if (userId != null) {
-          cancelledUsers.add(userId);
-        }
-      }
-
-      // Count unique users
-      approvedCount = activeUsers.length;
-      canceledCount = cancelledUsers.length;
-      expiredCount = expiredUsers.length;
+      canceledCount = receiptsSnapshot.docs.length;
 
     } catch (e) {
       print("❌ Error fetching subscription stats: $e");
@@ -8637,6 +8654,8 @@ class _AdminHomeState extends State<AdminHome> {
 
   // Updated helper methods to exclude 'pending' and 'declined' status receipts
 
+  // Updated helper methods to only count UNPAID commissions
+
   Future<Map<String, dynamic>> _calculateTotalRevenueFromReceipts(
       List<QueryDocumentSnapshot> dietitians,
       ) async {
@@ -8647,21 +8666,16 @@ class _AdminHomeState extends State<AdminHome> {
     for (var dietitianDoc in dietitians) {
       final dietitianId = dietitianDoc.id;
 
-      // Get ALL receipts for this dietitian
+      // Get UNPAID receipts only (exclude pending and declined)
       final receipts = await FirebaseFirestore.instance
           .collection('receipts')
           .where('dietitianID', isEqualTo: dietitianId)
+          .where('status', whereNotIn: ['pending', 'declined'])
+          .where('commissionPaid', isEqualTo: false)
           .get();
 
       for (var receipt in receipts.docs) {
         final data = receipt.data();
-        final status = (data['status'] as String?)?.toLowerCase() ?? '';
-
-        // Skip if status is pending or declined
-        if (status == 'pending' || status == 'declined') {
-          continue;
-        }
-
         totalReceipts++;
 
         final planType = (data['planType'] as String?)?.toLowerCase() ?? '';
@@ -8695,18 +8709,11 @@ class _AdminHomeState extends State<AdminHome> {
     final snapshot = await FirebaseFirestore.instance
         .collection('receipts')
         .where('dietitianID', isEqualTo: dietitianId)
+        .where('status', whereNotIn: ['pending', 'declined'])
+        .where('commissionPaid', isEqualTo: false)
         .get();
 
-    // Filter out pending and declined
-    int count = 0;
-    for (var doc in snapshot.docs) {
-      final status = (doc.data()['status'] as String?)?.toLowerCase() ?? '';
-      if (status != 'pending' && status != 'declined') {
-        count++;
-      }
-    }
-
-    return count;
+    return snapshot.docs.length;
   }
 
   Future<int> _getReceiptCountByType(
@@ -8717,27 +8724,22 @@ class _AdminHomeState extends State<AdminHome> {
         .collection('receipts')
         .where('dietitianID', isEqualTo: dietitianId)
         .where('planType', isEqualTo: planType)
+        .where('status', whereNotIn: ['pending', 'declined'])
+        .where('commissionPaid', isEqualTo: false)
         .get();
 
-    // Filter out pending and declined
-    int count = 0;
-    for (var doc in snapshot.docs) {
-      final status = (doc.data()['status'] as String?)?.toLowerCase() ?? '';
-      if (status != 'pending' && status != 'declined') {
-        count++;
-      }
-    }
-
-    return count;
+    return snapshot.docs.length;
   }
 
   Future<Map<String, double>> _getDietitianRevenueAndCommissionFromReceipts(
       String dietitianId,
       ) async {
-    // Get ALL receipts for this dietitian
+    // Get UNPAID receipts only (exclude pending and declined)
     final snapshot = await FirebaseFirestore.instance
         .collection('receipts')
         .where('dietitianID', isEqualTo: dietitianId)
+        .where('status', whereNotIn: ['pending', 'declined'])
+        .where('commissionPaid', isEqualTo: false)
         .get();
 
     double totalRevenue = 0;
@@ -8745,13 +8747,6 @@ class _AdminHomeState extends State<AdminHome> {
 
     for (var doc in snapshot.docs) {
       final data = doc.data();
-      final status = (data['status'] as String?)?.toLowerCase() ?? '';
-
-      // Skip if status is pending or declined
-      if (status == 'pending' || status == 'declined') {
-        continue;
-      }
-
       final planType = (data['planType'] as String?)?.toLowerCase() ?? '';
       final priceStr = data['planPrice'] as String? ?? '₱ 0.00';
       final price = _parsePriceString(priceStr);

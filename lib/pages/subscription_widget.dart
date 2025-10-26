@@ -474,9 +474,23 @@ class _MySubscriptionsPageState extends State<MySubscriptionsPage> {
   }
 
   Future<void> _cancelSubscription(String subscriptionId, String dietitianId) async {
-    // ... (Your existing logic is correct)
     try {
-      // Update both sides atomically
+      // Get the subscription document to retrieve receiptId
+      final subscribeToDoc = await FirebaseFirestore.instance
+          .collection('Users')
+          .doc(widget.userId)
+          .collection('subscribeTo')
+          .doc(subscriptionId)
+          .get();
+
+      if (!subscribeToDoc.exists) {
+        throw Exception('Subscription not found');
+      }
+
+      final subscriptionData = subscribeToDoc.data() as Map<String, dynamic>;
+      final receiptId = subscriptionData['receiptId'] as String?;
+
+      // Prepare references for transaction
       final userRef = FirebaseFirestore.instance
           .collection('Users')
           .doc(widget.userId)
@@ -489,9 +503,24 @@ class _MySubscriptionsPageState extends State<MySubscriptionsPage> {
           .collection('subscriber')
           .doc(widget.userId);
 
+      // Update both subscription documents and receipt atomically
       await FirebaseFirestore.instance.runTransaction((transaction) async {
+        // Update user's subscribeTo subcollection
         transaction.update(userRef, {'status': 'cancelled'});
+
+        // Update dietitian's subscriber subcollection
         transaction.update(dietitianRef, {'status': 'cancelled'});
+
+        // Update receipt if receiptId exists
+        if (receiptId != null && receiptId.isNotEmpty) {
+          final receiptRef = FirebaseFirestore.instance
+              .collection('receipts')
+              .doc(receiptId);
+          transaction.update(receiptRef, {
+            'status': 'cancelled',
+            'cancelledAt': FieldValue.serverTimestamp(),
+          });
+        }
       });
 
       if (mounted) {
@@ -504,7 +533,7 @@ class _MySubscriptionsPageState extends State<MySubscriptionsPage> {
       }
     } catch (e) {
       if (mounted) {
-        print('$e');
+        print('Error cancelling subscription: $e');
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Failed to cancel: $e'),

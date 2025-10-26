@@ -1872,8 +1872,10 @@ class _SubscriptionRequestsState extends State<SubscriptionRequests> {
       final clientRef = usersRef.doc(clientId);
       final dietitianRef = usersRef.doc(dietitianId);
 
+
       await dietitianRef.collection("subscriber").doc(clientId).set({
         "userId": clientId,
+        "receiptId": receiptId,  // ← Added this line
         "planType": planType,
         "price": planPrice,
         "status": "approved",
@@ -1883,6 +1885,7 @@ class _SubscriptionRequestsState extends State<SubscriptionRequests> {
 
       await clientRef.collection("subscribeTo").doc(dietitianId).set({
         "dietitianId": dietitianId,
+        "receiptId": receiptId,  // ← Added this line
         "planType": planType,
         "price": planPrice,
         "status": "approved",

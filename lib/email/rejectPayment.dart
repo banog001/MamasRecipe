@@ -1,13 +1,21 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:mailer/mailer.dart';
 import 'package:mailer/smtp_server.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 class rejectPayment {
-  // Configure your SMTP settings here
-  static const String _smtpHost = 'smtp.gmail.com'; // Change to your SMTP host
+  // SMTP settings for mobile/desktop
+  static const String _smtpHost = 'smtp.gmail.com';
   static const int _smtpPort = 587;
-  static const String _senderEmail = 'mamas.recipe0@gmail.com'; // Your email
-  static const String _senderPassword = 'gbsk ioml dham zgme'; // Your app password
+  static const String _senderEmail = 'mamas.recipe0@gmail.com';
+  static const String _senderPassword = 'gbsk ioml dham zgme';
   static const String _senderName = "Mama's Recipe Admin";
+
+  // EmailJS settings for web
+  static const String _emailJsServiceId = 'YOUR_SERVICE_ID';
+  static const String _emailJsTemplateId = 'YOUR_TEMPLATE_ID';
+  static const String _emailJsUserId = 'YOUR_USER_ID';
 
   static Future<void> sendPaymentRejectionEmail({
     required String dietitianEmail,
@@ -17,35 +25,103 @@ class rejectPayment {
     required String adminName,
   }) async {
     try {
-      // Configure SMTP server
-      final smtpServer = SmtpServer(
-        _smtpHost,
-        port: _smtpPort,
-        username: _senderEmail,
-        password: _senderPassword,
-        ignoreBadCertificate: false,
-        ssl: false,
-        allowInsecure: true,
-      );
-
-      // Create the email message
-      final message = Message()
-        ..from = Address(_senderEmail, _senderName)
-        ..recipients.add(dietitianEmail)
-        ..subject = 'Payment Rejected - Commission Payment'
-        ..html = _buildEmailHtml(
+      if (kIsWeb) {
+        // Use EmailJS for web
+        await _sendViaEmailJS(
+          dietitianEmail: dietitianEmail,
           dietitianName: dietitianName,
           amount: amount,
           rejectionReason: rejectionReason,
           adminName: adminName,
         );
-
-      // Send the email
-      final sendReport = await send(message, smtpServer);
-      print('Email sent: ${sendReport.toString()}');
+      } else {
+        // Use SMTP for mobile/desktop
+        await _sendViaSMTP(
+          dietitianEmail: dietitianEmail,
+          dietitianName: dietitianName,
+          amount: amount,
+          rejectionReason: rejectionReason,
+          adminName: adminName,
+        );
+      }
     } catch (e) {
       print('Error sending email: $e');
       rethrow;
+    }
+  }
+
+  static Future<void> _sendViaSMTP({
+    required String dietitianEmail,
+    required String dietitianName,
+    required double amount,
+    required String rejectionReason,
+    required String adminName,
+  }) async {
+    final smtpServer = SmtpServer(
+      _smtpHost,
+      port: _smtpPort,
+      username: _senderEmail,
+      password: _senderPassword,
+      ignoreBadCertificate: false,
+      ssl: false,
+      allowInsecure: true,
+    );
+
+    final message = Message()
+      ..from = Address(_senderEmail, _senderName)
+      ..recipients.add(dietitianEmail)
+      ..subject = 'Payment Rejected - Commission Payment'
+      ..html = _buildEmailHtml(
+        dietitianName: dietitianName,
+        amount: amount,
+        rejectionReason: rejectionReason,
+        adminName: adminName,
+      );
+
+    final sendReport = await send(message, smtpServer);
+    print('Email sent via SMTP: ${sendReport.toString()}');
+  }
+
+  static Future<void> _sendViaEmailJS({
+    required String dietitianEmail,
+    required String dietitianName,
+    required double amount,
+    required String rejectionReason,
+    required String adminName,
+  }) async {
+    final url = Uri.parse('https://api.emailjs.com/api/v1.0/email/send');
+
+    final response = await http.post(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'origin': 'http://localhost',
+      },
+      body: json.encode({
+        'service_id': _emailJsServiceId,
+        'template_id': _emailJsTemplateId,
+        'user_id': _emailJsUserId,
+        'template_params': {
+          'to_email': dietitianEmail,
+          'to_name': dietitianName,
+          'from_name': _senderName,
+          'admin_name': adminName,
+          'amount': amount.toStringAsFixed(2),
+          'rejection_reason': rejectionReason,
+          'email_body': _buildEmailHtml(
+            dietitianName: dietitianName,
+            amount: amount,
+            rejectionReason: rejectionReason,
+            adminName: adminName,
+          ),
+        },
+      }),
+    );
+
+    if (response.statusCode == 200) {
+      print('Email sent via EmailJS successfully');
+    } else {
+      throw Exception('Failed to send email via EmailJS: ${response.body}');
     }
   }
 
@@ -68,25 +144,19 @@ class rejectPayment {
         <tr>
             <td align="center">
                 <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-                    <!-- Header -->
                     <tr>
                         <td style="background-color: #dc3545; padding: 30px; text-align: center;">
                             <h1 style="margin: 0; color: #ffffff; font-size: 24px;">Payment Rejected</h1>
                         </td>
                     </tr>
-                    
-                    <!-- Content -->
                     <tr>
                         <td style="padding: 40px 30px;">
                             <p style="margin: 0 0 20px 0; color: #333333; font-size: 16px; line-height: 1.6;">
                                 Dear <strong>$dietitianName</strong>,
                             </p>
-                            
                             <p style="margin: 0 0 20px 0; color: #333333; font-size: 16px; line-height: 1.6;">
                                 We regret to inform you that your commission payment submission has been rejected.
                             </p>
-                            
-                            <!-- Payment Details Box -->
                             <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f8f9fa; border-radius: 8px; margin: 20px 0;">
                                 <tr>
                                     <td style="padding: 20px;">
@@ -96,7 +166,6 @@ class rejectPayment {
                                         <p style="margin: 0 0 20px 0; color: #dc3545; font-size: 24px; font-weight: bold;">
                                             ₱${amount.toStringAsFixed(2)}
                                         </p>
-                                        
                                         <p style="margin: 0 0 10px 0; color: #666666; font-size: 14px;">
                                             <strong>Reason for Rejection:</strong>
                                         </p>
@@ -106,7 +175,6 @@ class rejectPayment {
                                     </td>
                                 </tr>
                             </table>
-                            
                             <p style="margin: 20px 0; color: #333333; font-size: 16px; line-height: 1.6;">
                                 <strong>Next Steps:</strong>
                             </p>
@@ -116,14 +184,11 @@ class rejectPayment {
                                 <li>Submit a new payment with the corrected information</li>
                                 <li>Contact support if you have any questions</li>
                             </ul>
-                            
                             <p style="margin: 20px 0 0 0; color: #666666; font-size: 14px; line-height: 1.6;">
                                 If you believe this rejection was made in error or have any questions, please contact our support team.
                             </p>
                         </td>
                     </tr>
-                    
-                    <!-- Footer -->
                     <tr>
                         <td style="background-color: #f8f9fa; padding: 20px 30px; border-top: 1px solid #e9ecef;">
                             <p style="margin: 0 0 10px 0; color: #666666; font-size: 12px; line-height: 1.5;">
