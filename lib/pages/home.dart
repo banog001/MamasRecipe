@@ -50,7 +50,7 @@ TextStyle _getTextStyle(
       Color? color,
       String fontFamily = _primaryFontFamily,
       double? letterSpacing,
-      FontStyle? fontStyle,
+      FontStyle? fontStyle, required double height,
     }) {
   return TextStyle(
     fontSize: fontSize,
@@ -109,7 +109,127 @@ class home extends StatefulWidget {
 }
 
 
+/// Show full description in a modal dialog
+void _showFullDescription(BuildContext context, String description, String planType) {
+  showDialog(
+    context: context,
+    builder: (BuildContext context) {
+      return Dialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 500),
+          decoration: BoxDecoration(
+            color: _cardBgColor(context),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Header
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: _primaryColor.withOpacity(0.1),
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(20),
+                    topRight: Radius.circular(20),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: _primaryColor.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(
+                        Icons.description_outlined,
+                        color: _primaryColor,
+                        size: 24,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            "Plan Details",
+                            style: _getTextStyle(
+                              context,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              height: 1.5,
+                            ),
+                          ),
+                          Text(
+                            planType,
+                            style: _getTextStyle(
+                              context,
+                              fontSize: 12,
+                              color: _primaryColor,
+                              height: 1.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
 
+              // Content
+              SingleChildScrollView(
+                padding: const EdgeInsets.all(20),
+                child: Text(
+                  description,
+                  style: _getTextStyle(
+                    context,
+                    fontSize: 14,
+                    color: _textColorPrimary(context),
+                    height: 1.6,
+                  ),
+                ),
+              ),
+
+              // Close button
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.pop(context),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _primaryColor,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: Text(
+                      'Got it!',
+                      style: _getTextStyle(
+                        context,
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                        height: 1.5,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    },
+  );
+}
 
 Future<Map<String, dynamic>?> getCurrentUserData() async {
   final currentUser = FirebaseAuth.instance.currentUser;
@@ -226,7 +346,7 @@ class _HomeState extends State<home> {
           Expanded(
             child: Text(
               text,
-              style: _getTextStyle(context, fontSize: 13), // Ensure context is available
+              style: _getTextStyle(context, fontSize: 13, height: 1.5), // Ensure context is available
             ),
           ),
         ],
@@ -281,7 +401,7 @@ class _HomeState extends State<home> {
                             fontWeight: FontWeight.w600,
                             color: isLocked
                                 ? Colors.grey.shade600
-                                : _primaryColor),
+                                : _primaryColor, height: 1.5),
                       ),
                     ),
                     if (time != null && time.isNotEmpty && !isLocked)
@@ -303,7 +423,7 @@ class _HomeState extends State<home> {
                               style: _getTextStyle(context,
                                   fontSize: 10,
                                   fontWeight: FontWeight.w600,
-                                  color: _primaryColor),
+                                  color: _primaryColor, height: 1.5),
                             ),
                           ],
                         ),
@@ -320,7 +440,7 @@ class _HomeState extends State<home> {
                           fontWeight: FontWeight.w500,
                           color: isLocked
                               ? Colors.grey.shade500
-                              : _getTextStyle(context, fontSize: 13).color),
+                              : _getTextStyle(context, fontSize: 13, height: 1.5).color, height: 1.5),
                     ),
                   ),
               ],
@@ -416,13 +536,13 @@ class _HomeState extends State<home> {
                   _searchQuery = value.toLowerCase();
                 });
               },
-              style: _getTextStyle(context, fontSize: 15),
+              style: _getTextStyle(context, fontSize: 15, height: 1.5),
               decoration: InputDecoration(
                 hintText: _getSearchHint(),
                 hintStyle: _getTextStyle(
                   context,
                   fontSize: 14,
-                  color: _textColorSecondary(context),
+                  color: _textColorSecondary(context), height: 1.5,
                 ),
                 prefixIcon: Icon(
                   Icons.search,
@@ -457,6 +577,7 @@ class _HomeState extends State<home> {
       ],
     );
   }
+
 
   String _getSearchHint() {
     switch (_searchFilter) {
@@ -507,7 +628,7 @@ class _HomeState extends State<home> {
                       context,
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
-                      color: isSelected ? Colors.white : _primaryColor,
+                      color: isSelected ? Colors.white : _primaryColor, height: 1.5,
                     ),
                   ),
                 ],
@@ -573,22 +694,35 @@ class _HomeState extends State<home> {
       return const Center(child: Text("User not logged in"));
     }
 
-    // Weight configuration for scoring formula
-    const double w1 = 1.0;  // weight for likes
-    const double w2 = 1.5;  // weight for calendar adds (can adjust importance)
-    const double alpha = 1.0; // time decay factor
+    const double w1 = 1.0;
+    const double w2 = 1.5;
+    const double alpha = 1.0;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-          child: Text(
-            "Recommendations ✨",
-            style: _sectionTitleStyle(context).copyWith(
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-            ),
+          padding: const EdgeInsets.fromLTRB(16, 20, 16, 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                "Trending Now ✨",
+                style: _sectionTitleStyle(context).copyWith(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                "Discover popular meal plans from the community",
+                style: _getTextStyle(
+                  context,
+                  fontSize: 13,
+                  color: _textColorSecondary(context), height: 1.5,
+                ),
+              ),
+            ],
           ),
         ),
         SizedBox(
@@ -620,20 +754,28 @@ class _HomeState extends State<home> {
                   }
 
                   if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                    return const Center(
-                      child: Text(
-                        "There's no meal plan recommendation.",
-                        style: TextStyle(fontSize: 16),
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.restaurant_menu,
+                              size: 48,
+                              color: _primaryColor.withOpacity(0.3)),
+                          const SizedBox(height: 12),
+                          Text(
+                            "No trending plans yet",
+                            style: _getTextStyle(context, fontSize: 16, height: 1.5),
+                          ),
+                        ],
                       ),
                     );
                   }
 
-                  // Filter valid meal plans
                   var docs = snapshot.data!.docs.where((doc) {
                     var data = doc.data() as Map<String, dynamic>?;
-
                     if (data == null) return false;
-                    if ((data["owner"] ?? "").toString().trim().isEmpty) return false;
+                    if ((data["owner"] ?? "").toString().trim().isEmpty)
+                      return false;
 
                     bool allMealsEmpty = [
                       data["breakfast"],
@@ -648,11 +790,9 @@ class _HomeState extends State<home> {
                         meal.toString().toLowerCase() == "null");
 
                     if (allMealsEmpty) return false;
-
                     return (data["planType"] ?? "").toString().trim().isNotEmpty;
                   }).toList();
 
-                  // Apply search filtering
                   if (_searchQuery.isNotEmpty) {
                     docs = docs.where((doc) {
                       var data = doc.data() as Map<String, dynamic>;
@@ -673,15 +813,23 @@ class _HomeState extends State<home> {
                   }
 
                   if (docs.isEmpty) {
-                    return const Center(
-                      child: Text(
-                        "There's no meal plan recommendation.",
-                        style: TextStyle(fontSize: 16),
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.search_off,
+                              size: 48,
+                              color: _primaryColor.withOpacity(0.3)),
+                          const SizedBox(height: 12),
+                          Text(
+                            "No results found",
+                            style: _getTextStyle(context, fontSize: 16, height: 1.5),
+                          ),
+                        ],
                       ),
                     );
                   }
 
-                  // Compute scores based on collaborative filtering formula
                   List<Map<String, dynamic>> scoredPlans = docs.map((doc) {
                     var data = doc.data() as Map<String, dynamic>;
 
@@ -692,7 +840,8 @@ class _HomeState extends State<home> {
                     if (data["timestamp"] is Timestamp) {
                       publishedDate = (data["timestamp"] as Timestamp).toDate();
                     } else if (data["timestamp"] is String) {
-                      publishedDate = DateTime.tryParse(data["timestamp"]) ?? DateTime.now();
+                      publishedDate =
+                          DateTime.tryParse(data["timestamp"]) ?? DateTime.now();
                     } else {
                       publishedDate = DateTime.now();
                     }
@@ -701,7 +850,6 @@ class _HomeState extends State<home> {
                         DateTime.now().difference(publishedDate).inDays;
                     if (daysSincePublished <= 0) daysSincePublished = 1;
 
-                    // Apply formula
                     double finalScore =
                         ((w1 * likes) + (w2 * calendarAdds)) /
                             (alpha * daysSincePublished);
@@ -711,14 +859,10 @@ class _HomeState extends State<home> {
 
                   if (scoredPlans.isEmpty) {
                     return const Center(
-                      child: Text(
-                        "There's no meal plan recommendation.",
-                        style: TextStyle(fontSize: 16),
-                      ),
+                      child: Text("No trending plans available"),
                     );
                   }
 
-                  // Sort by highest score and limit to 5
                   scoredPlans.sort((a, b) =>
                       (b["score"] as double).compareTo(a["score"] as double));
                   if (scoredPlans.length > 5) {
@@ -727,7 +871,8 @@ class _HomeState extends State<home> {
 
                   return ListView.builder(
                     scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     itemCount: scoredPlans.length,
                     itemBuilder: (context, index) {
                       final plan = scoredPlans[index];
@@ -755,16 +900,1000 @@ class _HomeState extends State<home> {
   }
 
 
-// --- REPLACE _buildRecommendationCard with this ---
+// REPLACE _buildMealPlanListItem with this improved version
+// This transforms your existing design to Option 5+4 hybrid with expandable functionality
+
+  Widget _buildMealPlanListItem(
+      BuildContext context,
+      DocumentSnapshot doc,
+      Map<String, dynamic> data,
+      String ownerId,
+      String currentUserId,
+      ) {
+    // Check subscription status dynamically
+    return StreamBuilder<DocumentSnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('Users')
+          .doc(currentUserId)
+          .collection('subscribeTo')
+          .doc(ownerId)
+          .snapshots(),
+      builder: (context, subscribeSnapshot) {
+        bool isSubscribed = false;
+        if (subscribeSnapshot.hasData &&
+            subscribeSnapshot.data != null &&
+            subscribeSnapshot.data!.exists) {
+          final subData =
+          subscribeSnapshot.data!.data() as Map<String, dynamic>;
+          if (subData['status'] == 'approved') {
+            isSubscribed = true;
+          }
+        }
+
+        return _buildExpandableMealPlanCard(
+          context,
+          doc,
+          data,
+          ownerId,
+          currentUserId,
+          isSubscribed,
+        );
+      },
+    );
+  }
+
+// REPLACE the _buildExpandableMealPlanCard method in your home.dart with this updated version
+
+
+// REPLACE the _buildExpandableMealPlanCard method in your home.dart with this updated version
+
+  Widget _buildExpandableMealPlanCard(
+      BuildContext context,
+      DocumentSnapshot doc,
+      Map<String, dynamic> data,
+      String ownerId,
+      String currentUserId,
+      bool isSubscribed) {
+    return StatefulBuilder(
+      builder: (context, setState) {
+        bool isExpanded = false;
+
+        return StatefulBuilder(
+          builder: (context, setLocalState) {
+            return Card(
+              elevation: 2,
+              margin: const EdgeInsets.symmetric(vertical: 8),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              color: _cardBgColor(context),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // HEADER SECTION - Always visible, clickable to expand
+                  InkWell(
+                    onTap: () {
+                      setLocalState(() {
+                        isExpanded = !isExpanded;
+                      });
+                    },
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(16),
+                      topRight: Radius.circular(16),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Owner Info Row
+                          FutureBuilder<DocumentSnapshot>(
+                            future: FirebaseFirestore.instance
+                                .collection("Users")
+                                .doc(ownerId)
+                                .get(),
+                            builder: (context, ownerSnapshot) {
+                              String ownerName = "Unknown Chef";
+                              String ownerProfileUrl = "";
+
+                              if (ownerSnapshot.hasData &&
+                                  ownerSnapshot.data != null &&
+                                  ownerSnapshot.data!.exists) {
+                                var ownerData =
+                                ownerSnapshot.data!.data() as Map<String, dynamic>;
+                                ownerName =
+                                    "${ownerData["firstName"] ?? ""} ${ownerData["lastName"] ?? ""}"
+                                        .trim();
+                                if (ownerName.isEmpty) ownerName = "Unknown Chef";
+                                ownerProfileUrl = ownerData["profile"] ?? "";
+                              }
+                              return Row(
+                                children: [
+                                  CircleAvatar(
+                                    radius: 20,
+                                    backgroundColor: _primaryColor.withOpacity(0.2),
+                                    backgroundImage: (ownerProfileUrl.isNotEmpty)
+                                        ? NetworkImage(ownerProfileUrl)
+                                        : null,
+                                    child: (ownerProfileUrl.isEmpty)
+                                        ? const Icon(Icons.person,
+                                        size: 24, color: _primaryColor)
+                                        : null,
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          ownerName,
+                                          style: _cardTitleStyle(context).copyWith(
+                                            color: _primaryColor,
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                        if (data["timestamp"] != null &&
+                                            data["timestamp"] is Timestamp)
+                                          Text(
+                                            DateFormat('MMM dd, yyyy').format(
+                                              (data["timestamp"] as Timestamp).toDate(),
+                                            ),
+                                            style: _cardSubtitleStyle(context)
+                                                .copyWith(fontSize: 12),
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                  // Animated expand/collapse indicator
+                                  AnimatedRotation(
+                                    turns: isExpanded ? 0.5 : 0,
+                                    duration: const Duration(milliseconds: 300),
+                                    child: Icon(
+                                      Icons.expand_more,
+                                      color: _primaryColor,
+                                      size: 28,
+                                    ),
+                                  ),
+                                ],
+                              );
+                            },
+                          ),
+                          const SizedBox(height: 12),
+
+                          // Plan Type
+                          Text(
+                            data["planType"] ?? "Meal Plan",
+                            style: _cardBodyTextStyle(context).copyWith(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 17,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+
+                          // Description Box - Show in Collapsed State (Only if description exists)
+                          if (data["description"] != null &&
+                              data["description"].toString().trim().isNotEmpty)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                              decoration: BoxDecoration(
+                                color: _primaryColor.withOpacity(0.08),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: _primaryColor.withOpacity(0.15),
+                                  width: 1,
+                                ),
+                              ),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Icon(
+                                    Icons.description_outlined,
+                                    size: 16,
+                                    color: _primaryColor,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          isSubscribed
+                                              ? (data["description"] as String)
+                                              : (data["description"] as String).replaceAll(RegExp(r'.'), 'â€¢'),
+                                          style: _getTextStyle(
+                                            context,
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w500,
+                                            color: _textColorPrimary(context),
+                                            height: 1.5,
+                                          ),
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                        const SizedBox(height: 6),
+                                        GestureDetector(
+                                          onTap: () => _showFullDescription(
+                                            context,
+                                            isSubscribed
+                                                ? (data["description"] as String)
+                                                : (data["description"] as String)
+                                                .replaceAll(RegExp(r'.'), 'â€¢'),
+                                            data["planType"] ?? "Meal Plan",
+                                          ),
+                                          child: Text(
+                                            "View full description",
+                                            style: _getTextStyle(
+                                              context,
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w600,
+                                              color: _primaryColor,
+                                              fontStyle: FontStyle.italic,
+                                              height: 1.5,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+
+                          const SizedBox(height: 12),
+
+                          if (!isExpanded)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 4.0),
+                              child: Text(
+                                "Tap to view full meal plan",
+                                style: _getTextStyle(
+                                  context,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                  color: _primaryColor,
+                                  fontStyle: FontStyle.italic,
+                                  height: 1.5,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  // EXPANDED CONTENT - Shows all meals and actions
+                  AnimatedCrossFade(
+                    firstChild: const SizedBox.shrink(),
+                    secondChild: Padding(
+                      padding: const EdgeInsets.fromLTRB(16.0, 0, 16.0, 16.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Divider(height: 20, thickness: 0.5),
+                          if (data["description"] != null &&
+                              data["description"].toString().trim().isNotEmpty)
+                            _buildMealItemExpanded(
+                              context,
+                              "Breakfast",
+                              data["breakfast"],
+                              data["breakfastTime"],
+                              Icons.wb_sunny_outlined,
+                              Colors.orange,
+                              isLocked: false,
+                            ),
+                          _buildMealItemExpanded(
+                            context,
+                            "AM Snack",
+                            data["amSnack"],
+                            data["amSnackTime"],
+                            Icons.coffee_outlined,
+                            Colors.brown,
+                            isLocked: !isSubscribed,
+                          ),
+                          _buildMealItemExpanded(
+                            context,
+                            "Lunch",
+                            data["lunch"],
+                            data["lunchTime"],
+                            Icons.restaurant_outlined,
+                            Colors.green,
+                            isLocked: !isSubscribed,
+                          ),
+                          _buildMealItemExpanded(
+                            context,
+                            "PM Snack",
+                            data["pmSnack"],
+                            data["pmSnackTime"],
+                            Icons.local_cafe_outlined,
+                            Colors.purple,
+                            isLocked: !isSubscribed,
+                          ),
+                          _buildMealItemExpanded(
+                            context,
+                            "Dinner",
+                            data["dinner"],
+                            data["dinnerTime"],
+                            Icons.nightlight_outlined,
+                            Colors.indigo,
+                            isLocked: !isSubscribed,
+                          ),
+                          _buildMealItemExpanded(
+                            context,
+                            "Midnight Snack",
+                            data["midnightSnack"],
+                            data["midnightSnackTime"],
+                            Icons.bedtime_outlined,
+                            Colors.blueGrey,
+                            isLocked: !isSubscribed,
+                          ),
+
+                          // Subscription Unlock Prompt (If needed)
+                          if (!isSubscribed)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 8.0),
+                              child: InkWell(
+                                onTap: () {
+                                  _showSubscriptionDialog(
+                                      data['ownerName'], ownerId);
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: Colors.orange.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(
+                                      color: Colors.orange.withOpacity(0.3),
+                                    ),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(Icons.lock_open,
+                                          size: 14, color: Colors.orange),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        'Subscribe to unlock',
+                                        style: _getTextStyle(context,
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w600,
+                                            color: Colors.orange,
+                                            height: 1.5),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+
+                          const SizedBox(height: 12),
+
+                          // FIXED: Action buttons WITHOUT StreamBuilder wrapping
+                          // This prevents the whole card from rebuilding when likes change
+                          _buildActionButtonsFixed(
+                            context,
+                            doc,
+                            data,
+                            ownerId,
+                            currentUserId,
+                            isSubscribed,
+                          ),
+                        ],
+                      ),
+                    ),
+                    crossFadeState: isExpanded
+                        ? CrossFadeState.showSecond
+                        : CrossFadeState.showFirst,
+                    duration: const Duration(milliseconds: 300),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildActionButtonsFixed(
+      BuildContext context,
+      DocumentSnapshot doc,
+      Map<String, dynamic> data,
+      String ownerId,
+      String currentUserId,
+      bool isSubscribed,
+      ) {
+    return Align(
+      alignment: Alignment.centerRight,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // LIKE BUTTON - Only THIS part uses StreamBuilder
+          StreamBuilder<DocumentSnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection("likes")
+                .doc("${currentUserId}_${doc.id}")
+                .snapshots(),
+            builder: (context, likeSnapshot) {
+              bool isLiked = likeSnapshot.hasData && likeSnapshot.data!.exists;
+              return StreamBuilder<DocumentSnapshot>(
+                stream: FirebaseFirestore.instance
+                    .collection("mealPlans")
+                    .doc(doc.id)
+                    .snapshots(),
+                builder: (context, mealSnapshot) {
+                  if (!mealSnapshot.hasData) return const SizedBox();
+                  final mealData = mealSnapshot.data!.data() as Map<String, dynamic>;
+                  int likeCount = mealData["likeCounts"] ?? 0;
+                  return TextButton.icon(
+                    onPressed: () async {
+                      final likeDocRef = FirebaseFirestore.instance
+                          .collection("likes")
+                          .doc("${currentUserId}_${doc.id}");
+                      final mealPlanDocRef = FirebaseFirestore.instance
+                          .collection("mealPlans")
+                          .doc(doc.id);
+
+                      if (isLiked) {
+                        await likeDocRef.delete();
+                        await mealPlanDocRef.update({
+                          "likeCounts": FieldValue.increment(-1),
+                        });
+                      } else {
+                        await likeDocRef.set({
+                          "mealPlanID": doc.id,
+                          "userID": currentUserId,
+                          "timestamp": FieldValue.serverTimestamp(),
+                        });
+                        await mealPlanDocRef.update({
+                          "likeCounts": FieldValue.increment(1),
+                        });
+                      }
+                    },
+                    icon: Icon(isLiked ? Icons.favorite : Icons.favorite_border,
+                        color: Colors.redAccent, size: 18),
+                    label: Text("$likeCount",
+                        style: const TextStyle(
+                            color: Colors.redAccent,
+                            fontFamily: _primaryFontFamily,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13)),
+                    style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 3)),
+                  );
+                },
+              );
+            },
+          ),
+          const SizedBox(width: 8),
+          // DOWNLOAD BUTTON - Stateless, no StreamBuilder
+          TextButton.icon(
+            onPressed: () async {
+              final ownerSnapshot = await FirebaseFirestore.instance
+                  .collection("Users")
+                  .doc(ownerId)
+                  .get();
+
+              String ownerName = "Unknown Chef";
+              if (ownerSnapshot.exists) {
+                var ownerData = ownerSnapshot.data() as Map<String, dynamic>;
+                ownerName =
+                    "${ownerData["firstName"] ?? ""} ${ownerData["lastName"] ?? ""}"
+                        .trim();
+                if (ownerName.isEmpty) ownerName = "Unknown Chef";
+              }
+              if (isSubscribed) {
+                await _downloadMealPlanAsPdf(context, data, ownerName, doc.id);
+              } else {
+                CustomSnackBar.show(
+                  context,
+                  'You must have an approved subscription to download this plan.',
+                  backgroundColor: Colors.redAccent,
+                  icon: Icons.lock,
+                  duration: const Duration(seconds: 3),
+                );
+              }
+            },
+            icon: const Icon(Icons.download_rounded,
+                color: Colors.blueAccent, size: 18),
+            label: const Text("Download",
+                style: TextStyle(
+                    color: Colors.blueAccent,
+                    fontFamily: _primaryFontFamily,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13)),
+            style: TextButton.styleFrom(
+                padding:
+                const EdgeInsets.symmetric(horizontal: 6, vertical: 3)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMealItemExpanded(
+      BuildContext context,
+      String mealName,
+      String? mealContent,
+      String? mealTime,
+      IconData icon,
+      Color iconColor, {
+        bool isLocked = false,
+      }) {
+    // Skip if meal content is empty
+    if (mealContent == null || mealContent.isEmpty || mealContent == '-') {
+      return const SizedBox.shrink();
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: isLocked
+            ? Colors.grey.withOpacity(0.1)
+            : iconColor.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: isLocked
+              ? Colors.grey.withOpacity(0.2)
+              : iconColor.withOpacity(0.15),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header row with icon and meal name
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: iconColor.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(icon, color: iconColor, size: 18),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      mealName,
+                      style: _getTextStyle(
+                        context,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: isLocked
+                            ? Colors.grey.shade600
+                            : iconColor,
+                        height: 1.5,
+                      ),
+                    ),
+                    if ((mealTime ?? '').isNotEmpty && !isLocked) ...[
+                      const SizedBox(height: 2),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.access_time,
+                            size: 12,
+                            color: iconColor.withOpacity(0.7),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            mealTime ?? '',
+                            style: _getTextStyle(
+                              context,
+                              fontSize: 11,
+                              color: iconColor,
+                              fontWeight: FontWeight.w600,
+                              height: 1.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          // Meal content
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            decoration: BoxDecoration(
+              color: isLocked
+                  ? Colors.grey.withOpacity(0.05)
+                  : Colors.white.withOpacity(0.5),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              isLocked ? '••••••••••' : (mealContent ?? ''),
+              style: _getTextStyle(
+                context,
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: isLocked
+                    ? Colors.grey.shade500
+                    : _textColorPrimary(context),
+                height: 1.5,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+
+
+// NEW HELPER METHOD: _mealRowWithTimeAndIcons with emoji icons
+  Widget _mealRowWithTimeAndIcons(String label, String? value, String? time,
+      {bool isLocked = false}) {
+    if ((value == null || value.trim().isEmpty || value.trim() == '-') &&
+        (time == null || time.trim().isEmpty)) {
+      return const SizedBox.shrink();
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: isLocked
+            ? Colors.grey.withOpacity(0.1)
+            : _primaryColor.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: isLocked
+              ? Colors.grey.withOpacity(0.2)
+              : _primaryColor.withOpacity(0.1),
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (isLocked)
+            Padding(
+              padding: const EdgeInsets.only(right: 8.0, top: 2),
+              child: Icon(Icons.lock, size: 14, color: Colors.grey.shade600),
+            ),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        label,
+                        style: _getTextStyle(context,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: isLocked
+                                ? Colors.grey.shade600
+                                : _primaryColor,
+                            height: 1.5),
+                      ),
+                    ),
+                    if (time != null && time.isNotEmpty && !isLocked)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: _primaryColor.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.access_time,
+                                size: 10, color: _primaryColor),
+                            const SizedBox(width: 3),
+                            Text(
+                              time,
+                              style: _getTextStyle(context,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w600,
+                                  color: _primaryColor,
+                                  height: 1.5),
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
+                if (value != null && value.isNotEmpty && value != '-')
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4.0),
+                    child: Text(
+                      isLocked ? '••••••••••' : value,
+                      style: _getTextStyle(context,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                          color: isLocked
+                              ? Colors.grey.shade500
+                              : _getTextStyle(context, fontSize: 13, height: 1.5).color,
+                          height: 1.5),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMealPreviewRow(
+      BuildContext context,
+      String label,
+      String? value,
+      String? time,
+      bool isSubscribed,
+      ) {
+    if ((value == null || value.trim().isEmpty || value.trim() == '-')) {
+      return const SizedBox.shrink();
+    }
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: _getTextStyle(
+                  context,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: _primaryColor, height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                isSubscribed ? (value ?? '-') : '•••••••••',
+                style: _getTextStyle(
+                  context,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500, height: 1.5,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+        ),
+        if (time != null && time.isNotEmpty && isSubscribed)
+          Padding(
+            padding: const EdgeInsets.only(left: 8.0),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: _primaryColor.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.access_time, size: 10, color: _primaryColor),
+                  const SizedBox(width: 3),
+                  Text(
+                    time,
+                    style: _getTextStyle(
+                      context,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      color: _primaryColor, height: 1.5,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+// NEW: Helper function to build meal summary
+  Widget _buildMealSummary(
+      BuildContext context,
+      String? summary,
+      bool isSubscribed,
+      ) {
+    if (summary == null || summary.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: _primaryColor.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: _primaryColor.withOpacity(0.15),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.restaurant_menu_rounded,
+            size: 16,
+            color: _primaryColor,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              isSubscribed ? summary : summary.replaceAll(RegExp(r'.'), '•'),
+              style: _getTextStyle(
+                context,
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: _textColorPrimary(context), height: 1.5,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+// Helper function to count meals
+  int _countMeals(Map<String, dynamic> data) {
+    int count = 0;
+    if (data["breakfast"] != null &&
+        data["breakfast"].toString().trim().isNotEmpty &&
+        data["breakfast"] != '-') count++;
+    if (data["amSnack"] != null &&
+        data["amSnack"].toString().trim().isNotEmpty &&
+        data["amSnack"] != '-') count++;
+    if (data["lunch"] != null &&
+        data["lunch"].toString().trim().isNotEmpty &&
+        data["lunch"] != '-') count++;
+    if (data["pmSnack"] != null &&
+        data["pmSnack"].toString().trim().isNotEmpty &&
+        data["pmSnack"] != '-') count++;
+    if (data["dinner"] != null &&
+        data["dinner"].toString().trim().isNotEmpty &&
+        data["dinner"] != '-') count++;
+    if (data["midnightSnack"] != null &&
+        data["midnightSnack"].toString().trim().isNotEmpty &&
+        data["midnightSnack"] != '-') count++;
+    return count;
+  }
+
+// Helper function to build action buttons (like and download)
+  Widget _buildActionButtons(
+      BuildContext context,
+      DocumentSnapshot doc,
+      Map<String, dynamic> data,
+      String ownerId,
+      String currentUserId,
+      bool isSubscribed,
+      ) {
+    return Align(
+      alignment: Alignment.centerRight,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          StreamBuilder<DocumentSnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection("likes")
+                .doc("${currentUserId}_${doc.id}")
+                .snapshots(),
+            builder: (context, likeSnapshot) {
+              bool isLiked = likeSnapshot.hasData && likeSnapshot.data!.exists;
+              return StreamBuilder<DocumentSnapshot>(
+                stream: FirebaseFirestore.instance
+                    .collection("mealPlans")
+                    .doc(doc.id)
+                    .snapshots(),
+                builder: (context, mealSnapshot) {
+                  if (!mealSnapshot.hasData) return const SizedBox();
+                  final mealData = mealSnapshot.data!.data() as Map<String, dynamic>;
+                  int likeCount = mealData["likeCounts"] ?? 0;
+                  return TextButton.icon(
+                    onPressed: () async {
+                      final likeDocRef = FirebaseFirestore.instance
+                          .collection("likes")
+                          .doc("${currentUserId}_${doc.id}");
+                      final mealPlanDocRef = FirebaseFirestore.instance
+                          .collection("mealPlans")
+                          .doc(doc.id);
+
+                      if (isLiked) {
+                        await likeDocRef.delete();
+                        await mealPlanDocRef.update({
+                          "likeCounts": FieldValue.increment(-1),
+                        });
+                      } else {
+                        await likeDocRef.set({
+                          "mealPlanID": doc.id,
+                          "userID": currentUserId,
+                          "timestamp": FieldValue.serverTimestamp(),
+                        });
+                        await mealPlanDocRef.update({
+                          "likeCounts": FieldValue.increment(1),
+                        });
+                      }
+                    },
+                    icon: Icon(isLiked ? Icons.favorite : Icons.favorite_border,
+                        color: Colors.redAccent, size: 18),
+                    label: Text("$likeCount",
+                        style: const TextStyle(
+                            color: Colors.redAccent,
+                            fontFamily: _primaryFontFamily,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13)),
+                    style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 3)),
+                  );
+                },
+              );
+            },
+          ),
+          const SizedBox(width: 8),
+          TextButton.icon(
+            onPressed: () async {
+              final ownerSnapshot = await FirebaseFirestore.instance
+                  .collection("Users")
+                  .doc(ownerId)
+                  .get();
+
+              String ownerName = "Unknown Chef";
+              if (ownerSnapshot.exists) {
+                var ownerData = ownerSnapshot.data() as Map<String, dynamic>;
+                ownerName =
+                    "${ownerData["firstName"] ?? ""} ${ownerData["lastName"] ?? ""}"
+                        .trim();
+                if (ownerName.isEmpty) ownerName = "Unknown Chef";
+              }
+              if (isSubscribed) {
+                await _downloadMealPlanAsPdf(context, data, ownerName, doc.id);
+              } else {
+                CustomSnackBar.show(
+                  context,
+                  'You must have an approved subscription to download this plan.',
+                  backgroundColor: Colors.redAccent,
+                  icon: Icons.lock,
+                  duration: const Duration(seconds: 3),
+                );
+              }
+            },
+            icon: const Icon(Icons.download_rounded,
+                color: Colors.blueAccent, size: 18),
+            label: const Text("Download",
+                style: TextStyle(
+                    color: Colors.blueAccent,
+                    fontFamily: _primaryFontFamily,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13)),
+            style: TextButton.styleFrom(
+                padding:
+                const EdgeInsets.symmetric(horizontal: 6, vertical: 3)),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildRecommendationCard(
       BuildContext context,
       DocumentSnapshot doc,
       Map<String, dynamic> data,
       String ownerId,
       String currentUserId,
-      bool isUserSubscribed, // This might not be fully accurate here, better check dynamically
+      bool isUserSubscribed,
       ) {
-    // We need to fetch the subscription status dynamically for recommendations
     return StreamBuilder<DocumentSnapshot>(
       stream: FirebaseFirestore.instance
           .collection("Users")
@@ -773,7 +1902,7 @@ class _HomeState extends State<home> {
           .doc(ownerId)
           .snapshots(),
       builder: (context, subscribeSnapshot) {
-        bool isSubscribed = false; // Default to false
+        bool isSubscribed = false;
         if (subscribeSnapshot.hasData &&
             subscribeSnapshot.data != null &&
             subscribeSnapshot.data!.exists) {
@@ -785,21 +1914,20 @@ class _HomeState extends State<home> {
         }
 
         return SizedBox(
-          width: 300, // Keep original width for horizontal scroll
+          width: 300,
           child: Card(
-            elevation: 4, // Slightly less elevation than before
+            elevation: 2,
             margin: const EdgeInsets.only(right: 12),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)), // Rounded corners
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
             color: _cardBgColor(context),
             child: Padding(
               padding: const EdgeInsets.all(16.0),
-              // Use SingleChildScrollView in case content overflows vertically
               child: SingleChildScrollView(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min, // Takes minimum vertical space
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Owner Info Row (same as before)
+                    // Owner Info Row
                     FutureBuilder<DocumentSnapshot?>(
                       future: (ownerId.isNotEmpty)
                           ? FirebaseFirestore.instance
@@ -855,8 +1983,7 @@ class _HomeState extends State<home> {
                                       data["timestamp"] is Timestamp)
                                     Text(
                                       DateFormat('MMM dd, yyyy').format(
-                                        (data["timestamp"] as Timestamp)
-                                            .toDate(),
+                                        (data["timestamp"] as Timestamp).toDate(),
                                       ),
                                       style: _cardSubtitleStyle(context)
                                           .copyWith(fontSize: 12),
@@ -869,149 +1996,110 @@ class _HomeState extends State<home> {
                       },
                     ),
                     const SizedBox(height: 12),
-                    // Plan Type
                     Text(
                       data["planType"] ?? "Meal Plan",
                       style: _cardBodyTextStyle(context).copyWith(
-                        fontWeight: FontWeight.bold, // Make it bold
+                        fontWeight: FontWeight.bold,
                         fontSize: 17,
                       ),
                     ),
                     const Divider(height: 20, thickness: 0.5),
-
-                    // Meal Details using the new style
-                    _mealRowWithTime("Breakfast", data["breakfast"], data["breakfastTime"], isLocked: false), // Breakfast always unlocked
-                    _mealRowWithTime("AM Snack", data["amSnack"], data["amSnackTime"], isLocked: !isSubscribed),
-                    _mealRowWithTime("Lunch", data["lunch"], data["lunchTime"], isLocked: !isSubscribed),
-                    _mealRowWithTime("PM Snack", data["pmSnack"], data["pmSnackTime"], isLocked: !isSubscribed),
-                    _mealRowWithTime("Dinner", data["dinner"], data["dinnerTime"], isLocked: !isSubscribed),
-                    _mealRowWithTime("Midnight Snack", data["midnightSnack"], data["midnightSnackTime"], isLocked: !isSubscribed),
-
-                    // Subscription Unlock Prompt (If needed)
+                    _buildMealItemExpanded(
+                      context,
+                      "Breakfast",
+                      data["breakfast"],
+                      data["breakfastTime"],
+                      Icons.wb_sunny_outlined,
+                      Colors.orange,
+                      isLocked: false,
+                    ),
+                    _buildMealItemExpanded(
+                      context,
+                      "AM Snack",
+                      data["amSnack"],
+                      data["amSnackTime"],
+                      Icons.coffee_outlined,
+                      Colors.brown,
+                      isLocked: !isSubscribed,
+                    ),
+                    _buildMealItemExpanded(
+                      context,
+                      "Lunch",
+                      data["lunch"],
+                      data["lunchTime"],
+                      Icons.restaurant_outlined,
+                      Colors.green,
+                      isLocked: !isSubscribed,
+                    ),
+                    _buildMealItemExpanded(
+                      context,
+                      "PM Snack",
+                      data["pmSnack"],
+                      data["pmSnackTime"],
+                      Icons.local_cafe_outlined,
+                      Colors.purple,
+                      isLocked: !isSubscribed,
+                    ),
+                    _buildMealItemExpanded(
+                      context,
+                      "Dinner",
+                      data["dinner"],
+                      data["dinnerTime"],
+                      Icons.nightlight_outlined,
+                      Colors.indigo,
+                      isLocked: !isSubscribed,
+                    ),
+                    _buildMealItemExpanded(
+                      context,
+                      "Midnight Snack",
+                      data["midnightSnack"],
+                      data["midnightSnackTime"],
+                      Icons.bedtime_outlined,
+                      Colors.blueGrey,
+                      isLocked: !isSubscribed,
+                    ),
                     if (!isSubscribed)
                       Padding(
                         padding: const EdgeInsets.only(top: 8.0),
                         child: InkWell(
                           onTap: () {
-                            _showSubscriptionDialog(
-                                data['ownerName'], // You might need to fetch this again if not available
-                                ownerId);
+                            _showSubscriptionDialog(data['ownerName'], ownerId);
                           },
                           child: Container(
                             padding: const EdgeInsets.all(8),
                             decoration: BoxDecoration(
                               color: Colors.orange.withOpacity(0.1),
                               borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: Colors.orange.withOpacity(0.3)),
+                              border: Border.all(
+                                  color: Colors.orange.withOpacity(0.3)),
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                const Icon(Icons.lock_open, size: 14, color: Colors.orange),
+                                const Icon(Icons.lock_open,
+                                    size: 14, color: Colors.orange),
                                 const SizedBox(width: 6),
                                 Text(
                                   'Subscribe to unlock',
-                                  style: _getTextStyle(context, fontSize: 11, fontWeight: FontWeight.w600, color: Colors.orange),
+                                  style: _getTextStyle(context,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.orange,
+                                      height: 1.5),
                                 ),
                               ],
                             ),
                           ),
                         ),
                       ),
-
                     const SizedBox(height: 10),
-                    // Like and Download Buttons (same as before)
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          StreamBuilder<DocumentSnapshot>(
-                            stream: FirebaseFirestore.instance
-                                .collection("likes")
-                                .doc("${currentUserId}_${doc.id}")
-                                .snapshots(),
-                            builder: (context, likeSnapshot) {
-                              bool isLiked = likeSnapshot.hasData && likeSnapshot.data!.exists;
-                              return StreamBuilder<DocumentSnapshot>(
-                                stream: FirebaseFirestore.instance
-                                    .collection("mealPlans")
-                                    .doc(doc.id)
-                                    .snapshots(),
-                                builder: (context, mealSnapshot) {
-                                  if (!mealSnapshot.hasData) return const SizedBox();
-                                  final mealData = mealSnapshot.data!.data() as Map<String, dynamic>;
-                                  int likeCount = mealData["likeCounts"] ?? 0;
-                                  return TextButton.icon(
-                                    onPressed: () async {
-                                      // ... (like logic remains the same)
-                                      final likeDocRef = FirebaseFirestore.instance
-                                          .collection("likes")
-                                          .doc("${currentUserId}_${doc.id}");
-                                      final mealPlanDocRef = FirebaseFirestore.instance
-                                          .collection("mealPlans")
-                                          .doc(doc.id);
-
-                                      if (isLiked) {
-                                        await likeDocRef.delete();
-                                        await mealPlanDocRef.update({
-                                          "likeCounts": FieldValue.increment(-1),
-                                        });
-                                      } else {
-                                        await likeDocRef.set({
-                                          "mealPlanID": doc.id,
-                                          "userID": currentUserId,
-                                          "timestamp": FieldValue.serverTimestamp(),
-                                        });
-                                        await mealPlanDocRef.update({
-                                          "likeCounts": FieldValue.increment(1),
-                                        });
-                                      }
-                                    },
-                                    icon: Icon(
-                                        isLiked ? Icons.favorite : Icons.favorite_border,
-                                        color: Colors.redAccent, size: 18),
-                                    label: Text("$likeCount", style: const TextStyle(color: Colors.redAccent, fontFamily: _primaryFontFamily, fontWeight: FontWeight.w600, fontSize: 13)),
-                                    style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3)),
-                                  );
-                                },
-                              );
-                            },
-                          ),
-                          const SizedBox(width: 8),
-                          TextButton.icon(
-                            onPressed: () async {
-                              // ... (download logic remains the same)
-                              final ownerSnapshot = await FirebaseFirestore.instance
-                                  .collection("Users")
-                                  .doc(ownerId)
-                                  .get();
-
-                              String ownerName = "Unknown Chef";
-                              if (ownerSnapshot.exists) {
-                                var ownerData = ownerSnapshot.data() as Map<String, dynamic>;
-                                ownerName = "${ownerData["firstName"] ?? ""} ${ownerData["lastName"] ?? ""}".trim();
-                                if (ownerName.isEmpty) ownerName = "Unknown Chef";
-                              }
-
-                              if (isSubscribed) {
-                                await _downloadMealPlanAsPdf(context, data, ownerName, doc.id);
-                              } else {
-                                CustomSnackBar.show(
-                                  context,
-                                  'You must have an approved subscription to download this plan.',
-                                  backgroundColor: Colors.redAccent,
-                                  icon: Icons.lock,
-                                  duration: const Duration(seconds: 3),
-                                );
-                              }
-                            },
-                            icon: const Icon(Icons.download_rounded, color: Colors.blueAccent, size: 18),
-                            label: const Text("Download", style: TextStyle(color: Colors.blueAccent, fontFamily: _primaryFontFamily, fontWeight: FontWeight.w600, fontSize: 13)),
-                            style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3)),
-                          ),
-                        ],
-                      ),
+                    _buildActionButtons(
+                      context,
+                      doc,
+                      data,
+                      ownerId,
+                      currentUserId,
+                      isSubscribed,
                     ),
                   ],
                 ),
@@ -1022,7 +2110,6 @@ class _HomeState extends State<home> {
       },
     );
   }
-  // --- END OF REPLACEMENT ---
 
   Widget dietitiansList() {
     if (_searchFilter != "All" && _searchFilter != "Dietitians") {
@@ -1033,17 +2120,51 @@ class _HomeState extends State<home> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-          child: Text(
-            "Connect with Dietitians 🧑‍⚕️",
-            style: _sectionTitleStyle(context).copyWith(
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-            ),
+          padding: const EdgeInsets.fromLTRB(16, 28, 16, 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: _primaryColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(Icons.verified_user,
+                        color: _primaryColor, size: 26),
+                  ),
+                  const SizedBox(width: 12),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "Expert Dietitians",
+                        style: _sectionTitleStyle(context).copyWith(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        "Connect and get guidance",
+                        style: _getTextStyle(
+                          context,
+                          fontSize: 12,
+                          color: _textColorSecondary(context),
+                          height: 1.5,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
         SizedBox(
-          height: 140,
+          height: 250,
           child: StreamBuilder<QuerySnapshot>(
             stream: FirebaseFirestore.instance
                 .collection("Users")
@@ -1059,7 +2180,8 @@ class _HomeState extends State<home> {
               if (_searchQuery.isNotEmpty) {
                 dietitians = dietitians.where((doc) {
                   var data = doc.data() as Map<String, dynamic>;
-                  String name = "${data["firstName"] ?? ""} ${data["lastName"] ?? ""}"
+                  String name =
+                  "${data["firstName"] ?? ""} ${data["lastName"] ?? ""}"
                       .toLowerCase();
                   String specialization =
                   (data["specialization"] ?? "").toString().toLowerCase();
@@ -1070,93 +2192,190 @@ class _HomeState extends State<home> {
 
               if (dietitians.isEmpty) {
                 return Center(
-                  child: Text(
-                    _searchQuery.isNotEmpty
-                        ? "No dietitians found for '$_searchQuery'"
-                        : "No dietitians found.",
-                    style: _cardBodyTextStyle(context),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.person_off,
+                          size: 40, color: _primaryColor.withOpacity(0.3)),
+                      const SizedBox(height: 8),
+                      Text(
+                        _searchQuery.isNotEmpty
+                            ? "No dietitians found"
+                            : "No dietitians available",
+                        style: _getTextStyle(context, fontSize: 14, height: 1.5),
+                      ),
+                    ],
                   ),
                 );
               }
 
               return ListView.builder(
                 scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 itemCount: dietitians.length,
                 itemBuilder: (context, index) {
                   var dietitianData =
                   dietitians[index].data() as Map<String, dynamic>;
+                  String dietitianId = dietitians[index].id;
                   String name =
                   "${dietitianData["firstName"] ?? ""} ${dietitianData["lastName"] ?? ""}"
                       .trim();
                   if (name.isEmpty) name = "Dietitian";
                   String profileUrl = dietitianData["profile"] ?? "";
+                  String specialization =
+                      dietitianData["specialization"] ?? "Nutrition Expert";
 
                   return Padding(
-                    padding: const EdgeInsets.only(right: 16),
-                    child: GestureDetector(
-                      onTap: () {
-                        // Get the dietitian ID
-                        String dietitianId = dietitians[index].id;
-                        String name = "${dietitianData["firstName"] ?? ""} ${dietitianData["lastName"] ?? ""}".trim();
-                        if (name.isEmpty) name = "Dietitian";
-                        String profileUrl = dietitianData["profile"] ?? "";
-
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => DietitianPublicProfile(
-                              dietitianId: dietitianId,
-                              dietitianName: name,
-                              dietitianProfile: profileUrl,
-                            ),
-                          ),
-                        );
-                      },
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Container(
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: _primaryColor.withOpacity(0.3),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ],
-                            ),
-                            child: CircleAvatar(
-                              radius: 32,
-                              backgroundColor: _primaryColor.withOpacity(0.2),
-                              backgroundImage: (profileUrl.isNotEmpty)
-                                  ? NetworkImage(profileUrl)
-                                  : null,
-                              child: (profileUrl.isEmpty)
-                                  ? const Icon(Icons.person,
-                                  size: 32, color: _primaryColor)
-                                  : null,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          SizedBox(
-                            width: 90,
-                            child: Text(
-                              name,
-                              overflow: TextOverflow.ellipsis,
-                              textAlign: TextAlign.center,
-                              maxLines: 2,
-                              style: _cardBodyTextStyle(context).copyWith(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
+                    padding: const EdgeInsets.only(right: 12),
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => DietitianPublicProfile(
+                                dietitianId: dietitianId,
+                                dietitianName: name,
+                                dietitianProfile: profileUrl,
                               ),
                             ),
+                          );
+                        },
+                        borderRadius: BorderRadius.circular(16),
+                        child: Container(
+                          width: 160,
+                          decoration: BoxDecoration(
+                            color: _cardBgColor(context),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: _primaryColor.withOpacity(0.2),
+                              width: 1.5,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.08),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
                           ),
-                        ],
+                          child: Stack(
+                            children: [
+                              // Background gradient effect
+                              Positioned(
+                                top: -40,
+                                right: -40,
+                                child: Container(
+                                  width: 120,
+                                  height: 120,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: _primaryColor.withOpacity(0.08),
+                                  ),
+                                ),
+                              ),
+                              // Main content
+                              Padding(
+                                padding: const EdgeInsets.all(14.0),
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  crossAxisAlignment: CrossAxisAlignment.center,
+                                  children: [
+                                    // Profile image with elegant shadow
+                                    Container(
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: _primaryColor.withOpacity(0.25),
+                                            blurRadius: 12,
+                                            offset: const Offset(0, 4),
+                                          ),
+                                        ],
+                                      ),
+                                      child: CircleAvatar(
+                                        radius: 38,
+                                        backgroundColor:
+                                        _primaryColor.withOpacity(0.15),
+                                        backgroundImage:
+                                        (profileUrl.isNotEmpty)
+                                            ? NetworkImage(profileUrl)
+                                            : null,
+                                        child: (profileUrl.isEmpty)
+                                            ? Icon(Icons.person,
+                                            size: 40,
+                                            color: _primaryColor)
+                                            : null,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 12),
+                                    // Name
+                                    Text(
+                                      name,
+                                      overflow: TextOverflow.ellipsis,
+                                      textAlign: TextAlign.center,
+                                      maxLines: 2,
+                                      style:
+                                      _cardBodyTextStyle(context).copyWith(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    // Specialization badge
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 4,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: _primaryColor.withOpacity(0.1),
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: Text(
+                                        specialization,
+                                        overflow: TextOverflow.ellipsis,
+                                        textAlign: TextAlign.center,
+                                        maxLines: 1,
+                                        style: _getTextStyle(
+                                          context,
+                                          fontSize: 10,
+                                          color: _primaryColor,
+                                          fontWeight: FontWeight.w600,
+                                          height: 1.5,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              // Floating action button in top right
+                              Positioned(
+                                top: 8,
+                                right: 8,
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    color: _primaryColor,
+                                    shape: BoxShape.circle,
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: _primaryColor.withOpacity(0.4),
+                                        blurRadius: 6,
+                                      ),
+                                    ],
+                                  ),
+                                  padding: const EdgeInsets.all(6),
+                                  child: Icon(
+                                    Icons.arrow_forward_rounded,
+                                    color: Colors.white,
+                                    size: 16,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
                     ),
                   );
@@ -1168,6 +2387,7 @@ class _HomeState extends State<home> {
       ],
     );
   }
+
 
   Widget mealPlansTable(String userGoal) {
     if (_searchFilter == "Dietitians") {
@@ -1193,9 +2413,40 @@ class _HomeState extends State<home> {
 
           if (userGoal.isEmpty && _searchFilter != "Meal Plans") {
             return Center(
-              child: Text(
-                "Set your health goal to see meal plans!",
-                style: _cardBodyTextStyle(context),
+              child: Container(
+                margin: const EdgeInsets.symmetric(vertical: 24),
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: _primaryColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: _primaryColor.withOpacity(0.3),
+                    width: 1.5,
+                  ),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.flag_outlined,
+                        size: 40, color: _primaryColor),
+                    const SizedBox(height: 12),
+                    Text(
+                      "Set Your Health Goal",
+                      style: _getTextStyle(context,
+                          fontSize: 16, fontWeight: FontWeight.bold, height: 1.5),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      "Complete your profile to see personalized meal plans",
+                      textAlign: TextAlign.center,
+                      style: _getTextStyle(
+                        context,
+                        fontSize: 13,
+                        color: _textColorSecondary(context), height: 1.5,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             );
           }
@@ -1204,14 +2455,32 @@ class _HomeState extends State<home> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Padding(
-                padding: const EdgeInsets.fromLTRB(0, 16, 0, 8),
-                child: Text(
-                  _searchQuery.isNotEmpty
-                      ? "Search Results for '$_searchQuery'"
-                      : _searchFilter == "Meal Plans"
-                      ? "All Meal Plans"
-                      : "Meal Plans for: $userGoal",
-                  style: _sectionTitleStyle(context),
+                padding: const EdgeInsets.fromLTRB(0, 24, 0, 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _searchQuery.isNotEmpty
+                          ? "Search Results"
+                          : _searchFilter == "Meal Plans"
+                          ? "All Meal Plans"
+                          : "For: $userGoal",
+                      style: _sectionTitleStyle(context).copyWith(
+                        fontSize: 24,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      _searchQuery.isNotEmpty
+                          ? "Results for \"$_searchQuery\""
+                          : "Curated meal plans tailored for you",
+                      style: _getTextStyle(
+                        context,
+                        fontSize: 13,
+                        color: _textColorSecondary(context), height: 1.5,
+                      ),
+                    ),
+                  ],
                 ),
               ),
               StreamBuilder<QuerySnapshot>(
@@ -1230,15 +2499,12 @@ class _HomeState extends State<home> {
                     );
                   var plans = snapshot.data!.docs;
 
-                  // Filter out empty/invalid documents first
                   plans = plans.where((doc) {
                     var data = doc.data() as Map<String, dynamic>;
 
-                    // Check if document has required fields
                     final ownerId = data["ownerId"] ?? data["owner"] ?? "";
                     if (ownerId.isEmpty) return false;
 
-                    // Check if at least one meal field has data
                     final hasMealData = [
                       data["breakfast"],
                       data["amSnack"],
@@ -1246,19 +2512,19 @@ class _HomeState extends State<home> {
                       data["pmSnack"],
                       data["dinner"],
                       data["midnightSnack"],
-                    ].any((meal) => meal != null && meal.toString().trim().isNotEmpty);
+                    ].any((meal) =>
+                    meal != null &&
+                        meal.toString().trim().isNotEmpty);
 
                     return hasMealData;
                   }).toList();
 
-                  // Enhanced search logic for Meal Plans filter
                   if (_searchQuery.isNotEmpty) {
                     final query = _searchQuery.toLowerCase();
 
                     plans = plans.where((doc) {
                       var data = doc.data() as Map<String, dynamic>;
 
-                      // Search in all meal fields
                       final mealFields = [
                         data["breakfast"]?.toString().toLowerCase() ?? "",
                         data["amSnack"]?.toString().toLowerCase() ?? "",
@@ -1271,18 +2537,28 @@ class _HomeState extends State<home> {
                         data["description"]?.toString().toLowerCase() ?? "",
                       ];
 
-                      // Check if any field contains the search query
                       return mealFields.any((field) => field.contains(query));
                     }).toList();
                   }
 
                   if (plans.isEmpty) {
-                    return Center(
-                      child: Text(
-                        _searchQuery.isNotEmpty
-                            ? "No meal plans found containing '$_searchQuery'"
-                            : "No meal plans available.",
-                        style: _cardBodyTextStyle(context),
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 40.0),
+                      child: Center(
+                        child: Column(
+                          children: [
+                            Icon(Icons.restaurant_menu_outlined,
+                                size: 48,
+                                color: _primaryColor.withOpacity(0.3)),
+                            const SizedBox(height: 16),
+                            Text(
+                              _searchQuery.isNotEmpty
+                                  ? "No results found"
+                                  : "No meal plans available",
+                              style: _getTextStyle(context, fontSize: 16, height: 1.5),
+                            ),
+                          ],
+                        ),
                       ),
                     );
                   }
@@ -1295,12 +2571,15 @@ class _HomeState extends State<home> {
                       final docSnap = plans[index];
                       final data = docSnap.data() as Map<String, dynamic>;
                       final ownerId = data["owner"] ?? "";
-                      return _buildMealPlanListItem(
-                        context,
-                        docSnap,
-                        data,
-                        ownerId,
-                        firebaseUser!.uid,
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 12.0),
+                        child: _buildMealPlanListItem(
+                          context,
+                          docSnap,
+                          data,
+                          ownerId,
+                          firebaseUser!.uid,
+                        ),
                       );
                     },
                   );
@@ -1312,260 +2591,6 @@ class _HomeState extends State<home> {
       ),
     );
   }
-
-// --- REPLACE _buildMealPlanListItem with this ---
-  Widget _buildMealPlanListItem(
-      BuildContext context,
-      DocumentSnapshot doc,
-      Map<String, dynamic> data,
-      String ownerId,
-      String currentUserId,
-      ) {
-    // Check subscription status dynamically
-    return StreamBuilder<DocumentSnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('Users')
-          .doc(currentUserId)
-          .collection('subscribeTo')
-          .doc(ownerId)
-          .snapshots(),
-      builder: (context, subscribeSnapshot) {
-        bool isSubscribed = false; // Default to false
-        if (subscribeSnapshot.hasData &&
-            subscribeSnapshot.data != null &&
-            subscribeSnapshot.data!.exists) {
-          final subData =
-          subscribeSnapshot.data!.data() as Map<String, dynamic>;
-          if (subData['status'] == 'approved') {
-            isSubscribed = true;
-          }
-        }
-
-        return Card(
-          elevation: 4, // Use less elevation for list items
-          margin: const EdgeInsets.symmetric(vertical: 8),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)), // Rounded corners
-          color: _cardBgColor(context),
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Owner Info Row (same structure as recommendations)
-                FutureBuilder<DocumentSnapshot>(
-                  future: FirebaseFirestore.instance
-                      .collection("Users")
-                      .doc(ownerId)
-                      .get(),
-                  builder: (context, ownerSnapshot) {
-                    String ownerName = "Unknown Chef";
-                    String ownerProfileUrl = ""; // Add profile URL fetching
-
-                    if (ownerSnapshot.hasData &&
-                        ownerSnapshot.data != null &&
-                        ownerSnapshot.data!.exists) {
-                      var ownerData =
-                      ownerSnapshot.data!.data() as Map<String, dynamic>;
-                      ownerName =
-                          "${ownerData["firstName"] ?? ""} ${ownerData["lastName"] ?? ""}"
-                              .trim();
-                      if (ownerName.isEmpty) ownerName = "Unknown Chef";
-                      ownerProfileUrl = ownerData["profile"] ?? ""; // Get profile URL
-                    }
-                    return Row(
-                      children: [
-                        // Add CircleAvatar for profile picture
-                        CircleAvatar(
-                          radius: 20,
-                          backgroundColor: _primaryColor.withOpacity(0.2),
-                          backgroundImage: (ownerProfileUrl.isNotEmpty)
-                              ? NetworkImage(ownerProfileUrl)
-                              : null,
-                          child: (ownerProfileUrl.isEmpty)
-                              ? const Icon(Icons.person,
-                              size: 24, color: _primaryColor)
-                              : null,
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                ownerName,
-                                style: _cardTitleStyle(context).copyWith(
-                                  color: _primaryColor, // Use primary color for name
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              if (data["timestamp"] != null && data["timestamp"] is Timestamp)
-                                Text( // Add timestamp below name
-                                  DateFormat('MMM dd, yyyy').format(
-                                    (data["timestamp"] as Timestamp).toDate(),
-                                  ),
-                                  style: _cardSubtitleStyle(context).copyWith(fontSize: 12),
-                                ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    );
-                  },
-                ),
-                const SizedBox(height: 12), // Add space after owner info
-                // Plan Type
-                Text(
-                  data["planType"] ?? "Meal Plan",
-                  style: _cardBodyTextStyle(context).copyWith(
-                    fontWeight: FontWeight.bold, // Make it bold
-                    fontSize: 17,
-                  ),
-                ),
-                const Divider(height: 20, thickness: 0.5),
-
-                // Meal Details using the new style
-                _mealRowWithTime("Breakfast", data["breakfast"], data["breakfastTime"], isLocked: false), // Breakfast always unlocked
-                _mealRowWithTime("AM Snack", data["amSnack"], data["amSnackTime"], isLocked: !isSubscribed),
-                _mealRowWithTime("Lunch", data["lunch"], data["lunchTime"], isLocked: !isSubscribed),
-                _mealRowWithTime("PM Snack", data["pmSnack"], data["pmSnackTime"], isLocked: !isSubscribed),
-                _mealRowWithTime("Dinner", data["dinner"], data["dinnerTime"], isLocked: !isSubscribed),
-                _mealRowWithTime("Midnight Snack", data["midnightSnack"], data["midnightSnackTime"], isLocked: !isSubscribed),
-
-                // Subscription Unlock Prompt (If needed)
-                if (!isSubscribed)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 8.0),
-                    child: InkWell(
-                      onTap: () {
-                        _showSubscriptionDialog(
-                            data['ownerName'], // You might need to fetch this again if not available
-                            ownerId);
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.orange.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.orange.withOpacity(0.3)),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(Icons.lock_open, size: 14, color: Colors.orange),
-                            const SizedBox(width: 6),
-                            Text(
-                              'Subscribe to unlock',
-                              style: _getTextStyle(context, fontSize: 11, fontWeight: FontWeight.w600, color: Colors.orange),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-
-                const SizedBox(height: 10),
-                // Like and Download Buttons (same structure as recommendations)
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      StreamBuilder<DocumentSnapshot>(
-                        stream: FirebaseFirestore.instance
-                            .collection("likes")
-                            .doc("${currentUserId}_${doc.id}")
-                            .snapshots(),
-                        builder: (context, likeSnapshot) {
-                          bool isLiked = likeSnapshot.hasData && likeSnapshot.data!.exists;
-                          return StreamBuilder<DocumentSnapshot>(
-                            stream: FirebaseFirestore.instance
-                                .collection("mealPlans")
-                                .doc(doc.id)
-                                .snapshots(),
-                            builder: (context, mealSnapshot) {
-                              if (!mealSnapshot.hasData) return const SizedBox();
-                              final mealData = mealSnapshot.data!.data() as Map<String, dynamic>;
-                              int likeCount = mealData["likeCounts"] ?? 0;
-                              return TextButton.icon(
-                                onPressed: () async {
-                                  // ... (like logic remains the same)
-                                  final likeDocRef = FirebaseFirestore.instance
-                                      .collection("likes")
-                                      .doc("${currentUserId}_${doc.id}");
-                                  final mealPlanDocRef = FirebaseFirestore.instance
-                                      .collection("mealPlans")
-                                      .doc(doc.id);
-
-                                  if (isLiked) {
-                                    await likeDocRef.delete();
-                                    await mealPlanDocRef.update({
-                                      "likeCounts": FieldValue.increment(-1),
-                                    });
-                                  } else {
-                                    await likeDocRef.set({
-                                      "mealPlanID": doc.id,
-                                      "userID": currentUserId,
-                                      "timestamp": FieldValue.serverTimestamp(),
-                                    });
-                                    await mealPlanDocRef.update({
-                                      "likeCounts": FieldValue.increment(1),
-                                    });
-                                  }
-                                },
-                                icon: Icon(
-                                    isLiked ? Icons.favorite : Icons.favorite_border,
-                                    color: Colors.redAccent, size: 18),
-                                label: Text("$likeCount", style: const TextStyle(color: Colors.redAccent, fontFamily: _primaryFontFamily, fontWeight: FontWeight.w600, fontSize: 13)),
-                                style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3)),
-                              );
-                            },
-                          );
-                        },
-                      ),
-                      const SizedBox(width: 8),
-                      TextButton.icon(
-                        onPressed: () async {
-                          // ... (download logic remains the same)
-                          final ownerSnapshot = await FirebaseFirestore.instance
-                              .collection("Users")
-                              .doc(ownerId)
-                              .get();
-
-                          String ownerName = "Unknown Chef";
-                          if (ownerSnapshot.exists) {
-                            var ownerData = ownerSnapshot.data() as Map<String, dynamic>;
-                            ownerName = "${ownerData["firstName"] ?? ""} ${ownerData["lastName"] ?? ""}".trim();
-                            if (ownerName.isEmpty) ownerName = "Unknown Chef";
-                          }
-                          if (isSubscribed) {
-                            await _downloadMealPlanAsPdf(context, data, ownerName, doc.id);
-                          } else {
-                            CustomSnackBar.show(
-                              context,
-                              'You must have an approved subscription to download this plan.',
-                              backgroundColor: Colors.redAccent,
-                              icon: Icons.lock,
-                              duration: const Duration(seconds: 3),
-                            );
-                          }
-                        },
-                        icon: const Icon(Icons.download_rounded, color: Colors.blueAccent, size: 18),
-                        label: const Text("Download", style: TextStyle(color: Colors.blueAccent, fontFamily: _primaryFontFamily, fontWeight: FontWeight.w600, fontSize: 13)),
-                        style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3)),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-  // --- END OF REPLACEMENT ---
 
 
   Future<void> _downloadMealPlanAsPdf(
@@ -1585,6 +2610,7 @@ class _HomeState extends State<home> {
             return pw.Column(
               crossAxisAlignment: pw.CrossAxisAlignment.start,
               children: [
+                // Title
                 pw.Text(
                   'Meal Plan',
                   style: pw.TextStyle(
@@ -1593,6 +2619,8 @@ class _HomeState extends State<home> {
                   ),
                 ),
                 pw.SizedBox(height: 8),
+
+                // Chef info
                 pw.Text(
                   'Chef: $ownerName',
                   style: pw.TextStyle(fontSize: 14),
@@ -1601,23 +2629,64 @@ class _HomeState extends State<home> {
                   'Plan Type: ${mealPlanData["planType"] ?? "Meal Plan"}',
                   style: pw.TextStyle(fontSize: 14),
                 ),
+
+                // Timestamp
                 if (mealPlanData["timestamp"] != null)
                   pw.Text(
                     'Created: ${DateFormat('MMM dd, yyyy – hh:mm a').format((mealPlanData["timestamp"] as Timestamp).toDate())}',
                     style: pw.TextStyle(fontSize: 14),
                   ),
-                pw.SizedBox(height: 20),
+
+                pw.SizedBox(height: 16),
+
+                // NEW: Description Section
+                if (mealPlanData["description"] != null &&
+                    mealPlanData["description"].toString().trim().isNotEmpty)
+                  pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Text(
+                        'Plan Description',
+                        style: pw.TextStyle(
+                          fontSize: 14,
+                          fontWeight: pw.FontWeight.bold,
+                        ),
+                      ),
+                      pw.SizedBox(height: 8),
+                      pw.Container(
+                        padding: pw.EdgeInsets.all(12),
+                        decoration: pw.BoxDecoration(
+                          border: pw.Border.all(
+                            color: PdfColor.fromHex('4CAF50'),
+                            width: 1,
+                          ),
+                          borderRadius: pw.BorderRadius.circular(6),
+                        ),
+                        child: pw.Text(
+                          mealPlanData["description"].toString().trim(),
+                          style: pw.TextStyle(
+                            fontSize: 12,
+                            height: 1.5,
+                          ),
+                        ),
+                      ),
+                      pw.SizedBox(height: 16),
+                    ],
+                  ),
+
                 pw.Divider(),
                 pw.SizedBox(height: 10),
+
+                // Meals Table
                 pw.TableHelper.fromTextArray(
                   headers: ['Meal Type', 'Food', 'Time'],
                   data: [
-                    ['Breakfast', mealPlanData["breakfast"] ?? '', mealPlanData["breakfastTime"] ?? ''],
-                    ['AM Snack', mealPlanData["amSnack"] ?? '', mealPlanData["amSnackTime"] ?? ''],
-                    ['Lunch', mealPlanData["lunch"] ?? '', mealPlanData["lunchTime"] ?? ''],
-                    ['PM Snack', mealPlanData["pmSnack"] ?? '', mealPlanData["pmSnackTime"] ?? ''],
-                    ['Dinner', mealPlanData["dinner"] ?? '', mealPlanData["dinnerTime"] ?? ''],
-                    ['Midnight Snack', mealPlanData["midnightSnack"] ?? '', mealPlanData["midnightSnackTime"] ?? ''],
+                    ['Breakfast', mealPlanData["breakfast"] ?? '—', mealPlanData["breakfastTime"] ?? '—'],
+                    ['AM Snack', mealPlanData["amSnack"] ?? '—', mealPlanData["amSnackTime"] ?? '—'],
+                    ['Lunch', mealPlanData["lunch"] ?? '—', mealPlanData["lunchTime"] ?? '—'],
+                    ['PM Snack', mealPlanData["pmSnack"] ?? '—', mealPlanData["pmSnackTime"] ?? '—'],
+                    ['Dinner', mealPlanData["dinner"] ?? '—', mealPlanData["dinnerTime"] ?? '—'],
+                    ['Midnight Snack', mealPlanData["midnightSnack"] ?? '—', mealPlanData["midnightSnackTime"] ?? '—'],
                   ],
                   border: pw.TableBorder.all(),
                   headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),
@@ -2069,12 +3138,12 @@ class _HomeState extends State<home> {
               context,
               fontSize: 11,
               fontWeight: FontWeight.w600,
-              color: _textColorOnPrimary,
+              color: _textColorOnPrimary, height: 1.5,
             ),
             unselectedLabelStyle: _getTextStyle(
               context,
               fontSize: 11,
-              color: _textColorOnPrimary.withOpacity(0.6),
+              color: _textColorOnPrimary.withOpacity(0.6), height: 1.5,
             ),
             items: const [
               BottomNavigationBarItem(
@@ -2192,14 +3261,14 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
               style: _getTextStyle(context,
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: _textColorPrimary(context)),
+                  color: _textColorPrimary(context), height: 1.5),
             ),
             const SizedBox(height: 8),
             Text(
               subtitle,
               textAlign: TextAlign.center,
               style: _getTextStyle(context,
-                  fontSize: 14, color: _textColorSecondary(context)),
+                  fontSize: 14, color: _textColorSecondary(context), height: 1.5),
             ),
           ],
         ),
@@ -2887,11 +3956,11 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
               calendarStyle: CalendarStyle(
                 outsideDaysVisible: false,
                 selectedDecoration: BoxDecoration(color: _primaryColor, shape: BoxShape.circle),
-                selectedTextStyle: _getTextStyle(context, color: _textColorOnPrimary, fontWeight: FontWeight.bold),
+                selectedTextStyle: _getTextStyle(context, color: _textColorOnPrimary, fontWeight: FontWeight.bold, height: 1.5),
                 todayDecoration: BoxDecoration(color: _primaryColor.withOpacity(0.5), shape: BoxShape.circle),
-                todayTextStyle: _getTextStyle(context, color: _textColorOnPrimary, fontWeight: FontWeight.bold),
-                weekendTextStyle: _getTextStyle(context, color: _primaryColor.withOpacity(0.8)),
-                defaultTextStyle: _getTextStyle(context, color: _textColorPrimary(context)),
+                todayTextStyle: _getTextStyle(context, color: _textColorOnPrimary, fontWeight: FontWeight.bold, height: 1.5),
+                weekendTextStyle: _getTextStyle(context, color: _primaryColor.withOpacity(0.8), height: 1.5),
+                defaultTextStyle: _getTextStyle(context, color: _textColorPrimary(context), height: 1.5),
               ),
               calendarBuilders: CalendarBuilders(
                 markerBuilder: (context, day, events) {
@@ -2912,8 +3981,8 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
               headerStyle: HeaderStyle(
                 formatButtonVisible: true,
                 titleCentered: true,
-                titleTextStyle: _getTextStyle(context, fontSize: 18, fontWeight: FontWeight.bold, color: _textColorPrimary(context)),
-                formatButtonTextStyle: _getTextStyle(context, color: _textColorOnPrimary),
+                titleTextStyle: _getTextStyle(context, fontSize: 18, fontWeight: FontWeight.bold, color: _textColorPrimary(context), height: 1.5),
+                formatButtonTextStyle: _getTextStyle(context, color: _textColorOnPrimary, height: 1.5),
                 formatButtonDecoration: BoxDecoration(color: _primaryColor, borderRadius: BorderRadius.circular(20.0)),
                 leftChevronIcon: Icon(Icons.chevron_left, color: _textColorPrimary(context)),
                 rightChevronIcon: Icon(Icons.chevron_right, color: _textColorPrimary(context)),
@@ -2948,7 +4017,7 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
                 children: [
                   Text(
                     "My Appointments for ${DateFormat.yMMMMd().format(_selectedDay!)}:",
-                    style: _getTextStyle(context, fontSize: 18, fontWeight: FontWeight.bold, color: _textColorPrimary(context)),
+                    style: _getTextStyle(context, fontSize: 18, fontWeight: FontWeight.bold, color: _textColorPrimary(context), height: 1.5),
                   ),
                   const SizedBox(height: 10),
                   _buildScheduledAppointmentsList(_selectedDay!),
@@ -2964,7 +4033,7 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
                   padding: const EdgeInsets.all(16.0),
                   child: Text(
                     "Select a day to see your appointments.",
-                    style: _getTextStyle(context, color: _textColorSecondary(context)),
+                    style: _getTextStyle(context, color: _textColorSecondary(context), height: 1.5),
                     textAlign: TextAlign.center,
                   ),
                 ),
@@ -3013,13 +4082,13 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
                 context,
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
-                color: _textColorOnPrimary,
+                color: _textColorOnPrimary, height: 1.5,
               ),
               unselectedLabelStyle: _getTextStyle(
                 context,
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
-                color: _textColorOnPrimary.withOpacity(0.7),
+                color: _textColorOnPrimary.withOpacity(0.7), height: 1.5,
               ),
               tabs: const [
                 Tab(
@@ -3102,7 +4171,7 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
                                   context,
                                   color: _primaryColor,
                                   fontWeight: FontWeight.w600,
-                                  fontSize: 14,
+                                  fontSize: 14, height: 1.5,
                                 ),
                               ),
                             ),
@@ -3117,7 +4186,7 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
                           Text(
                             "Your Meal Plans",
                             style: _getTextStyle(context,
-                                fontSize: 18, fontWeight: FontWeight.w700),
+                                fontSize: 18, fontWeight: FontWeight.w700, height: 1.5),
                           ),
                         ],
                       ),
@@ -3146,7 +4215,7 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
                           Text(
                             "Weekly Schedule",
                             style: _getTextStyle(context,
-                                fontSize: 18, fontWeight: FontWeight.w700),
+                                fontSize: 18, fontWeight: FontWeight.w700, height: 1.5),
                           ),
                         ],
                       ),
@@ -3226,7 +4295,7 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
                                                       style: _getTextStyle(context,
                                                           fontWeight:
                                                           FontWeight.bold,
-                                                          fontSize: 16),
+                                                          fontSize: 16, height: 1.5),
                                                     ),
                                                     if (isToday) ...[
                                                       const SizedBox(width: 6),
@@ -3248,7 +4317,8 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
                                                             fontSize: 10,
                                                             fontWeight:
                                                             FontWeight.bold,
-                                                            color: Colors.white,
+                                                            height: 1.5,
+                                                            color: Colors.white
                                                           ),
                                                         ),
                                                       ),
@@ -3260,7 +4330,7 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
                                                   style: _getTextStyle(context,
                                                       color: _textColorSecondary(
                                                           context),
-                                                      fontSize: 12),
+                                                      fontSize: 12, height: 1.5),
                                                 ),
                                               ],
                                             ),
@@ -3315,7 +4385,7 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
                                                           FontWeight.w500,
                                                           color:
                                                           _textColorSecondary(
-                                                              context)),
+                                                              context), height: 1.5),
                                                     ),
                                                   ],
                                                 ),
@@ -3363,7 +4433,7 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
                                                             fontWeight:
                                                             FontWeight.bold,
                                                             fontSize: 13,
-                                                            color: Colors.white,
+                                                            color: Colors.white, height: 1.5,
                                                           ),
                                                           overflow: TextOverflow
                                                               .ellipsis,
@@ -3491,7 +4561,7 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
                                                                               11,
                                                                               fontWeight:
                                                                               FontWeight.w600,
-                                                                              color: Colors.orange),
+                                                                              color: Colors.orange, height: 1.5),
                                                                         ),
                                                                       ],
                                                                     ),
@@ -3570,7 +4640,7 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
           Text(
             plan['planType'] ?? 'Meal Plan',
             style: _getTextStyle(context,
-                fontWeight: FontWeight.bold, fontSize: 14),
+                fontWeight: FontWeight.bold, fontSize: 14, height: 1.5),
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
           ),
@@ -3583,7 +4653,7 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
                 child: Text(
                   plan['ownerName'] ?? 'Unknown Owner',
                   style: _getTextStyle(context,
-                      fontSize: 12, color: _textColorSecondary(context)),
+                      fontSize: 12, color: _textColorSecondary(context), height: 1.5),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -3638,7 +4708,8 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
                             fontWeight: FontWeight.w600,
                             color: isLocked
                                 ? Colors.grey.shade600
-                                : _primaryColor),
+                                : _primaryColor, height: 1.5
+                        ),
                       ),
                     ),
                     if (time != null && time.isNotEmpty && !isLocked)
@@ -3660,7 +4731,7 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
                               style: _getTextStyle(context,
                                   fontSize: 10,
                                   fontWeight: FontWeight.w600,
-                                  color: _primaryColor),
+                                  color: _primaryColor, height: 1.5),
                             ),
                           ],
                         ),
@@ -3677,7 +4748,7 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
                           fontWeight: FontWeight.w500,
                           color: isLocked
                               ? Colors.grey.shade500
-                              : _getTextStyle(context, fontSize: 13).color),
+                              : _getTextStyle(context, fontSize: 13, height: 1.5).color, height: 1.5),
                     ),
                   ),
               ],
@@ -3789,7 +4860,7 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
           Expanded(
             child: Text(
               text,
-              style: _getTextStyle(context, fontSize: 13),
+              style: _getTextStyle(context, fontSize: 13, height: 1.5),
             ),
           ),
         ],
@@ -3814,9 +4885,10 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
         child: Padding(
           padding: const EdgeInsets.all(16.0),
           child: Center(
-            child: Text("No appointments scheduled for this day yet.", style: _getTextStyle(context, color: _textColorSecondary(context))),
+            child: Text("No appointments scheduled for this day yet.", style: _getTextStyle(context, color: _textColorSecondary(context), height: 1.5),
           ),
         ),
+      )
       );
     }
 
@@ -3892,7 +4964,7 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
                         style: _getTextStyle(
                           context,
                           fontSize: 16,
-                          fontWeight: FontWeight.bold,
+                          fontWeight: FontWeight.bold, height: 1.5,
                         ),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
@@ -3922,7 +4994,7 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
                             context,
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
-                            color: _textColorPrimary(context),
+                            color: _textColorPrimary(context), height: 1.5,
                           ),
                         ),
                       ],
@@ -3946,7 +5018,7 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
                             context,
                             fontSize: 13,
                             fontWeight: FontWeight.w600,
-                            color: statusColor,
+                            color: statusColor, height: 1.5,
                           ),
                         ),
                       ],
@@ -3977,7 +5049,7 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
                           style: _getTextStyle(
                             context,
                             fontSize: 13,
-                            color: _textColorSecondary(context),
+                            color: _textColorSecondary(context), height: 1.5,
                           ),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
@@ -4172,7 +5244,7 @@ class _UsersListPageState extends State<UsersListPage> {
                     dialogContext,
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
-                    color: _textColorPrimary(dialogContext),
+                    color: _textColorPrimary(dialogContext), height: 1.5,
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -4182,7 +5254,7 @@ class _UsersListPageState extends State<UsersListPage> {
                   style: _getTextStyle(
                     dialogContext,
                     fontSize: 14,
-                    color: _textColorSecondary(dialogContext),
+                    color: _textColorSecondary(dialogContext), height: 1.5,
                   ),
                 ),
                 const SizedBox(height: 32),
@@ -4204,7 +5276,7 @@ class _UsersListPageState extends State<UsersListPage> {
                         dialogContext,
                         fontSize: 15,
                         fontWeight: FontWeight.bold,
-                        color: _primaryColor,
+                        color: _primaryColor, height: 1.5,
                       ),
                     ),
                   ),
@@ -4230,7 +5302,7 @@ class _UsersListPageState extends State<UsersListPage> {
                         dialogContext,
                         fontSize: 15,
                         fontWeight: FontWeight.bold,
-                        color: Colors.white,
+                        color: Colors.white, height: 1.5,
                       ),
                     ),
                   ),
@@ -4912,7 +5984,7 @@ class _UsersListPageState extends State<UsersListPage> {
                 style: _getTextStyle(
                   context,
                   fontSize: 16,
-                  color: _textColorPrimary(context),
+                  color: _textColorPrimary(context), height: 1.5,
                 ),
               ),
             )
@@ -5021,7 +6093,7 @@ class _UsersListPageState extends State<UsersListPage> {
                                     senderName,
                                     style: _getTextStyle(context,
                                         fontSize: 15,
-                                        fontWeight: FontWeight.w600),
+                                        fontWeight: FontWeight.w600, height: 1.5),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                   ),
@@ -5033,7 +6105,7 @@ class _UsersListPageState extends State<UsersListPage> {
                                     style: _getTextStyle(context,
                                         fontSize: 13,
                                         fontWeight: FontWeight.w400,
-                                        color: _textColorSecondary(context)),
+                                        color: _textColorSecondary(context), height: 1.5),
                                   ),
                                 ],
                               ),
@@ -5045,7 +6117,7 @@ class _UsersListPageState extends State<UsersListPage> {
                                   timeText,
                                   style: _getTextStyle(context,
                                       fontSize: 12,
-                                      color: _textColorSecondary(context)),
+                                      color: _textColorSecondary(context), height: 1.5),
                                 ),
                               ),
                           ],
@@ -5082,7 +6154,7 @@ class _UsersListPageState extends State<UsersListPage> {
                             style: _getTextStyle(context,
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
-                                color: _textColorPrimary(context))),
+                                color: _textColorPrimary(context), height: 1.5)),
                       ],
                     ),
                   );
@@ -5188,7 +6260,7 @@ class _UsersListPageState extends State<UsersListPage> {
                               style: _getTextStyle(
                                 context,
                                 fontSize: 16,
-                                color: _textColorSecondary(context),
+                                color: _textColorSecondary(context), height: 1.5,
                               ),
                             ),
                           ],
@@ -5339,7 +6411,7 @@ class _UsersListPageState extends State<UsersListPage> {
                                                           : FontWeight.bold,
                                                       color:
                                                       _textColorPrimary(
-                                                          context),
+                                                          context), height: 1.5,
                                                     ),
                                                     maxLines: 1,
                                                     overflow: TextOverflow
@@ -5368,7 +6440,7 @@ class _UsersListPageState extends State<UsersListPage> {
                                                 fontSize: 13,
                                                 fontWeight: FontWeight.w400,
                                                 color:
-                                                _textColorSecondary(context),
+                                                _textColorSecondary(context), height: 1.5,
                                               ),
                                               maxLines: 2,
                                               overflow: TextOverflow.ellipsis,
@@ -5393,7 +6465,7 @@ class _UsersListPageState extends State<UsersListPage> {
                                                   color: isRead
                                                       ? _textColorSecondary(
                                                       context)
-                                                      : iconBgColor,
+                                                      : iconBgColor, height: 1.5,
                                                 ),
                                               ),
                                             ],

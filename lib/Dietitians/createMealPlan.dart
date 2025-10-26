@@ -58,8 +58,15 @@ class CreateMealPlanPage extends StatefulWidget {
   State<CreateMealPlanPage> createState() => _CreateMealPlanPageState();
 }
 
+// ============================================
+// STEP 1: Update createMealPlan.dart
+// ============================================
+
 class _CreateMealPlanPageState extends State<CreateMealPlanPage> {
-  String selectedPlanType = "Weight Loss"; // Default value
+  String selectedPlanType = "Weight Loss";
+
+  // NEW: Add description controller
+  final TextEditingController _descriptionController = TextEditingController();
 
   final Map<String, List<TextEditingController>> mealControllers = {
     "Breakfast": [TextEditingController()],
@@ -87,11 +94,11 @@ class _CreateMealPlanPageState extends State<CreateMealPlanPage> {
         controller.dispose();
       }
     });
+    _descriptionController.dispose(); // NEW: Dispose description controller
     super.dispose();
   }
 
   Future<void> _pickTime(String mealKey) async {
-    // Get the current theme to check for dark mode
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
@@ -99,23 +106,17 @@ class _CreateMealPlanPageState extends State<CreateMealPlanPage> {
       context: context,
       initialTime: mealTimes[mealKey]!,
       builder: (context, child) {
-        // This theme now correctly handles both dark and light modes
         return Theme(
           data: theme.copyWith(
             colorScheme: theme.colorScheme.copyWith(
-              // The main header background of the time picker
               primary: _primaryColor,
-              // The text on the header (AM/PM, time)
               onPrimary: _textColorOnPrimary,
-              // The background of the clock dial
               surface: isDark ? Colors.grey.shade800 : Colors.white,
-              // The numbers on the clock dial
               onSurface: _getTextColorPrimary(context),
             ),
-            // Style for the "OK" and "Cancel" buttons
             textButtonTheme: TextButtonThemeData(
               style: TextButton.styleFrom(
-                foregroundColor: _primaryColor, // Button text color
+                foregroundColor: _primaryColor,
                 textStyle: const TextStyle(
                   fontFamily: _primaryFontFamily,
                   fontWeight: FontWeight.bold,
@@ -136,14 +137,15 @@ class _CreateMealPlanPageState extends State<CreateMealPlanPage> {
     }
   }
 
-  // --- NEW: Re-styled Text Field ---
   Widget _buildStyledTextField({
     required TextEditingController controller,
     required String hintText,
     IconData? prefixIcon,
+    int? maxLines,
   }) {
     return TextFormField(
       controller: controller,
+      maxLines: maxLines ?? 1,
       style: _getTextStyle(context, fontSize: 15),
       decoration: InputDecoration(
         hintText: hintText,
@@ -151,7 +153,7 @@ class _CreateMealPlanPageState extends State<CreateMealPlanPage> {
         _getTextStyle(context, color: _getTextColorSecondary(context)),
         filled: true,
         fillColor: _inputFillColor(context),
-        prefixIcon: prefixIcon != null
+        prefixIcon: prefixIcon != null && maxLines == null
             ? Icon(prefixIcon, color: _primaryColor.withOpacity(0.7), size: 20)
             : null,
         contentPadding:
@@ -168,7 +170,6 @@ class _CreateMealPlanPageState extends State<CreateMealPlanPage> {
     );
   }
 
-  // --- NEW: Re-styled Time Picker Button ---
   Widget _buildTimePickerButton(BuildContext context, String mealKey) {
     final time = mealTimes[mealKey]!;
     return Padding(
@@ -202,7 +203,6 @@ class _CreateMealPlanPageState extends State<CreateMealPlanPage> {
     );
   }
 
-  // --- NEW: Refactored Meal Row Builder ---
   Widget buildMealRow(String mealName, String key) {
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 10.0),
@@ -228,11 +228,9 @@ class _CreateMealPlanPageState extends State<CreateMealPlanPage> {
           ),
           const SizedBox(height: 12),
 
-          // --- This is your new styled Time Picker ---
           _buildTimePickerButton(context, key),
           const SizedBox(height: 12),
 
-          // Dynamic textboxes
           Column(
             children: List.generate(mealControllers[key]!.length, (index) {
               return Padding(
@@ -247,13 +245,11 @@ class _CreateMealPlanPageState extends State<CreateMealPlanPage> {
           ),
           const SizedBox(height: 16),
 
-          // Buttons row
           Wrap(
             spacing: 10,
             runSpacing: 10,
             alignment: WrapAlignment.start,
             children: [
-              // Add Item Button
               ElevatedButton.icon(
                 onPressed: () {
                   if (mounted) {
@@ -278,7 +274,6 @@ class _CreateMealPlanPageState extends State<CreateMealPlanPage> {
                 label: const Text("Add Item"),
               ),
 
-              // Delete Last Button
               if (mealControllers[key]!.length > 1)
                 ElevatedButton.icon(
                   onPressed: () {
@@ -333,7 +328,7 @@ class _CreateMealPlanPageState extends State<CreateMealPlanPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // --- NEW: Re-styled Dropdown ---
+            // Plan Type Dropdown
             Padding(
               padding: const EdgeInsets.only(top: 8.0, bottom: 20.0),
               child: DropdownButtonFormField<String>(
@@ -345,7 +340,7 @@ class _CreateMealPlanPageState extends State<CreateMealPlanPage> {
                       value: "Weight Gain", child: Text("Weight Gain Program")),
                   DropdownMenuItem(
                       value: "Maintain Weight",
-                      child: Text("Maintain Weight")),
+                      child: Text("Maintain Weight Program")),
                   DropdownMenuItem(
                       value: "Work Out",
                       child: Text("Fitness & Workout Plan")),
@@ -384,6 +379,76 @@ class _CreateMealPlanPageState extends State<CreateMealPlanPage> {
               ),
             ),
 
+            // NEW: Description Field
+            Padding(
+              padding: const EdgeInsets.only(bottom: 20.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        "Plan Description",
+                        style: _getTextStyle(
+                          context,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: _primaryColor,
+                        ),
+                      ),
+                      ValueListenableBuilder<TextEditingValue>(
+                        valueListenable: _descriptionController,
+                        builder: (context, value, child) {
+                          return Text(
+                            "${value.text.length}/300",
+                            style: _getTextStyle(
+                              context,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                              color: value.text.length > 270
+                                  ? Colors.orange
+                                  : _getTextColorSecondary(context),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  TextFormField(
+                    controller: _descriptionController,
+                    maxLines: 4,
+                    maxLength: 300,
+                    buildCounter: (context,
+                        {required currentLength, required isFocused, maxLength}) {
+                      return const SizedBox.shrink(); // Hide default counter
+                    },
+                    style: _getTextStyle(context, fontSize: 15),
+                    decoration: InputDecoration(
+                      hintText: "Describe your meal plan (max 300 characters)...",
+                      hintStyle: _getTextStyle(
+                        context,
+                        color: _getTextColorSecondary(context),
+                      ),
+                      filled: true,
+                      fillColor: _inputFillColor(context),
+                      contentPadding:
+                      const EdgeInsets.symmetric(vertical: 16.0, horizontal: 16.0),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: _primaryColor, width: 2),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
             buildMealRow("Breakfast", "Breakfast"),
             buildMealRow("AM Snack", "AM Snack"),
             buildMealRow("Lunch", "Lunch"),
@@ -391,7 +456,7 @@ class _CreateMealPlanPageState extends State<CreateMealPlanPage> {
             buildMealRow("Dinner", "Dinner"),
             buildMealRow("Midnight Snack", "Midnight Snack"),
 
-            const SizedBox(height: 30),
+            const SizedBox(height: 20),
             Row(
               children: [
                 Expanded(
@@ -434,6 +499,7 @@ class _CreateMealPlanPageState extends State<CreateMealPlanPage> {
                           builder: (context) => MealPlanPreviewPage(
                             planType: selectedPlanType,
                             meals: meals,
+                            description: _descriptionController.text.trim(), // NEW: Pass description
                           ),
                         ),
                       );
@@ -462,3 +528,4 @@ class _CreateMealPlanPageState extends State<CreateMealPlanPage> {
     );
   }
 }
+

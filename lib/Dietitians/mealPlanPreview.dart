@@ -20,7 +20,7 @@ TextStyle _getTextStyle(
       Color? color,
       String fontFamily = _primaryFontFamily,
       double? letterSpacing,
-      FontStyle? fontStyle,
+      FontStyle? fontStyle, required double height,
     }) {
   final isDarkMode = Theme.of(context).brightness == Brightness.dark;
   final defaultTextColor =
@@ -56,14 +56,20 @@ Color _getTextColorSecondary(BuildContext context) =>
         : Colors.black54;
 // --- End Style Definitions ---
 
+// ============================================
+// STEP 2: Update mealPlanPreview.dart
+// ============================================
+
 class MealPlanPreviewPage extends StatelessWidget {
   final String planType;
   final List<MealEntry> meals;
+  final String description; // NEW: Add description parameter
 
   const MealPlanPreviewPage({
     super.key,
     required this.planType,
     required this.meals,
+    required this.description, // NEW: Add to constructor
   });
 
   String _getMealString(String key) {
@@ -89,7 +95,6 @@ class MealPlanPreviewPage extends StatelessWidget {
       return;
     }
 
-    // helper to get the time string
     String _getMealTimeString(String key) {
       try {
         final meal =
@@ -103,6 +108,7 @@ class MealPlanPreviewPage extends StatelessWidget {
     try {
       await FirebaseFirestore.instance.collection("mealPlans").add({
         "planType": planType,
+        "description": description, // NEW: Save description
         // meal items
         "breakfast": _getMealString("Breakfast"),
         "amSnack": _getMealString("AM Snack"),
@@ -119,7 +125,7 @@ class MealPlanPreviewPage extends StatelessWidget {
         "midnightSnackTime": _getMealTimeString("Midnight Snack"),
         // meta info
         "owner": user.uid,
-        "likeCounts": 0, // Add likeCounts field with initial value 0
+        "likeCounts": 0,
         "timestamp": FieldValue.serverTimestamp(),
       });
 
@@ -156,12 +162,12 @@ class MealPlanPreviewPage extends StatelessWidget {
       backgroundColor: _getScaffoldBgColor(context),
       appBar: AppBar(
         leading: BackButton(color: _getTextColorPrimary(context)),
-        backgroundColor: _getCardBgColor(context), // Use card color
-        foregroundColor: _getTextColorPrimary(context), // Use primary text color
+        backgroundColor: _getCardBgColor(context),
+        foregroundColor: _getTextColorPrimary(context),
         title: Text(
           "$planType - Preview",
           style: _getTextStyle(context,
-              fontSize: 20, fontWeight: FontWeight.bold),
+              fontSize: 20, fontWeight: FontWeight.bold, height: 1.5),
         ),
         centerTitle: true,
         elevation: 1.0,
@@ -171,76 +177,130 @@ class MealPlanPreviewPage extends StatelessWidget {
         child: Column(
           children: [
             Expanded(
-              child: ListView.builder(
-                itemCount: meals.length,
-                itemBuilder: (context, index) {
-                  final meal = meals[index];
-                  // Skip empty meals
-                  if (meal.items.isEmpty) {
-                    return const SizedBox.shrink();
-                  }
-
-                  final formattedTime = meal.time.format(context);
-
-                  return Card(
-                    elevation: 1,
-                    margin: const EdgeInsets.symmetric(vertical: 8.0),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
-                    color: _getCardBgColor(context),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Row(
+              child: ListView(
+                children: [
+                  // NEW: Display description
+                  if (description.isNotEmpty)
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      margin: const EdgeInsets.only(bottom: 20),
+                      decoration: BoxDecoration(
+                        color: _primaryColor.withOpacity(0.08),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: _primaryColor.withOpacity(0.2),
+                          width: 1.5,
+                        ),
+                      ),
+                      child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Icon(
-                            _getIconForMeal(meal.name), // Use helper for icon
-                            color: _primaryColor,
-                            size: 28,
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  meal.name,
-                                  style: _getTextStyle(context,
-                                      fontSize: 17,
-                                      fontWeight: FontWeight.bold),
-                                ),
-                                const SizedBox(height: 8),
-                                // This is cleaner than mapping
-                                Text(
-                                  meal.items.join("\n• "), // Join with bullet
-                                  style: _getTextStyle(context,
-                                      fontSize: 14,
-                                      color: _getTextColorSecondary(context)),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 5),
-                            decoration: BoxDecoration(
-                              color: _primaryColor.withOpacity(0.15),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text(
-                              formattedTime,
-                              style: _getTextStyle(context,
-                                  fontSize: 13,
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.info_outlined,
+                                color: _primaryColor,
+                                size: 20,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                "About This Plan",
+                                style: _getTextStyle(
+                                  context,
+                                  fontSize: 14,
                                   fontWeight: FontWeight.bold,
-                                  color: _primaryColor),
+                                  color: _primaryColor, height: 1.5,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          Text(
+                            description,
+                            style: _getTextStyle(
+                              context,
+                              fontSize: 13,
+                              color: _getTextColorPrimary(context),
+                              height: 1.5,
                             ),
                           ),
                         ],
                       ),
                     ),
-                  );
-                },
+
+                  // Meals list
+                  ListView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: meals.length,
+                    itemBuilder: (context, index) {
+                      final meal = meals[index];
+                      if (meal.items.isEmpty) {
+                        return const SizedBox.shrink();
+                      }
+
+                      final formattedTime = meal.time.format(context);
+
+                      return Card(
+                        elevation: 1,
+                        margin: const EdgeInsets.symmetric(vertical: 8.0),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                        color: _getCardBgColor(context),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Icon(
+                                _getIconForMeal(meal.name),
+                                color: _primaryColor,
+                                size: 28,
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      meal.name,
+                                      style: _getTextStyle(context,
+                                          fontSize: 17,
+                                          fontWeight: FontWeight.bold, height: 1.5),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      meal.items.join("\n• "),
+                                      style: _getTextStyle(context,
+                                          fontSize: 14,
+                                          color: _getTextColorSecondary(context), height: 1.5),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 10, vertical: 5),
+                                decoration: BoxDecoration(
+                                  color: _primaryColor.withOpacity(0.15),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  formattedTime,
+                                  style: _getTextStyle(context,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.bold,
+                                      color: _primaryColor, height: 1.5),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ],
               ),
             ),
             Padding(
@@ -260,7 +320,7 @@ class MealPlanPreviewPage extends StatelessWidget {
                         textStyle: _getTextStyle(context,
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
-                            color: _textColorOnPrimary),
+                            color: _textColorOnPrimary, height: 1.5),
                       ),
                       icon:
                       const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
@@ -280,7 +340,7 @@ class MealPlanPreviewPage extends StatelessWidget {
                         textStyle: _getTextStyle(context,
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
-                            color: _textColorOnPrimary),
+                            color: _textColorOnPrimary, height: 1.5),
                       ),
                       icon: const Icon(Icons.check_circle_outline_rounded,
                           size: 20),
@@ -296,7 +356,6 @@ class MealPlanPreviewPage extends StatelessWidget {
     );
   }
 
-  // Helper function to get a relevant icon
   IconData _getIconForMeal(String mealName) {
     final name = mealName.toLowerCase();
     if (name.contains('breakfast')) return Icons.wb_sunny_outlined;
@@ -305,6 +364,6 @@ class MealPlanPreviewPage extends StatelessWidget {
     if (name.contains('am snack')) return Icons.coffee_outlined;
     if (name.contains('pm snack')) return Icons.local_cafe_outlined;
     if (name.contains('midnight snack')) return Icons.bedtime_outlined;
-    return Icons.fastfood_outlined; // Default
+    return Icons.fastfood_outlined;
   }
 }
