@@ -12,7 +12,7 @@ const Color _textColorOnPrimary = Colors.white;
 Color _scaffoldBgColor(BuildContext context) =>
     Theme.of(context).brightness == Brightness.dark
         ? Colors.grey.shade900
-        : Colors.grey.shade50; // Use a light grey for contrast
+        : Colors.grey.shade50;
 Color _cardBgColor(BuildContext context) =>
     Theme.of(context).brightness == Brightness.dark
         ? Colors.grey.shade800
@@ -68,6 +68,7 @@ class _ChoosePlanPageState extends State<ChoosePlanPage> {
   String? selectedPlanType;
   String? _dietitianId;
   bool _isLoading = true;
+  bool _hasActiveSubscription = false;
 
   double _weeklyPrice = 99.00;
   double _monthlyPrice = 250.00;
@@ -143,8 +144,10 @@ class _ChoosePlanPageState extends State<ChoosePlanPage> {
           _weeklyPrice = (data['weeklyPrice'] ?? 99.00).toDouble();
           _monthlyPrice = (data['monthlyPrice'] ?? 250.00).toDouble();
           _yearlyPrice = (data['yearlyPrice'] ?? 2999.00).toDouble();
-          _isLoading = false;
         });
+
+        // Check for active subscription after getting dietitian ID
+        await _checkActiveSubscription();
       } else {
         setState(() => _isLoading = false);
       }
@@ -153,6 +156,46 @@ class _ChoosePlanPageState extends State<ChoosePlanPage> {
       setState(() => _isLoading = false);
     }
   }
+
+  // THIS IS THE FUNCTION THAT CHECKS FOR ACTIVE SUBSCRIPTION
+  Future<void> _checkActiveSubscription() async {
+    try {
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null || _dietitianId == null) {
+        print('⚠️ No current user or dietitian ID');
+        setState(() => _isLoading = false);
+        return;
+      }
+
+      // Only query the client's own subscribeTo collection
+      final subscribeToSnapshot = await FirebaseFirestore.instance
+          .collection('Users')
+          .doc(currentUser.uid)
+          .collection('subscribeTo')
+          .where('dietitianId', isEqualTo: _dietitianId)
+          .get();
+
+      String? status;
+
+      if (subscribeToSnapshot.docs.isNotEmpty) {
+        status = subscribeToSnapshot.docs.first.data()['status'];
+        print('📋 Subscription status: $status');
+      } else {
+        print('📋 No subscription found');
+      }
+
+      bool hasActiveSubscription = status == 'approved';
+
+      setState(() {
+        _hasActiveSubscription = hasActiveSubscription;
+        _isLoading = false;
+      });
+    } catch (e) {
+      print('❌ Error checking subscription status: $e');
+      setState(() => _isLoading = false);
+    }
+  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -220,7 +263,7 @@ class _ChoosePlanPageState extends State<ChoosePlanPage> {
                 );
               }).toList(),
             ],
-            const SizedBox(height: 40), // Spacer for button
+            const SizedBox(height: 40),
           ],
         ),
       ),
@@ -452,6 +495,19 @@ class _ChoosePlanPageState extends State<ChoosePlanPage> {
   }
 
   Widget _buildBottomButton(BuildContext context) {
+    // Determine if button should be disabled
+    bool isButtonDisabled = selectedPlanType == null || _hasActiveSubscription;
+    String buttonText;
+
+    if (_hasActiveSubscription) {
+      buttonText = 'Already Subscribed';
+    } else if (selectedPlanType == null) {
+      buttonText = 'Select a plan to continue';
+    } else {
+      buttonText = 'Proceed to Payment';
+    }
+
+
     return Container(
       padding: const EdgeInsets.fromLTRB(24, 16, 24, 40),
       decoration: BoxDecoration(
@@ -468,7 +524,7 @@ class _ChoosePlanPageState extends State<ChoosePlanPage> {
         width: double.infinity,
         height: 56,
         child: ElevatedButton(
-          onPressed: selectedPlanType == null ? null : _proceedToPayment,
+          onPressed: isButtonDisabled ? null : _proceedToPayment,
           style: ElevatedButton.styleFrom(
             backgroundColor: _primaryColor,
             foregroundColor: _textColorOnPrimary,
@@ -481,18 +537,17 @@ class _ChoosePlanPageState extends State<ChoosePlanPage> {
             shadowColor: _primaryColor.withOpacity(0.3),
           ),
           child: Text(
-            selectedPlanType == null
-                ? 'Select a plan to continue'
-                : 'Proceed to Payment',
+            buttonText,
             style: _getTextStyle(
               context,
               fontSize: 16,
               fontWeight: FontWeight.bold,
-              color: selectedPlanType == null
+              color: isButtonDisabled
                   ? Colors.grey.shade500
                   : _textColorOnPrimary,
             ),
           ),
+
         ),
       ),
     );

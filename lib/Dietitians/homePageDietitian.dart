@@ -513,8 +513,9 @@ class _AnalyticsDashboardState extends State<AnalyticsDashboard> {
   }
 
   Future<Map<String, dynamic>> _fetchSubscriptionData(
-    String dietitianId,
-  ) async {
+      String dietitianId,
+      ) async {
+    // Fetch subscriber data
     final subscriberSnap = await FirebaseFirestore.instance
         .collection('Users')
         .doc(dietitianId)
@@ -525,8 +526,6 @@ class _AnalyticsDashboardState extends State<AnalyticsDashboard> {
     int monthlySubs = 0;
     int yearlySubs = 0;
     int weeklySubs = 0;
-    int newClientsThisMonth = 0;
-    final now = DateTime.now();
 
     for (var doc in subscriberSnap.docs) {
       final data = doc.data();
@@ -535,36 +534,22 @@ class _AnalyticsDashboardState extends State<AnalyticsDashboard> {
       if (planType.toLowerCase() == 'monthly') monthlySubs++;
       if (planType.toLowerCase() == 'yearly') yearlySubs++;
       if (planType.toLowerCase() == 'weekly') weeklySubs++;
-
-      final timestamp = data['timestamp'] as Timestamp?;
-      if (timestamp != null) {
-        final date = timestamp.toDate();
-        if (date.year == now.year && date.month == now.month) {
-          newClientsThisMonth++;
-        }
-      }
     }
 
-    // Fetch total revenue from receipts collection (all approved payments)
-    // This calculates cumulative revenue from ALL approved receipts ever
-    double totalRevenue = 0.0;
-    final receiptsSnap = await FirebaseFirestore.instance
-        .collection('receipts')
-        .where('dietitianID', isEqualTo: dietitianId)
-        .where('status', whereNotIn: ['pending', 'declined'])
-        .where('commissionPaid', isEqualTo: false) // NEW: Only unpaid commissions
-        .orderBy('status')
+    // Fetch revenue data from Users collection
+    final userDoc = await FirebaseFirestore.instance
+        .collection('Users')
+        .doc(dietitianId)
         .get();
 
-    for (var doc in receiptsSnap.docs) {
-      final data = doc.data();
-      final priceString = data['planPrice']?.toString().replaceAll(
-        RegExp(r'[^0-9.]'),
-        '',
-      );
-      if (priceString != null && priceString.isNotEmpty) {
-        totalRevenue += double.tryParse(priceString) ?? 0.0;
-      }
+    final userData = userDoc.data();
+    double totalRevenue = 0.0;
+    double overallEarnings = 0.0;
+
+    if (userData != null) {
+      // Get totalRevenue and overallEarnings fields from Users document
+      totalRevenue = (userData['totalRevenue'] as num?)?.toDouble() ?? 0.0;
+      overallEarnings = (userData['overallEarnings'] as num?)?.toDouble() ?? 0.0;
     }
 
     return {
@@ -572,8 +557,8 @@ class _AnalyticsDashboardState extends State<AnalyticsDashboard> {
       'monthlySubs': monthlySubs,
       'yearlySubs': yearlySubs,
       'weeklySubs': weeklySubs,
-      'newClientsThisMonth': newClientsThisMonth,
       'totalRevenue': totalRevenue,
+      'overallEarnings': overallEarnings,
     };
   }
 
@@ -791,9 +776,9 @@ class _AnalyticsDashboardState extends State<AnalyticsDashboard> {
         'color': const Color(0xFF2196F3),
       },
       {
-        'value': (subData['newClientsThisMonth'] ?? 0).toString(),
-        'label': 'New This Month',
-        'icon': Icons.person_add_rounded,
+        'value': '₱${subData['overallEarnings']?.toString() ?? '0'}',
+        'label': 'Overall Earnings',
+        'icon': Icons.attach_money_rounded,
         'color': const Color(0xFFFF9800),
       },
     ];
@@ -1706,6 +1691,7 @@ class _SubscriptionRequestsState extends State<SubscriptionRequests> {
         }
       }
 
+      // FIXED: Keep planPrice as the original value (num or String), don't default to empty string
       results.add({
         "docId": doc.id,
         "clientID": clientID,
@@ -1714,7 +1700,7 @@ class _SubscriptionRequestsState extends State<SubscriptionRequests> {
         clientData['firstname'] ?? clientData['firstName'] ?? 'N/A',
         "lastname": clientData['lastname'] ?? clientData['lastName'] ?? 'N/A',
         "email": clientData['email'] ?? 'N/A',
-        "planPrice": data['planPrice'] ?? '',
+        "planPrice": data['planPrice'] ?? 0, // Keep as number or 0, not empty string
         "planType": data['planType'] ?? '',
         "status": data['status'] ?? '',
         "timestamp": timestampStr,
@@ -1854,6 +1840,10 @@ class _SubscriptionRequestsState extends State<SubscriptionRequests> {
       final planType = receipt['planType'];
       final planPrice = receipt['planPrice'];
 
+      // Debug: Print what we received
+      print('Received planPrice: $planPrice (${planPrice.runtimeType})');
+      print('Received planType: $planType');
+
       DateTime now = DateTime.now();
       DateTime expirationDate;
 
@@ -1872,10 +1862,9 @@ class _SubscriptionRequestsState extends State<SubscriptionRequests> {
       final clientRef = usersRef.doc(clientId);
       final dietitianRef = usersRef.doc(dietitianId);
 
-
       await dietitianRef.collection("subscriber").doc(clientId).set({
         "userId": clientId,
-        "receiptId": receiptId,  // ← Added this line
+        "receiptId": receiptId,
         "planType": planType,
         "price": planPrice,
         "status": "approved",
@@ -1885,7 +1874,7 @@ class _SubscriptionRequestsState extends State<SubscriptionRequests> {
 
       await clientRef.collection("subscribeTo").doc(dietitianId).set({
         "dietitianId": dietitianId,
-        "receiptId": receiptId,  // ← Added this line
+        "receiptId": receiptId,
         "planType": planType,
         "price": planPrice,
         "status": "approved",
@@ -1898,6 +1887,73 @@ class _SubscriptionRequestsState extends State<SubscriptionRequests> {
           .doc(receiptId)
           .update({"status": "approved"});
 
+      // Update dietitian's revenue and commission
+      await FirebaseFirestore.instance.runTransaction((transaction) async {
+        final snapshot = await transaction.get(dietitianRef);
+        final currentData = snapshot.data() ?? {};
+
+        // Parse planPrice properly
+        double planPriceValue = 0.0;
+        if (planPrice is num) {
+          planPriceValue = planPrice.toDouble();
+        } else if (planPrice is String) {
+          // Remove any currency symbols or commas
+          String cleanPrice = planPrice.replaceAll(RegExp(r'[^\d.]'), '');
+          planPriceValue = double.tryParse(cleanPrice) ?? 0.0;
+        }
+
+        print('Parsed planPriceValue: $planPriceValue');
+
+        // Get current values
+        double totalRevenue = ((currentData['totalRevenue'] ?? 0) as num).toDouble();
+        double weeklyCommission = ((currentData['weeklyCommission'] ?? 0) as num).toDouble();
+        double monthlyCommission = ((currentData['monthlyCommission'] ?? 0) as num).toDouble();
+        double yearlyCommission = ((currentData['yearlyCommission'] ?? 0) as num).toDouble();
+
+        double commission = 0.0;
+
+        // Calculate commission based on plan type
+        if (planType.toString().toLowerCase() == 'weekly') {
+          commission = planPriceValue * 0.15;
+          weeklyCommission += commission;
+        } else if (planType.toString().toLowerCase() == 'monthly') {
+          commission = planPriceValue * 0.10;
+          monthlyCommission += commission;
+        } else if (planType.toString().toLowerCase() == 'yearly') {
+          commission = planPriceValue * 0.08;
+          yearlyCommission += commission;
+        }
+
+        // Update totals
+        totalRevenue += planPriceValue;
+        double totalCommission = weeklyCommission + monthlyCommission + yearlyCommission;
+        double totalEarnings = totalRevenue - totalCommission;
+
+        // Get current overallEarnings (never resets to 0)
+        double overallEarnings = ((currentData['overallEarnings'] ?? 0) as num).toDouble();
+
+        // Add the current earnings (after commission) to overall earnings
+        double currentEarnings = planPriceValue - commission;
+        overallEarnings += currentEarnings;
+
+        print('Total Revenue: $totalRevenue');
+        print('Commission: $commission');
+        print('Total Commission: $totalCommission');
+        print('Total Earnings: $totalEarnings');
+        print('Current Earnings: $currentEarnings');
+        print('Overall Earnings: $overallEarnings');
+
+        transaction.update(dietitianRef, {
+          "totalRevenue": totalRevenue,
+          "weeklyCommission": weeklyCommission,
+          "monthlyCommission": monthlyCommission,
+          "yearlyCommission": yearlyCommission,
+          "totalCommission": totalCommission,
+          "totalEarnings": totalEarnings,
+          "overallEarnings": overallEarnings,
+        });
+      });
+
       CustomSnackBar.show(
         context,
         'User subscription approved!',
@@ -1908,6 +1964,7 @@ class _SubscriptionRequestsState extends State<SubscriptionRequests> {
       // Reload data
       await _loadReceipts();
     } catch (e) {
+      print('Error in _approveSubscription: $e');
       CustomSnackBar.show(
         context,
         'Error approving user: $e',
@@ -2007,7 +2064,7 @@ class _SubscriptionRequestsState extends State<SubscriptionRequests> {
         clientName: "${receipt['firstName']} ${receipt['lastName']}",
         dietitianName: dietitianName.isNotEmpty ? dietitianName : 'Your Dietitian',
         planType: receipt['planType'],
-        planPrice: receipt['planPrice'],
+        planPrice: receipt['planPrice'].toString(),
       );
 
       // Close loading dialog
@@ -2213,7 +2270,7 @@ class _SubscriptionRequestsState extends State<SubscriptionRequests> {
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                receipt['planPrice'],
+                                receipt['planPrice'].toString(),
                                 style: const TextStyle(
                                   fontSize: 14,
                                   fontWeight: FontWeight.bold,
