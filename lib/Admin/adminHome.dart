@@ -6,6 +6,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:async/async.dart';
 import 'package:rxdart/rxdart.dart';
 
+import '../email/rejectPayment.dart';
+
 const String _primaryFontFamily = 'PlusJakartaSans';
 
 const Color _backgroundColor = Color(0xFF121212); // Deep charcoal background
@@ -275,6 +277,12 @@ class _AdminHomeState extends State<AdminHome> {
                     Icons.check_circle_outlined,
                     Icons.check_circle,
                     "QR Approval",
+                    isTablet,
+                  ),
+                  _buildSidebarItem(
+                    Icons.account_balance_wallet_outlined, // outline version
+                    Icons.account_balance_wallet,          // filled version
+                    "Dietitian Payment",
                     isTablet,
                   ),
                   _buildSidebarItem(
@@ -682,6 +690,8 @@ class _AdminHomeState extends State<AdminHome> {
       return _buildDietitianVerificationPage();
     } else if (selectedPage == "QR Approval") {
       return _buildQRApprovalPage();
+    } else if (selectedPage == "Dietitian Payment"){
+      return _buildDietitianPaymentPage();
     } else if (selectedPage == "Messages") {
       return _buildMessagesPage();
     }
@@ -1893,6 +1903,801 @@ class _AdminHomeState extends State<AdminHome> {
                   ),
                 );
               },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDietitianPaymentPage() {
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      color: _cardBgColor(context),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(Icons.payment, color: Colors.orange),
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    "Commission Payment Verification",
+                    style: _getTextStyle(
+                      context,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              StreamBuilder<QuerySnapshot>(
+                stream: FirebaseFirestore.instance
+                    .collection('commissionPayments')
+                    .orderBy('submittedAt', descending: true)
+                    .snapshots(),
+                builder: (context, snapshot) {
+                  if (!snapshot.hasData) {
+                    return const Center(
+                      child: CircularProgressIndicator(color: _primaryColor),
+                    );
+                  }
+
+                  final payments = snapshot.data!.docs;
+
+                  if (payments.isEmpty) {
+                    return Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(40.0),
+                        child: Column(
+                          children: [
+                            Icon(
+                              Icons.payment_outlined,
+                              size: 64,
+                              color: Colors.grey[400],
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              "No payment submissions yet",
+                              style: _cardSubtitleStyle(context),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }
+
+                  // Separate payments by status
+                  final pendingPayments = payments.where((doc) =>
+                  (doc.data() as Map<String, dynamic>)['status'] == 'pending'
+                  ).toList();
+
+                  final verifiedPayments = payments.where((doc) =>
+                  (doc.data() as Map<String, dynamic>)['status'] == 'verified'
+                  ).toList();
+
+                  final rejectedPayments = payments.where((doc) =>
+                  (doc.data() as Map<String, dynamic>)['status'] == 'rejected'
+                  ).toList();
+
+                  return Column(
+                    children: [
+                      // Summary Cards
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildPaymentStatusCard(
+                              "Pending",
+                              pendingPayments.length.toString(),
+                              Colors.orange,
+                              Icons.hourglass_empty,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _buildPaymentStatusCard(
+                              "Verified",
+                              verifiedPayments.length.toString(),
+                              Colors.green,
+                              Icons.check_circle,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _buildPaymentStatusCard(
+                              "Rejected",
+                              rejectedPayments.length.toString(),
+                              Colors.red,
+                              Icons.cancel,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
+
+                      // Payment List
+                      _buildPaymentList(payments),
+                    ],
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPaymentStatusCard(
+      String label,
+      String count,
+      Color color,
+      IconData icon,
+      ) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, color: color, size: 24),
+          const SizedBox(height: 8),
+          Text(
+            count,
+            style: _getTextStyle(
+              context,
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: _getTextStyle(
+              context,
+              fontSize: 12,
+              color: _textColorSecondary(context),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPaymentList(List<QueryDocumentSnapshot> payments) {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      color: _scaffoldBgColor(context),
+      child: Container(
+        constraints: const BoxConstraints(maxHeight: 600), // Add max height
+        child: ListView.separated(
+          shrinkWrap: true,
+          padding: const EdgeInsets.all(16.0),
+          itemCount: payments.length,
+          separatorBuilder: (context, index) => const Divider(height: 1),
+          itemBuilder: (context, index) {
+            final paymentData = payments[index].data() as Map<String, dynamic>;
+            final paymentId = payments[index].id;
+
+            return _buildPaymentCard(paymentId, paymentData);
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPaymentCard(String paymentId, Map<String, dynamic> data) {
+    final dietitianName = data['dietitianName'] ?? 'Unknown';
+    final dietitianEmail = data['dietitianEmail'] ?? '';
+    final amount = data['amount'] ?? 0.0;
+    final status = data['status'] ?? 'pending';
+    final receiptImageUrl = data['receiptImageUrl'] ?? '';
+    final paymentMethod = data['paymentMethod'] ?? 'N/A';
+    final submittedAt = data['submittedAt'] as Timestamp?;
+    final verifiedAt = data['verifiedAt'] as Timestamp?;
+    final verifiedBy = data['verifiedBy'] ?? '';
+    final notes = data['notes'] ?? '';
+    final receiptIds = data['receiptIds'] as List<dynamic>? ?? [];
+
+    final statusColor = status == 'pending'
+        ? Colors.orange
+        : status == 'verified'
+        ? Colors.green
+        : Colors.red;
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header
+            Row(
+              children: [
+                CircleAvatar(
+                  backgroundColor: statusColor.withOpacity(0.1),
+                  child: Icon(
+                    status == 'pending'
+                        ? Icons.hourglass_empty
+                        : status == 'verified'
+                        ? Icons.check_circle
+                        : Icons.cancel,
+                    color: statusColor,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        dietitianName,
+                        style: _getTextStyle(
+                          context,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                      if (dietitianEmail.isNotEmpty)
+                        Text(
+                          dietitianEmail,
+                          style: _cardSubtitleStyle(context).copyWith(fontSize: 12),
+                        ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: statusColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    status.toUpperCase(),
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: statusColor,
+                      fontFamily: _primaryFontFamily,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const Divider(height: 24),
+
+            // Payment Details
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      "Amount",
+                      style: _cardSubtitleStyle(context),
+                    ),
+                    Text(
+                      "₱${amount.toStringAsFixed(2)}",
+                      style: _getTextStyle(
+                        context,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.orange,
+                        fontSize: 18,
+                      ),
+                    ),
+                  ],
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      "Payment Method",
+                      style: _cardSubtitleStyle(context),
+                    ),
+                    Text(
+                      paymentMethod,
+                      style: _getTextStyle(
+                        context,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      "Receipts Covered",
+                      style: _cardSubtitleStyle(context),
+                    ),
+                    Text(
+                      receiptIds.length.toString(),
+                      style: _getTextStyle(
+                        context,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+
+            // Timestamps
+            Row(
+              children: [
+                Icon(Icons.calendar_today, size: 14, color: Colors.grey[600]),
+                const SizedBox(width: 6),
+                Text(
+                  "Submitted: ${submittedAt != null ? DateFormat('MMM dd, yyyy hh:mm a').format(submittedAt.toDate()) : 'N/A'}",
+                  style: _cardSubtitleStyle(context).copyWith(fontSize: 12),
+                ),
+              ],
+            ),
+            if (verifiedAt != null) ...[
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  Icon(Icons.verified, size: 14, color: statusColor),
+                  const SizedBox(width: 6),
+                  Text(
+                    "${status == 'verified' ? 'Verified' : 'Rejected'}: ${DateFormat('MMM dd, yyyy hh:mm a').format(verifiedAt.toDate())}",
+                    style: _cardSubtitleStyle(context).copyWith(fontSize: 12),
+                  ),
+                ],
+              ),
+            ],
+
+            // Notes
+            if (notes.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.grey[100],
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.note, size: 16, color: Colors.grey[700]),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        notes,
+                        style: _cardSubtitleStyle(context),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+
+            const SizedBox(height: 16),
+
+            // Action Buttons
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => _showReceiptImage(receiptImageUrl),
+                    icon: const Icon(Icons.image, size: 18),
+                    label: const Text(
+                      "View Receipt",
+                      style: TextStyle(fontFamily: _primaryFontFamily),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.blue,
+                      side: const BorderSide(color: Colors.blue),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                ),
+                if (status == 'pending') ...[
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () => _verifyPayment(paymentId, data),
+                      icon: const Icon(Icons.check, size: 18, color: Colors.white),
+                      label: const Text(
+                        "Verify",
+                        style: TextStyle(
+                          fontFamily: _primaryFontFamily,
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () => _rejectPayment(paymentId, data),
+                      icon: const Icon(Icons.close, size: 18, color: Colors.white),
+                      label: const Text(
+                        "Reject",
+                        style: TextStyle(
+                          fontFamily: _primaryFontFamily,
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showReceiptImage(String imageUrl) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 600, maxHeight: 700),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.orange,
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(16),
+                    topRight: Radius.circular(16),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.receipt_long, color: Colors.white),
+                    const SizedBox(width: 12),
+                    const Expanded(
+                      child: Text(
+                        'Payment Receipt',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                          fontFamily: _primaryFontFamily,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close, color: Colors.white),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ],
+                ),
+              ),
+              Flexible(
+                child: SingleChildScrollView(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: Image.network(
+                        imageUrl,
+                        fit: BoxFit.contain,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Center(
+                            child: Column(
+                              children: [
+                                Icon(
+                                  Icons.broken_image,
+                                  size: 64,
+                                  color: Colors.grey[400],
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'Failed to load image',
+                                  style: TextStyle(color: Colors.grey[600]),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _verifyPayment(String paymentId, Map<String, dynamic> data) {
+    final amountController = TextEditingController();
+    final notesController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.check_circle, color: Colors.green),
+            SizedBox(width: 12),
+            Text(
+              "Verify Payment",
+              style: TextStyle(fontFamily: _primaryFontFamily),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              "Dietitian: ${data['dietitianName']}",
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontFamily: _primaryFontFamily,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              "Amount: ₱${(data['amount'] as double).toStringAsFixed(2)}",
+              style: const TextStyle(fontFamily: _primaryFontFamily),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: notesController,
+              decoration: const InputDecoration(
+                labelText: "Notes (optional)",
+                hintText: "Add verification notes...",
+                border: OutlineInputBorder(),
+              ),
+              maxLines: 3,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancel"),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              try {
+                final adminId = FirebaseAuth.instance.currentUser!.uid;
+
+                await FirebaseFirestore.instance
+                    .collection('commissionPayments')
+                    .doc(paymentId)
+                    .update({
+                  'status': 'verified',
+                  'verifiedAt': FieldValue.serverTimestamp(),
+                  'verifiedBy': adminId,
+                  'notes': notesController.text.trim(),
+                });
+
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Payment verified successfully!'),
+                    backgroundColor: Colors.green,
+                  ),
+                );
+              } catch (e) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Error: $e'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text(
+              "Verify",
+              style: TextStyle(fontFamily: _primaryFontFamily),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _rejectPayment(String paymentId, Map<String, dynamic> data) {
+    final notesController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.cancel, color: Colors.red),
+            SizedBox(width: 12),
+            Text(
+              "Reject Payment",
+              style: TextStyle(fontFamily: _primaryFontFamily),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              "Dietitian: ${data['dietitianName']}",
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontFamily: _primaryFontFamily,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              "Amount: ₱${(data['amount'] as double).toStringAsFixed(2)}",
+              style: const TextStyle(fontFamily: _primaryFontFamily),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: notesController,
+              decoration: const InputDecoration(
+                labelText: "Reason for rejection *",
+                hintText: "Explain why payment is rejected...",
+                border: OutlineInputBorder(),
+              ),
+              maxLines: 3,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancel"),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              if (notesController.text.trim().isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Please provide a reason for rejection'),
+                    backgroundColor: Colors.orange,
+                  ),
+                );
+                return;
+              }
+
+              try {
+                final adminId = FirebaseAuth.instance.currentUser!.uid;
+                final adminDoc = await FirebaseFirestore.instance
+                    .collection('users')
+                    .doc(adminId)
+                    .get();
+                final adminName = adminDoc.data()?['name'] ?? 'Admin';
+
+                final dietitianId = data['dietitianId'] as String;
+                final dietitianEmail = data['dietitianEmail'] as String;
+                final dietitianName = data['dietitianName'] as String;
+                final amount = data['amount'] as double;
+                final rejectionReason = notesController.text.trim();
+                final receiptIds = data['receiptIds'] as List<dynamic>? ?? [];
+
+                // Reset commission paid status on receipts
+                final batch = FirebaseFirestore.instance.batch();
+
+                for (var receiptId in receiptIds) {
+                  final receiptRef = FirebaseFirestore.instance
+                      .collection('receipts')
+                      .doc(receiptId.toString());
+                  batch.update(receiptRef, {
+                    'commissionPaid': false,
+                    'commissionPaymentId': FieldValue.delete(),
+                    'commissionPaidAt': FieldValue.delete(),
+                  });
+                }
+
+                // Update payment status
+                final paymentRef = FirebaseFirestore.instance
+                    .collection('commissionPayments')
+                    .doc(paymentId);
+                batch.update(paymentRef, {
+                  'status': 'rejected',
+                  'verifiedAt': FieldValue.serverTimestamp(),
+                  'verifiedBy': adminId,
+                  'notes': rejectionReason,
+                });
+
+                // Add notification to dietitian's subcollection
+                final notificationRef = FirebaseFirestore.instance
+                    .collection('users')
+                    .doc(dietitianId)
+                    .collection('notifications')
+                    .doc();
+
+                batch.set(notificationRef, {
+                  'isRead': false,
+                  'message': rejectionReason,
+                  'senderId': adminId,
+                  'senderName': adminName,
+                  'timestamp': FieldValue.serverTimestamp(),
+                  'title': 'Payment Rejected',
+                  'type': 'rejectedPayment',
+                  'paymentId': paymentId,
+                  'amount': amount,
+                });
+
+                await batch.commit();
+
+                // Send email notification
+                await rejectPayment.sendPaymentRejectionEmail(
+                  dietitianEmail: dietitianEmail,
+                  dietitianName: dietitianName,
+                  amount: amount,
+                  rejectionReason: rejectionReason,
+                  adminName: adminName,
+                );
+
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Payment rejected. Notification and email sent to dietitian.'),
+                    backgroundColor: Colors.orange,
+                  ),
+                );
+              } catch (e) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Error: $e'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text(
+              "Reject",
+              style: TextStyle(fontFamily: _primaryFontFamily),
             ),
           ),
         ],
@@ -7830,6 +8635,8 @@ class _AdminHomeState extends State<AdminHome> {
 
 // Helper Methods - Updated to use receipts collection
 
+  // Updated helper methods to exclude 'pending' and 'declined' status receipts
+
   Future<Map<String, dynamic>> _calculateTotalRevenueFromReceipts(
       List<QueryDocumentSnapshot> dietitians,
       ) async {
@@ -7846,18 +8653,25 @@ class _AdminHomeState extends State<AdminHome> {
           .where('dietitianID', isEqualTo: dietitianId)
           .get();
 
-      totalReceipts += receipts.docs.length;
-
       for (var receipt in receipts.docs) {
         final data = receipt.data();
+        final status = (data['status'] as String?)?.toLowerCase() ?? '';
+
+        // Skip if status is pending or declined
+        if (status == 'pending' || status == 'declined') {
+          continue;
+        }
+
+        totalReceipts++;
+
         final planType = (data['planType'] as String?)?.toLowerCase() ?? '';
         final priceStr = data['planPrice'] as String? ?? '₱ 0.00';
         final price = _parsePriceString(priceStr);
 
-        // Add to total revenue regardless of status
+        // Add to total revenue
         totalRevenue += price;
 
-        // Calculate commission for ALL receipts regardless of status
+        // Calculate commission
         double commission = 0;
         if (planType == 'weekly') {
           commission = price * 0.15; // 15%
@@ -7883,7 +8697,16 @@ class _AdminHomeState extends State<AdminHome> {
         .where('dietitianID', isEqualTo: dietitianId)
         .get();
 
-    return snapshot.docs.length;
+    // Filter out pending and declined
+    int count = 0;
+    for (var doc in snapshot.docs) {
+      final status = (doc.data()['status'] as String?)?.toLowerCase() ?? '';
+      if (status != 'pending' && status != 'declined') {
+        count++;
+      }
+    }
+
+    return count;
   }
 
   Future<int> _getReceiptCountByType(
@@ -7896,7 +8719,16 @@ class _AdminHomeState extends State<AdminHome> {
         .where('planType', isEqualTo: planType)
         .get();
 
-    return snapshot.docs.length;
+    // Filter out pending and declined
+    int count = 0;
+    for (var doc in snapshot.docs) {
+      final status = (doc.data()['status'] as String?)?.toLowerCase() ?? '';
+      if (status != 'pending' && status != 'declined') {
+        count++;
+      }
+    }
+
+    return count;
   }
 
   Future<Map<String, double>> _getDietitianRevenueAndCommissionFromReceipts(
@@ -7913,14 +8745,21 @@ class _AdminHomeState extends State<AdminHome> {
 
     for (var doc in snapshot.docs) {
       final data = doc.data();
+      final status = (data['status'] as String?)?.toLowerCase() ?? '';
+
+      // Skip if status is pending or declined
+      if (status == 'pending' || status == 'declined') {
+        continue;
+      }
+
       final planType = (data['planType'] as String?)?.toLowerCase() ?? '';
       final priceStr = data['planPrice'] as String? ?? '₱ 0.00';
       final price = _parsePriceString(priceStr);
 
-      // Add to total revenue regardless of status
+      // Add to total revenue
       totalRevenue += price;
 
-      // Calculate commission for ALL receipts regardless of status
+      // Calculate commission
       if (planType == 'weekly') {
         totalCommission += price * 0.15; // 15%
       } else if (planType == 'monthly') {
@@ -7939,7 +8778,8 @@ class _AdminHomeState extends State<AdminHome> {
   void _showDietitianReceiptDetails(
       String dietitianId,
       String dietitianName,
-      ) {
+      )
+  {
     showDialog(
       context: context,
       builder: (context) => Dialog(

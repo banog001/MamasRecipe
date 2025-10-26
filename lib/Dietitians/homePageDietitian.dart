@@ -26,6 +26,7 @@ import 'package:mamas_recipe/about/about_page.dart';
 import '../email/declinedEmail.dart';
 
 import '../dietitians/manageMealPlans.dart';
+import 'payment.dart';
 
 // --- THEME & STYLING CONSTANTS (Available to the whole file) ---
 const String _primaryFontFamily = 'PlusJakartaSans';
@@ -275,6 +276,7 @@ class _HomePageDietitianState extends State<HomePageDietitian> {
               },
             ),
             _buildMenuTile('Settings', Icons.settings_outlined),
+            _buildMenuTile('Payment', Icons.payment_outlined),
             const Divider(indent: 16, endIndent: 16),
             _buildMenuTile('Logout', Icons.logout_outlined),
           ],
@@ -369,6 +371,11 @@ class _HomePageDietitianState extends State<HomePageDietitian> {
           Navigator.push(
             context,
             MaterialPageRoute(builder: (context) => const ManageMealPlansPage()),
+          );
+        } else if (label == 'Payment') {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const PaymentPage()),
           );
         }
       },
@@ -545,6 +552,7 @@ class _AnalyticsDashboardState extends State<AnalyticsDashboard> {
         .collection('receipts')
         .where('dietitianID', isEqualTo: dietitianId)
         .where('status', whereNotIn: ['pending', 'declined'])
+        .where('commissionPaid', isEqualTo: false) // NEW: Only unpaid commissions
         .orderBy('status')
         .get();
 
