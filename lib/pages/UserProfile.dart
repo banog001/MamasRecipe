@@ -531,6 +531,7 @@ class _UserProfileState extends State<UserProfile> {
     final String planType = plan['planType'] ?? 'N/A';
     final String ownerName = plan['ownerName'] ?? 'Unknown';
     final int likeCount = plan['likeCounts'] as int? ?? 0;
+    final String description = plan['description']?.toString() ?? '';
 
     final meals = {
       'Breakfast': {
@@ -621,6 +622,48 @@ class _UserProfileState extends State<UserProfile> {
               ],
             ),
             const SizedBox(height: 8),
+
+            // --- ADDED: Description Box ---
+            if (description.isNotEmpty)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(
+                  color: _primaryColor.withOpacity(0.08), // Use primary color from this file
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: _primaryColor.withOpacity(0.15),
+                    width: 1,
+                  ),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(
+                      Icons.description_outlined,
+                      size: 16,
+                      color: _primaryColor, // Use primary color
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        description,
+                        style: _getTextStyle(
+                          context,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                          color: _textColorPrimary(context),
+                        ),
+                        // You can add maxLines and overflow here if needed
+                        // maxLines: 2,
+                        // overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+// Add space ONLY if the description was shown
+            if (description.isNotEmpty) const SizedBox(height: 12),
+// --- END: Added Description Box ---
             Text(
               planType,
               style: _getTextStyle(

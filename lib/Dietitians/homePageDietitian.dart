@@ -993,6 +993,8 @@ class _AnalyticsDashboardState extends State<AnalyticsDashboard> {
     );
   }
 
+// REPLACE this widget inside _AnalyticsDashboardState in homePageDietitian.dart
+
   Widget _buildMealPlanCard(
       BuildContext context,
       Map<String, dynamic> mealData,
@@ -1000,6 +1002,7 @@ class _AnalyticsDashboardState extends State<AnalyticsDashboard> {
     final mostPopularPlanData = mealData['mostPopularPlanData'] as Map<String, dynamic>?;
     final plansCreated = mealData['plansCreated'] ?? 0;
     final mostPopularPlan = mealData['mostPopularPlan'] ?? 'N/A';
+    final description = mostPopularPlanData?['description']?.toString() ?? ''; // <-- Get the description
 
     return Container(
       decoration: BoxDecoration(
@@ -1125,6 +1128,47 @@ class _AnalyticsDashboardState extends State<AnalyticsDashboard> {
                 ),
               ),
               const SizedBox(height: 16),
+
+              // --- ADDED: Description Box ---
+              if (description.isNotEmpty)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: _primaryColor.withOpacity(0.08), // Using primary color from dietitian theme
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: _primaryColor.withOpacity(0.15), // Using primary color
+                      width: 1,
+                    ),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(
+                        Icons.description_outlined,
+                        size: 16,
+                        color: _primaryColor, // Using primary color
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          description,
+                          style: _getTextStyle(
+                            context,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                            color: _textColorPrimary(context),
+                          ),
+                          // maxLines: 2, // You can limit lines if needed
+                          // overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              if (description.isNotEmpty) const SizedBox(height: 16), // Add space if description exists
+              // --- END: Added Description Box ---
+
 
               // Meals Section (Styled like home.dart)
               _buildMealItemExpanded(
