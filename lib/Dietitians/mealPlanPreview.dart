@@ -106,9 +106,17 @@ class MealPlanPreviewPage extends StatelessWidget {
     }
 
     try {
+      // Get dietitian's name
+      final dietitianDoc = await FirebaseFirestore.instance
+          .collection("Users")
+          .doc(user.uid)
+          .get();
+      final dietitianName = '${dietitianDoc.data()?['firstName'] ?? ''} ${dietitianDoc.data()?['lastName'] ?? ''}'.trim().isEmpty ? 'A Dietitian' : '${dietitianDoc.data()?['firstName']} ${dietitianDoc.data()?['lastName']}';
+
+      // Post the meal plan
       await FirebaseFirestore.instance.collection("mealPlans").add({
         "planType": planType,
-        "description": description, // NEW: Save description
+        "description": description,
         // meal items
         "breakfast": _getMealString("Breakfast"),
         "amSnack": _getMealString("AM Snack"),
@@ -128,6 +136,13 @@ class MealPlanPreviewPage extends StatelessWidget {
         "likeCounts": 0,
         "timestamp": FieldValue.serverTimestamp(),
       });
+
+      // Send notifications to followers and subscribers
+      await _sendNotificationsToFollowersAndSubscribers(
+        dietitianId: user.uid,
+        dietitianName: dietitianName,
+        planType: planType,
+      );
 
       if (!context.mounted) return;
 
@@ -151,6 +166,107 @@ class MealPlanPreviewPage extends StatelessWidget {
         backgroundColor: Colors.redAccent,
         icon: Icons.error_outline,
       );
+    }
+  }
+
+  Future<void> _sendNotificationsToFollowersAndSubscribers({
+    required String dietitianId,
+    required String dietitianName,
+    required String planType,
+  }) async {
+    try {
+      final Set<String> notifiedUserIds = {};
+
+      // Get followers
+      final followersSnapshot = await FirebaseFirestore.instance
+          .collection("Users")
+          .doc(dietitianId)
+          .collection("followers")
+          .get();
+
+      for (var followerDoc in followersSnapshot.docs) {
+        final userId = followerDoc.data()['userId'] as String?;
+        if (userId != null && userId.isNotEmpty) {
+          notifiedUserIds.add(userId);
+        }
+      }
+
+      // Get subscribers (only active ones)
+      final subscribersSnapshot = await FirebaseFirestore.instance
+          .collection("Users")
+          .doc(dietitianId)
+          .collection("subscriber")
+          .where("status", isEqualTo: "approved")
+          .get();
+
+      for (var subscriberDoc in subscribersSnapshot.docs) {
+        final userId = subscriberDoc.data()['userId'] as String?;
+        final expirationDate = subscriberDoc.data()['expirationDate'] as Timestamp?;
+
+        // Check if subscription is still valid
+        if (userId != null &&
+            userId.isNotEmpty &&
+            expirationDate != null &&
+            expirationDate.toDate().isAfter(DateTime.now())) {
+          notifiedUserIds.add(userId);
+        }
+      }
+
+      // Send notifications using batch writes for better performance
+      final batch = FirebaseFirestore.instance.batch();
+      int batchCount = 0;
+
+      for (var userId in notifiedUserIds) {
+        try {
+          // Get receiver's name
+          final userDoc = await FirebaseFirestore.instance
+              .collection("Users")
+              .doc(userId)
+              .get();
+
+          final receiverName = '${userDoc.data()?['firstName'] ?? ''} ${userDoc.data()?['lastName'] ?? ''}'.trim().isEmpty ? 'User' : '${userDoc.data()?['firstName']} ${userDoc.data()?['lastName']}';
+
+
+          // Create notification reference
+          final notificationRef = FirebaseFirestore.instance
+              .collection("Users")
+              .doc(userId)
+              .collection("notifications")
+              .doc();
+
+          batch.set(notificationRef, {
+            "title": "New Meal Plan Posted",
+            "message": "$dietitianName has posted a new $planType meal plan. Check it out!",
+            "senderId": dietitianId,
+            "senderName": dietitianName,
+            "receiverId": userId,
+            "receiverName": receiverName,
+            "type": "meal_plan",
+            "isRead": false,
+            "timestamp": FieldValue.serverTimestamp(),
+          });
+
+          batchCount++;
+
+          // Firestore batch limit is 500 operations, commit when approaching limit
+          if (batchCount >= 450) {
+            await batch.commit();
+            batchCount = 0;
+          }
+        } catch (e) {
+          // Skip this user if there's an error getting their data
+          print("Error getting user data for $userId: $e");
+          continue;
+        }
+      }
+
+      // Commit remaining operations
+      if (batchCount > 0) {
+        await batch.commit();
+      }
+    } catch (e) {
+      // Log error but don't block the meal plan posting
+      print("Error sending notifications: $e");
     }
   }
 

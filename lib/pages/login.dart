@@ -101,7 +101,8 @@ class _LoginPageState extends State<LoginPageMobile> with TickerProviderStateMix
     _slideAnimation = Tween<Offset>(
       begin: const Offset(0, 0.3),
       end: Offset.zero,
-    ).animate(CurvedAnimation(parent: _slideController, curve: Curves.easeOutCubic));
+    ).animate(
+        CurvedAnimation(parent: _slideController, curve: Curves.easeOutCubic));
 
     _welcomeScaleAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _welcomeController, curve: Curves.elasticOut),
@@ -243,7 +244,8 @@ class _LoginPageState extends State<LoginPageMobile> with TickerProviderStateMix
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: _primaryColor,
                                 foregroundColor: _textColorOnPrimary,
-                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                padding: const EdgeInsets.symmetric(
+                                    vertical: 16),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(16),
                                 ),
@@ -376,7 +378,8 @@ class _LoginPageState extends State<LoginPageMobile> with TickerProviderStateMix
                       ),
                       elevation: 4,
                     ),
-                    icon: const Icon(Icons.health_and_safety_outlined, size: 20),
+                    icon: const Icon(
+                        Icons.health_and_safety_outlined, size: 20),
                     label: Text(
                       'I am a Dietitian',
                       style: _getTextStyle(
@@ -401,127 +404,132 @@ class _LoginPageState extends State<LoginPageMobile> with TickerProviderStateMix
     TextEditingController resetEmailController = TextEditingController();
     await showDialog(
       context: context,
-      builder: (_) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        child: Container(
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(20),
-            color: _cardBgColor(context),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 60,
-                height: 60,
-                decoration: BoxDecoration(
-                  color: _primaryColor.withOpacity(0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  Icons.lock_reset_outlined,
-                  color: _primaryColor,
-                  size: 30,
-                ),
+      builder: (_) =>
+          Dialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(
+                20)),
+            child: Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(20),
+                color: _cardBgColor(context),
               ),
-              const SizedBox(height: 20),
-              Text(
-                "Reset Password",
-                style: _getTextStyle(
-                  context,
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: _textColorPrimary(context),
-                ),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                "Enter your registered email to reset your password.",
-                textAlign: TextAlign.center,
-                style: _getTextStyle(
-                  context,
-                  fontSize: 14,
-                  color: _textColorSecondary(context),
-                ),
-              ),
-              const SizedBox(height: 20),
-              TextField(
-                controller: resetEmailController,
-                keyboardType: TextInputType.emailAddress,
-                style: _getTextStyle(context),
-                decoration: InputDecoration(
-                  labelText: "Email Address",
-                  labelStyle: _getTextStyle(
-                    context,
-                    color: _textColorSecondary(context),
-                  ),
-                  prefixIcon: Icon(Icons.email_outlined, color: _primaryColor),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: _primaryColor, width: 2),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 24),
-              Row(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Expanded(
-                    child: TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: Text(
-                        "Cancel",
-                        style: _getTextStyle(
-                          context,
-                          color: _textColorSecondary(context),
-                        ),
+                  Container(
+                    width: 60,
+                    height: 60,
+                    decoration: BoxDecoration(
+                      color: _primaryColor.withOpacity(0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.lock_reset_outlined,
+                      color: _primaryColor,
+                      size: 30,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Text(
+                    "Reset Password",
+                    style: _getTextStyle(
+                      context,
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: _textColorPrimary(context),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    "Enter your registered email to reset your password.",
+                    textAlign: TextAlign.center,
+                    style: _getTextStyle(
+                      context,
+                      fontSize: 14,
+                      color: _textColorSecondary(context),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  TextField(
+                    controller: resetEmailController,
+                    keyboardType: TextInputType.emailAddress,
+                    style: _getTextStyle(context),
+                    decoration: InputDecoration(
+                      labelText: "Email Address",
+                      labelStyle: _getTextStyle(
+                        context,
+                        color: _textColorSecondary(context),
+                      ),
+                      prefixIcon: Icon(
+                          Icons.email_outlined, color: _primaryColor),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: _primaryColor, width: 2),
                       ),
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () async {
-                        String resetEmail = resetEmailController.text.trim();
-                        if (resetEmail.isEmpty) {
-                          _showErrorSnackBar("Please enter an email");
-                          return;
-                        }
-                        try {
-                          await FirebaseAuth.instance
-                              .sendPasswordResetEmail(email: resetEmail);
-                          Navigator.pop(context);
-                          _showSuccessSnackBar("Password reset email has been sent");
-                        } on FirebaseAuthException catch (e) {
-                          _showErrorSnackBar("Error: ${e.message}");
-                        }
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: _primaryColor,
-                        foregroundColor: _textColorOnPrimary,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                  const SizedBox(height: 24),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: Text(
+                            "Cancel",
+                            style: _getTextStyle(
+                              context,
+                              color: _textColorSecondary(context),
+                            ),
+                          ),
                         ),
                       ),
-                      child: Text(
-                        "Send",
-                        style: _getTextStyle(
-                          context,
-                          fontWeight: FontWeight.bold,
-                          color: _textColorOnPrimary,
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () async {
+                            String resetEmail = resetEmailController.text
+                                .trim();
+                            if (resetEmail.isEmpty) {
+                              _showErrorSnackBar("Please enter an email");
+                              return;
+                            }
+                            try {
+                              await FirebaseAuth.instance
+                                  .sendPasswordResetEmail(email: resetEmail);
+                              Navigator.pop(context);
+                              _showSuccessSnackBar(
+                                  "Password reset email has been sent");
+                            } on FirebaseAuthException catch (e) {
+                              _showErrorSnackBar("Error: ${e.message}");
+                            }
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: _primaryColor,
+                            foregroundColor: _textColorOnPrimary,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: Text(
+                            "Send",
+                            style: _getTextStyle(
+                              context,
+                              fontWeight: FontWeight.bold,
+                              color: _textColorOnPrimary,
+                            ),
+                          ),
                         ),
                       ),
-                    ),
+                    ],
                   ),
                 ],
               ),
-            ],
+            ),
           ),
-        ),
-      ),
     );
   }
 
@@ -571,7 +579,8 @@ class _LoginPageState extends State<LoginPageMobile> with TickerProviderStateMix
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: Colors.redAccent, width: 2),
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16, vertical: 14),
         isDense: true,
       ),
     );
@@ -652,7 +661,9 @@ class _LoginPageState extends State<LoginPageMobile> with TickerProviderStateMix
     String displayName = user.displayName ?? "";
     List<String> nameParts = displayName.split(" ");
     String firstName = nameParts.isNotEmpty ? nameParts.first : "";
-    String lastName = nameParts.length > 1 ? nameParts.sublist(1).join(" ") : "";
+    String lastName = nameParts.length > 1
+        ? nameParts.sublist(1).join(" ")
+        : "";
     final docRef = FirebaseFirestore.instance.collection("Users").doc(user.uid);
     final docSnap = await docRef.get();
 
@@ -686,8 +697,10 @@ class _LoginPageState extends State<LoginPageMobile> with TickerProviderStateMix
     await user.reload();
     user = FirebaseAuth.instance.currentUser!;
 
-    final usersRef = FirebaseFirestore.instance.collection("Users").doc(user.uid);
-    final dietitianRef = FirebaseFirestore.instance.collection("dietitianApproval").doc(user.uid);
+    final usersRef = FirebaseFirestore.instance.collection("Users").doc(
+        user.uid);
+    final dietitianRef = FirebaseFirestore.instance.collection(
+        "dietitianApproval").doc(user.uid);
 
     DocumentSnapshot userSnap = await usersRef.get();
     DocumentSnapshot dietitianSnap = await dietitianRef.get();
@@ -725,7 +738,9 @@ class _LoginPageState extends State<LoginPageMobile> with TickerProviderStateMix
       String displayName = user.displayName ?? "";
       List<String> nameParts = displayName.split(" ");
       String firstName = nameParts.isNotEmpty ? nameParts.first : "";
-      String lastName = nameParts.length > 1 ? nameParts.sublist(1).join(" ") : "";
+      String lastName = nameParts.length > 1
+          ? nameParts.sublist(1).join(" ")
+          : "";
 
       if (role == "user") {
         await usersRef.set({
@@ -745,7 +760,8 @@ class _LoginPageState extends State<LoginPageMobile> with TickerProviderStateMix
 
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) =>  MealPlanningScreen(userId: user.uid)),
+          MaterialPageRoute(
+              builder: (_) => MealPlanningScreen(userId: user.uid)),
         );
         return;
       } else if (role == "dietitian") {
@@ -764,7 +780,8 @@ class _LoginPageState extends State<LoginPageMobile> with TickerProviderStateMix
 
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) =>  MealPlanningScreen(userId: user.uid)),
+          MaterialPageRoute(
+              builder: (_) => MealPlanningScreen(userId: user.uid)),
         );
         return;
       }
@@ -779,51 +796,60 @@ class _LoginPageState extends State<LoginPageMobile> with TickerProviderStateMix
         await showDialog(
           context: context,
           barrierDismissible: false,
-          builder: (dialogContext) => AlertDialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.info_outline, size: 64, color: Colors.orange),
-                const SizedBox(height: 16),
-                const Text(
-                  'Account Review',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.orange),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 12),
-                const Text(
-                  'Your account will be reviewed by the admins. '
-                      'Please go back to login and wait for approval. Thank you!',
-                  style: TextStyle(fontSize: 14, color: Colors.black87, height: 1.4),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 24),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.orange,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+          builder: (dialogContext) =>
+              AlertDialog(
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16)),
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                        Icons.info_outline, size: 64, color: Colors.orange),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Account Review',
+                      style: TextStyle(fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.orange),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 12),
+                    const Text(
+                      'Your account will be reviewed by the admins. '
+                          'Please go back to login and wait for approval. Thank you!',
+                      style: TextStyle(
+                          fontSize: 14, color: Colors.black87, height: 1.4),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 24),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.orange,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        onPressed: () {
+                          Navigator.of(dialogContext).pop();
+                          Navigator.pushReplacement(
+                            context,
+                            MaterialPageRoute(builder: (
+                                _) => const LoginPageMobile()),
+                          );
+                        },
+                        child: const Text(
+                          'OK',
+                          style: TextStyle(color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16),
+                        ),
                       ),
                     ),
-                    onPressed: () {
-                      Navigator.of(dialogContext).pop();
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(builder: (_) => const LoginPageMobile()),
-                      );
-                    },
-                    child: const Text(
-                      'OK',
-                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
-                    ),
-                  ),
+                  ],
                 ),
-              ],
-            ),
-          ),
+              ),
         );
         return;
       } else {
@@ -839,20 +865,501 @@ class _LoginPageState extends State<LoginPageMobile> with TickerProviderStateMix
   Future<void> _handleLogin() async {
     String email = emailController.text.trim();
     String pass = passController.text.trim();
+
     if (email.isEmpty || pass.isEmpty) {
       _showErrorSnackBar("Please fill in all fields");
       return;
     }
+
     setState(() => _isLoading = true);
+
     try {
       UserCredential userCredential = await FirebaseAuth.instance
           .signInWithEmailAndPassword(email: email, password: pass);
-      await _handlePostLogin(userCredential.user!);
+
+      User? user = userCredential.user;
+
+      if (user != null) {
+        print('🔵 User logged in: ${user.uid}');
+
+        // Reload user to get the latest email verification status
+        await user.reload();
+        user = FirebaseAuth.instance.currentUser;
+
+        // Check if email is verified
+        if (!user!.emailVerified) {
+          print('⚠️ User email not verified: ${user.email}');
+
+          // Check if user data exists in notVerifiedUsers
+          final notVerifiedRef = FirebaseFirestore.instance
+              .collection('notVerifiedUsers')
+              .doc(user.uid);
+          final notVerifiedSnap = await notVerifiedRef.get();
+
+          if (notVerifiedSnap.exists) {
+            // User has unverified account - show verification dialog
+            if (mounted) {
+              setState(() => _isLoading = false);
+              await _showUnverifiedAccountDialog(user);
+            }
+            return;
+          } else {
+            // Account exists but no data in notVerifiedUsers
+            // This might be an old account - ask them to verify
+            if (mounted) {
+              setState(() => _isLoading = false);
+              await _showUnverifiedAccountDialog(user);
+            }
+            return;
+          }
+        }
+
+        // Email is verified - check where user data exists
+        print('✅ User email verified: ${user.email}');
+
+        final usersRef = FirebaseFirestore.instance.collection("Users").doc(
+            user.uid);
+        final dietitianRef = FirebaseFirestore.instance.collection(
+            "dietitianApproval").doc(user.uid);
+        final verifiedRef = FirebaseFirestore.instance.collection(
+            "verifiedUsers").doc(user.uid);
+
+        DocumentSnapshot userSnap = await usersRef.get();
+        DocumentSnapshot dietitianSnap = await dietitianRef.get();
+        DocumentSnapshot verifiedSnap = await verifiedRef.get();
+
+        // Case 1: User exists in Users collection (returning regular user)
+        if (userSnap.exists) {
+          print('✅ Found in Users collection');
+          final userData = userSnap.data() as Map<String, dynamic>?;
+          String role = userData?['role'] ?? "user";
+          bool hasCompletedTutorial = userData?['hasCompletedTutorial'] ??
+              false;
+
+          if (role == "user") {
+            if (hasCompletedTutorial) {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (_) => const home()),
+              );
+            } else {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                    builder: (_) => MealPlanningScreen(userId: user!.uid)),
+              );
+            }
+          }
+          return;
+        }
+
+        // Case 2: User exists in dietitianApproval collection (returning dietitian)
+        if (dietitianSnap.exists) {
+          print('✅ Found in dietitianApproval collection');
+          final dietitianData = dietitianSnap.data() as Map<String, dynamic>?;
+          String status = dietitianData?['status'] ?? 'pending';
+
+          if (status == 'pending') {
+            // Dietitian is still pending approval - show waiting dialog
+            if (mounted) {
+              setState(() => _isLoading = false);
+              await showDialog(
+                context: context,
+                barrierDismissible: false,
+                builder: (dialogContext) =>
+                    AlertDialog(
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16)),
+                      content: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.info_outline, size: 64,
+                              color: Colors.orange),
+                          const SizedBox(height: 16),
+                          const Text(
+                            'Account Review',
+                            style: TextStyle(fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.orange),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 12),
+                          const Text(
+                            'Your account is being reviewed by the admins. '
+                                'Please wait for approval. Thank you!',
+                            style: TextStyle(fontSize: 14,
+                                color: Colors.black87,
+                                height: 1.4),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 24),
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.orange,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              onPressed: () {
+                                Navigator.of(dialogContext).pop();
+                                FirebaseAuth.instance.signOut();
+                              },
+                              child: const Text(
+                                'OK',
+                                style: TextStyle(color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+              );
+            }
+            return;
+          } else if (status == 'approved') {
+            // Dietitian is approved - allow login
+            bool hasCompletedTutorial = dietitianData?['hasCompletedTutorial'] ??
+                false;
+
+            if (hasCompletedTutorial) {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (_) => const HomePageDietitian()),
+              );
+            } else {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                    builder: (_) => MealPlanningScreen(userId: user!.uid)),
+              );
+            }
+          } else if (status == 'rejected') {
+            // Dietitian was rejected
+            if (mounted) {
+              setState(() => _isLoading = false);
+              _showErrorSnackBar(
+                  "Your dietitian application was not approved. Please contact support.");
+              await FirebaseAuth.instance.signOut();
+            }
+          }
+          return;
+        }
+
+        // Case 3: User exists in verifiedUsers collection (first login after verification)
+        if (verifiedSnap.exists) {
+          print(
+              '✅ Found in verifiedUsers collection - first login, asking for role');
+
+          final verifiedData = verifiedSnap.data() as Map<String, dynamic>?;
+          String firstName = verifiedData?['firstName'] ?? '';
+          String lastName = verifiedData?['lastName'] ?? '';
+
+          // Ask user to select their role
+          String? selectedRole = await _askUserRoleDialog();
+
+          if (selectedRole == null) {
+            // User cancelled the dialog, sign them out
+            await FirebaseAuth.instance.signOut();
+            setState(() => _isLoading = false);
+            return;
+          }
+
+          if (selectedRole == "user") {
+            // Create document in Users collection
+            await usersRef.set({
+              "email": user.email,
+              "firstName": firstName,
+              "lastName": lastName,
+              "status": "online",
+              "lastSeen": FieldValue.serverTimestamp(),
+              "age": null,
+              "goals": null,
+              "hasCompletedTutorial": false,
+              "tutorialStep": 0,
+              "role": "user",
+              "qrapproved": false,
+              "creationDate": FieldValue.serverTimestamp(),
+            });
+
+            // Delete from verifiedUsers
+            try {
+              await verifiedRef.delete();
+            } catch (_) {}
+
+            print('✅ Migrated to Users collection');
+
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                  builder: (_) => MealPlanningScreen(userId: user!.uid)),
+            );
+          } else if (selectedRole == "dietitian") {
+            // Create document in dietitianApproval collection
+            await dietitianRef.set({
+              "email": user.email ?? "",
+              "firstName": firstName,
+              "lastName": lastName,
+              "licenseNum": null,
+              "prcImageurl": null,
+              "status": "pending",
+              "role": "dietitian",
+              "hasCompletedTutorial": false,
+              "tutorialStep": 0,
+              "createdAt": FieldValue.serverTimestamp(),
+            });
+
+            // Delete from verifiedUsers
+            try {
+              await verifiedRef.delete();
+            } catch (_) {}
+
+            print(
+                '✅ Migrated to dietitianApproval collection with pending status');
+
+            // Show pending approval dialog
+            if (mounted) {
+              setState(() => _isLoading = false);
+              await showDialog(
+                context: context,
+                barrierDismissible: false,
+                builder: (dialogContext) =>
+                    AlertDialog(
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16)),
+                      content: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.check_circle_outline, size: 64,
+                              color: Colors.green),
+                          const SizedBox(height: 16),
+                          const Text(
+                            'Application Submitted',
+                            style: TextStyle(fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.green),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 12),
+                          const Text(
+                            'Your dietitian application has been submitted! '
+                                'Your account will be reviewed by the admins. '
+                                'Please check back later.',
+                            style: TextStyle(fontSize: 14,
+                                color: Colors.black87,
+                                height: 1.4),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 24),
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: _primaryColor,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              onPressed: () {
+                                Navigator.of(dialogContext).pop();
+                                FirebaseAuth.instance.signOut();
+                                Navigator.pushReplacement(
+                                  context,
+                                  MaterialPageRoute(
+                                      builder: (_) => const LoginPageMobile()),
+                                );
+                              },
+                              child: const Text(
+                                'OK',
+                                style: TextStyle(color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+              );
+            }
+          }
+
+          return;
+        }
+
+        // Case 4: No document found anywhere (shouldn't happen with email/password, but handle it)
+        print(
+            '⚠️ No user document found - this should not happen for verified email/password users');
+
+        // Sign out and show error
+        await FirebaseAuth.instance.signOut();
+        if (mounted) {
+          setState(() => _isLoading = false);
+          _showErrorSnackBar("Account data not found. Please sign up again.");
+        }
+      }
+    } on FirebaseAuthException catch (e) {
+      String errorMessage = "Login failed";
+      switch (e.code) {
+        case 'user-not-found':
+          errorMessage = "No user found with this email";
+          break;
+        case 'wrong-password':
+          errorMessage = "Incorrect password";
+          break;
+        case 'invalid-email':
+          errorMessage = "Invalid email address";
+          break;
+        case 'user-disabled':
+          errorMessage = "This account has been disabled";
+          break;
+        case 'invalid-credential':
+          errorMessage = "Invalid email or password";
+          break;
+        default:
+          errorMessage = "Login failed: ${e.message}";
+      }
+      _showErrorSnackBar(errorMessage);
     } catch (err) {
+      print('❌ Login error: $err');
       _showErrorSnackBar("Login failed: ${err.toString()}");
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  // Add this method to show unverified account dialog
+  Future<void> _showUnverifiedAccountDialog(User user) async {
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) =>
+          Dialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(
+                20)),
+            child: Container(
+              padding: const EdgeInsets.all(30),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(20),
+                color: _cardBgColor(context),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 80,
+                    height: 80,
+                    decoration: BoxDecoration(
+                      color: Colors.orange.withOpacity(0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.warning_amber_rounded,
+                      color: Colors.orange,
+                      size: 44,
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  Text(
+                    'Email Not Verified',
+                    style: _getTextStyle(
+                      context,
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      color: _textColorPrimary(context),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Please verify your email address (${user
+                        .email}) before logging in. Check your inbox for the verification link.',
+                    textAlign: TextAlign.center,
+                    style: _getTextStyle(
+                      context,
+                      fontSize: 14,
+                      color: _textColorSecondary(context),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 45,
+                    child: ElevatedButton(
+                      onPressed: () async {
+                        try {
+                          await user.sendEmailVerification();
+                          if (mounted) {
+                            _showSuccessSnackBar(
+                                "Verification email sent! Check your inbox.");
+                          }
+                        } catch (e) {
+                          if (mounted) {
+                            if (e.toString().contains('too-many-requests')) {
+                              _showErrorSnackBar(
+                                  "Too many requests. Please wait before trying again.");
+                            } else {
+                              _showErrorSnackBar(
+                                  "Failed to send email. Please try again later.");
+                            }
+                          }
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _primaryColor,
+                        foregroundColor: _textColorOnPrimary,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: Text(
+                        'Resend Verification Email',
+                        style: _getTextStyle(
+                          context,
+                          fontWeight: FontWeight.bold,
+                          color: _textColorOnPrimary,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 45,
+                    child: OutlinedButton(
+                      onPressed: () async {
+                        // Sign out the user
+                        await FirebaseAuth.instance.signOut();
+                        if (mounted) {
+                          Navigator.of(context).pop();
+                        }
+                      },
+                      style: OutlinedButton.styleFrom(
+                        side: BorderSide(color: Colors.grey.shade400),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: Text(
+                        'Back to Login',
+                        style: _getTextStyle(
+                          context,
+                          color: _textColorSecondary(context),
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+    );
+
+    // Sign out user after dialog closes
+    await FirebaseAuth.instance.signOut();
   }
 
   Future<void> _handleGoogleSignIn() async {
@@ -882,7 +1389,8 @@ class _LoginPageState extends State<LoginPageMobile> with TickerProviderStateMix
       if (signInMethods.contains('password')) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text("This email is already registered using Email & Password."),
+            content: Text(
+                "This email is already registered using Email & Password."),
           ),
         );
         return false;
@@ -896,7 +1404,6 @@ class _LoginPageState extends State<LoginPageMobile> with TickerProviderStateMix
 
       await FirebaseAuth.instance.signInWithCredential(credential);
       return FirebaseAuth.instance.currentUser != null;
-
     } catch (e) {
       print("Google Sign-In error: $e");
       ScaffoldMessenger.of(context).showSnackBar(
@@ -982,8 +1489,14 @@ class _LoginPageState extends State<LoginPageMobile> with TickerProviderStateMix
 
   @override
   Widget build(BuildContext context) {
-    final screenHeight = MediaQuery.of(context).size.height;
-    final keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
+    final screenHeight = MediaQuery
+        .of(context)
+        .size
+        .height;
+    final keyboardHeight = MediaQuery
+        .of(context)
+        .viewInsets
+        .bottom;
 
     return Scaffold(
       backgroundColor: _scaffoldBgColor(context),
@@ -1059,10 +1572,11 @@ class _LoginPageState extends State<LoginPageMobile> with TickerProviderStateMix
                                                   : Icons.visibility,
                                               color: Colors.grey,
                                             ),
-                                            onPressed: () => setState(() {
-                                              _obscurePassword =
-                                              !_obscurePassword;
-                                            }),
+                                            onPressed: () =>
+                                                setState(() {
+                                                  _obscurePassword =
+                                                  !_obscurePassword;
+                                                }),
                                           ),
                                         ),
                                         const SizedBox(height: 12),

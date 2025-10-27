@@ -16,6 +16,8 @@ import 'Dietitians/homePageDietitian.dart';
 
 import 'Admin/firebaseOption.dart';
 
+import '../networkCheck/networkAware.dart';
+
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
 FlutterLocalNotificationsPlugin();
 
@@ -38,7 +40,7 @@ Future<void> main() async {
   // Initialize timezone for scheduled notifications
   tz.initializeTimeZones();
   // Set local timezone
-  final String timeZoneName = 'Asia/Manila'; // Change to your timezone
+  final String timeZoneName = 'Asia/Manila';
   tz.setLocalLocation(tz.getLocation(timeZoneName));
   print("✅ Timezone initialized: $timeZoneName");
 
@@ -48,7 +50,7 @@ Future<void> main() async {
   // Setup persistent listeners
   _setupPersistentListeners();
 
-  runApp(const MyApp());
+  runApp(const MyApp()); // REMOVE NetworkAwareWidget wrapper here
 }
 
 /// Initialize local notifications
@@ -72,19 +74,9 @@ Future<void> _initializeNotifications() async {
     initSettings,
     onDidReceiveNotificationResponse: (NotificationResponse response) {
       print("📱 Notification tapped: ${response.payload}");
-      // Handle notification tap here if needed
     },
   );
 
-  // Request iOS permissions
-  await flutterLocalNotificationsPlugin
-      .resolvePlatformSpecificImplementation<
-      IOSFlutterLocalNotificationsPlugin>()
-      ?.requestPermissions(
-    alert: true,
-    badge: true,
-    sound: true,
-  );
 
   print("✅ Notifications initialized successfully");
 }
@@ -107,7 +99,7 @@ void _setupMessageListener(String userId) {
   FirebaseFirestore.instance
       .collection('messages')
       .where('receiverID', isEqualTo: userId)
-      .where('isRead', isEqualTo: false) // Only unread messages
+      .where('isRead', isEqualTo: false)
       .orderBy('timestamp', descending: true)
       .limit(1)
       .snapshots()
@@ -146,7 +138,7 @@ void _setupAppointmentListener(String userId) {
       .collection('Users')
       .doc(userId)
       .collection('notifications')
-      .where('isRead', isEqualTo: false) // Only unread notifications
+      .where('isRead', isEqualTo: false)
       .orderBy('timestamp', descending: true)
       .limit(1)
       .snapshots()
@@ -192,7 +184,9 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
       ),
-      home: const AuthCheck(),
+      home: NetworkAwareWidget(  // ADD it here instead
+        child: const AuthCheck(),
+      ),
     );
   }
 }

@@ -6552,6 +6552,860 @@ class _UsersListPageState extends State<UsersListPage> {
     );
   }
 
+  void _showMealPlanCreatedDialog(BuildContext context, Map<String, dynamic> notificationData) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        final String title = notificationData['title'] ?? 'Meal Plan Created';
+        final String message = notificationData['message'] ?? 'Your meal plan has been successfully created.';
+        final String senderName = notificationData['senderName'] ?? 'Dietitian';
+        final String planType = notificationData['planType'] ?? 'Meal Plan';
+        final String dayName = notificationData['dayName'] ?? '';
+        final Timestamp? timestamp = notificationData['timestamp'] as Timestamp?;
+
+        String mealPlanDate = '';
+        if (notificationData['mealPlanDate'] != null) {
+          try {
+            final date = DateTime.parse(notificationData['mealPlanDate']);
+            mealPlanDate = DateFormat('MMMM dd, yyyy').format(date);
+          } catch (e) {
+            print('Error parsing meal plan date: $e');
+          }
+        }
+
+        String formattedDate = '';
+        if (timestamp != null) {
+          formattedDate = DateFormat('MMMM dd, yyyy – hh:mm a').format(timestamp.toDate());
+        }
+
+        return Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          elevation: 16,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 400),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: _primaryColor.withOpacity(0.1),
+                      borderRadius: const BorderRadius.only(
+                        topLeft: Radius.circular(20),
+                        topRight: Radius.circular(20),
+                      ),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+                    child: Column(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: _primaryColor.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(15),
+                          ),
+                          child: const Icon(
+                            Icons.check_circle_outline,
+                            color: _primaryColor,
+                            size: 32,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          title,
+                          style: const TextStyle(
+                            fontFamily: _primaryFontFamily,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 20,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (formattedDate.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 16.0),
+                            child: Row(
+                              children: [
+                                Icon(Icons.access_time, size: 16, color: Colors.grey.shade600),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    'Created on: $formattedDate',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      color: Colors.grey.shade600,
+                                      fontFamily: _primaryFontFamily,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+
+                        // Meal Plan Type
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                _primaryColor.withOpacity(0.15),
+                                _primaryColor.withOpacity(0.05),
+                              ],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: _primaryColor.withOpacity(0.3),
+                              width: 1.5,
+                            ),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(8),
+                                    decoration: BoxDecoration(
+                                      color: _primaryColor.withOpacity(0.2),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Icon(
+                                      Icons.restaurant_menu_rounded,
+                                      color: _primaryColor,
+                                      size: 20,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Plan Type',
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            color: Colors.grey.shade600,
+                                            fontFamily: _primaryFontFamily,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          planType,
+                                          style: const TextStyle(
+                                            fontFamily: _primaryFontFamily,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 16,
+                                            color: _primaryColor,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              if (dayName.isNotEmpty) ...[
+                                const SizedBox(height: 12),
+                                Divider(color: _primaryColor.withOpacity(0.2)),
+                                const SizedBox(height: 12),
+                                Row(
+                                  children: [
+                                    Icon(Icons.calendar_today, size: 16, color: _primaryColor),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        'Scheduled for: $dayName',
+                                        style: const TextStyle(
+                                          fontFamily: _primaryFontFamily,
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 14,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                if (mealPlanDate.isNotEmpty) ...[
+                                  const SizedBox(height: 8),
+                                  Row(
+                                    children: [
+                                      Icon(Icons.event, size: 16, color: _primaryColor),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          mealPlanDate,
+                                          style: TextStyle(
+                                            fontFamily: _primaryFontFamily,
+                                            fontSize: 13,
+                                            color: Colors.grey.shade700,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ],
+                            ],
+                          ),
+                        ),
+
+                        const SizedBox(height: 16),
+
+                        // Dietitian Info
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade100,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(Icons.person_outline, size: 18, color: _primaryColor),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  'Created by: $senderName',
+                                  style: const TextStyle(
+                                    fontFamily: _primaryFontFamily,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        const SizedBox(height: 16),
+
+                        // Message
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.withOpacity(0.08),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: Colors.blue.withOpacity(0.2)),
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Icon(Icons.info_outline, size: 18, color: Colors.blue),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  message,
+                                  style: const TextStyle(
+                                    fontFamily: _primaryFontFamily,
+                                    fontSize: 13,
+                                    height: 1.6,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        const SizedBox(height: 16),
+                      ],
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: () => Navigator.of(context).pop(),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: _primaryColor,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        icon: const Icon(Icons.check_circle_outline, size: 20),
+                        label: const Text(
+                          'Got it!',
+                          style: TextStyle(
+                            fontFamily: _primaryFontFamily,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showMealPlanDeclinedDialog(BuildContext context, Map<String, dynamic> notificationData) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        final String title = notificationData['title'] ?? 'Meal Plan Declined';
+        final String message = notificationData['message'] ?? 'Your meal plan request has been declined.';
+        final String senderName = notificationData['senderName'] ?? 'Dietitian';
+        final String planType = notificationData['planType'] ?? 'Meal Plan';
+        final String dayName = notificationData['dayName'] ?? '';
+        final Timestamp? timestamp = notificationData['timestamp'] as Timestamp?;
+
+        String mealPlanDate = '';
+        if (notificationData['mealPlanDate'] != null) {
+          try {
+            final date = DateTime.parse(notificationData['mealPlanDate']);
+            mealPlanDate = DateFormat('MMMM dd, yyyy').format(date);
+          } catch (e) {
+            print('Error parsing meal plan date: $e');
+          }
+        }
+
+        String formattedDate = '';
+        if (timestamp != null) {
+          formattedDate = DateFormat('MMMM dd, yyyy – hh:mm a').format(timestamp.toDate());
+        }
+
+        return Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          elevation: 16,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 400),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: _primaryColor.withOpacity(0.1),
+                      borderRadius: const BorderRadius.only(
+                        topLeft: Radius.circular(20),
+                        topRight: Radius.circular(20),
+                      ),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+                    child: Column(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: _primaryColor.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(15),
+                          ),
+                          child: const Icon(
+                            Icons.cancel_outlined,
+                            color: _primaryColor,
+                            size: 32,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          title,
+                          style: const TextStyle(
+                            fontFamily: _primaryFontFamily,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 20,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (formattedDate.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 16.0),
+                            child: Row(
+                              children: [
+                                Icon(Icons.access_time, size: 16, color: Colors.grey.shade600),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    'Processed on: $formattedDate',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      color: Colors.grey.shade600,
+                                      fontFamily: _primaryFontFamily,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+
+                        // Meal Plan Type
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                _primaryColor.withOpacity(0.15),
+                                _primaryColor.withOpacity(0.05),
+                              ],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: _primaryColor.withOpacity(0.3),
+                              width: 1.5,
+                            ),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(8),
+                                    decoration: BoxDecoration(
+                                      color: _primaryColor.withOpacity(0.2),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Icon(
+                                      Icons.restaurant_menu_rounded,
+                                      color: _primaryColor,
+                                      size: 20,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Plan Type',
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            color: Colors.grey.shade600,
+                                            fontFamily: _primaryFontFamily,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          planType,
+                                          style: const TextStyle(
+                                            fontFamily: _primaryFontFamily,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 16,
+                                            color: _primaryColor,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              if (dayName.isNotEmpty) ...[
+                                const SizedBox(height: 12),
+                                Divider(color: _primaryColor.withOpacity(0.2)),
+                                const SizedBox(height: 12),
+                                Row(
+                                  children: [
+                                    Icon(Icons.calendar_today, size: 16, color: _primaryColor),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        'Scheduled for: $dayName',
+                                        style: const TextStyle(
+                                          fontFamily: _primaryFontFamily,
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 14,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                if (mealPlanDate.isNotEmpty) ...[
+                                  const SizedBox(height: 8),
+                                  Row(
+                                    children: [
+                                      Icon(Icons.event, size: 16, color: _primaryColor),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          mealPlanDate,
+                                          style: TextStyle(
+                                            fontFamily: _primaryFontFamily,
+                                            fontSize: 13,
+                                            color: Colors.grey.shade700,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ],
+                            ],
+                          ),
+                        ),
+
+                        const SizedBox(height: 16),
+
+                        // Dietitian Info
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade100,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(Icons.person_outline, size: 18, color: _primaryColor),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  'Processed by: $senderName',
+                                  style: const TextStyle(
+                                    fontFamily: _primaryFontFamily,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        const SizedBox(height: 16),
+
+                        // Message
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: Colors.redAccent.withOpacity(0.08),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: Colors.red.withOpacity(0.2)),
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Icon(Icons.info_outline, size: 18, color: Colors.black),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  message,
+                                  style: const TextStyle(
+                                    fontFamily: _primaryFontFamily,
+                                    fontSize: 13,
+                                    height: 1.6,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        const SizedBox(height: 16),
+                      ],
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: () => Navigator.of(context).pop(),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: _primaryColor,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        icon: const Icon(Icons.cancel_outlined, size: 20),
+                        label: const Text(
+                          'Got it!',
+                          style: TextStyle(
+                            fontFamily: _primaryFontFamily,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showMealPlanNotif(BuildContext context, Map<String, dynamic> notificationData) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        final String title = notificationData['title'] ?? 'New Meal Plan';
+        final String message = notificationData['message'] ?? 'No details available';
+        final String senderName = notificationData['senderName'] ?? 'Dietitian';
+        final String planType = notificationData['planType'] ?? 'Meal Plan';
+        final Timestamp? timestamp = notificationData['timestamp'] as Timestamp?;
+
+        String formattedDate = '';
+        if (timestamp != null) {
+          formattedDate = DateFormat('MMMM dd, yyyy – hh:mm a').format(timestamp.toDate());
+        }
+
+        return Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          elevation: 16,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 400),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: _primaryColor.withOpacity(0.1),
+                      borderRadius: const BorderRadius.only(
+                        topLeft: Radius.circular(20),
+                        topRight: Radius.circular(20),
+                      ),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+                    child: Column(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: _primaryColor.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(15),
+                          ),
+                          child: const Icon(
+                            Icons.restaurant_menu_rounded,
+                            color: _primaryColor,
+                            size: 32,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          title,
+                          style: const TextStyle(
+                            fontFamily: _primaryFontFamily,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 20,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (formattedDate.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 16.0),
+                            child: Row(
+                              children: [
+                                Icon(Icons.access_time, size: 16, color: Colors.grey.shade600),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    'Received: $formattedDate',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      color: Colors.grey.shade600,
+                                      fontFamily: _primaryFontFamily,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+
+                        // Meal Plan Type
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                _primaryColor.withOpacity(0.15),
+                                _primaryColor.withOpacity(0.05),
+                              ],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: _primaryColor.withOpacity(0.3),
+                              width: 1.5,
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: _primaryColor.withOpacity(0.2),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Icon(
+                                  Icons.restaurant_menu_rounded,
+                                  color: _primaryColor,
+                                  size: 20,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Plan Type',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: Colors.grey.shade600,
+                                        fontFamily: _primaryFontFamily,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      planType,
+                                      style: const TextStyle(
+                                        fontFamily: _primaryFontFamily,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16,
+                                        color: _primaryColor,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        const SizedBox(height: 16),
+
+                        // Dietitian Info
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade100,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(Icons.person_outline, size: 18, color: _primaryColor),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  'From: $senderName',
+                                  style: const TextStyle(
+                                    fontFamily: _primaryFontFamily,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        const SizedBox(height: 16),
+
+                        // Message
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.withOpacity(0.08),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: Colors.blue.withOpacity(0.2)),
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Icon(Icons.info_outline, size: 18, color: Colors.blue),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  message,
+                                  style: const TextStyle(
+                                    fontFamily: _primaryFontFamily,
+                                    fontSize: 13,
+                                    height: 1.6,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: () => Navigator.of(context).pop(),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: _primaryColor,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        icon: const Icon(Icons.check_circle_outline, size: 20),
+                        label: const Text(
+                          'Got it!',
+                          style: TextStyle(
+                            fontFamily: _primaryFontFamily,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   Widget _buildPriceComparison(String label, String oldPrice, String newPrice) {
     final bool priceChanged = oldPrice != newPrice;
 
@@ -7134,7 +7988,13 @@ class _UsersListPageState extends State<UsersListPage> {
                                     _showPriceChangeDialog(context, data);
                                   } else if (data["type"] == "meal_plan_scheduled") {
                                     _showMealPlanScheduledDialog(context, data);
-                                  }else if (data["type"] == "message" &&
+                                  } else if(data["type"] == "meal_plan_declined"){
+                                    _showMealPlanDeclinedDialog(context, data);
+                                  } else if (data["type"] == "meal_plan_created"){
+                                    _showMealPlanCreatedDialog(context, data);
+                                  } else if (data["type"] == "meal_plan"){
+                                    _showMealPlanNotif(context, data);
+                                  } else if (data["type"] == "message" &&
                                       data["senderId"] != null &&
                                       data["senderName"] != null) {
                                     Navigator.push(

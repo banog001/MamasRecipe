@@ -70,6 +70,7 @@ class _MessagesPageState extends State<MessagesPage> {
   String currentUserEmail = "";
   bool _isSubmittingRequest = false;
   bool _hasPendingAppointment = false;
+  bool _hasPendingMealPlan = false; // ✅ New state variable
   bool _isReceiverAdmin = false;
 
   @override
@@ -77,6 +78,7 @@ class _MessagesPageState extends State<MessagesPage> {
     super.initState();
     fetchCurrentUserName();
     _listenToPendingAppointment();
+    _listenToPendingMealPlan(); // ✅ Listen to meal plan requests
     _checkIfReceiverIsAdmin();
   }
 
@@ -119,6 +121,23 @@ class _MessagesPageState extends State<MessagesPage> {
       if (mounted) {
         setState(() {
           _hasPendingAppointment = snapshot.docs.isNotEmpty;
+        });
+      }
+    });
+  }
+
+  // ✅ New method to listen to pending meal plan requests
+  void _listenToPendingMealPlan() {
+    _firestore
+        .collection('mealPlanRequests')
+        .where('clientId', isEqualTo: widget.currentUserId)
+        .where('dietitianId', isEqualTo: widget.receiverId)
+        .where('status', isEqualTo: 'pending')
+        .snapshots()
+        .listen((snapshot) {
+      if (mounted) {
+        setState(() {
+          _hasPendingMealPlan = snapshot.docs.isNotEmpty;
         });
       }
     });
@@ -226,8 +245,8 @@ class _MessagesPageState extends State<MessagesPage> {
         CustomSnackBar.show(
           context,
           'Appointment request sent successfully!',
-          backgroundColor: Colors.redAccent,
-          icon: Icons.lock_outline,
+          backgroundColor: _primaryColor,
+          icon: Icons.check_circle_outline,
         );
       }
     } catch (e) {
@@ -240,7 +259,7 @@ class _MessagesPageState extends State<MessagesPage> {
           context,
           'Error: $e',
           backgroundColor: Colors.redAccent,
-          icon: Icons.lock_outline,
+          icon: Icons.error_outline,
         );
       }
     }
@@ -515,110 +534,164 @@ class _MessagesPageState extends State<MessagesPage> {
                 ),
                 Padding(
                   padding: const EdgeInsets.all(32.0),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      CircleAvatar(
-                        radius: 40,
-                        backgroundColor: _primaryColor.withOpacity(0.1),
-                        backgroundImage:
-                        widget.receiverProfile.isNotEmpty ? NetworkImage(widget.receiverProfile) : null,
-                        child: widget.receiverProfile.isEmpty
-                            ? Icon(Icons.person_outline, size: 40, color: _primaryColor.withOpacity(0.8))
-                            : null,
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        widget.receiverName,
-                        textAlign: TextAlign.center,
-                        style: _getTextStyle(
-                          dialogContext,
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: _textColorPrimary(dialogContext),
-                        ),
-                      ),
-                      const SizedBox(height: 32),
-                      SizedBox(
-                        width: double.infinity,
-                        height: 52,
-                        child: OutlinedButton.icon(
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: _primaryColor,
-                            side: const BorderSide(color: _primaryColor, width: 1.5),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  child: StreamBuilder<DocumentSnapshot>(
+                    stream: _firestore
+                        .collection('Users')
+                        .doc(widget.receiverId)
+                        .collection('subscriber')
+                        .doc(widget.currentUserId)
+                        .snapshots(),
+                    builder: (context, snapshot) {
+                      final isSubscribed = snapshot.hasData && snapshot.data!.exists;
+
+                      return Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          CircleAvatar(
+                            radius: 40,
+                            backgroundColor: _primaryColor.withOpacity(0.1),
+                            backgroundImage:
+                            widget.receiverProfile.isNotEmpty ? NetworkImage(widget.receiverProfile) : null,
+                            child: widget.receiverProfile.isEmpty
+                                ? Icon(Icons.person_outline, size: 40, color: _primaryColor.withOpacity(0.8))
+                                : null,
                           ),
-                          onPressed: () {
-                            Navigator.pop(dialogContext);
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => DietitianPublicProfile(
-                                  dietitianId: widget.receiverId,
-                                  dietitianName: widget.receiverName,
-                                  dietitianProfile: widget.receiverProfile,
+                          const SizedBox(height: 16),
+                          Text(
+                            widget.receiverName,
+                            textAlign: TextAlign.center,
+                            style: _getTextStyle(
+                              dialogContext,
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: _textColorPrimary(dialogContext),
+                            ),
+                          ),
+                          const SizedBox(height: 32),
+                          SizedBox(
+                            width: double.infinity,
+                            height: 52,
+                            child: OutlinedButton.icon(
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: _primaryColor,
+                                side: const BorderSide(color: _primaryColor, width: 1.5),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                              ),
+                              onPressed: () {
+                                Navigator.pop(dialogContext);
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => DietitianPublicProfile(
+                                      dietitianId: widget.receiverId,
+                                      dietitianName: widget.receiverName,
+                                      dietitianProfile: widget.receiverProfile,
+                                    ),
+                                  ),
+                                );
+                              },
+                              icon: const Icon(Icons.visibility_outlined, size: 20),
+                              label: Text(
+                                "View Profile",
+                                style: _getTextStyle(
+                                  dialogContext,
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.bold,
+                                  color: _primaryColor,
                                 ),
                               ),
-                            );
-                          },
-                          icon: const Icon(Icons.visibility_outlined, size: 20),
-                          label: Text(
-                            "View Profile",
-                            style: _getTextStyle(
-                              dialogContext,
-                              fontSize: 15,
-                              fontWeight: FontWeight.bold,
-                              color: _primaryColor,
                             ),
                           ),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      SizedBox(
-                        width: double.infinity,
-                        height: 52,
-                        child: ElevatedButton.icon(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: _hasPendingAppointment ? Colors.grey.shade400 : _primaryColor,
-                            foregroundColor: _textColorOnPrimary,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                            elevation: _hasPendingAppointment ? 0 : 4,
+                          const SizedBox(height: 16),
+                          SizedBox(
+                            width: double.infinity,
+                            height: 52,
+                            child: ElevatedButton.icon(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: _hasPendingAppointment ? Colors.grey.shade400 : _primaryColor,
+                                foregroundColor: _textColorOnPrimary,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                elevation: _hasPendingAppointment ? 0 : 4,
+                              ),
+                              onPressed: (_hasPendingAppointment || _isSubmittingRequest) ? null : () {
+                                Navigator.pop(dialogContext);
+                                _requestAppointment();
+                              },
+                              icon: _isSubmittingRequest
+                                  ? Container(
+                                width: 20,
+                                height: 20,
+                                padding: const EdgeInsets.all(2.0),
+                                child: const CircularProgressIndicator(color: Colors.white, strokeWidth: 3),
+                              )
+                                  : Icon(
+                                  _hasPendingAppointment ? Icons.hourglass_top_rounded : Icons.calendar_month_outlined,
+                                  size: 20),
+                              label: Text(
+                                _isSubmittingRequest
+                                    ? "Sending..."
+                                    : _hasPendingAppointment
+                                    ? "Request Pending"
+                                    : "Request Appointment",
+                                style: _getTextStyle(
+                                  dialogContext,
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.bold,
+                                  color: _textColorOnPrimary,
+                                ),
+                              ),
+                            ),
                           ),
-                          onPressed: (_hasPendingAppointment || _isSubmittingRequest) ? null : () {
-                            Navigator.pop(dialogContext);
-                            _requestAppointment();
-                          },
-                          icon: _isSubmittingRequest
-                              ? Container(
-                            width: 20,
-                            height: 20,
-                            padding: const EdgeInsets.all(2.0),
-                            child: const CircularProgressIndicator(color: Colors.white, strokeWidth: 3),
+                          const SizedBox(height: 16),
+                          // ✅ Updated meal plan button with pending check
+                          SizedBox(
+                            width: double.infinity,
+                            height: 52,
+                            child: ElevatedButton.icon(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: (!isSubscribed || _hasPendingMealPlan)
+                                    ? Colors.grey.shade400
+                                    : _primaryColor,
+                                foregroundColor: _textColorOnPrimary,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                elevation: (isSubscribed && !_hasPendingMealPlan) ? 4 : 0,
+                              ),
+                              onPressed: (isSubscribed && !_hasPendingMealPlan) ? () {
+                                Navigator.pop(dialogContext);
+                                _requestPersonalizedMealPlan();
+                              } : null,
+                              icon: Icon(
+                                !isSubscribed
+                                    ? Icons.lock_outline
+                                    : _hasPendingMealPlan
+                                    ? Icons.hourglass_top_rounded
+                                    : Icons.restaurant_menu_outlined,
+                                size: 20,
+                              ),
+                              label: Text(
+                                !isSubscribed
+                                    ? "Subscribe to Request Meal Plan"
+                                    : _hasPendingMealPlan
+                                    ? "Meal Plan Request Pending"
+                                    : "Request Personalized Meal Plan",
+                                style: _getTextStyle(
+                                  dialogContext,
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.bold,
+                                  color: _textColorOnPrimary,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          TextButton(
+                            onPressed: () => Navigator.pop(dialogContext),
+                            child: Text("Close", style: _getTextStyle(dialogContext, color: _textColorSecondary(dialogContext))),
                           )
-                              : Icon(
-                              _hasPendingAppointment ? Icons.hourglass_top_rounded : Icons.calendar_month_outlined,
-                              size: 20),
-                          label: Text(
-                            _isSubmittingRequest
-                                ? "Sending..."
-                                : _hasPendingAppointment
-                                ? "Request Pending"
-                                : "Request Appointment",
-                            style: _getTextStyle(
-                              dialogContext,
-                              fontSize: 15,
-                              fontWeight: FontWeight.bold,
-                              color: _textColorOnPrimary,
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      TextButton(
-                        onPressed: () => Navigator.pop(dialogContext),
-                        child: Text("Close", style: _getTextStyle(dialogContext, color: _textColorSecondary(dialogContext))),
-                      )
-                    ],
+                        ],
+                      );
+                    },
                   ),
                 ),
               ],
@@ -627,6 +700,64 @@ class _MessagesPageState extends State<MessagesPage> {
         );
       },
     );
+  }
+
+  Future<void> _requestPersonalizedMealPlan() async {
+    if (currentUserName.isEmpty) {
+      CustomSnackBar.show(
+        context,
+        'User data not loaded yet',
+        backgroundColor: Colors.redAccent,
+        icon: Icons.error_outline,
+      );
+      return;
+    }
+
+    try {
+      await _firestore.collection('mealPlanRequests').add({
+        'clientId': widget.currentUserId,
+        'clientName': currentUserName,
+        'clientEmail': currentUserEmail,
+        'dietitianId': widget.receiverId,
+        'dietitianName': widget.receiverName,
+        'status': 'pending',
+        'requestDate': FieldValue.serverTimestamp(),
+        'message': '',
+      });
+
+      await _firestore
+          .collection('Users')
+          .doc(widget.receiverId)
+          .collection('notifications')
+          .add({
+        'title': 'Meal Plan Request',
+        'message': '$currentUserName requested a personalized meal plan',
+        'senderId': widget.currentUserId,
+        'senderName': currentUserName,
+        'type': 'mealPlanRequest',
+        'isRead': false,
+        'timestamp': FieldValue.serverTimestamp(),
+      });
+
+      if (mounted) {
+        CustomSnackBar.show(
+          context,
+          'Meal plan request sent successfully!',
+          backgroundColor: _primaryColor,
+          icon: Icons.check_circle_outline,
+        );
+      }
+    } catch (e) {
+      print('Error requesting meal plan: $e');
+      if (mounted) {
+        CustomSnackBar.show(
+          context,
+          'Error sending request: $e',
+          backgroundColor: Colors.redAccent,
+          icon: Icons.error_outline,
+        );
+      }
+    }
   }
 
   @override

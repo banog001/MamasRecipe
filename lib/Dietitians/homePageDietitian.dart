@@ -30,6 +30,8 @@ import 'payment.dart';
 
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
+import 'mealPlanRequest.dart';
+
 // --- THEME & STYLING CONSTANTS (Available to the whole file) ---
 const String _primaryFontFamily = 'PlusJakartaSans';
 const Color _primaryColor = Color(0xFF4CAF50);
@@ -1656,6 +1658,206 @@ class _AnalyticsDashboardState extends State<AnalyticsDashboard> {
     );
   }
 
+  void _checkPendingRequestsAndNavigate(BuildContext context) async {
+    try {
+      final dietitianId = FirebaseAuth.instance.currentUser?.uid;
+      if (dietitianId == null) {
+        CustomSnackBar.show(
+          context,
+          'You must be logged in.',
+          backgroundColor: Colors.redAccent,
+          icon: Icons.warning_outlined,
+        );
+        return;
+      }
+
+      // Show loading indicator
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => Center(
+          child: Card(
+            child: Padding(
+              padding: const EdgeInsets.all(20.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircularProgressIndicator(color: _primaryColor),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Checking requests...',
+                    style: _getTextStyle(context, fontSize: 14),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+
+      // Query for pending meal plan requests for this dietitian
+      final snapshot = await FirebaseFirestore.instance
+          .collection('mealPlanRequests')
+          .where('dietitianId', isEqualTo: dietitianId)
+          .where('status', isEqualTo: 'pending')
+          .get();
+
+      // Close loading dialog
+      if (mounted) Navigator.pop(context);
+
+      if (snapshot.docs.isNotEmpty) {
+        // There are pending requests - show dialog to ask
+        if (mounted) {
+          _showPendingRequestDialog(context, snapshot.docs);
+        }
+      } else {
+        // No pending requests - go directly to CreateMealPlanPage
+        if (mounted) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const CreateMealPlanPage()),
+          );
+        }
+      }
+    } catch (e) {
+      // Close loading dialog if error
+      if (mounted) Navigator.pop(context);
+
+      print('Error checking pending requests: $e');
+      CustomSnackBar.show(
+        context,
+        'Error checking requests: $e',
+        backgroundColor: Colors.redAccent,
+        icon: Icons.error_outline,
+      );
+    }
+  }
+
+  void _showPendingRequestDialog(BuildContext context, List<QueryDocumentSnapshot> requests) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: _primaryColor.withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.notifications_active,
+                    color: _primaryColor,
+                    size: 40,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  'Pending Meal Plan Requests',
+                  style: _getTextStyle(
+                    dialogContext,
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'You have ${requests.length} pending meal plan ${requests.length == 1 ? 'request' : 'requests'} from your clients.',
+                  style: _getTextStyle(
+                    dialogContext,
+                    fontSize: 14,
+                    color: _textColorSecondary(dialogContext),
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 24),
+                Text(
+                  'Would you like to create a personalized meal plan for them?',
+                  style: _getTextStyle(
+                    dialogContext,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 24),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () {
+                          Navigator.pop(dialogContext);
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const CreateMealPlanPage()),
+                          );
+                        },
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: _primaryColor,
+                          side: BorderSide(color: _primaryColor, width: 1.5),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: Text(
+                          'No',
+                          style: _getTextStyle(
+                            dialogContext,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            color: _primaryColor,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () {
+                          Navigator.pop(dialogContext);
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => MealPlanRequestCard(requests: requests)),
+                          );
+                          print('Navigate to personalized meal plan page with ${requests.length} requests');
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: _primaryColor,
+                          foregroundColor: _textColorOnPrimary,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          elevation: 2,
+                        ),
+                        child: Text(
+                          'Yes',
+                          style: _getTextStyle(
+                            dialogContext,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            color: _textColorOnPrimary,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   Widget _buildQuickActionsSection(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1674,10 +1876,7 @@ class _AnalyticsDashboardState extends State<AnalyticsDashboard> {
         SizedBox(
           width: double.infinity,
           child: ElevatedButton.icon(
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const CreateMealPlanPage()),
-            ),
+            onPressed: () => _checkPendingRequestsAndNavigate(context),
             style: ElevatedButton.styleFrom(
               backgroundColor: _primaryColor,
               foregroundColor: _textColorOnPrimary,

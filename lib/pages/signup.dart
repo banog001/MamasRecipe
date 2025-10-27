@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -76,6 +77,8 @@ class _SignUpPageState extends State<signUpPage> with TickerProviderStateMixin {
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
 
+  Timer? _verificationTimer;
+
   @override
   void initState() {
     super.initState();
@@ -109,6 +112,7 @@ class _SignUpPageState extends State<signUpPage> with TickerProviderStateMixin {
     _confirmPasswordController.dispose();
     _fadeController.dispose();
     _slideController.dispose();
+    _verificationTimer?.cancel();
     super.dispose();
   }
 
@@ -119,15 +123,16 @@ class _SignUpPageState extends State<signUpPage> with TickerProviderStateMixin {
     );
   }
 
-  // ---------- MIGRATION HELPERS ----------
-  Future<void> _migrateNotVerifiedToUsers(User user) async {
+  // ---------- VERIFICATION HELPERS ----------
+  // NEW: Just mark as verified in verifiedUsers collection (no role assignment yet)
+  Future<void> _markUserAsVerified(User user) async {
     final firestore = FirebaseFirestore.instance;
     final notVerRef = firestore.collection('notVerifiedUsers').doc(user.uid);
-    final usersRef = firestore.collection('Users').doc(user.uid);
+    final verifiedRef = firestore.collection('verifiedUsers').doc(user.uid);
 
     final snap = await notVerRef.get();
 
-    // Start with any existing staged data (first/last/email), then enforce safe fields.
+    // Store user data in verifiedUsers (awaiting role selection on first login)
     final Map<String, dynamic> data = {
       if (snap.exists) ...snap.data()!,
       'email': user.email,
@@ -135,13 +140,13 @@ class _SignUpPageState extends State<signUpPage> with TickerProviderStateMixin {
       'provider': user.providerData.isNotEmpty
           ? user.providerData.first.providerId
           : 'password',
-      'createdAt': FieldValue.serverTimestamp(),
+      'verifiedAt': FieldValue.serverTimestamp(),
     };
 
-    // Never store plaintext password if it somehow exists.
+    // Never store plaintext password
     data.remove('password');
 
-    // If first/last missing, try to derive from text fields or displayName.
+    // Ensure firstName and lastName are set
     if ((data['firstName'] == null || (data['firstName'] as String).isEmpty)) {
       final dn = user.displayName ?? '';
       data['firstName'] = _firstNameController.text.isNotEmpty
@@ -155,19 +160,46 @@ class _SignUpPageState extends State<signUpPage> with TickerProviderStateMixin {
           : (dn.contains(' ') ? dn.split(' ').sublist(1).join(' ') : '');
     }
 
-    await usersRef.set(data, SetOptions(merge: true));
+    await verifiedRef.set(data, SetOptions(merge: true));
 
-    // Best effort delete of staging doc
+    // Delete from notVerifiedUsers
     try {
       await notVerRef.delete();
     } catch (_) {/* ignore */}
   }
 
-  Future<void> _tryMigrateAfterVerification(User user) async {
+  // Automatic verification checker with periodic polling
+  void _startAutoVerificationCheck(User user) {
+    print('🔄 Starting automatic verification check...');
+
+    // Check every 3 seconds
+    _verificationTimer = Timer.periodic(const Duration(seconds: 3), (timer) async {
+      try {
+        await user.reload();
+        final refreshed = FirebaseAuth.instance.currentUser;
+
+        if (refreshed != null && refreshed.emailVerified) {
+          print('✅ Email verified automatically detected!');
+          timer.cancel();
+
+          await _markUserAsVerified(refreshed);
+
+          if (mounted) {
+            Navigator.of(context).pop(); // Close verification dialog
+            _showSuccessDialog(context, onOk: goLogIn);
+          }
+        }
+      } catch (e) {
+        print('⚠️ Error checking verification status: $e');
+      }
+    });
+  }
+
+  Future<void> _tryVerifyManually(User user) async {
     await user.reload();
     final refreshed = FirebaseAuth.instance.currentUser;
     if (refreshed != null && refreshed.emailVerified) {
-      await _migrateNotVerifiedToUsers(refreshed);
+      await _markUserAsVerified(refreshed);
       if (mounted) {
         Navigator.of(context).pop(); // close the verify dialog
         _showSuccessDialog(context, onOk: goLogIn);
@@ -175,23 +207,23 @@ class _SignUpPageState extends State<signUpPage> with TickerProviderStateMixin {
     } else {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Email not verified yet. Try again.")),
+          const SnackBar(content: Text("Email not verified yet. Please check your inbox and click the verification link.")),
         );
       }
     }
   }
 
-  Future<void> _ensureUsersDocForGoogle(User user) async {
-    final usersRef =
-    FirebaseFirestore.instance.collection('Users').doc(user.uid);
-    final exists = await usersRef.get();
+  Future<void> _ensureVerifiedUsersDocForGoogle(User user) async {
+    final verifiedRef =
+    FirebaseFirestore.instance.collection('verifiedUsers').doc(user.uid);
+    final exists = await verifiedRef.get();
 
     if (!exists.exists) {
       final dn = user.displayName ?? '';
       final first = dn.isNotEmpty ? dn.split(' ').first : '';
       final last = dn.contains(' ') ? dn.split(' ').sublist(1).join(' ') : '';
 
-      await usersRef.set({
+      await verifiedRef.set({
         'email': user.email,
         'firstName': first,
         'lastName': last,
@@ -199,11 +231,11 @@ class _SignUpPageState extends State<signUpPage> with TickerProviderStateMixin {
             ? user.providerData.first.providerId
             : 'google.com',
         'emailVerified': user.emailVerified,
-        'createdAt': FieldValue.serverTimestamp(),
+        'verifiedAt': FieldValue.serverTimestamp(),
       });
     }
 
-    // If they somehow had a staging doc, clean it up.
+    // Clean up staging doc if exists
     try {
       await FirebaseFirestore.instance
           .collection('notVerifiedUsers')
@@ -214,96 +246,161 @@ class _SignUpPageState extends State<signUpPage> with TickerProviderStateMixin {
   // ---------- END HELPERS ----------
 
   Future<void> showVerificationDialog(User user) async {
+    // Start automatic verification checking
+    _startAutoVerificationCheck(user);
+
     await showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (_) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        child: Container(
-          padding: const EdgeInsets.all(30),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(20),
-            color: _cardBgColor(context),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 80,
-                height: 80,
-                decoration: const BoxDecoration(
-                  color: _primaryColor,
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.email_outlined, color: _textColorOnPrimary, size: 44),
-              ),
-              const SizedBox(height: 18),
-              Text(
-                'Verify your email',
-                style: _getTextStyle(
-                  context,
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: _textColorPrimary(context),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'We sent a verification link to your email. Click it, then come back here.',
-                textAlign: TextAlign.center,
-                style: _getTextStyle(
-                  context,
-                  fontSize: 14,
-                  color: _textColorSecondary(context),
-                ),
-              ),
-              const SizedBox(height: 24),
-              SizedBox(
-                width: double.infinity,
-                height: 45,
-                child: ElevatedButton(
-                  onPressed: () async {
-                    await user.sendEmailVerification();
-                    if (mounted) {
-                      _showErrorSnackBar("Verification email resent.");
-                    }
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _primaryColor,
-                    foregroundColor: _textColorOnPrimary,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
+      builder: (_) => WillPopScope(
+        onWillPop: () async {
+          _verificationTimer?.cancel();
+          return true;
+        },
+        child: Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          child: Container(
+            padding: const EdgeInsets.all(30),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              color: _cardBgColor(context),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 80,
+                  height: 80,
+                  decoration: const BoxDecoration(
+                    color: _primaryColor,
+                    shape: BoxShape.circle,
                   ),
-                  child: Text(
-                    'Resend Email',
-                    style: _getTextStyle(
-                      context,
-                      fontWeight: FontWeight.bold,
-                      color: _textColorOnPrimary,
-                    ),
-                  ),
+                  child: const Icon(Icons.email_outlined, color: _textColorOnPrimary, size: 44),
                 ),
-              ),
-              const SizedBox(height: 10),
-              TextButton(
-                onPressed: () {
-                  Navigator.of(context).pop();
-                  goLogIn();
-                },
-                child: Text(
-                  'Back to Login',
+                const SizedBox(height: 18),
+                Text(
+                  'Verify your email',
                   style: _getTextStyle(
                     context,
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: _textColorPrimary(context),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'We sent a verification link to ${user.email}. Click the link in your email to verify your account.',
+                  textAlign: TextAlign.center,
+                  style: _getTextStyle(
+                    context,
+                    fontSize: 14,
                     color: _textColorSecondary(context),
                   ),
                 ),
-              ),
-            ],
+                const SizedBox(height: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(_primaryColor),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      'Waiting for verification...',
+                      style: _getTextStyle(
+                        context,
+                        fontSize: 13,
+                        color: _textColorSecondary(context),
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  height: 45,
+                  child: ElevatedButton(
+                    onPressed: () => _tryVerifyManually(user),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _primaryColor,
+                      foregroundColor: _textColorOnPrimary,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: Text(
+                      'I\'ve Verified My Email',
+                      style: _getTextStyle(
+                        context,
+                        fontWeight: FontWeight.bold,
+                        color: _textColorOnPrimary,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                SizedBox(
+                  width: double.infinity,
+                  height: 45,
+                  child: OutlinedButton(
+                    onPressed: () async {
+                      try {
+                        await user.sendEmailVerification();
+                        if (mounted) {
+                          _showSuccessSnackBar("Verification email resent! Check your inbox.");
+                        }
+                      } catch (e) {
+                        if (mounted) {
+                          _showErrorSnackBar("Failed to resend email. Please wait a moment and try again.");
+                        }
+                      }
+                    },
+                    style: OutlinedButton.styleFrom(
+                      side: BorderSide(color: _primaryColor),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: Text(
+                      'Resend Email',
+                      style: _getTextStyle(
+                        context,
+                        color: _primaryColor,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                TextButton(
+                  onPressed: () {
+                    _verificationTimer?.cancel();
+                    Navigator.of(context).pop();
+                    goLogIn();
+                  },
+                  child: Text(
+                    'Back to Login',
+                    style: _getTextStyle(
+                      context,
+                      color: _textColorSecondary(context),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
     );
+
+    // Cancel timer when dialog closes
+    _verificationTimer?.cancel();
   }
 
   Future<void> registerUser() async {
@@ -317,36 +414,102 @@ class _SignUpPageState extends State<signUpPage> with TickerProviderStateMixin {
     final password = _passwordController.text.trim();
 
     try {
+      print('🔵 Creating user account for: $mail');
+
       final cred = await FirebaseAuth.instance
           .createUserWithEmailAndPassword(email: mail, password: password);
 
       User? user = cred.user;
-      if (user != null) {
-        if (!user.emailVerified) {
-          await user.sendEmailVerification();
-          await FirebaseFirestore.instance
-              .collection("notVerifiedUsers")
-              .doc(user.uid)
-              .set({
-            "email": mail,
-            "firstName": fName,
-            "lastName": lName,
-          });
 
-          await showVerificationDialog(user);
+      if (user != null) {
+        print('✅ User created successfully: ${user.uid}');
+        print('📧 Email verified status: ${user.emailVerified}');
+
+        // Update display name
+        await user.updateDisplayName('$fName $lName');
+
+        if (!user.emailVerified) {
+          try {
+            print('📤 Sending verification email...');
+
+            await user.sendEmailVerification();
+
+            print('✅ Verification email sent successfully to: ${user.email}');
+
+            // Save to notVerifiedUsers collection (temporary staging)
+            await FirebaseFirestore.instance
+                .collection("notVerifiedUsers")
+                .doc(user.uid)
+                .set({
+              "email": mail,
+              "firstName": fName,
+              "lastName": lName,
+              "createdAt": FieldValue.serverTimestamp(),
+            });
+
+            print('✅ User data saved to notVerifiedUsers collection');
+
+            if (mounted) {
+              setState(() => _isLoading = false);
+              await showVerificationDialog(user);
+            }
+          } catch (emailError) {
+            print('❌ Error sending verification email: $emailError');
+
+            if (mounted) {
+              setState(() => _isLoading = false);
+
+              if (emailError.toString().contains('too-many-requests')) {
+                _showErrorSnackBar("Too many requests. Please wait a moment before trying again.");
+              } else {
+                _showErrorSnackBar("Could not send verification email. Please try again later.");
+              }
+            }
+          }
         } else {
-          await _migrateNotVerifiedToUsers(user);
-          _showSuccessDialog(context, onOk: goLogIn);
+          // Email is already verified (shouldn't happen for new accounts)
+          print('✅ Email already verified');
+          await _markUserAsVerified(user);
+
+          if (mounted) {
+            setState(() => _isLoading = false);
+            _showSuccessDialog(context, onOk: goLogIn);
+          }
         }
       }
     } on FirebaseAuthException catch (e) {
-      if (e.code == 'email-already-in-use') {
-        _showErrorSnackBar("This email is already registered. Please log in.");
-      } else {
-        _showErrorSnackBar("Error: ${e.message}");
+      print('❌ FirebaseAuthException: ${e.code} - ${e.message}');
+
+      if (mounted) {
+        setState(() => _isLoading = false);
+
+        switch (e.code) {
+          case 'email-already-in-use':
+            _showErrorSnackBar("This email is already registered. Please log in.");
+            break;
+          case 'weak-password':
+            _showErrorSnackBar("Password is too weak. Please use a stronger password.");
+            break;
+          case 'invalid-email':
+            _showErrorSnackBar("Invalid email address. Please check and try again.");
+            break;
+          case 'operation-not-allowed':
+            _showErrorSnackBar("Email/password sign-up is not enabled. Please contact support.");
+            break;
+          case 'network-request-failed':
+            _showErrorSnackBar("Network error. Please check your internet connection.");
+            break;
+          default:
+            _showErrorSnackBar("Registration failed: ${e.message}");
+        }
       }
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
+    } catch (e) {
+      print('❌ Unexpected error during registration: $e');
+
+      if (mounted) {
+        setState(() => _isLoading = false);
+        _showErrorSnackBar("An unexpected error occurred. Please try again.");
+      }
     }
   }
 
@@ -368,6 +531,24 @@ class _SignUpPageState extends State<signUpPage> with TickerProviderStateMixin {
     );
   }
 
+  void _showSuccessSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(Icons.check_circle_outline, color: _textColorOnPrimary),
+            const SizedBox(width: 12),
+            Expanded(child: Text(message)),
+          ],
+        ),
+        backgroundColor: _primaryColor,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        margin: const EdgeInsets.all(16),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
@@ -375,13 +556,10 @@ class _SignUpPageState extends State<signUpPage> with TickerProviderStateMixin {
     return Scaffold(
       backgroundColor: _scaffoldBgColor(context),
       resizeToAvoidBottomInset: true,
-      body: Stack( // <-- 1. WRAP with Stack
+      body: Stack(
         fit: StackFit.expand,
         children: [
-          // --- 2. ADD This ---
-          _buildBackgroundShapes(context), // This is the new background
-
-          // --- 3. All your original code is below ---
+          _buildBackgroundShapes(context),
           SafeArea(
             child: FadeTransition(
               opacity: _fadeAnimation,
@@ -413,14 +591,14 @@ class _SignUpPageState extends State<signUpPage> with TickerProviderStateMixin {
 
                                   Flexible(
                                     child: Card(
-                                      elevation: 0, // <-- 1. SET to 0
-                                      shadowColor: Colors.transparent, // <-- 2. SET to transparent
+                                      elevation: 0,
+                                      shadowColor: Colors.transparent,
                                       shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(20),
                                       ),
-                                      color: Colors.transparent, // <-- 3. SET to transparent
+                                      color: Colors.transparent,
                                       child: Padding(
-                                        padding: const EdgeInsets.all(16.0), // <-- 4. REMOVE this padding
+                                        padding: const EdgeInsets.all(16.0),
                                         child: Column(
                                           mainAxisSize: MainAxisSize.min,
                                           children: [
@@ -737,7 +915,7 @@ class _SignUpPageState extends State<signUpPage> with TickerProviderStateMixin {
                 ),
                 const SizedBox(height: 20),
                 Text(
-                  'Account Ready',
+                  'Email Verified!',
                   style: _getTextStyle(
                     context,
                     fontSize: 24,
@@ -747,7 +925,7 @@ class _SignUpPageState extends State<signUpPage> with TickerProviderStateMixin {
                 ),
                 const SizedBox(height: 10),
                 Text(
-                  'You can now log in to your account.',
+                  'Your email has been verified! You can now log in to your account.',
                   textAlign: TextAlign.center,
                   style: _getTextStyle(
                     context,
@@ -773,7 +951,7 @@ class _SignUpPageState extends State<signUpPage> with TickerProviderStateMixin {
                       ),
                     ),
                     child: Text(
-                      'Continue',
+                      'Continue to Login',
                       style: _getTextStyle(
                         context,
                         fontSize: 16,
@@ -845,43 +1023,86 @@ class _SignUpPageState extends State<signUpPage> with TickerProviderStateMixin {
   }
 
   Future<void> signInWithGoogle() async {
+    setState(() => _isLoading = true);
+
     try {
+      print('🔵 Starting Google Sign-In...');
+
       final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
-      final GoogleSignInAuthentication? googleAuth =
-      await googleUser?.authentication;
+
+      if (googleUser == null) {
+        print('❌ Google Sign-In cancelled by user');
+        if (mounted) setState(() => _isLoading = false);
+        return;
+      }
+
+      print('✅ Google account selected: ${googleUser.email}');
+
+      final GoogleSignInAuthentication googleAuth =
+      await googleUser.authentication;
 
       final credential = GoogleAuthProvider.credential(
-        accessToken: googleAuth?.accessToken,
-        idToken: googleAuth?.idToken,
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
       );
+
+      print('📤 Signing in with Google credentials...');
 
       final result =
       await FirebaseAuth.instance.signInWithCredential(credential);
 
       final user = result.user;
+
       if (user != null) {
-        await _ensureUsersDocForGoogle(user);
-        _showSuccessDialog(context, onOk: goLogIn);
+        print('✅ Google Sign-In successful: ${user.uid}');
+        await _ensureVerifiedUsersDocForGoogle(user);
+
+        if (mounted) {
+          setState(() => _isLoading = false);
+          _showSuccessDialog(context, onOk: goLogIn);
+        }
+      }
+    } on FirebaseAuthException catch (e) {
+      print('❌ Firebase Auth error during Google Sign-In: ${e.code} - ${e.message}');
+
+      if (mounted) {
+        setState(() => _isLoading = false);
+
+        switch (e.code) {
+          case 'account-exists-with-different-credential':
+            _showErrorSnackBar("An account already exists with this email using a different sign-in method.");
+            break;
+          case 'invalid-credential':
+            _showErrorSnackBar("Invalid credentials. Please try again.");
+            break;
+          case 'operation-not-allowed':
+            _showErrorSnackBar("Google sign-in is not enabled. Please contact support.");
+            break;
+          case 'user-disabled':
+            _showErrorSnackBar("This account has been disabled.");
+            break;
+          case 'network-request-failed':
+            _showErrorSnackBar("Network error. Please check your internet connection.");
+            break;
+          default:
+            _showErrorSnackBar("Google sign-in failed: ${e.message}");
+        }
       }
     } catch (e) {
+      print('❌ Unexpected error during Google Sign-In: $e');
+
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Google sign-in failed: $e")),
-        );
+        setState(() => _isLoading = false);
+        _showErrorSnackBar("An unexpected error occurred. Please try again.");
       }
     }
   }
 
-
-
-
-
-  // --- ADD THIS NEW WIDGET ---
   Widget _buildBackgroundShapes(BuildContext context) {
     return Container(
       width: double.infinity,
       height: double.infinity,
-      color: _scaffoldBgColor(context), // Use your existing background color
+      color: _scaffoldBgColor(context),
       child: Stack(
         children: [
           Positioned(
@@ -912,5 +1133,4 @@ class _SignUpPageState extends State<signUpPage> with TickerProviderStateMixin {
       ),
     );
   }
-// --- END OF NEW WIDGET ---
 }

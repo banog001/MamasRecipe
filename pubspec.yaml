@@ -60,6 +60,7 @@ dependencies:
   dotted_border: ^2.1.0
   timezone: ^0.10.0
   font_awesome_flutter: ^10.7.0
+  connectivity_plus: ^6.0.0
 
 
 
