@@ -77,6 +77,394 @@ class _MessagesPageState extends State<MessagesPageDietitian> {
   }
   // --- End of new code ---
 
+  // --- NEW: Show User Info Dialog ---
+  void _showUserInfoDialog() async {
+    try {
+      final doc = await _firestore.collection("Users").doc(widget.receiverId).get();
+
+      if (!doc.exists || !mounted) return;
+
+      final data = doc.data()!;
+      final firstName = data['firstName'] ?? '';
+      final lastName = data['lastName'] ?? '';
+      final height = data['height']?.toString() ?? 'N/A';
+      final weight = data['currentWeight']?.toString() ?? 'N/A';
+      final activityLevel = data['activityLevel'] ?? 'N/A';
+      final goals = data['goals'] ?? 'N/A';
+      final age = data['age']?.toString() ?? 'N/A';
+      final gender = data['gender'] ?? 'N/A';
+
+      // Calculate BMI if height and weight are available
+      String bmi = 'N/A';
+      if (height != 'N/A' && weight != 'N/A') {
+        try {
+          final heightInMeters = double.parse(height) / 100;
+          final weightInKg = double.parse(weight);
+          final bmiValue = weightInKg / (heightInMeters * heightInMeters);
+          bmi = bmiValue.toStringAsFixed(1);
+        } catch (e) {
+          bmi = 'N/A';
+        }
+      }
+
+      if (!mounted) return;
+
+      showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          final isDark = Theme.of(context).brightness == Brightness.dark;
+
+          return Dialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            elevation: 16,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 400),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Header with profile
+                    Container(
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            _primaryColor,
+                            _primaryColor.withOpacity(0.8),
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: const BorderRadius.only(
+                          topLeft: Radius.circular(20),
+                          topRight: Radius.circular(20),
+                        ),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+                      child: Column(
+                        children: [
+                          CircleAvatar(
+                            radius: 40,
+                            backgroundColor: Colors.white,
+                            backgroundImage: widget.receiverProfile.isNotEmpty
+                                ? NetworkImage(widget.receiverProfile)
+                                : null,
+                            child: widget.receiverProfile.isEmpty
+                                ? const Icon(Icons.person, size: 40, color: _primaryColor)
+                                : null,
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            '$firstName $lastName',
+                            style: const TextStyle(
+                              fontFamily: 'PlusJakartaSans',
+                              fontWeight: FontWeight.bold,
+                              fontSize: 20,
+                              color: Colors.white,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 4),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              '$age years • $gender',
+                              style: const TextStyle(
+                                fontFamily: 'PlusJakartaSans',
+                                fontSize: 13,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // Body Information
+                    Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Health Information',
+                            style: TextStyle(
+                              fontFamily: 'PlusJakartaSans',
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                              color: _primaryColor,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+
+                          // Physical Stats Grid
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _buildInfoCard(
+                                  icon: Icons.height,
+                                  label: 'Height',
+                                  value: '$height cm',
+                                  isDark: isDark,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: _buildInfoCard(
+                                  icon: Icons.monitor_weight_outlined,
+                                  label: 'Weight',
+                                  value: '$weight kg',
+                                  isDark: isDark,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+
+                          // BMI Card
+                          _buildInfoCard(
+                            icon: Icons.analytics_outlined,
+                            label: 'BMI',
+                            value: bmi,
+                            isDark: isDark,
+                            fullWidth: true,
+                          ),
+
+                          const SizedBox(height: 20),
+
+                          const Text(
+                            'Fitness Profile',
+                            style: TextStyle(
+                              fontFamily: 'PlusJakartaSans',
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                              color: _primaryColor,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+
+                          // Activity Level
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              color: isDark ? Colors.grey.shade800 : Colors.grey.shade100,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: _primaryColor.withOpacity(0.3),
+                                width: 1.5,
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: _primaryColor.withOpacity(0.2),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: const Icon(
+                                    Icons.directions_run,
+                                    color: _primaryColor,
+                                    size: 20,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Activity Level',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: Colors.grey.shade600,
+                                          fontFamily: 'PlusJakartaSans',
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        activityLevel,
+                                        style: TextStyle(
+                                          fontFamily: 'PlusJakartaSans',
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 15,
+                                          color: isDark ? Colors.white : Colors.black87,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+
+                          const SizedBox(height: 12),
+
+                          // Goals
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [
+                                  _primaryColor.withOpacity(0.15),
+                                  _primaryColor.withOpacity(0.05),
+                                ],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: _primaryColor.withOpacity(0.3),
+                                width: 1.5,
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: _primaryColor.withOpacity(0.2),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: const Icon(
+                                    Icons.flag_outlined,
+                                    color: _primaryColor,
+                                    size: 20,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Goals',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: Colors.grey.shade600,
+                                          fontFamily: 'PlusJakartaSans',
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        goals,
+                                        style: const TextStyle(
+                                          fontFamily: 'PlusJakartaSans',
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 15,
+                                          color: _primaryColor,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // Close Button
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                      child: SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: () => Navigator.of(context).pop(),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: _primaryColor,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: const Text(
+                            'Close',
+                            style: TextStyle(
+                              fontFamily: 'PlusJakartaSans',
+                              fontWeight: FontWeight.w600,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error loading user info: $e')),
+        );
+      }
+    }
+  }
+
+  Widget _buildInfoCard({
+    required IconData icon,
+    required String label,
+    required String value,
+    required bool isDark,
+    bool fullWidth = false,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: isDark ? Colors.grey.shade800 : Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
+          width: 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            icon,
+            color: _primaryColor,
+            size: 20,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              color: Colors.grey.shade600,
+              fontFamily: 'PlusJakartaSans',
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: TextStyle(
+              fontFamily: 'PlusJakartaSans',
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+              color: isDark ? Colors.white : Colors.black87,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  // --- End of new code ---
 
   static const String _primaryFontFamily = 'PlusJakartaSans';
   static const TextStyle _appBarTitleStyle = TextStyle(
@@ -173,7 +561,6 @@ class _MessagesPageState extends State<MessagesPageDietitian> {
     final chatRoomId = getChatRoomId(widget.currentUserId, widget.receiverId);
 
     return Scaffold(
-      // --- CHANGED: Made transparent to see the stack background ---
       backgroundColor: Colors.transparent,
       appBar: AppBar(
         elevation: 1,
@@ -192,17 +579,32 @@ class _MessagesPageState extends State<MessagesPageDietitian> {
                   : null,
             ),
             const SizedBox(width: 12),
-            Text(widget.receiverName, style: _appBarTitleStyle),
+            Expanded(
+              child: Text(
+                widget.receiverName,
+                style: _appBarTitleStyle.copyWith(
+                  color: isDark ? Colors.white : Colors.black87,
+                ),
+              ),
+            ),
           ],
         ),
+        // --- NEW: Added info icon button ---
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.info_outline),
+            tooltip: 'User Information',
+            onPressed: _showUserInfoDialog,
+          ),
+        ],
       ),
-      // --- CHANGED: Swapped Column for Stack ---
       body: Stack(
         children: [
-          // 1. The new background
           _buildChatBackgroundShapes(context),
-
-          // 2. The original Column
           Column(
             children: [
               Expanded(
@@ -242,7 +644,6 @@ class _MessagesPageState extends State<MessagesPageDietitian> {
                         docs[index].data() as Map<String, dynamic>;
                         final isMe = data["senderID"] == widget.currentUserId;
                         final messageText = data["message"] ?? "";
-                        final senderName = data["senderName"] ?? "";
                         final displayText = messageText;
 
                         return Align(
@@ -281,7 +682,6 @@ class _MessagesPageState extends State<MessagesPageDietitian> {
               Container(
                 padding:
                 const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                // This color is important so the input isn't transparent
                 color: isDark ? Colors.grey.shade900 : Colors.white,
                 child: Row(
                   children: [
@@ -334,7 +734,6 @@ class _MessagesPageState extends State<MessagesPageDietitian> {
     );
   }
 
-  // --- NEW: Added dispose method for good practice ---
   @override
   void dispose() {
     _messageController.dispose();

@@ -22,6 +22,307 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:intl/intl.dart';
 import 'package:flutter_file_dialog/flutter_file_dialog.dart';
 
+// Add aliases to fix naming conflicts
+import 'package:flutter_local_notifications/flutter_local_notifications.dart' as fln;
+import 'package:mailer/mailer.dart';
+import 'package:mailer/smtp_server.dart';
+import 'package:timezone/timezone.dart' as tz;
+
+// Add this class after all your imports and before the home class
+class MealPlanNotificationService {
+  static final fln.FlutterLocalNotificationsPlugin _notifications =
+  fln.FlutterLocalNotificationsPlugin();
+
+  // Schedule notification for 1 day before at 8:00 AM
+  static Future<void> scheduleReminderNotification({
+    required int notificationId,
+    required DateTime mealPlanDate,
+    required String planType,
+    required String dayName,
+  }) async {
+    final reminderDate = DateTime(
+      mealPlanDate.year,
+      mealPlanDate.month,
+      mealPlanDate.day - 1,
+      8, // 8:00 AM
+      0,
+    );
+
+    if (reminderDate.isAfter(DateTime.now())) {
+      final scheduledTZ = tz.TZDateTime.from(reminderDate, tz.local);
+
+      const androidDetails = fln.AndroidNotificationDetails(
+        'meal_plan_reminders',
+        'Meal Plan Reminders',
+        channelDescription: 'Reminders for scheduled meal plans',
+        importance: fln.Importance.high,
+        priority: fln.Priority.high,
+        icon: '@mipmap/ic_launcher',
+        playSound: true,
+        enableVibration: true,
+      );
+
+      const iosDetails = fln.DarwinNotificationDetails(
+        presentAlert: true,
+        presentBadge: true,
+        presentSound: true,
+      );
+
+      const details = fln.NotificationDetails(
+        android: androidDetails,
+        iOS: iosDetails,
+      );
+
+      await _notifications.zonedSchedule(
+        notificationId,
+        '🍽️ Meal Plan Reminder',
+        'Don\'t forget! Your "$planType" meal plan is scheduled for tomorrow ($dayName)',
+        scheduledTZ,
+        details,
+        androidScheduleMode: fln.AndroidScheduleMode.exactAllowWhileIdle,
+      );
+
+      print('✅ Notification scheduled for: $reminderDate');
+    } else {
+      print('⚠️ Reminder date is in the past, skipping notification');
+    }
+  }
+
+  // Send email reminder
+  static Future<void> sendEmailReminder({
+    required String userEmail,
+    required String userName,
+    required DateTime mealPlanDate,
+    required String dayName,
+    required String planType,
+    required Map<String, dynamic> mealDetails,
+    required String userId,
+    required String ownerId,
+  }) async {
+    try {
+      // Check subscription status
+      final isSubscribed = await _checkSubscriptionStatus(userId, ownerId);
+
+      // Configure SMTP
+      final smtpServer = gmail('mamas.recipe0@gmail.com', 'gbsk ioml dham zgme');
+
+      final message = Message()
+        ..from = Address('mamas.recipe0@gmail.com', "Mama's Recipe")
+        ..recipients.add(userEmail)
+        ..subject = '🍽️ Reminder: Your Meal Plan for Tomorrow ($dayName)'
+        ..html = _buildEmailTemplate(
+          userName: userName,
+          mealPlanDate: mealPlanDate,
+          dayName: dayName,
+          planType: planType,
+          mealDetails: mealDetails,
+          isSubscribed: isSubscribed,
+        );
+
+      await send(message, smtpServer);
+      print('📧 Email reminder sent successfully to $userEmail');
+    } catch (e) {
+      print('❌ Error sending email: $e');
+    }
+  }
+
+  // Send push notification to Firestore
+  static Future<void> sendPushNotification({
+    required String userId,
+    required String userName,
+    required String ownerId,
+    required String ownerName,
+    required DateTime mealPlanDate,
+    required String dayName,
+    required String planType,
+  }) async {
+    try {
+      final formattedDate = _formatDate(mealPlanDate);
+
+      await FirebaseFirestore.instance
+          .collection('Users')
+          .doc(userId)
+          .collection('notifications')
+          .add({
+        'isRead': false,
+        'message': 'You scheduled a "$planType" meal plan for $dayName ($formattedDate). Reminder will be sent 1 day before at 8:00 AM.',
+        'receiverId': userId,
+        'receiverName': userName,
+        'senderId': ownerId,
+        'senderName': ownerName,
+        'timestamp': FieldValue.serverTimestamp(),
+        'title': 'Meal Plan Scheduled',
+        'type': 'meal_plan_scheduled',
+        'mealPlanDate': mealPlanDate.toIso8601String(),
+        'dayName': dayName,
+        'planType': planType,
+      });
+
+      print('📲 Push notification sent to user $userId');
+    } catch (e) {
+      print('❌ Error sending push notification: $e');
+    }
+  }
+
+  // Check if user is subscribed to the meal plan owner
+  static Future<bool> _checkSubscriptionStatus(String userId, String ownerId) async {
+    try {
+      if (userId == ownerId) return true;
+
+      final doc = await FirebaseFirestore.instance
+          .collection('Users')
+          .doc(userId)
+          .collection('subscribeTo')
+          .doc(ownerId)
+          .get();
+
+      if (doc.exists) {
+        final data = doc.data();
+        return data?['status'] == 'approved';
+      }
+      return false;
+    } catch (e) {
+      print('❌ Error checking subscription: $e');
+      return false;
+    }
+  }
+
+  static String _buildEmailTemplate({
+    required String userName,
+    required DateTime mealPlanDate,
+    required String dayName,
+    required String planType,
+    required Map<String, dynamic> mealDetails,
+    required bool isSubscribed,
+  }) {
+    final breakfast = mealDetails['breakfast'] ?? 'N/A';
+    final breakfastTime = mealDetails['breakfastTime'] ?? '';
+    final amSnack = mealDetails['amSnack'] ?? 'N/A';
+    final amSnackTime = mealDetails['amSnackTime'] ?? '';
+    final lunch = mealDetails['lunch'] ?? 'N/A';
+    final lunchTime = mealDetails['lunchTime'] ?? '';
+    final pmSnack = mealDetails['pmSnack'] ?? 'N/A';
+    final pmSnackTime = mealDetails['pmSnackTime'] ?? '';
+    final dinner = mealDetails['dinner'] ?? 'N/A';
+    final dinnerTime = mealDetails['dinnerTime'] ?? '';
+    final midnightSnack = mealDetails['midnightSnack'] ?? 'N/A';
+    final midnightSnackTime = mealDetails['midnightSnackTime'] ?? '';
+    final description = mealDetails['description'] ?? '';
+
+    return '''
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <style>
+            body { font-family: Arial, sans-serif; background-color: #f5f5f5; margin: 0; padding: 0; }
+            .container { max-width: 600px; margin: 30px auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
+            .header { background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%); color: white; padding: 40px 30px; text-align: center; }
+            .header h1 { margin: 0; font-size: 32px; font-weight: bold; }
+            .content { padding: 40px 30px; }
+            .greeting { font-size: 18px; color: #333; margin-bottom: 20px; }
+            .date-card { background: linear-gradient(135deg, #E8F5E9 0%, #C8E6C9 100%); border-left: 5px solid #4CAF50; padding: 20px; margin: 25px 0; border-radius: 10px; }
+            .date-card h2 { margin: 0 0 10px 0; color: #4CAF50; font-size: 24px; }
+            .description-box { background-color: #f0f7ff; border-left: 4px solid #2196F3; padding: 15px; margin: 20px 0; border-radius: 8px; }
+            .description-box p { margin: 0; color: #555; font-size: 14px; line-height: 1.6; }
+            .meal-item { background-color: #f9f9f9; padding: 15px; margin: 12px 0; border-radius: 10px; border-left: 4px solid #4CAF50; }
+            .meal-label { font-weight: bold; color: #4CAF50; font-size: 14px; text-transform: uppercase; margin-bottom: 5px; }
+            .meal-time { color: #888; font-size: 13px; margin-bottom: 8px; }
+            .meal-description { color: #333; font-size: 15px; line-height: 1.5; }
+            .footer { background-color: #f8f8f8; padding: 25px; text-align: center; color: #888; font-size: 13px; }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <h1>🍽️ Meal Plan Reminder</h1>
+            </div>
+            <div class="content">
+                <p class="greeting">Hi <strong>$userName</strong>,</p>
+                <p>Your meal plan is ready for tomorrow! Stay on track with your nutrition goals. 💪</p>
+                
+                <div class="date-card">
+                    <h2>📅 $dayName</h2>
+                    <p><strong>Plan Type:</strong> $planType</p>
+                    <p><strong>Date:</strong> ${_formatDate(mealPlanDate)}</p>
+                </div>
+                
+                ${description.isNotEmpty ? '''
+                <div class="description-box">
+                    <p><strong>📝 Plan Description:</strong></p>
+                    <p style="margin-top: 8px;">$description</p>
+                </div>
+                ''' : ''}
+                
+                <div class="meal-section">
+                    <h3 style="color: #333; margin-bottom: 15px;">🍴 Your Meals for Tomorrow</h3>
+                    
+                    ${_buildMealItem('Breakfast', breakfast, breakfastTime, false)}
+                    ${_buildMealItem('AM Snack', amSnack, amSnackTime, !isSubscribed)}
+                    ${_buildMealItem('Lunch', lunch, lunchTime, !isSubscribed)}
+                    ${_buildMealItem('PM Snack', pmSnack, pmSnackTime, !isSubscribed)}
+                    ${_buildMealItem('Dinner', dinner, dinnerTime, !isSubscribed)}
+                    ${_buildMealItem('Midnight Snack', midnightSnack, midnightSnackTime, !isSubscribed)}
+                    
+                    ${!isSubscribed ? '''
+                    <div style="margin-top: 25px; padding: 20px; background: linear-gradient(135deg, #FFF3E0 0%, #FFE0B2 100%); border-radius: 12px; border-left: 4px solid #FF9800;">
+                        <div style="display: flex; align-items: center; margin-bottom: 12px;">
+                            <span style="font-size: 24px; margin-right: 10px;">🔒</span>
+                            <h3 style="margin: 0; color: #F57C00; font-size: 18px;">Premium Content Locked</h3>
+                        </div>
+                        <p style="color: #666; font-size: 14px; margin: 8px 0;">Subscribe to unlock all meal details, times, and personalized nutrition guidance.</p>
+                    </div>
+                    ''' : ''}
+                </div>
+            </div>
+            <div class="footer">
+                <p>You're receiving this email because you scheduled a meal plan in Mama's Recipe.</p>
+                <p>© 2025 Mama's Recipe. All rights reserved.</p>
+            </div>
+        </div>
+    </body>
+    </html>
+    ''';
+  }
+
+  static String _buildMealItem(String label, String description, String time, bool isLocked) {
+    if (description == 'N/A' || description.isEmpty) return '';
+
+    return '''
+    <div class="meal-item" style="${isLocked ? 'opacity: 0.6; background-color: #f5f5f5;' : ''}">
+        <div class="meal-label" style="display: flex; align-items: center; gap: 8px;">
+            ${isLocked ? '<span style="font-size: 16px;">🔒</span>' : ''}
+            <span>$label</span>
+        </div>
+        ${time.isNotEmpty && !isLocked ? '<div class="meal-time">⏰ $time</div>' : ''}
+        <div class="meal-description">${isLocked ? '•••••••••' : description}</div>
+    </div>
+    ''';
+  }
+
+  static String _formatDate(DateTime date) {
+    final months = [
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December'
+    ];
+    return '${months[date.month - 1]} ${date.day}, ${date.year}';
+  }
+
+  static Future<void> cancelNotification(int notificationId) async {
+    await _notifications.cancel(notificationId);
+    print('🔕 Notification cancelled: $notificationId');
+  }
+}
+
 const String _primaryFontFamily = 'PlusJakartaSans';
 
 const Color _primaryColor = Color(0xFF4CAF50);
@@ -3802,6 +4103,8 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
     return mealPlans;
   }
 
+  // Replace these 3 functions in _UserSchedulePageState class
+
   Future<void> _loadScheduledMealPlans() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
@@ -3818,20 +4121,25 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
         for (var day in daysOfWeek) day: null,
       };
 
+      // Load for the next 7 days
       for (int i = 0; i < 7; i++) {
         final date = now.add(Duration(days: i));
-        final dateStr = DateFormat('yyyy-MM-dd').format(date);
+        final dateStr = DateFormat('yyyy-MM-dd').format(date); // Use date as doc ID
         final dayName = daysOfWeek[date.weekday - 1];
 
         final doc = await FirebaseFirestore.instance
             .collection('Users')
             .doc(user.uid)
             .collection('scheduledMealPlans')
-            .doc(dateStr)
+            .doc(dateStr) // Changed from 'day' to 'dateStr'
             .get();
 
         if (doc.exists) {
-          loadedSchedule[dayName] = doc.data();
+          final data = doc.data();
+          if (data != null) {
+            data['dateStr'] = dateStr; // Store the date string
+            loadedSchedule[dayName] = data;
+          }
         }
       }
 
@@ -3851,36 +4159,42 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
-    final dateStr = DateFormat('yyyy-MM-dd').format(date);
-
     try {
+      final dateStr = DateFormat('yyyy-MM-dd').format(date); // Use date as doc ID
+
+      final doc = await FirebaseFirestore.instance
+          .collection('Users')
+          .doc(user.uid)
+          .collection('scheduledMealPlans')
+          .doc(dateStr) // Changed from 'day' to 'dateStr'
+          .get();
+
+      final notificationId = doc.data()?['notificationId'] as int?;
+
       await FirebaseFirestore.instance
           .collection('Users')
           .doc(user.uid)
           .collection('scheduledMealPlans')
-          .doc(dateStr)
+          .doc(dateStr) // Changed from 'day' to 'dateStr'
           .delete();
 
+      if (notificationId != null) {
+        await MealPlanNotificationService.cancelNotification(notificationId);
+      }
+
       setState(() {
-        _weeklySchedule[day] = null;
+        _weeklySchedule[day] = null; // Clear from the schedule
       });
 
       CustomSnackBar.show(
         context,
-        'Meal plan removed',
+        'Meal plan removed and reminder cancelled',
         backgroundColor: Colors.orange,
         icon: Icons.delete,
         duration: const Duration(seconds: 2),
       );
     } catch (e) {
       print('Error deleting meal plan: $e');
-      CustomSnackBar.show(
-        context,
-        'Failed to delete meal plan',
-        backgroundColor: Colors.redAccent,
-        icon: Icons.error,
-        duration: const Duration(seconds: 2),
-      );
     }
   }
 
@@ -3888,36 +4202,91 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
-    final dateStr = DateFormat('yyyy-MM-dd').format(date);
-
     try {
+      final dateStr = DateFormat('yyyy-MM-dd').format(date);
+      final notificationId = date.millisecondsSinceEpoch ~/ 1000;
+
       await FirebaseFirestore.instance
           .collection('Users')
           .doc(user.uid)
           .collection('scheduledMealPlans')
           .doc(dateStr)
           .set({
+        'day': day,
         'date': Timestamp.fromDate(date),
-        'dayOfWeek': day,
+        'dateStr': dateStr,
         'planType': plan['planType'],
-        'planId': plan['planId'],
-        'ownerName': plan['ownerName'],
         'breakfast': plan['breakfast'],
+        'breakfastTime': plan['breakfastTime'],
         'amSnack': plan['amSnack'],
+        'amSnackTime': plan['amSnackTime'],
         'lunch': plan['lunch'],
+        'lunchTime': plan['lunchTime'],
         'pmSnack': plan['pmSnack'],
+        'pmSnackTime': plan['pmSnackTime'],
         'dinner': plan['dinner'],
+        'dinnerTime': plan['dinnerTime'],
         'midnightSnack': plan['midnightSnack'],
+        'midnightSnackTime': plan['midnightSnackTime'],
+        'owner': plan['owner'],
+        'ownerName': plan['ownerName'],
+        'planId': plan['planId'],
+        'notificationId': notificationId,
         'scheduledAt': FieldValue.serverTimestamp(),
       });
 
+      // Get user data
+      final userDoc = await FirebaseFirestore.instance
+          .collection('Users')
+          .doc(user.uid)
+          .get();
+
+      final userData = userDoc.data();
+      final userEmail = userData?['email'] ?? user.email ?? '';
+      final userName = '${userData?['firstName'] ?? ''} ${userData?['lastName'] ?? ''}'.trim();
+
+      // Schedule push notification (local)
+      await MealPlanNotificationService.scheduleReminderNotification(
+        notificationId: notificationId,
+        mealPlanDate: date,
+        planType: plan['planType'] ?? 'Meal Plan',
+        dayName: day,
+      );
+
+      // Send push notification to Firestore (NEW)
+      await MealPlanNotificationService.sendPushNotification(
+        userId: user.uid,
+        userName: userName.isNotEmpty ? userName : 'User',
+        ownerId: plan['owner'] ?? '',
+        ownerName: plan['ownerName'] ?? 'Dietitian',
+        mealPlanDate: date,
+        dayName: day,
+        planType: plan['planType'] ?? 'Meal Plan',
+      );
+
+      // Send email reminder
+      if (userEmail.isNotEmpty) {
+        await MealPlanNotificationService.sendEmailReminder(
+          userEmail: userEmail,
+          userName: userName.isNotEmpty ? userName : 'User',
+          mealPlanDate: date,
+          dayName: day,
+          planType: plan['planType'] ?? 'Meal Plan',
+          mealDetails: plan,
+          userId: user.uid,
+          ownerId: plan['owner'] ?? '',
+        );
+      }
+
+      // Update the local state
+      plan['dateStr'] = dateStr;
       setState(() {
         _weeklySchedule[day] = plan;
       });
 
       CustomSnackBar.show(
         context,
-        'Meal plan scheduled!',
+        'Meal plan scheduled for $day! Reminder set for ${_formatReminderDate(date)}',
         backgroundColor: Colors.green,
         icon: Icons.check_circle,
         duration: const Duration(seconds: 2),
@@ -3926,11 +4295,34 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
       print('Error saving meal plan: $e');
       CustomSnackBar.show(
         context,
-        'Failed to schedule meal plan',
-        backgroundColor: Colors.redAccent,
-        icon: Icons.error,
-        duration: const Duration(seconds: 2),
+        'Error scheduling meal plan: $e',
+        backgroundColor: Colors.red,
       );
+    }
+  }
+
+  String _formatReminderDate(DateTime date) {
+    final reminderDate = date.subtract(const Duration(days: 1));
+    final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return '${months[reminderDate.month - 1]} ${reminderDate.day}, 8:00 AM';
+  }
+
+// Add this method to check subscription status
+  Future<bool> _isUserSubscribedToOwner(String? userId, String? ownerId) async {
+    if (userId == null || ownerId == null || userId == ownerId) {
+      return true; // User is the owner or not logged in
+    }
+
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('subscriptions')
+          .doc('${userId}_$ownerId')
+          .get();
+
+      return doc.exists && (doc.data()?['status'] == 'active');
+    } catch (e) {
+      debugPrint('Error checking subscription: $e');
+      return false;
     }
   }
 
@@ -4759,24 +5151,7 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
     );
   }
 
-// Add this method to check subscription status
-  Future<bool> _isUserSubscribedToOwner(String? userId, String? ownerId) async {
-    if (userId == null || ownerId == null || userId == ownerId) {
-      return true; // User is the owner or not logged in
-    }
 
-    try {
-      final doc = await FirebaseFirestore.instance
-          .collection('subscriptions')
-          .doc('${userId}_$ownerId')
-          .get();
-
-      return doc.exists && (doc.data()?['status'] == 'active');
-    } catch (e) {
-      debugPrint('Error checking subscription: $e');
-      return false;
-    }
-  }
 
 // Add this method to show subscription dialog
   void _showSubscriptionDialog(String? ownerName, String? ownerId) {
@@ -5760,6 +6135,338 @@ class _UsersListPageState extends State<UsersListPage> {
     );
   }
 
+  void _showMealPlanScheduledDialog(BuildContext context, Map<String, dynamic> notificationData) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        final String title = notificationData['title'] ?? 'Meal Plan Scheduled';
+        final String message = notificationData['message'] ?? 'No details available';
+        final String senderName = notificationData['senderName'] ?? 'Dietitian';
+        final String planType = notificationData['planType'] ?? 'Meal Plan';
+        final String dayName = notificationData['dayName'] ?? '';
+        final Timestamp? timestamp = notificationData['timestamp'] as Timestamp?;
+
+        String mealPlanDate = '';
+        if (notificationData['mealPlanDate'] != null) {
+          try {
+            final date = DateTime.parse(notificationData['mealPlanDate']);
+            mealPlanDate = DateFormat('MMMM dd, yyyy').format(date);
+          } catch (e) {
+            print('Error parsing meal plan date: $e');
+          }
+        }
+
+        String formattedDate = '';
+        if (timestamp != null) {
+          formattedDate = DateFormat('MMMM dd, yyyy – hh:mm a').format(timestamp.toDate());
+        }
+
+        return Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          elevation: 16,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 400),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: _primaryColor.withOpacity(0.1),
+                      borderRadius: const BorderRadius.only(
+                        topLeft: Radius.circular(20),
+                        topRight: Radius.circular(20),
+                      ),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+                    child: Column(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: _primaryColor.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(15),
+                          ),
+                          child: const Icon(
+                            Icons.event_available_rounded,
+                            color: _primaryColor,
+                            size: 32,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          title,
+                          style: const TextStyle(
+                            fontFamily: _primaryFontFamily,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 20,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (formattedDate.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 16.0),
+                            child: Row(
+                              children: [
+                                Icon(Icons.access_time, size: 16, color: Colors.grey.shade600),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    'Scheduled on: $formattedDate',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      color: Colors.grey.shade600,
+                                      fontFamily: _primaryFontFamily,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+
+                        // Meal Plan Type
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                _primaryColor.withOpacity(0.15),
+                                _primaryColor.withOpacity(0.05),
+                              ],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: _primaryColor.withOpacity(0.3),
+                              width: 1.5,
+                            ),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(8),
+                                    decoration: BoxDecoration(
+                                      color: _primaryColor.withOpacity(0.2),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Icon(
+                                      Icons.restaurant_menu_rounded,
+                                      color: _primaryColor,
+                                      size: 20,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Plan Type',
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            color: Colors.grey.shade600,
+                                            fontFamily: _primaryFontFamily,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          planType,
+                                          style: const TextStyle(
+                                            fontFamily: _primaryFontFamily,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 16,
+                                            color: _primaryColor,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              if (dayName.isNotEmpty) ...[
+                                const SizedBox(height: 12),
+                                Divider(color: _primaryColor.withOpacity(0.2)),
+                                const SizedBox(height: 12),
+                                Row(
+                                  children: [
+                                    Icon(Icons.calendar_today, size: 16, color: _primaryColor),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        'Scheduled for: $dayName',
+                                        style: const TextStyle(
+                                          fontFamily: _primaryFontFamily,
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 14,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                if (mealPlanDate.isNotEmpty) ...[
+                                  const SizedBox(height: 8),
+                                  Row(
+                                    children: [
+                                      Icon(Icons.event, size: 16, color: _primaryColor),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          mealPlanDate,
+                                          style: TextStyle(
+                                            fontFamily: _primaryFontFamily,
+                                            fontSize: 13,
+                                            color: Colors.grey.shade700,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ],
+                            ],
+                          ),
+                        ),
+
+                        const SizedBox(height: 16),
+
+                        // Dietitian Info
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade100,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(Icons.person_outline, size: 18, color: _primaryColor),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  'Created by: $senderName',
+                                  style: const TextStyle(
+                                    fontFamily: _primaryFontFamily,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        const SizedBox(height: 16),
+
+                        // Message
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.withOpacity(0.08),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: Colors.blue.withOpacity(0.2)),
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Icon(Icons.info_outline, size: 18, color: Colors.blue),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  message,
+                                  style: const TextStyle(
+                                    fontFamily: _primaryFontFamily,
+                                    fontSize: 13,
+                                    height: 1.6,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        const SizedBox(height: 16),
+
+                        // Reminder Info
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.amber.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: Colors.amber.withOpacity(0.3)),
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Icon(Icons.notifications_active, size: 18, color: Colors.amber.shade700),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  'You\'ll receive a reminder 1 day before at 8:00 AM',
+                                  style: TextStyle(
+                                    fontFamily: _primaryFontFamily,
+                                    fontSize: 12,
+                                    color: Colors.amber.shade900,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: () => Navigator.of(context).pop(),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: _primaryColor,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        icon: const Icon(Icons.check_circle_outline, size: 20),
+                        label: const Text(
+                          'Got it!',
+                          style: TextStyle(
+                            fontFamily: _primaryFontFamily,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   Widget _buildPriceComparison(String label, String oldPrice, String newPrice) {
     final bool priceChanged = oldPrice != newPrice;
 
@@ -6340,7 +7047,9 @@ class _UsersListPageState extends State<UsersListPage> {
 
                                   if (data["type"] == "priceChange") {
                                     _showPriceChangeDialog(context, data);
-                                  } else if (data["type"] == "message" &&
+                                  } else if (data["type"] == "meal_plan_scheduled") {
+                                    _showMealPlanScheduledDialog(context, data);
+                                  }else if (data["type"] == "message" &&
                                       data["senderId"] != null &&
                                       data["senderName"] != null) {
                                     Navigator.push(
