@@ -19,8 +19,250 @@ import 'package:mamas_recipe/widget/custom_snackbar.dart';
 
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
-import 'package:intl/intl.dart';
 import 'package:flutter_file_dialog/flutter_file_dialog.dart';
+
+// Add aliases to fix naming conflicts
+import 'package:flutter_local_notifications/flutter_local_notifications.dart' as fln;
+import 'package:mailer/mailer.dart';
+import 'package:mailer/smtp_server.dart';
+import 'package:timezone/timezone.dart' as tz;
+
+// Add this class after all your imports and before the home class
+class MealPlanNotificationService {
+  static final fln.FlutterLocalNotificationsPlugin _notifications =
+  fln.FlutterLocalNotificationsPlugin();
+
+  // Schedule notification for 1 day before at 8:00 AM
+  static Future<void> scheduleReminderNotification({
+    required int notificationId,
+    required DateTime mealPlanDate,
+    required String planType,
+    required String dayName,
+  }) async {
+    final reminderDate = DateTime(
+      mealPlanDate.year,
+      mealPlanDate.month,
+      mealPlanDate.day - 1,
+      8, // 8:00 AM
+      0,
+    );
+
+    if (reminderDate.isAfter(DateTime.now())) {
+      final scheduledTZ = tz.TZDateTime.from(reminderDate, tz.local);
+
+      const androidDetails = fln.AndroidNotificationDetails(
+        'meal_plan_reminders',
+        'Meal Plan Reminders',
+        channelDescription: 'Reminders for scheduled meal plans',
+        importance: fln.Importance.high,
+        priority: fln.Priority.high,
+        icon: '@mipmap/ic_launcher',
+        playSound: true,
+        enableVibration: true,
+      );
+
+      const iosDetails = fln.DarwinNotificationDetails(
+        presentAlert: true,
+        presentBadge: true,
+        presentSound: true,
+      );
+
+      const details = fln.NotificationDetails(
+        android: androidDetails,
+        iOS: iosDetails,
+      );
+
+      await _notifications.zonedSchedule(
+        notificationId,
+        '🍽️ Meal Plan Reminder',
+        'Don\'t forget! Your "$planType" meal plan is scheduled for tomorrow ($dayName)',
+        scheduledTZ,
+        details,
+        androidScheduleMode: fln.AndroidScheduleMode.exactAllowWhileIdle,
+      );
+
+      print('✅ Notification scheduled for: $reminderDate');
+    } else {
+      print('⚠️ Reminder date is in the past, skipping notification');
+    }
+  }
+
+  // Send email reminder
+  static Future<void> sendEmailReminder({
+    required String userEmail,
+    required String userName,
+    required DateTime mealPlanDate,
+    required String dayName,
+    required String planType,
+    required Map<String, dynamic> mealDetails,
+    required String userId,
+    required String ownerId,
+  }) async {
+    try {
+      // Check subscription status
+      final isSubscribed = await _checkSubscriptionStatus(userId, ownerId);
+
+      // Configure SMTP - Replace with your credentials
+      final smtpServer = gmail('mamas.recipe0@gmail.com', 'gbsk ioml dham zgme');
+
+      final message = Message()
+        ..from = Address('mamas.recipe0@gmail.com', "Mama's Recipe")
+        ..recipients.add(userEmail)
+        ..subject = '🍽️ Reminder: Your Meal Plan for Tomorrow ($dayName)'
+        ..html = _buildEmailTemplate(
+          userName: userName,
+          mealPlanDate: mealPlanDate,
+          dayName: dayName,
+          planType: planType,
+          mealDetails: mealDetails,
+          isSubscribed: isSubscribed,
+        );
+
+      await send(message, smtpServer);
+      print('📧 Email reminder sent successfully to $userEmail');
+    } catch (e) {
+      print('❌ Error sending email: $e');
+    }
+  }
+
+  // Check if user is subscribed to the meal plan owner
+  static Future<bool> _checkSubscriptionStatus(String userId, String ownerId) async {
+    try {
+      if (userId == ownerId) return true; // User is the owner
+
+      final doc = await FirebaseFirestore.instance
+          .collection('Users')
+          .doc(userId)
+          .collection('subscribeTo')
+          .doc(ownerId)
+          .get();
+
+      if (doc.exists) {
+        final data = doc.data();
+        return data?['status'] == 'approved';
+      }
+      return false;
+    } catch (e) {
+      print('❌ Error checking subscription: $e');
+      return false;
+    }
+  }
+
+  static String _buildEmailTemplate({
+    required String userName,
+    required DateTime mealPlanDate,
+    required String dayName,
+    required String planType,
+    required Map<String, dynamic> mealDetails,
+    required bool isSubscribed,  // ADD THIS PARAMETER
+  }) {
+    final breakfast = mealDetails['breakfast'] ?? 'N/A';
+    final breakfastTime = mealDetails['breakfastTime'] ?? '';
+    final amSnack = mealDetails['amSnack'] ?? 'N/A';
+    final amSnackTime = mealDetails['amSnackTime'] ?? '';
+    final lunch = mealDetails['lunch'] ?? 'N/A';
+    final lunchTime = mealDetails['lunchTime'] ?? '';
+    final pmSnack = mealDetails['pmSnack'] ?? 'N/A';
+    final pmSnackTime = mealDetails['pmSnackTime'] ?? '';
+    final dinner = mealDetails['dinner'] ?? 'N/A';
+    final dinnerTime = mealDetails['dinnerTime'] ?? '';
+    final midnightSnack = mealDetails['midnightSnack'] ?? 'N/A';
+    final midnightSnackTime = mealDetails['midnightSnackTime'] ?? '';
+
+    return '''
+  <!DOCTYPE html>
+  <html>
+  <head>
+      <style>
+          body { font-family: Arial, sans-serif; background-color: #f5f5f5; margin: 0; padding: 0; }
+          .container { max-width: 600px; margin: 30px auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
+          .header { background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%); color: white; padding: 40px 30px; text-align: center; }
+          .header h1 { margin: 0; font-size: 32px; font-weight: bold; }
+          .content { padding: 40px 30px; }
+          .greeting { font-size: 18px; color: #333; margin-bottom: 20px; }
+          .date-card { background: linear-gradient(135deg, #E8F5E9 0%, #C8E6C9 100%); border-left: 5px solid #4CAF50; padding: 20px; margin: 25px 0; border-radius: 10px; }
+          .date-card h2 { margin: 0 0 10px 0; color: #4CAF50; font-size: 24px; }
+          .meal-item { background-color: #f9f9f9; padding: 15px; margin: 12px 0; border-radius: 10px; border-left: 4px solid #4CAF50; }
+          .meal-label { font-weight: bold; color: #4CAF50; font-size: 14px; text-transform: uppercase; margin-bottom: 5px; }
+          .meal-time { color: #888; font-size: 13px; margin-bottom: 8px; }
+          .meal-description { color: #333; font-size: 15px; line-height: 1.5; }
+          .footer { background-color: #f8f8f8; padding: 25px; text-align: center; color: #888; font-size: 13px; }
+      </style>
+  </head>
+  <body>
+      <div class="container">
+          <div class="header">
+              <h1>🍽️ Meal Plan Reminder</h1>
+          </div>
+          <div class="content">
+              <p class="greeting">Hi <strong>$userName</strong>,</p>
+              <p>Your meal plan is ready for tomorrow! Stay on track with your nutrition goals. 💪</p>
+              
+              <div class="date-card">
+                  <h2>📅 $dayName</h2>
+                  <p><strong>Plan Type:</strong> $planType</p>
+                  <p><strong>Date:</strong> ${_formatDate(mealPlanDate)}</p>
+              </div>
+              
+              <div class="meal-section">
+                  <h3 style="color: #333; margin-bottom: 15px;">🍴 Your Meals for Tomorrow</h3>
+                  
+                  ${_buildMealItem('Breakfast', breakfast, breakfastTime, false)}
+                  ${_buildMealItem('AM Snack', amSnack, amSnackTime, !isSubscribed)}
+                  ${_buildMealItem('Lunch', lunch, lunchTime, !isSubscribed)}
+                  ${_buildMealItem('PM Snack', pmSnack, pmSnackTime, !isSubscribed)}
+                  ${_buildMealItem('Dinner', dinner, dinnerTime, !isSubscribed)}
+                  ${_buildMealItem('Midnight Snack', midnightSnack, midnightSnackTime, !isSubscribed)}
+                  
+                  ${!isSubscribed ? '''
+                  <div style="margin-top: 25px; padding: 20px; background: linear-gradient(135deg, #FFF3E0 0%, #FFE0B2 100%); border-radius: 12px; border-left: 4px solid #FF9800;">
+                      <div style="display: flex; align-items: center; margin-bottom: 12px;">
+                          <span style="font-size: 24px; margin-right: 10px;">🔒</span>
+                          <h3 style="margin: 0; color: #F57C00; font-size: 18px;">Premium Content Locked</h3>
+                      </div>
+                      <p style="color: #666; font-size: 14px; margin: 8px 0;">Subscribe to unlock all meal details, times, and personalized nutrition guidance.</p>
+                  </div>
+                  ''' : ''}
+              </div>
+          </div>
+          <div class="footer">
+              <p>You're receiving this email because you scheduled a meal plan in Mama's Recipe.</p>
+              <p>© 2025 Mama's Recipe. All rights reserved.</p>
+          </div>
+      </div>
+  </body>
+  </html>
+  ''';
+  }
+
+  static String _buildMealItem(String label, String description, String time, bool isLocked) {
+    if (description == 'N/A' || description.isEmpty) return '';
+
+    return '''
+  <div class="meal-item" style="${isLocked ? 'opacity: 0.6; background-color: #f5f5f5;' : ''}">
+      <div class="meal-label" style="display: flex; align-items: center; gap: 8px;">
+          ${isLocked ? '<span style="font-size: 16px;">🔒</span>' : ''}
+          <span>$label</span>
+      </div>
+      ${time.isNotEmpty && !isLocked ? '<div class="meal-time">⏰ $time</div>' : ''}
+      <div class="meal-description">${isLocked ? '•••••••••' : description}</div>
+  </div>
+  ''';
+  }
+
+  static String _formatDate(DateTime date) {
+    final months = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    return '${months[date.month - 1]} ${date.day}, ${date.year}';
+  }
+
+  static Future<void> cancelNotification(int notificationId) async {
+    await _notifications.cancel(notificationId);
+    print('🔕 Notification cancelled: $notificationId');
+  }
+}
 
 const String _primaryFontFamily = 'PlusJakartaSans';
 
@@ -2733,6 +2975,8 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
     return mealPlans;
   }
 
+// Replace these 3 functions in _UserSchedulePageState class
+
   Future<void> _loadScheduledMealPlans() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
@@ -2749,20 +2993,25 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
         for (var day in daysOfWeek) day: null,
       };
 
+      // Load for the next 7 days
       for (int i = 0; i < 7; i++) {
         final date = now.add(Duration(days: i));
-        final dateStr = DateFormat('yyyy-MM-dd').format(date);
+        final dateStr = DateFormat('yyyy-MM-dd').format(date); // Use date as doc ID
         final dayName = daysOfWeek[date.weekday - 1];
 
         final doc = await FirebaseFirestore.instance
             .collection('Users')
             .doc(user.uid)
             .collection('scheduledMealPlans')
-            .doc(dateStr)
+            .doc(dateStr) // Changed from 'day' to 'dateStr'
             .get();
 
         if (doc.exists) {
-          loadedSchedule[dayName] = doc.data();
+          final data = doc.data();
+          if (data != null) {
+            data['dateStr'] = dateStr; // Store the date string
+            loadedSchedule[dayName] = data;
+          }
         }
       }
 
@@ -2782,36 +3031,42 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
-    final dateStr = DateFormat('yyyy-MM-dd').format(date);
-
     try {
+      final dateStr = DateFormat('yyyy-MM-dd').format(date); // Use date as doc ID
+
+      final doc = await FirebaseFirestore.instance
+          .collection('Users')
+          .doc(user.uid)
+          .collection('scheduledMealPlans')
+          .doc(dateStr) // Changed from 'day' to 'dateStr'
+          .get();
+
+      final notificationId = doc.data()?['notificationId'] as int?;
+
       await FirebaseFirestore.instance
           .collection('Users')
           .doc(user.uid)
           .collection('scheduledMealPlans')
-          .doc(dateStr)
+          .doc(dateStr) // Changed from 'day' to 'dateStr'
           .delete();
 
+      if (notificationId != null) {
+        await MealPlanNotificationService.cancelNotification(notificationId);
+      }
+
       setState(() {
-        _weeklySchedule[day] = null;
+        _weeklySchedule[day] = null; // Clear from the schedule
       });
 
       CustomSnackBar.show(
         context,
-        'Meal plan removed',
+        'Meal plan removed and reminder cancelled',
         backgroundColor: Colors.orange,
         icon: Icons.delete,
         duration: const Duration(seconds: 2),
       );
     } catch (e) {
       print('Error deleting meal plan: $e');
-      CustomSnackBar.show(
-        context,
-        'Failed to delete meal plan',
-        backgroundColor: Colors.redAccent,
-        icon: Icons.error,
-        duration: const Duration(seconds: 2),
-      );
     }
   }
 
@@ -2819,36 +3074,81 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
-    final dateStr = DateFormat('yyyy-MM-dd').format(date);
-
     try {
+      final dateStr = DateFormat('yyyy-MM-dd').format(date); // Use date as doc ID
+      final notificationId = date.millisecondsSinceEpoch ~/ 1000;
+
       await FirebaseFirestore.instance
           .collection('Users')
           .doc(user.uid)
           .collection('scheduledMealPlans')
-          .doc(dateStr)
+          .doc(dateStr) // Changed from 'day' to 'dateStr' - THIS IS THE KEY FIX
           .set({
+        'day': day,
         'date': Timestamp.fromDate(date),
-        'dayOfWeek': day,
+        'dateStr': dateStr, // Store the date string
         'planType': plan['planType'],
-        'planId': plan['planId'],
-        'ownerName': plan['ownerName'],
         'breakfast': plan['breakfast'],
+        'breakfastTime': plan['breakfastTime'],
         'amSnack': plan['amSnack'],
+        'amSnackTime': plan['amSnackTime'],
         'lunch': plan['lunch'],
+        'lunchTime': plan['lunchTime'],
         'pmSnack': plan['pmSnack'],
+        'pmSnackTime': plan['pmSnackTime'],
         'dinner': plan['dinner'],
+        'dinnerTime': plan['dinnerTime'],
         'midnightSnack': plan['midnightSnack'],
+        'midnightSnackTime': plan['midnightSnackTime'],
+        'owner': plan['owner'],
+        'ownerName': plan['ownerName'],
+        'planId': plan['planId'],
+        'notificationId': notificationId,
         'scheduledAt': FieldValue.serverTimestamp(),
       });
 
+      // Get user data for email
+      final userDoc = await FirebaseFirestore.instance
+          .collection('Users')
+          .doc(user.uid)
+          .get();
+
+      final userData = userDoc.data();
+      final userEmail = userData?['email'] ?? user.email ?? '';
+      final userName = '${userData?['firstName'] ?? ''} ${userData?['lastName'] ?? ''}'.trim();
+
+      // Schedule push notification
+      await MealPlanNotificationService.scheduleReminderNotification(
+        notificationId: notificationId,
+        mealPlanDate: date,
+        planType: plan['planType'] ?? 'Meal Plan',
+        dayName: day,
+      );
+
+      // Send email reminder
+      // Send email reminder
+      if (userEmail.isNotEmpty) {
+        await MealPlanNotificationService.sendEmailReminder(
+          userEmail: userEmail,
+          userName: userName.isNotEmpty ? userName : 'User',
+          mealPlanDate: date,
+          dayName: day,
+          planType: plan['planType'] ?? 'Meal Plan',
+          mealDetails: plan,
+          userId: user.uid,  // ADD THIS LINE
+          ownerId: plan['owner'] ?? '',  // ADD THIS LINE
+        );
+      }
+
+      // Update the local state
+      plan['dateStr'] = dateStr;
       setState(() {
         _weeklySchedule[day] = plan;
       });
 
       CustomSnackBar.show(
         context,
-        'Meal plan scheduled!',
+        'Meal plan scheduled for $day! Reminder set for ${_formatReminderDate(date)}',
         backgroundColor: Colors.green,
         icon: Icons.check_circle,
         duration: const Duration(seconds: 2),
@@ -2857,13 +3157,14 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
       print('Error saving meal plan: $e');
       CustomSnackBar.show(
         context,
-        'Failed to schedule meal plan',
-        backgroundColor: Colors.redAccent,
-        icon: Icons.error,
-        duration: const Duration(seconds: 2),
+        'Error scheduling meal plan: $e',
+        backgroundColor: Colors.red,
       );
     }
   }
+
+// Also fix the subscription check function
+
 
   Widget _buildAppointmentsTab() {
     return Column(
@@ -3596,7 +3897,8 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
   }
 
   Widget _mealRowWithTime(String label, String? value, String? time,
-      {bool isLocked = false}) {
+      {bool isLocked = false})
+  {
     if ((value == null || value.trim().isEmpty || value.trim() == '-') &&
         (time == null || time.trim().isEmpty)) {
       return const SizedBox.shrink();
@@ -3688,26 +3990,32 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
     );
   }
 
-// Add this method to check subscription status
   Future<bool> _isUserSubscribedToOwner(String? userId, String? ownerId) async {
     if (userId == null || ownerId == null || userId == ownerId) {
       return true; // User is the owner or not logged in
     }
 
     try {
+      // Check in subscribeTo subcollection
       final doc = await FirebaseFirestore.instance
-          .collection('subscriptions')
-          .doc('${userId}_$ownerId')
+          .collection('Users')
+          .doc(userId)
+          .collection('subscribeTo')
+          .doc(ownerId)
           .get();
 
-      return doc.exists && (doc.data()?['status'] == 'active');
+      if (doc.exists) {
+        final data = doc.data();
+        return data?['status'] == 'approved';
+      }
+
+      return false;
     } catch (e) {
       debugPrint('Error checking subscription: $e');
       return false;
     }
   }
 
-// Add this method to show subscription dialog
   void _showSubscriptionDialog(String? ownerName, String? ownerId) {
     showDialog(
       context: context,
@@ -4052,11 +4360,13 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
       default: return _primaryColor;
     }
   }
+
+  String _formatReminderDate(DateTime date) {
+    final reminderDate = date.subtract(const Duration(days: 1));
+    final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return '${months[reminderDate.month - 1]} ${reminderDate.day}, 8:00 AM';
+  }
 }
-
-// REPLACE the entire UsersListPage class in your home.dart with this code
-
-// REPLACE the entire UsersListPage class in your home.dart with this code
 
 class UsersListPage extends StatefulWidget {
   final String currentUserId;

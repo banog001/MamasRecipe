@@ -3,6 +3,8 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:timezone/data/latest.dart' as tz;
+import 'package:timezone/timezone.dart' as tz;
 
 import 'pages/login.dart';
 import 'pages/home.dart';
@@ -33,6 +35,13 @@ Future<void> main() async {
     }
   }
 
+  // Initialize timezone for scheduled notifications
+  tz.initializeTimeZones();
+  // Set local timezone
+  final String timeZoneName = 'Asia/Manila'; // Change to your timezone
+  tz.setLocalLocation(tz.getLocation(timeZoneName));
+  print("✅ Timezone initialized: $timeZoneName");
+
   // Initialize notifications BEFORE runApp
   await _initializeNotifications();
 
@@ -46,12 +55,37 @@ Future<void> main() async {
 Future<void> _initializeNotifications() async {
   const AndroidInitializationSettings androidInitSettings =
   AndroidInitializationSettings('@mipmap/ic_launcher');
-  const InitializationSettings initSettings =
-  InitializationSettings(android: androidInitSettings);
 
-  await flutterLocalNotificationsPlugin.initialize(initSettings);
+  const DarwinInitializationSettings iosInitSettings =
+  DarwinInitializationSettings(
+    requestAlertPermission: true,
+    requestBadgePermission: true,
+    requestSoundPermission: true,
+  );
 
-  // Notification permission is handled by AndroidManifest.xml for Android 13+
+  const InitializationSettings initSettings = InitializationSettings(
+    android: androidInitSettings,
+    iOS: iosInitSettings,
+  );
+
+  await flutterLocalNotificationsPlugin.initialize(
+    initSettings,
+    onDidReceiveNotificationResponse: (NotificationResponse response) {
+      print("📱 Notification tapped: ${response.payload}");
+      // Handle notification tap here if needed
+    },
+  );
+
+  // Request iOS permissions
+  await flutterLocalNotificationsPlugin
+      .resolvePlatformSpecificImplementation<
+      IOSFlutterLocalNotificationsPlugin>()
+      ?.requestPermissions(
+    alert: true,
+    badge: true,
+    sound: true,
+  );
+
   print("✅ Notifications initialized successfully");
 }
 
@@ -73,7 +107,7 @@ void _setupMessageListener(String userId) {
   FirebaseFirestore.instance
       .collection('messages')
       .where('receiverID', isEqualTo: userId)
-      .where('isRead', isEqualTo: false)  // Only unread messages
+      .where('isRead', isEqualTo: false) // Only unread messages
       .orderBy('timestamp', descending: true)
       .limit(1)
       .snapshots()
@@ -112,7 +146,7 @@ void _setupAppointmentListener(String userId) {
       .collection('Users')
       .doc(userId)
       .collection('notifications')
-      .where('isRead', isEqualTo: false)  // Only unread notifications
+      .where('isRead', isEqualTo: false) // Only unread notifications
       .orderBy('timestamp', descending: true)
       .limit(1)
       .snapshots()
@@ -120,7 +154,8 @@ void _setupAppointmentListener(String userId) {
         (snapshot) {
       if (snapshot.docs.isNotEmpty) {
         final notif = snapshot.docs.first.data();
-        print("📅 Unread appointment notification detected: ${notif['message']}");
+        print(
+            "📅 Unread appointment notification detected: ${notif['message']}");
 
         flutterLocalNotificationsPlugin.show(
           notif.hashCode,
@@ -176,7 +211,10 @@ class _AuthCheckState extends State<AuthCheck> {
 
     if (user != null) {
       return FutureBuilder<DocumentSnapshot>(
-        future: FirebaseFirestore.instance.collection('Users').doc(user.uid).get(),
+        future: FirebaseFirestore.instance
+            .collection('Users')
+            .doc(user.uid)
+            .get(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Scaffold(

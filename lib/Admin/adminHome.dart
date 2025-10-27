@@ -2649,23 +2649,15 @@ class _AdminHomeState extends State<AdminHome> {
                 final rejectionReason = notesController.text.trim();
                 final receiptIds = data['receiptIds'] as List<dynamic>? ?? [];
 
-                // Get backup values for restoration
-                final backupTotalRevenue = (data['backupTotalRevenue'] as num?)?.toDouble() ?? 0.0;
-                final backupTotalCommission = (data['backupTotalCommission'] as num?)?.toDouble() ?? 0.0;
-                final backupTotalEarnings = (data['backupTotalEarnings'] as num?)?.toDouble() ?? 0.0;
-                final backupWeeklyCommission = (data['backupWeeklyCommission'] as num?)?.toDouble() ?? 0.0;
-                final backupMonthlyCommission = (data['backupMonthlyCommission'] as num?)?.toDouble() ?? 0.0;
-                final backupYearlyCommission = (data['backupYearlyCommission'] as num?)?.toDouble() ?? 0.0;
+                // Get values from commissionPayments document (original values before submission)
+                final totalRevenue = (data['totalRevenue'] as num?)?.toDouble() ?? 0.0;
+                final totalCommission = (data['amount'] as num?)?.toDouble() ?? 0.0; // amount is the commission
+                final totalEarnings = (data['totalEarnings'] as num?)?.toDouble() ?? 0.0;
+                final weeklyCommission = (data['weeklyCommission'] as num?)?.toDouble() ?? 0.0;
+                final monthlyCommission = (data['monthlyCommission'] as num?)?.toDouble() ?? 0.0;
+                final yearlyCommission = (data['yearlyCommission'] as num?)?.toDouble() ?? 0.0;
 
-                // Get current overallEarnings to subtract the rejected payment earnings
-                final dietitianDoc = await FirebaseFirestore.instance
-                    .collection('Users')
-                    .doc(dietitianId)
-                    .get();
-                final currentOverallEarnings = (dietitianDoc.data()?['overallEarnings'] as num?)?.toDouble() ?? 0.0;
-                final rejectedEarnings = backupTotalRevenue - backupTotalCommission;
-
-                // Reset commission paid status on receipts and restore backup values
+                // Reset commission paid status on receipts and restore values
                 final batch = FirebaseFirestore.instance.batch();
 
                 for (var receiptId in receiptIds) {
@@ -2690,17 +2682,17 @@ class _AdminHomeState extends State<AdminHome> {
                   'notes': rejectionReason,
                 });
 
-                // RESTORE backup values to Users collection
+                // RESTORE original values to Users collection
                 final userRef = FirebaseFirestore.instance
                     .collection('Users')
                     .doc(dietitianId);
                 batch.set(userRef, {
-                  'totalRevenue': backupTotalRevenue,
-                  'totalCommission': backupTotalCommission,
-                  'totalEarnings': backupTotalEarnings,
-                  'weeklyCommission': backupWeeklyCommission,
-                  'monthlyCommission': backupMonthlyCommission,
-                  'yearlyCommission': backupYearlyCommission,
+                  'totalRevenue': totalRevenue,
+                  'totalCommission': totalCommission,
+                  'totalEarnings': totalEarnings,
+                  'weeklyCommission': weeklyCommission,
+                  'monthlyCommission': monthlyCommission,
+                  'yearlyCommission': yearlyCommission,
                 }, SetOptions(merge: true));
 
                 // Add notification to dietitian's subcollection
@@ -8679,67 +8671,48 @@ class _AdminHomeState extends State<AdminHome> {
     return double.tryParse(cleanPrice) ?? 0.0;
   }
 
-// Helper Methods - Updated to use receipts collection
-
-  // Updated helper methods to exclude 'pending' and 'declined' status receipts
-
-  // Updated helper methods to only count UNPAID commissions
-
   Future<Map<String, dynamic>> _calculateTotalRevenueFromReceipts(
       List<QueryDocumentSnapshot> dietitians,
       ) async {
     double totalRevenue = 0;
     double totalCommission = 0;
-    int totalReceipts = 0;
+    int totalSubscribers = 0;
 
     for (var dietitianDoc in dietitians) {
+      final dietitianData = dietitianDoc.data() as Map<String, dynamic>;
       final dietitianId = dietitianDoc.id;
 
-      // Get UNPAID receipts only (exclude pending and declined)
-      final receipts = await FirebaseFirestore.instance
-          .collection('receipts')
-          .where('dietitianID', isEqualTo: dietitianId)
-          .where('status', whereNotIn: ['pending', 'declined'])
-          .where('commissionPaid', isEqualTo: false)
+      // Get values directly from Users collection
+      final revenue = (dietitianData['totalRevenue'] as num?)?.toDouble() ?? 0.0;
+      final commission = (dietitianData['totalCommission'] as num?)?.toDouble() ?? 0.0;
+
+      totalRevenue += revenue;
+      totalCommission += commission;
+
+      // Count active subscribers
+      final subscribers = await FirebaseFirestore.instance
+          .collection('Users')
+          .doc(dietitianId)
+          .collection('subscriber')
+          .where('status', isEqualTo: 'approved')
           .get();
 
-      for (var receipt in receipts.docs) {
-        final data = receipt.data();
-        totalReceipts++;
-
-        final planType = (data['planType'] as String?)?.toLowerCase() ?? '';
-        final priceStr = data['planPrice'] as String? ?? '₱ 0.00';
-        final price = _parsePriceString(priceStr);
-
-        // Add to total revenue
-        totalRevenue += price;
-
-        // Calculate commission
-        double commission = 0;
-        if (planType == 'weekly') {
-          commission = price * 0.15; // 15%
-        } else if (planType == 'monthly') {
-          commission = price * 0.10; // 10%
-        } else if (planType == 'yearly') {
-          commission = price * 0.08; // 8%
-        }
-        totalCommission += commission;
-      }
+      totalSubscribers += subscribers.docs.length;
     }
 
     return {
       'totalRevenue': totalRevenue,
       'totalCommission': totalCommission,
-      'totalSubscriptions': totalReceipts,
+      'totalSubscriptions': totalSubscribers,
     };
   }
 
   Future<int> _getTotalReceiptCount(String dietitianId) async {
     final snapshot = await FirebaseFirestore.instance
-        .collection('receipts')
-        .where('dietitianID', isEqualTo: dietitianId)
-        .where('status', whereNotIn: ['pending', 'declined'])
-        .where('commissionPaid', isEqualTo: false)
+        .collection('Users')
+        .doc(dietitianId)
+        .collection('subscriber')
+        .where('status', isEqualTo: 'approved')
         .get();
 
     return snapshot.docs.length;
@@ -8747,14 +8720,14 @@ class _AdminHomeState extends State<AdminHome> {
 
   Future<int> _getReceiptCountByType(
       String dietitianId,
-      String planType,
+      String subscriptionType,
       ) async {
     final snapshot = await FirebaseFirestore.instance
-        .collection('receipts')
-        .where('dietitianID', isEqualTo: dietitianId)
-        .where('planType', isEqualTo: planType)
-        .where('status', whereNotIn: ['pending', 'declined'])
-        .where('commissionPaid', isEqualTo: false)
+        .collection('Users')
+        .doc(dietitianId)
+        .collection('subscriber')
+        .where('status', isEqualTo: 'approved')
+        .where('planType', isEqualTo: subscriptionType)
         .get();
 
     return snapshot.docs.length;
@@ -8763,35 +8736,22 @@ class _AdminHomeState extends State<AdminHome> {
   Future<Map<String, double>> _getDietitianRevenueAndCommissionFromReceipts(
       String dietitianId,
       ) async {
-    // Get UNPAID receipts only (exclude pending and declined)
-    final snapshot = await FirebaseFirestore.instance
-        .collection('receipts')
-        .where('dietitianID', isEqualTo: dietitianId)
-        .where('status', whereNotIn: ['pending', 'declined'])
-        .where('commissionPaid', isEqualTo: false)
+    // Get values directly from Users collection
+    final dietitianDoc = await FirebaseFirestore.instance
+        .collection('Users')
+        .doc(dietitianId)
         .get();
 
-    double totalRevenue = 0;
-    double totalCommission = 0;
-
-    for (var doc in snapshot.docs) {
-      final data = doc.data();
-      final planType = (data['planType'] as String?)?.toLowerCase() ?? '';
-      final priceStr = data['planPrice'] as String? ?? '₱ 0.00';
-      final price = _parsePriceString(priceStr);
-
-      // Add to total revenue
-      totalRevenue += price;
-
-      // Calculate commission
-      if (planType == 'weekly') {
-        totalCommission += price * 0.15; // 15%
-      } else if (planType == 'monthly') {
-        totalCommission += price * 0.10; // 10%
-      } else if (planType == 'yearly') {
-        totalCommission += price * 0.08; // 8%
-      }
+    if (!dietitianDoc.exists) {
+      return {
+        'revenue': 0.0,
+        'commission': 0.0,
+      };
     }
+
+    final data = dietitianDoc.data() as Map<String, dynamic>;
+    final totalRevenue = (data['totalRevenue'] as num?)?.toDouble() ?? 0.0;
+    final totalCommission = (data['totalCommission'] as num?)?.toDouble() ?? 0.0;
 
     return {
       'revenue': totalRevenue,
