@@ -1246,8 +1246,6 @@ class _HomeState extends State<home> {
 // REPLACE the _buildExpandableMealPlanCard method in your home.dart with this updated version
 
 
-// REPLACE the _buildExpandableMealPlanCard method in your home.dart with this updated version
-
   Widget _buildExpandableMealPlanCard(
       BuildContext context,
       DocumentSnapshot doc,
@@ -1371,7 +1369,10 @@ class _HomeState extends State<home> {
                           ),
                           const SizedBox(height: 12),
 
-                          // Description Box - Show in Collapsed State (Only if description exists)
+                          // --- DUPLICATE DESCRIPTION BLOCK REMOVED ---
+                          // The first description block that was here is now gone.
+
+                          // This is the description block you wanted to keep
                           if (data["description"] != null &&
                               data["description"].toString().trim().isNotEmpty)
                             Container(
@@ -1398,9 +1399,7 @@ class _HomeState extends State<home> {
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
                                         Text(
-                                          isSubscribed
-                                              ? (data["description"] as String)
-                                              : (data["description"] as String).replaceAll(RegExp(r'.'), 'â€¢'),
+                                          data["description"] as String,
                                           style: _getTextStyle(
                                             context,
                                             fontSize: 13,
@@ -1415,10 +1414,7 @@ class _HomeState extends State<home> {
                                         GestureDetector(
                                           onTap: () => _showFullDescription(
                                             context,
-                                            isSubscribed
-                                                ? (data["description"] as String)
-                                                : (data["description"] as String)
-                                                .replaceAll(RegExp(r'.'), 'â€¢'),
+                                            data["description"] as String,
                                             data["planType"] ?? "Meal Plan",
                                           ),
                                           child: Text(
@@ -1439,7 +1435,6 @@ class _HomeState extends State<home> {
                                 ],
                               ),
                             ),
-
                           const SizedBox(height: 12),
 
                           if (!isExpanded)
@@ -2085,6 +2080,7 @@ class _HomeState extends State<home> {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
+          // LIKE BUTTON - Isolated StreamBuilder
           StreamBuilder<DocumentSnapshot>(
             stream: FirebaseFirestore.instance
                 .collection("likes")
@@ -2092,6 +2088,7 @@ class _HomeState extends State<home> {
                 .snapshots(),
             builder: (context, likeSnapshot) {
               bool isLiked = likeSnapshot.hasData && likeSnapshot.data!.exists;
+
               return StreamBuilder<DocumentSnapshot>(
                 stream: FirebaseFirestore.instance
                     .collection("mealPlans")
@@ -2099,9 +2096,13 @@ class _HomeState extends State<home> {
                     .snapshots(),
                 builder: (context, mealSnapshot) {
                   if (!mealSnapshot.hasData) return const SizedBox();
+
                   final mealData = mealSnapshot.data!.data() as Map<String, dynamic>;
                   int likeCount = mealData["likeCounts"] ?? 0;
-                  return TextButton.icon(
+
+                  return IconButton(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                    constraints: const BoxConstraints(),
                     onPressed: () async {
                       final likeDocRef = FirebaseFirestore.instance
                           .collection("likes")
@@ -2126,23 +2127,34 @@ class _HomeState extends State<home> {
                         });
                       }
                     },
-                    icon: Icon(isLiked ? Icons.favorite : Icons.favorite_border,
-                        color: Colors.redAccent, size: 18),
-                    label: Text("$likeCount",
-                        style: const TextStyle(
+                    icon: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          isLiked ? Icons.favorite : Icons.favorite_border,
+                          color: Colors.redAccent,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          "$likeCount",
+                          style: const TextStyle(
                             color: Colors.redAccent,
                             fontFamily: _primaryFontFamily,
                             fontWeight: FontWeight.w600,
-                            fontSize: 13)),
-                    style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 6, vertical: 3)),
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
+                    ),
                   );
                 },
               );
             },
           ),
           const SizedBox(width: 8),
+
+          // DOWNLOAD BUTTON - No StreamBuilder needed
           TextButton.icon(
             onPressed: () async {
               final ownerSnapshot = await FirebaseFirestore.instance
@@ -2158,6 +2170,7 @@ class _HomeState extends State<home> {
                         .trim();
                 if (ownerName.isEmpty) ownerName = "Unknown Chef";
               }
+
               if (isSubscribed) {
                 await _downloadMealPlanAsPdf(context, data, ownerName, doc.id);
               } else {
@@ -2172,15 +2185,16 @@ class _HomeState extends State<home> {
             },
             icon: const Icon(Icons.download_rounded,
                 color: Colors.blueAccent, size: 18),
-            label: const Text("Download",
-                style: TextStyle(
-                    color: Colors.blueAccent,
-                    fontFamily: _primaryFontFamily,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 13)),
+            label: const Text(
+              "Download",
+              style: TextStyle(
+                  color: Colors.blueAccent,
+                  fontFamily: _primaryFontFamily,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13),
+            ),
             style: TextButton.styleFrom(
-                padding:
-                const EdgeInsets.symmetric(horizontal: 6, vertical: 3)),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3)),
           ),
         ],
       ),
@@ -2221,14 +2235,16 @@ class _HomeState extends State<home> {
             margin: const EdgeInsets.only(right: 12),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
             color: _cardBgColor(context),
-            child: Padding(
+            child:
+
+            Padding(
               padding: const EdgeInsets.all(16.0),
               child: SingleChildScrollView(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Owner Info Row
+                    // --- FIX: Owner Info Row MOVED TO TOP ---
                     FutureBuilder<DocumentSnapshot?>(
                       future: (ownerId.isNotEmpty)
                           ? FirebaseFirestore.instance
@@ -2297,6 +2313,77 @@ class _HomeState extends State<home> {
                       },
                     ),
                     const SizedBox(height: 12),
+
+                    // --- FIX: Description Box MOVED TO SECOND ---
+                    if (data["description"] != null &&
+                        data["description"].toString().trim().isNotEmpty)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: _primaryColor.withOpacity(0.08),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: _primaryColor.withOpacity(0.15),
+                            width: 1,
+                          ),
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Icon(
+                              Icons.description_outlined,
+                              size: 16,
+                              color: _primaryColor,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment:
+                                CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    data["description"] as String,
+                                    style: _getTextStyle(
+                                      context,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w500,
+                                      color: _textColorPrimary(context),
+                                      height: 1.5,
+                                    ),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  const SizedBox(height: 6),
+                                  GestureDetector(
+                                    onTap: () =>
+                                        _showFullDescription(
+                                          context,
+                                          data["description"]
+                                          as String,
+                                          data["planType"] ??
+                                              "Meal Plan",
+                                        ),
+                                    child: Text(
+                                      "View full description",
+                                      style: _getTextStyle(
+                                        context,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
+                                        color: _primaryColor,
+                                        fontStyle: FontStyle.italic,
+                                        height: 1.5,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    const SizedBox(height: 12),
+
                     Text(
                       data["planType"] ?? "Meal Plan",
                       style: _cardBodyTextStyle(context).copyWith(
@@ -2411,7 +2498,6 @@ class _HomeState extends State<home> {
       },
     );
   }
-
   Widget dietitiansList() {
     if (_searchFilter != "All" && _searchFilter != "Dietitians") {
       return const SizedBox.shrink();
@@ -3315,8 +3401,7 @@ class _HomeState extends State<home> {
               ),
               buildMenuTile('Subscription', Icons.subscriptions_outlined,
                   Icons.subscriptions),
-              buildMenuTile('Settings', Icons.settings_outlined, Icons.settings),
-              ListTile(
+                ListTile(
                 leading: const Icon(Icons.info_outline, color: Colors.black87),
                 title: const Text('About', style: TextStyle(fontFamily: _primaryFontFamily)),
                 onTap: () {

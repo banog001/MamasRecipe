@@ -28,6 +28,8 @@ import '../email/declinedEmail.dart';
 import '../dietitians/manageMealPlans.dart';
 import 'payment.dart';
 
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+
 // --- THEME & STYLING CONSTANTS (Available to the whole file) ---
 const String _primaryFontFamily = 'PlusJakartaSans';
 const Color _primaryColor = Color(0xFF4CAF50);
@@ -275,7 +277,6 @@ class _HomePageDietitianState extends State<HomePageDietitian> {
                 );
               },
             ),
-            _buildMenuTile('Settings', Icons.settings_outlined),
             _buildMenuTile('Payment', Icons.payment_outlined),
             const Divider(indent: 16, endIndent: 16),
             _buildMenuTile('Logout', Icons.logout_outlined),
@@ -699,6 +700,9 @@ class _AnalyticsDashboardState extends State<AnalyticsDashboard> {
   }
 
   Widget _buildWelcomeCard(BuildContext context) {
+    // ADD this at the beginning of the method:
+    final User? currentUser = FirebaseAuth.instance.currentUser;
+
     return Container(
       decoration: BoxDecoration(
         gradient: const LinearGradient(
@@ -727,14 +731,35 @@ class _AnalyticsDashboardState extends State<AnalyticsDashboard> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'Welcome Back!',
-                        style: _getTextStyle(
-                          context,
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          color: _textColorOnPrimary,
-                        ),
+                      // REPLACE 'Welcome Back!' with:
+                      StreamBuilder<DocumentSnapshot>(
+                        stream: FirebaseFirestore.instance
+                            .collection('Users')
+                            .doc(currentUser?.uid)
+                            .snapshots(),
+                        builder: (context, snapshot) {
+                          String displayName = 'Welcome Back!';
+
+                          if (snapshot.hasData && snapshot.data!.exists) {
+                            final data = snapshot.data!.data() as Map<String, dynamic>;
+                            final firstName = data['firstName'] ?? '';
+                            final lastName = data['lastName'] ?? '';
+
+                            if (firstName.isNotEmpty) {
+                              displayName = 'Welcome $firstName!';
+                            }
+                          }
+
+                          return Text(
+                            displayName,
+                            style: _getTextStyle(
+                              context,
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                              color: _textColorOnPrimary,
+                            ),
+                          );
+                        },
                       ),
                       const SizedBox(height: 6),
                       Text(
@@ -778,7 +803,7 @@ class _AnalyticsDashboardState extends State<AnalyticsDashboard> {
       {
         'value': '₱${subData['overallEarnings']?.toString() ?? '0'}',
         'label': 'Overall Earnings',
-        'icon': Icons.attach_money_rounded,
+        'icon': FontAwesomeIcons.pesoSign,
         'color': const Color(0xFFFF9800),
       },
     ];
@@ -967,9 +992,13 @@ class _AnalyticsDashboardState extends State<AnalyticsDashboard> {
   }
 
   Widget _buildMealPlanCard(
-    BuildContext context,
-    Map<String, dynamic> mealData,
-  ) {
+      BuildContext context,
+      Map<String, dynamic> mealData,
+      ) {
+    final mostPopularPlanData = mealData['mostPopularPlanData'] as Map<String, dynamic>?;
+    final plansCreated = mealData['plansCreated'] ?? 0;
+    final mostPopularPlan = mealData['mostPopularPlan'] ?? 'N/A';
+
     return Container(
       decoration: BoxDecoration(
         color: _cardBgColor(context),
@@ -1017,22 +1046,258 @@ class _AnalyticsDashboardState extends State<AnalyticsDashboard> {
               context,
               Icons.note_add_rounded,
               'Plans Created',
-              mealData['plansCreated']?.toString() ?? '0',
+              plansCreated.toString(),
             ),
-            const SizedBox(height: 12),
-            if (mealData['mostPopularPlan'] != null &&
-                mealData['mostPopularPlanData'] != null &&
-                mealData['mostPopularPlanData'].isNotEmpty)
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+
+            // Only show popular plan section if data exists
+            if (mostPopularPlanData != null && mostPopularPlanData.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              Divider(color: _textColorSecondary(context).withOpacity(0.3)),
+              const SizedBox(height: 16),
+
+              // Popular Plan Header
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Divider(color: _textColorSecondary(context).withOpacity(0.3)),
-                  const SizedBox(height: 12),
-                  _buildPopularPlanRow(context, mealData),
+                  Text(
+                    'Most Popular Plan',
+                    style: _getTextStyle(
+                      context,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: _primaryColor,
+                    ),
+                  ),
+                  Row(
+                    children: [
+                      const Icon(Icons.favorite, color: Colors.red, size: 16),
+                      const SizedBox(width: 4),
+                      Text(
+                        (mostPopularPlanData['likeCounts'] ?? 0).toString(),
+                        style: _getTextStyle(
+                          context,
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
+              const SizedBox(height: 12),
+
+              // Plan Type Badge
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      _primaryColor,
+                      _primaryColor.withOpacity(0.7),
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.restaurant_menu_rounded,
+                      color: Colors.white,
+                      size: 14,
+                    ),
+                    const SizedBox(width: 6),
+                    Flexible(
+                      child: Text(
+                        mostPopularPlan,
+                        style: _getTextStyle(
+                          context,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                          color: Colors.white,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Meals Section (Styled like home.dart)
+              _buildMealItemExpanded(
+                context,
+                "Breakfast",
+                mostPopularPlanData['breakfast'],
+                mostPopularPlanData['breakfastTime'],
+                Icons.wb_sunny_outlined,
+                Colors.orange,
+                isLocked: false,
+              ),
+              _buildMealItemExpanded(
+                context,
+                "AM Snack",
+                mostPopularPlanData['amSnack'],
+                mostPopularPlanData['amSnackTime'],
+                Icons.coffee_outlined,
+                Colors.brown,
+                isLocked: false,
+              ),
+              _buildMealItemExpanded(
+                context,
+                "Lunch",
+                mostPopularPlanData['lunch'],
+                mostPopularPlanData['lunchTime'],
+                Icons.restaurant_outlined,
+                Colors.green,
+                isLocked: false,
+              ),
+              _buildMealItemExpanded(
+                context,
+                "PM Snack",
+                mostPopularPlanData['pmSnack'],
+                mostPopularPlanData['pmSnackTime'],
+                Icons.local_cafe_outlined,
+                Colors.purple,
+                isLocked: false,
+              ),
+              _buildMealItemExpanded(
+                context,
+                "Dinner",
+                mostPopularPlanData['dinner'],
+                mostPopularPlanData['dinnerTime'],
+                Icons.nightlight_outlined,
+                Colors.indigo,
+                isLocked: false,
+              ),
+              if (mostPopularPlanData['midnightSnack'] != null &&
+                  mostPopularPlanData['midnightSnack'].toString().isNotEmpty)
+                _buildMealItemExpanded(
+                  context,
+                  "Midnight Snack",
+                  mostPopularPlanData['midnightSnack'],
+                  mostPopularPlanData['midnightSnackTime'],
+                  Icons.bedtime_outlined,
+                  Colors.blueGrey,
+                  isLocked: false,
+                ),
+            ],
           ],
         ),
+      ),
+    );
+  }
+
+// ADD THIS NEW HELPER METHOD (if not already present):
+  Widget _buildMealItemExpanded(
+      BuildContext context,
+      String mealName,
+      String? mealContent,
+      String? mealTime,
+      IconData icon,
+      Color iconColor, {
+        bool isLocked = false,
+      }) {
+    // Skip if meal content is empty
+    if (mealContent == null || mealContent.isEmpty || mealContent == '-') {
+      return const SizedBox.shrink();
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: isLocked
+            ? Colors.grey.withOpacity(0.1)
+            : iconColor.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: isLocked
+              ? Colors.grey.withOpacity(0.2)
+              : iconColor.withOpacity(0.15),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header row with icon and meal name
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: iconColor.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(icon, color: iconColor, size: 18),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      mealName,
+                      style: _getTextStyle(
+                        context,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: isLocked ? Colors.grey.shade600 : iconColor,
+                      ),
+                    ),
+                    if ((mealTime ?? '').isNotEmpty && !isLocked) ...[
+                      const SizedBox(height: 2),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.access_time,
+                            size: 12,
+                            color: iconColor.withOpacity(0.7),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            mealTime ?? '',
+                            style: _getTextStyle(
+                              context,
+                              fontSize: 11,
+                              color: iconColor,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          // Meal content
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            decoration: BoxDecoration(
+              color: isLocked
+                  ? Colors.grey.withOpacity(0.05)
+                  : Colors.white.withOpacity(0.5),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              mealContent,
+              style: _getTextStyle(
+                context,
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: isLocked
+                    ? Colors.grey.shade500
+                    : _textColorPrimary(context),
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
       ),
     );
   }

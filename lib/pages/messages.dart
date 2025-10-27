@@ -3,30 +3,22 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../Dietitians/dietitianPublicProfile.dart';
 import 'package:mamas_recipe/widget/custom_snackbar.dart';
 
-// --- Theme Helpers (Copied from other files) ---
+// --- THEME HELPERS ---
 const String _primaryFontFamily = 'PlusJakartaSans';
 const Color _primaryColor = Color(0xFF4CAF50);
 const Color _textColorOnPrimary = Colors.white;
 
 Color _scaffoldBgColor(BuildContext context) =>
-    Theme.of(context).brightness == Brightness.dark
-        ? Colors.grey.shade900
-        : Colors.white; // Changed to white
+    Theme.of(context).brightness == Brightness.dark ? Colors.grey.shade900 : Colors.white;
 
 Color _cardBgColor(BuildContext context) =>
-    Theme.of(context).brightness == Brightness.dark
-        ? Colors.grey.shade800
-        : Colors.white;
+    Theme.of(context).brightness == Brightness.dark ? Colors.grey.shade800 : Colors.white;
 
 Color _textColorPrimary(BuildContext context) =>
-    Theme.of(context).brightness == Brightness.dark
-        ? Colors.white70
-        : Colors.black87;
+    Theme.of(context).brightness == Brightness.dark ? Colors.white70 : Colors.black87;
 
 Color _textColorSecondary(BuildContext context) =>
-    Theme.of(context).brightness == Brightness.dark
-        ? Colors.white54
-        : Colors.black54;
+    Theme.of(context).brightness == Brightness.dark ? Colors.white54 : Colors.black54;
 
 TextStyle _getTextStyle(
     BuildContext context, {
@@ -36,11 +28,10 @@ TextStyle _getTextStyle(
       String fontFamily = _primaryFontFamily,
       double? letterSpacing,
       FontStyle? fontStyle,
-      double? height, // Added height parameter
+      double? height,
     }) {
   final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-  final defaultTextColor =
-      color ?? (isDarkMode ? Colors.white70 : Colors.black87);
+  final defaultTextColor = color ?? (isDarkMode ? Colors.white70 : Colors.black87);
   return TextStyle(
     fontFamily: fontFamily,
     fontSize: fontSize,
@@ -48,48 +39,9 @@ TextStyle _getTextStyle(
     color: defaultTextColor,
     letterSpacing: letterSpacing,
     fontStyle: fontStyle,
-    height: height, // Use height parameter
+    height: height,
   );
 }
-// --- End Theme Helpers ---
-
-// --- Background Shapes Widget ---
-Widget _buildBackgroundShapes(BuildContext context) {
-  return Container(
-    width: double.infinity,
-    height: double.infinity,
-    color: _scaffoldBgColor(context), // Use theme background color
-    child: Stack(
-      children: [
-        Positioned(
-          top: -100,
-          left: -150,
-          child: Container(
-            width: 300,
-            height: 300,
-            decoration: BoxDecoration(
-              color: _primaryColor.withOpacity(0.08),
-              shape: BoxShape.circle,
-            ),
-          ),
-        ),
-        Positioned(
-          bottom: -120,
-          right: -180,
-          child: Container(
-            width: 400,
-            height: 400,
-            decoration: BoxDecoration(
-              color: _primaryColor.withOpacity(0.08),
-              shape: BoxShape.circle,
-            ),
-          ),
-        ),
-      ],
-    ),
-  );
-}
-// --- End Background Shapes Widget ---
 
 class MessagesPage extends StatefulWidget {
   final String receiverId;
@@ -118,80 +70,14 @@ class _MessagesPageState extends State<MessagesPage> {
   String currentUserEmail = "";
   bool _isSubmittingRequest = false;
   bool _hasPendingAppointment = false;
-
-  // Add this method to your State class, after the build method
-
-  Widget _buildChatBackgroundShapes(context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final color = isDark ? Colors.green.shade800 : Colors.green.shade100;
-
-    return Positioned.fill(
-      child: Container(
-        // This is the base color of the chat background
-        color: isDark ? Colors.black : Colors.grey.shade100,
-        child: Stack(
-          children: [
-// --- REPLACE with this ---
-            Positioned(
-              top: -80,
-              left: -50,
-              child: Transform.rotate(
-                angle: -0.8, // Rotates counter-clockwise (in radians)
-                child: Container(
-                  width: 250,
-                  height: 150,
-                  decoration: BoxDecoration(
-                    color: _primaryColor.withOpacity(0.06),
-                    borderRadius: BorderRadius.circular(40),
-                  ),
-                ),
-              ),
-            ),
-            Positioned(
-              bottom: -20,
-              right: -50,
-              child: Transform.rotate(
-                angle: 0.5, // Rotates clockwise (in radians)
-                child: Container(
-                  width: 300,
-                  height: 180,
-                  decoration: BoxDecoration(
-                    color: _primaryColor.withOpacity(0.05),
-                    borderRadius: BorderRadius.circular(60),
-                  ),
-                ),
-              ),
-            ),
-// --- End of replacement ---
-          ],
-        ),
-      ),
-    );
-  }
-
-  static const String _primaryFontFamily = 'PlusJakartaSans';
-  static const TextStyle _appBarTitleStyle = TextStyle(
-    fontFamily: _primaryFontFamily,
-    fontSize: 18,
-    fontWeight: FontWeight.w600,
-    color: Colors.black87,
-  );
-  static const TextStyle _messageTextStyle = TextStyle(
-    fontFamily: _primaryFontFamily,
-    fontSize: 15,
-    height: 1.4,
-  );
-  static const TextStyle _inputHintStyle = TextStyle(
-    fontFamily: _primaryFontFamily,
-    fontSize: 15,
-    color: Colors.grey,
-  );
+  bool _isReceiverAdmin = false;
 
   @override
   void initState() {
     super.initState();
     fetchCurrentUserName();
     _listenToPendingAppointment();
+    _checkIfReceiverIsAdmin();
   }
 
   void fetchCurrentUserName() async {
@@ -205,7 +91,23 @@ class _MessagesPageState extends State<MessagesPage> {
     }
   }
 
-  /// ✅ Listen to pending appointment status in real-time
+  Future<void> _checkIfReceiverIsAdmin() async {
+    try {
+      final doc = await _firestore.collection("Users").doc(widget.receiverId).get();
+      if (doc.exists) {
+        final data = doc.data()!;
+        final role = (data["role"] ?? "").toString().toLowerCase();
+        if (mounted) {
+          setState(() {
+            _isReceiverAdmin = role == "admin";
+          });
+        }
+      }
+    } catch (e) {
+      print("Error checking receiver role: $e");
+    }
+  }
+
   void _listenToPendingAppointment() {
     _firestore
         .collection('appointmentRequest')
@@ -233,7 +135,6 @@ class _MessagesPageState extends State<MessagesPage> {
     _messageController.clear();
     final chatRoomId = getChatRoomId(widget.currentUserId, widget.receiverId);
 
-    // Add message with senderName and receiverName
     await _firestore.collection("messages").add({
       "senderID": widget.currentUserId,
       "senderName": currentUserName,
@@ -245,7 +146,6 @@ class _MessagesPageState extends State<MessagesPage> {
       "read": "false",
     });
 
-    // Add notification
     try {
       await _firestore
           .collection("Users")
@@ -263,9 +163,8 @@ class _MessagesPageState extends State<MessagesPage> {
         "isRead": false,
         "timestamp": FieldValue.serverTimestamp(),
       });
-      print("✅ Notification added successfully");
     } catch (e) {
-      print("❌ Error adding notification: $e");
+      print("Error adding notification: $e");
     }
 
     if (_scrollController.hasClients) {
@@ -277,7 +176,6 @@ class _MessagesPageState extends State<MessagesPage> {
     }
   }
 
-  /// ✅ Request appointment from dietitian
   Future<void> _requestAppointment() async {
     if (currentUserName.isEmpty) {
       CustomSnackBar.show(
@@ -296,7 +194,6 @@ class _MessagesPageState extends State<MessagesPage> {
     }
 
     try {
-      // Add to appointmentRequest collection
       await _firestore.collection('appointmentRequest').add({
         'clientId': widget.currentUserId,
         'clientName': currentUserName,
@@ -308,7 +205,6 @@ class _MessagesPageState extends State<MessagesPage> {
         'message': '',
       });
 
-      // Add notification to dietitian
       await _firestore
           .collection('Users')
           .doc(widget.receiverId)
@@ -346,26 +242,19 @@ class _MessagesPageState extends State<MessagesPage> {
           backgroundColor: Colors.redAccent,
           icon: Icons.lock_outline,
         );
-
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    // --- Variables (no changes here) ---
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final myColor = isDark ? Colors.green.shade700 : const Color(0xFF4CAF50);
     final otherColor = isDark ? Colors.grey.shade800 : Colors.grey.shade200;
-
     final chatRoomId = getChatRoomId(widget.currentUserId, widget.receiverId);
 
     return Scaffold(
-      // IMPORTANT: You might want to make this transparent if your
-      // _buildChatBackgroundShapes() is a full background.
       backgroundColor: Colors.transparent,
-
-      // --- AppBar (no changes here) ---
       appBar: AppBar(
         elevation: 2,
         backgroundColor: isDark ? Colors.grey.shade900 : Colors.white,
@@ -375,12 +264,8 @@ class _MessagesPageState extends State<MessagesPage> {
           children: [
             CircleAvatar(
               radius: 18,
-              backgroundImage: widget.receiverProfile.isNotEmpty
-                  ? NetworkImage(widget.receiverProfile)
-                  : null,
-              child: widget.receiverProfile.isEmpty
-                  ? const Icon(Icons.person, size: 20)
-                  : null,
+              backgroundImage: widget.receiverProfile.isNotEmpty ? NetworkImage(widget.receiverProfile) : null,
+              child: widget.receiverProfile.isEmpty ? const Icon(Icons.person, size: 20) : null,
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -389,45 +274,45 @@ class _MessagesPageState extends State<MessagesPage> {
                   Expanded(
                     child: Text(
                       widget.receiverName,
-                      style: _appBarTitleStyle, // Assuming _appBarTitleStyle is defined
+                      style: const TextStyle(
+                        fontFamily: _primaryFontFamily,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.black87,
+                      ),
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
                   const SizedBox(width: 4),
-                  GestureDetector(
-                    onTap: () {
-                      // Using the refactored dialog method from our last conversation
-                      _showUserProfileDialog(context);
-                    },
-                    child: Padding(
-                      padding: const EdgeInsets.only(right: 8.0),
-                      child: Icon(
-                        Icons.info_outline,
-                        size: 30,
-                        color: isDark ? Colors.white : Colors.black54,
+                  // Only show info button if receiver is NOT an admin
+                  if (!_isReceiverAdmin)
+                    GestureDetector(
+                      onTap: () {
+                        _showUserProfileDialog(context);
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.only(right: 8.0),
+                        child: Icon(
+                          Icons.info_outline,
+                          size: 30,
+                          color: isDark ? Colors.white : Colors.black54,
+                        ),
                       ),
                     ),
-                  ),
                 ],
               ),
             ),
           ],
         ),
       ),
-
-      // --- BODY (This is the changed part) ---
       body: Stack(
         children: [
-          // 1. Your new background shapes method
-          // (Make sure you have defined this method in your State class)
           _buildChatBackgroundShapes(context),
-
-          // 2. Your original Column containing the chat and input
           Column(
             children: [
               Expanded(
                 child: StreamBuilder<QuerySnapshot>(
-                  stream: _firestore // Assuming _firestore is defined
+                  stream: _firestore
                       .collection("messages")
                       .where("chatRoomID", isEqualTo: chatRoomId)
                       .orderBy("timestamp", descending: true)
@@ -442,7 +327,7 @@ class _MessagesPageState extends State<MessagesPage> {
                           "No messages yet. Say hi!",
                           style: TextStyle(
                             fontSize: 16,
-                            fontFamily: _primaryFontFamily, // Assuming _primaryFontFamily is defined
+                            fontFamily: _primaryFontFamily,
                             color: Colors.grey.shade600,
                           ),
                         ),
@@ -450,7 +335,7 @@ class _MessagesPageState extends State<MessagesPage> {
                     }
 
                     return ListView.builder(
-                      controller: _scrollController, // Assuming _scrollController is defined
+                      controller: _scrollController,
                       reverse: true,
                       padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
                       itemCount: docs.length,
@@ -458,8 +343,6 @@ class _MessagesPageState extends State<MessagesPage> {
                         final data = docs[index].data() as Map<String, dynamic>;
                         final isMe = data["senderID"] == widget.currentUserId;
                         final messageText = data["message"] ?? "";
-                        final senderName = data["senderName"] ?? "";
-                        final displayText = messageText;
 
                         return Align(
                           alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
@@ -477,8 +360,13 @@ class _MessagesPageState extends State<MessagesPage> {
                               ),
                             ),
                             child: Text(
-                              displayText,
-                              style: _messageTextStyle.copyWith(color: isMe ? Colors.white : Colors.black87), // Assuming _messageTextStyle is defined
+                              messageText,
+                              style: TextStyle(
+                                fontFamily: _primaryFontFamily,
+                                fontSize: 15,
+                                height: 1.4,
+                                color: isMe ? Colors.white : Colors.black87,
+                              ),
                             ),
                           ),
                         );
@@ -487,28 +375,30 @@ class _MessagesPageState extends State<MessagesPage> {
                   },
                 ),
               ),
-
-              // --- Message Input (no changes here) ---
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                // This color is important so the input field isn't transparent
                 color: isDark ? Colors.grey.shade900 : Colors.white,
                 child: Row(
                   children: [
                     Expanded(
                       child: TextField(
-                        controller: _messageController, // Assuming _messageController is defined
-                        style: _messageTextStyle.copyWith(color: isDark ? Colors.white : Colors.black87),
+                        controller: _messageController,
+                        style: TextStyle(
+                          fontFamily: _primaryFontFamily,
+                          fontSize: 15,
+                          color: isDark ? Colors.white : Colors.black87,
+                        ),
                         decoration: InputDecoration(
                           hintText: "Type a message...",
-                          hintStyle: _inputHintStyle, // Assuming _inputHintStyle is defined
+                          hintStyle: const TextStyle(fontFamily: _primaryFontFamily, fontSize: 15, color: Colors.grey),
                           filled: true,
                           fillColor: isDark ? Colors.grey.shade800 : Colors.grey.shade100,
                           border: OutlineInputBorder(borderRadius: BorderRadius.circular(25), borderSide: BorderSide.none),
-                          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(25), borderSide: BorderSide(color: myColor, width: 1.5)),
+                          focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(25), borderSide: BorderSide(color: myColor, width: 1.5)),
                           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                         ),
-                        onSubmitted: (_) => sendMessage(), // Assuming sendMessage is defined
+                        onSubmitted: (_) => sendMessage(),
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -517,7 +407,7 @@ class _MessagesPageState extends State<MessagesPage> {
                       borderRadius: BorderRadius.circular(25),
                       child: InkWell(
                         borderRadius: BorderRadius.circular(25),
-                        onTap: sendMessage, // Assuming sendMessage is defined
+                        onTap: sendMessage,
                         child: const Padding(
                           padding: EdgeInsets.all(12.0),
                           child: Icon(Icons.send_rounded, color: Colors.white, size: 24),
@@ -534,82 +424,110 @@ class _MessagesPageState extends State<MessagesPage> {
     );
   }
 
-  // --- NEW, Extracted Method ---
-// Place this inside your State class, after the build method
+  Widget _buildChatBackgroundShapes(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Positioned.fill(
+      child: Container(
+        color: isDark ? Colors.black : Colors.grey.shade100,
+        child: Stack(
+          children: [
+            Positioned(
+              top: -80,
+              left: -50,
+              child: Transform.rotate(
+                angle: -0.8,
+                child: Container(
+                  width: 250,
+                  height: 150,
+                  decoration: BoxDecoration(
+                    color: _primaryColor.withOpacity(0.06),
+                    borderRadius: BorderRadius.circular(40),
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              bottom: -20,
+              right: -50,
+              child: Transform.rotate(
+                angle: 0.5,
+                child: Container(
+                  width: 300,
+                  height: 180,
+                  decoration: BoxDecoration(
+                    color: _primaryColor.withOpacity(0.05),
+                    borderRadius: BorderRadius.circular(60),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   void _showUserProfileDialog(BuildContext context) {
-    // --- All your original dialog code is moved here ---
     showDialog(
       context: context,
-      barrierColor: Colors.black.withOpacity(0.6), // Consistent barrier
+      barrierColor: Colors.black.withOpacity(0.6),
       builder: (dialogContext) {
-        // 'dialogContext' is the context for the dialog itself
-        // 'context' (from the method parameter) is for navigating the main screen
-
         return Dialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(24), // Consistent radius
-          ),
-          backgroundColor: Colors.transparent, // Transparent background
-          child: ClipRRect( // Clip for background shapes
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          backgroundColor: Colors.transparent,
+          child: ClipRRect(
             borderRadius: BorderRadius.circular(24),
-            child: Stack( // Stack for background shapes and content
+            child: Stack(
               children: [
-                // Background shapes (using the top-level helper)
                 Positioned.fill(
                   child: Container(
-                    color: _cardBgColor(dialogContext), // Base color from theme
+                    color: _cardBgColor(dialogContext),
                     child: Stack(
                       children: [
-// --- REPLACE with this ---
                         Positioned(
-                          top: -100, // Moves further up
-                          right: -120, // Moves to the right
+                          top: -100,
+                          right: -120,
                           child: Container(
-                            width: 300, // Larger
+                            width: 300,
                             height: 300,
                             decoration: BoxDecoration(
                               color: _primaryColor.withOpacity(0.05),
-                              borderRadius: BorderRadius.circular(150.0), // 👈 FIX
+                              borderRadius: BorderRadius.circular(150.0),
                             ),
                           ),
                         ),
                         Positioned(
-                          bottom: 20, // Moves *inside* the bottom edge
-                          left: -80, // Moves further left
+                          bottom: 20,
+                          left: -80,
                           child: Container(
-                            width: 150, // Smaller
+                            width: 150,
                             height: 150,
                             decoration: BoxDecoration(
-                                color: _primaryColor.withOpacity(0.07),
-                                borderRadius: BorderRadius.circular(75.0), // 👈 FIX
-                              ),
+                              color: _primaryColor.withOpacity(0.07),
+                              borderRadius: BorderRadius.circular(75.0),
+                            ),
                           ),
                         ),
-// --- End of replacement ---
                       ],
                     ),
                   ),
                 ),
-                // Dialog Content
                 Padding(
-                  padding: const EdgeInsets.all(32.0), // Consistent padding
+                  padding: const EdgeInsets.all(32.0),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      // Profile Avatar
                       CircleAvatar(
-                        radius: 40, // Slightly larger
+                        radius: 40,
                         backgroundColor: _primaryColor.withOpacity(0.1),
-                        backgroundImage: widget.receiverProfile.isNotEmpty
-                            ? NetworkImage(widget.receiverProfile)
-                            : null,
+                        backgroundImage:
+                        widget.receiverProfile.isNotEmpty ? NetworkImage(widget.receiverProfile) : null,
                         child: widget.receiverProfile.isEmpty
                             ? Icon(Icons.person_outline, size: 40, color: _primaryColor.withOpacity(0.8))
                             : null,
                       ),
                       const SizedBox(height: 16),
-                      // Dietitian Name
                       Text(
                         widget.receiverName,
                         textAlign: TextAlign.center,
@@ -621,25 +539,21 @@ class _MessagesPageState extends State<MessagesPage> {
                         ),
                       ),
                       const SizedBox(height: 32),
-
-                      // --- Buttons ---
-
-                      // View Profile Button (Outlined Style)
                       SizedBox(
                         width: double.infinity,
-                        height: 52, // Slightly taller buttons
+                        height: 52,
                         child: OutlinedButton.icon(
                           style: OutlinedButton.styleFrom(
                             foregroundColor: _primaryColor,
                             side: const BorderSide(color: _primaryColor, width: 1.5),
-                            shape: RoundedRectangleBorder( borderRadius: BorderRadius.circular(16),),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                           ),
                           onPressed: () {
-                            Navigator.pop(dialogContext); // Close dialog first
+                            Navigator.pop(dialogContext);
                             Navigator.push(
-                              context, // Use original 'context' for navigation
+                              context,
                               MaterialPageRoute(
-                                builder: (context) => DietitianPublicProfile( // Assuming DietitianPublicProfile is a valid widget
+                                builder: (context) => DietitianPublicProfile(
                                   dietitianId: widget.receiverId,
                                   dietitianName: widget.receiverName,
                                   dietitianProfile: widget.receiverProfile,
@@ -648,47 +562,58 @@ class _MessagesPageState extends State<MessagesPage> {
                             );
                           },
                           icon: const Icon(Icons.visibility_outlined, size: 20),
-                          label: Text("View Profile", style: _getTextStyle(dialogContext, fontSize: 15, fontWeight: FontWeight.bold, color: _primaryColor)),
+                          label: Text(
+                            "View Profile",
+                            style: _getTextStyle(
+                              dialogContext,
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                              color: _primaryColor,
+                            ),
+                          ),
                         ),
                       ),
                       const SizedBox(height: 16),
-
-                      // Request Appointment Button (Elevated Style)
                       SizedBox(
                         width: double.infinity,
                         height: 52,
                         child: ElevatedButton.icon(
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: _hasPendingAppointment ? Colors.grey.shade400 : _primaryColor, // Conditional color
+                            backgroundColor: _hasPendingAppointment ? Colors.grey.shade400 : _primaryColor,
                             foregroundColor: _textColorOnPrimary,
-                            shape: RoundedRectangleBorder( borderRadius: BorderRadius.circular(16),),
-                            elevation: _hasPendingAppointment ? 0 : 4, // Conditional elevation
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                            elevation: _hasPendingAppointment ? 0 : 4,
                           ),
-                          // Disable button if pending or submitting
                           onPressed: (_hasPendingAppointment || _isSubmittingRequest) ? null : () {
-                            Navigator.pop(dialogContext); // Close dialog
-                            _requestAppointment(); // Assuming _requestAppointment is defined
+                            Navigator.pop(dialogContext);
+                            _requestAppointment();
                           },
-                          icon: _isSubmittingRequest // Show loading indicator
+                          icon: _isSubmittingRequest
                               ? Container(
-                            width: 20, height: 20,
+                            width: 20,
+                            height: 20,
                             padding: const EdgeInsets.all(2.0),
                             child: const CircularProgressIndicator(color: Colors.white, strokeWidth: 3),
                           )
-                              : Icon( _hasPendingAppointment ? Icons.hourglass_top_rounded : Icons.calendar_month_outlined, size: 20),
+                              : Icon(
+                              _hasPendingAppointment ? Icons.hourglass_top_rounded : Icons.calendar_month_outlined,
+                              size: 20),
                           label: Text(
                             _isSubmittingRequest
                                 ? "Sending..."
                                 : _hasPendingAppointment
                                 ? "Request Pending"
                                 : "Request Appointment",
-                            style: _getTextStyle(dialogContext, fontSize: 15, fontWeight: FontWeight.bold, color: _textColorOnPrimary),
+                            style: _getTextStyle(
+                              dialogContext,
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                              color: _textColorOnPrimary,
+                            ),
                           ),
                         ),
                       ),
-                      const SizedBox(height: 16), // Spacing for close button
-
-                      // Close Button (TextButton style)
+                      const SizedBox(height: 16),
                       TextButton(
                         onPressed: () => Navigator.pop(dialogContext),
                         child: Text("Close", style: _getTextStyle(dialogContext, color: _textColorSecondary(dialogContext))),
@@ -702,7 +627,6 @@ class _MessagesPageState extends State<MessagesPage> {
         );
       },
     );
-    // --- End of your original dialog code ---
   }
 
   @override

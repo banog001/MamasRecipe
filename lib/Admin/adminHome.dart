@@ -8,6 +8,8 @@ import 'package:rxdart/rxdart.dart';
 
 import '../email/rejectPayment.dart';
 
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+
 const String _primaryFontFamily = 'PlusJakartaSans';
 
 const Color _backgroundColor = Color(0xFF121212); // Deep charcoal background
@@ -8241,7 +8243,7 @@ class _AdminHomeState extends State<AdminHome> {
                     color: Colors.green.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Icon(Icons.attach_money, color: Colors.green),
+                  child: const Icon(FontAwesomeIcons.pesoSign, color: Colors.green),
                 ),
                 const SizedBox(width: 12),
                 Text(
