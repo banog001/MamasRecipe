@@ -1122,67 +1122,11 @@ class _LoginPageState extends State<LoginPageMobile> with TickerProviderStateMix
 
             // Show pending approval dialog
             if (mounted) {
-              setState(() => _isLoading = false);
-              await showDialog(
-                context: context,
-                barrierDismissible: false,
-                builder: (dialogContext) =>
-                    AlertDialog(
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16)),
-                      content: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.check_circle_outline, size: 64,
-                              color: Colors.green),
-                          const SizedBox(height: 16),
-                          const Text(
-                            'Application Submitted',
-                            style: TextStyle(fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.green),
-                            textAlign: TextAlign.center,
-                          ),
-                          const SizedBox(height: 12),
-                          const Text(
-                            'Your dietitian application has been submitted! '
-                                'Your account will be reviewed by the admins. '
-                                'Please check back later.',
-                            style: TextStyle(fontSize: 14,
-                                color: Colors.black87,
-                                height: 1.4),
-                            textAlign: TextAlign.center,
-                          ),
-                          const SizedBox(height: 24),
-                          SizedBox(
-                            width: double.infinity,
-                            child: ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: _primaryColor,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
-                              onPressed: () {
-                                Navigator.of(dialogContext).pop();
-                                FirebaseAuth.instance.signOut();
-                                Navigator.pushReplacement(
-                                  context,
-                                  MaterialPageRoute(
-                                      builder: (_) => const LoginPageMobile()),
-                                );
-                              },
-                              child: const Text(
-                                'OK',
-                                style: TextStyle(color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => MealPlanningScreen(userId: user!.uid),
+                ),
               );
             }
           }

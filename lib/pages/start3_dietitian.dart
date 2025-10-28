@@ -5,6 +5,7 @@ import 'start4.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:dotted_border/dotted_border.dart';
+import 'dart:typed_data';
 // import 'dart:io'; // <-- REMOVED for web compatibility
 
 // --- Theme Helpers ---
@@ -294,10 +295,20 @@ class _MealPlanningScreen3DietitianState
             child: _prcIdImage != null
                 ? ClipRRect(
               borderRadius: BorderRadius.circular(10),
-              // --- CHANGED: Use Image.network for web ---
-              // The path from image_picker on web is a URL (blob:...)
-              child: Image.network(_prcIdImage!.path, fit: BoxFit.cover),
-              // --- End Change ---
+              // --- FIXED: Use Image.memory for web compatibility ---
+              child: FutureBuilder<Uint8List>(
+                future: _prcIdImage!.readAsBytes(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.done &&
+                      snapshot.hasData) {
+                    return Image.memory(snapshot.data!, fit: BoxFit.cover);
+                  }
+                  return const Center(
+                    child: CircularProgressIndicator(),
+                  );
+                },
+              ),
+              // --- End Fix ---
             )
                 : Column(
               mainAxisAlignment: MainAxisAlignment.center,
