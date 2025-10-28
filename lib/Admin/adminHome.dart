@@ -7712,7 +7712,7 @@ class _AdminHomeState extends State<AdminHome> {
                 ),
                 const SizedBox(width: 12),
                 Text(
-                  "Subscription Stats",
+                  "Subscription Statistics",
                   style: _getTextStyle(
                     context,
                     fontSize: 18,
