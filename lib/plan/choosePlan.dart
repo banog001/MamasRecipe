@@ -83,9 +83,15 @@ class _ChoosePlanPageState extends State<ChoosePlanPage> {
       'displayPrice': '₱ ${currencyFormatter.format(_weeklyPrice)}',
       'durationDays': 7,
       'benefits': [
-        'Unlock Full Meal Details: See all meals and suggested times for all plans by this dietitian.',
-        'Enhanced Meal Scheduling: Add any liked plan to your weekly calendar with all details visible.',
-        'Download Plans as PDF: Save any unlocked meal plan for offline viewing',
+        // Service Benefits
+        'Receive one (1) 7-day meal plan, personalized by your dietitian.',
+        'Specialized messaging support: Ask specific questions about your personalize meal plan.',
+        'Get tailored answers based on your personal preferences and health goals.',
+
+        // App Features
+        'Unlock Plan Library: View and download all previous meal plans posted by this dietitian.', // <-- NEWLY ADDED
+        'Full access to view and schedule your personalized meal plan in the calendar section.',
+        'Download your liked and personalized meal plan as a PDF for offline viewing.',
       ],
       'icon': Icons.calendar_view_week,
       'color': Colors.blue.shade700,
@@ -97,9 +103,11 @@ class _ChoosePlanPageState extends State<ChoosePlanPage> {
       'displayPrice': '₱ ${currencyFormatter.format(_monthlyPrice)}',
       'durationDays': 30,
       'benefits': [
-        'All Weekly Plan Benefits, PLUS:',
-        'Priority Support: Get faster responses to your messages.',
-        'Continuous Access: Enjoy uninterrupted access for a full month.',
+        // Service Benefits
+        'All Weekly Plan benefits, PLUS:',
+        'Receive four (4) weekly meal plans, adjusted based on your progress.',
+        'Broader messaging support: Ask general diet and nutrition questions.',
+        'Regular check-ins from your dietitian to track your progress.',
       ],
       'icon': Icons.calendar_view_month,
       'color': Colors.orange.shade700,
@@ -111,9 +119,11 @@ class _ChoosePlanPageState extends State<ChoosePlanPage> {
       'displayPrice': '₱ ${currencyFormatter.format(_yearlyPrice)}',
       'durationDays': 365,
       'benefits': [
-        'All Monthly Plan Benefits, PLUS:',
-        'Premium Support: Receive top-priority support and potentially exclusive updates.',
-        'Year-Round Guidance: Secure full access and support for an entire year.',
+        // Service Benefits
+        'All Monthly Plan benefits, PLUS:',
+        'A long-term nutritional partnership with your dietitian.',
+        'Periodic full reassessments (e.g., quarterly) of your health goals.',
+        'Top priority messaging for all your specialized and general inquiries.',
       ],
       'icon': Icons.calendar_today,
       'color': Colors.purple.shade700,
