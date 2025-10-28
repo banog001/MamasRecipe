@@ -1320,7 +1320,6 @@ class _AdminHomeState extends State<AdminHome> {
                   .collection('Users')
                   .where('role', isEqualTo: 'dietitian')
                   .where('qrstatus', isEqualTo: 'pending')
-                  .where('qrapproved', isEqualTo: false)
                   .snapshots(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
@@ -2452,7 +2451,6 @@ class _AdminHomeState extends State<AdminHome> {
   }
 
   void _verifyPayment(String paymentId, Map<String, dynamic> data) {
-    final amountController = TextEditingController();
     final notesController = TextEditingController();
 
     showDialog(
@@ -2505,16 +2503,82 @@ class _AdminHomeState extends State<AdminHome> {
             onPressed: () async {
               try {
                 final adminId = FirebaseAuth.instance.currentUser!.uid;
+                final adminDoc = await FirebaseFirestore.instance
+                    .collection('Users')
+                    .doc(adminId)
+                    .get();
+                final adminName = adminDoc.data()?['name'] ?? 'Admin';
 
-                await FirebaseFirestore.instance
+                // Get dietitian ID - try multiple possible field names
+                String? dietitianId = data['dietitianID'] as String?;
+
+                // If dietitianId is null, try to get it from dietitianEmail by querying Users
+                if (dietitianId == null || dietitianId.isEmpty) {
+                  final dietitianEmail = data['dietitianEmail'] as String?;
+                  if (dietitianEmail != null && dietitianEmail.isNotEmpty) {
+                    final dietitianQuery = await FirebaseFirestore.instance
+                        .collection('Users')
+                        .where('email', isEqualTo: dietitianEmail)
+                        .limit(1)
+                        .get();
+
+                    if (dietitianQuery.docs.isNotEmpty) {
+                      dietitianId = dietitianQuery.docs.first.id;
+                    }
+                  }
+                }
+
+                // If still no dietitianId, show error
+                if (dietitianId == null || dietitianId.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Error: Could not find dietitian ID'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                  return;
+                }
+
+                final dietitianEmail = data['dietitianEmail'] as String? ?? '';
+                final dietitianName = data['dietitianName'] as String? ?? 'Unknown';
+                final amount = (data['amount'] as num?)?.toDouble() ?? 0.0;
+                final verificationNotes = notesController.text.trim();
+
+                final batch = FirebaseFirestore.instance.batch();
+
+                // Update payment status
+                final paymentRef = FirebaseFirestore.instance
                     .collection('commissionPayments')
-                    .doc(paymentId)
-                    .update({
+                    .doc(paymentId);
+                batch.update(paymentRef, {
                   'status': 'verified',
                   'verifiedAt': FieldValue.serverTimestamp(),
                   'verifiedBy': adminId,
-                  'notes': notesController.text.trim(),
+                  'notes': verificationNotes,
                 });
+
+                // Add notification to dietitian's subcollection
+                final notificationRef = FirebaseFirestore.instance
+                    .collection('Users')
+                    .doc(dietitianId)
+                    .collection('notifications')
+                    .doc();
+
+                batch.set(notificationRef, {
+                  'isRead': false,
+                  'message': verificationNotes.isEmpty
+                      ? 'Your commission payment has been verified and processed successfully.'
+                      : verificationNotes,
+                  'senderId': adminId,
+                  'senderName': adminName,
+                  'timestamp': FieldValue.serverTimestamp(),
+                  'title': 'Payment Verified',
+                  'type': 'verifiedPayment',
+                  'paymentId': paymentId,
+                  'amount': amount,
+                });
+
+                await batch.commit();
 
                 Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -3699,6 +3763,8 @@ class _AdminHomeState extends State<AdminHome> {
                       _buildFilterButton("Dietitians"),
                       const SizedBox(width: 8),
                       _buildFilterButton("Meal Plans"),
+                      const SizedBox(width: 8),
+                      _buildFilterButton("Deactivate"),
                       // Removed "User Verification" and "Dietitian Verification" from here
                     ],
                   ),
@@ -3835,7 +3901,9 @@ class _AdminHomeState extends State<AdminHome> {
           ),
           const SizedBox(height: 16),
           Expanded(
-            child: StreamBuilder<QuerySnapshot>(
+            child: crudFilter == "Deactivate"
+                ? _buildDeactivateSection()  // ← Show deactivate screen
+                : StreamBuilder<QuerySnapshot>(  // ← Show normal table
               stream: _getFilteredStream(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
@@ -4052,8 +4120,8 @@ class _AdminHomeState extends State<AdminHome> {
 
   // Fixed: Dietitian Verification Table with Move Logic
   Widget _buildDietitianVerificationsTable(
-    List<QueryDocumentSnapshot> dietitians,
-  ) {
+      List<QueryDocumentSnapshot> dietitians,
+      ) {
     return Card(
       elevation: 4,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -4112,6 +4180,16 @@ class _AdminHomeState extends State<AdminHome> {
                 ),
                 DataColumn(
                   label: Text(
+                    "License Picture",
+                    style: _getTextStyle(
+                      context,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.orange,
+                    ),
+                  ),
+                ),
+                DataColumn(
+                  label: Text(
                     "Actions",
                     style: _getTextStyle(
                       context,
@@ -4128,7 +4206,12 @@ class _AdminHomeState extends State<AdminHome> {
                 final lastName = data['lastName'] ?? "No last name";
                 final email = data['email'] ?? "No email";
                 final licenseNum = (data['licenseNum'] ?? "N/A").toString();
-                final profileUrl = data['prcImageUrl'] ?? data['profile'] ?? '';
+                final prcImageUrl = data['prcImageUrl'] ?? '';
+
+                // Use Google profile image if available, otherwise use default
+                final profileUrl = (data['profile'] != null && data['profile'].toString().isNotEmpty)
+                    ? data['profile']
+                    : 'lib/assets/image/user.png';
 
                 return DataRow(
                   cells: [
@@ -4141,6 +4224,164 @@ class _AdminHomeState extends State<AdminHome> {
                       Text(
                         licenseNum,
                         style: _getTextStyle(context, fontSize: 14),
+                      ),
+                    ),
+                    DataCell(
+                      ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blue,
+                          foregroundColor: Colors.white,
+                          elevation: 2,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
+                        ),
+                        onPressed: () {
+                          showDialog(
+                            context: context,
+                            builder: (context) => Dialog(
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              child: Container(
+                                constraints: const BoxConstraints(
+                                  maxWidth: 600,
+                                  maxHeight: 700,
+                                ),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    // Header
+                                    Container(
+                                      padding: const EdgeInsets.all(16),
+                                      decoration: BoxDecoration(
+                                        color: Colors.blue.withOpacity(0.1),
+                                        borderRadius: const BorderRadius.only(
+                                          topLeft: Radius.circular(16),
+                                          topRight: Radius.circular(16),
+                                        ),
+                                      ),
+                                      child: Row(
+                                        mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Text(
+                                            "License Picture",
+                                            style: const TextStyle(
+                                              fontFamily: _primaryFontFamily,
+                                              fontSize: 18,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                          IconButton(
+                                            icon: const Icon(Icons.close),
+                                            onPressed: () =>
+                                                Navigator.pop(context),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    // Image
+                                    Flexible(
+                                      child: Container(
+                                        padding: const EdgeInsets.all(16),
+                                        child: prcImageUrl.isNotEmpty
+                                            ? InteractiveViewer(
+                                          panEnabled: true,
+                                          boundaryMargin:
+                                          const EdgeInsets.all(20),
+                                          minScale: 0.5,
+                                          maxScale: 4,
+                                          child: Image.network(
+                                            prcImageUrl,
+                                            fit: BoxFit.contain,
+                                            loadingBuilder: (context,
+                                                child, loadingProgress) {
+                                              if (loadingProgress == null) {
+                                                return child;
+                                              }
+                                              return Center(
+                                                child:
+                                                CircularProgressIndicator(
+                                                  value: loadingProgress
+                                                      .expectedTotalBytes !=
+                                                      null
+                                                      ? loadingProgress
+                                                      .cumulativeBytesLoaded /
+                                                      loadingProgress
+                                                          .expectedTotalBytes!
+                                                      : null,
+                                                ),
+                                              );
+                                            },
+                                            errorBuilder: (context, error,
+                                                stackTrace) {
+                                              return const Center(
+                                                child: Column(
+                                                  mainAxisAlignment:
+                                                  MainAxisAlignment
+                                                      .center,
+                                                  children: [
+                                                    Icon(
+                                                      Icons.error_outline,
+                                                      size: 48,
+                                                      color: Colors.red,
+                                                    ),
+                                                    SizedBox(height: 8),
+                                                    Text(
+                                                      "Failed to load image",
+                                                      style: TextStyle(
+                                                        fontFamily:
+                                                        _primaryFontFamily,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              );
+                                            },
+                                          ),
+                                        )
+                                            : const Center(
+                                          child: Column(
+                                            mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                            children: [
+                                              Icon(
+                                                Icons.image_not_supported,
+                                                size: 48,
+                                                color: Colors.grey,
+                                              ),
+                                              SizedBox(height: 8),
+                                              Text(
+                                                "No license picture available",
+                                                style: TextStyle(
+                                                  fontFamily:
+                                                  _primaryFontFamily,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.image, size: 18),
+                        label: const Text(
+                          "View",
+                          style: TextStyle(
+                            fontFamily: _primaryFontFamily,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                       ),
                     ),
                     DataCell(
@@ -4305,7 +4546,7 @@ class _AdminHomeState extends State<AdminHome> {
                                                 "Error: $e",
                                                 style: const TextStyle(
                                                   fontFamily:
-                                                      _primaryFontFamily,
+                                                  _primaryFontFamily,
                                                 ),
                                               ),
                                             ),
@@ -5582,6 +5823,9 @@ class _AdminHomeState extends State<AdminHome> {
       case "Meal Plans":
         icon = Icons.restaurant_menu;
         break;
+      case "Deactivate":
+        icon = Icons.remove_circle_outline;
+        break;
       default:
         icon = Icons.people;
     }
@@ -5714,6 +5958,9 @@ class _AdminHomeState extends State<AdminHome> {
   // REPLACE your _getFilteredStream() method with this corrected version:
 
   Stream<QuerySnapshot> _getFilteredStream() {
+    // Add this check first - before any other conditions
+
+
     if (crudFilter == "Meal Plans") {
       return FirebaseFirestore.instance
           .collection('mealPlans')
@@ -5927,6 +6174,384 @@ class _AdminHomeState extends State<AdminHome> {
       ),
     );
   }
+  // Add this state variable at the top of your class with other state variables
+  String deactivateFilter = "Users"; // Default filter for deactivate section
+
+// Add this method to build the deactivate section
+  Widget _buildDeactivateSection() {
+    return Container(
+      margin: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: _cardBgColor(context),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.orange.withOpacity(0.1),
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(16),
+                topRight: Radius.circular(16),
+              ),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.orange,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(
+                    Icons.remove_circle_outline,
+                    color: Colors.white,
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  "Account Management",
+                  style: _getTextStyle(
+                    context,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
+                    color: Colors.orange,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Filter Buttons
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                _buildDeactivateFilterButton("Users"),
+                const SizedBox(width: 12),
+                _buildDeactivateFilterButton("Dietitians"),
+              ],
+            ),
+          ),
+
+          // Content
+          Expanded(
+            child: _buildDeactivateContent(),
+          ),
+        ],
+      ),
+    );
+  }
+
+// Build filter buttons for deactivate section
+  Widget _buildDeactivateFilterButton(String filter) {
+    final isSelected = deactivateFilter == filter;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          setState(() {
+            deactivateFilter = filter;
+          });
+        },
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          decoration: BoxDecoration(
+            color: isSelected ? Colors.orange : _cardBgColor(context),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: isSelected ? Colors.orange : Colors.orange.withOpacity(0.3),
+              width: 2,
+            ),
+            boxShadow: isSelected
+                ? [
+              BoxShadow(
+                color: Colors.orange.withOpacity(0.3),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ]
+                : [],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                filter == "Users" ? Icons.person : Icons.health_and_safety,
+                color: isSelected ? Colors.white : Colors.orange,
+                size: 20,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                filter,
+                style: TextStyle(
+                  fontFamily: _primaryFontFamily,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 15,
+                  color: isSelected ? Colors.white : Colors.orange,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+// Build content based on selected filter
+  Widget _buildDeactivateContent() {
+    final role = deactivateFilter == "Users" ? "user" : "dietitian";
+
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('Users')
+          .where('role', isEqualTo: role)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(
+            child: CircularProgressIndicator(color: Colors.orange),
+          );
+        }
+
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.people_outline,
+                  size: 64,
+                  color: Colors.grey.withOpacity(0.5),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  "No ${deactivateFilter.toLowerCase()} found",
+                  style: _cardSubtitleStyle(context),
+                ),
+              ],
+            ),
+          );
+        }
+
+        final users = snapshot.data!.docs;
+
+        return SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: DataTable(
+                headingRowColor: MaterialStateProperty.all(
+                  Colors.orange.withOpacity(0.1),
+                ),
+                border: TableBorder.all(
+                  color: Colors.orange.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                columns: [
+                  DataColumn(
+                    label: Text(
+                      'First Name',
+                      style: _getTextStyle(
+                        context,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.orange,
+                      ),
+                    ),
+                  ),
+                  DataColumn(
+                    label: Text(
+                      'Last Name',
+                      style: _getTextStyle(
+                        context,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.orange,
+                      ),
+                    ),
+                  ),
+                  DataColumn(
+                    label: Text(
+                      'Email',
+                      style: _getTextStyle(
+                        context,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.orange,
+                      ),
+                    ),
+                  ),
+                  if (deactivateFilter == "Dietitians")
+                    DataColumn(
+                      label: Text(
+                        'Action',
+                        style: _getTextStyle(
+                          context,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.orange,
+                        ),
+                      ),
+                    ),
+                ],
+                rows: users.map((doc) {
+                  final user = doc.data() as Map<String, dynamic>;
+                  final firstName = user['firstName'] ?? '';
+                  final lastName = user['lastName'] ?? '';
+                  final email = user['email'] ?? '';
+                  final isDeactivated = user['deactivated'] ?? false;
+
+                  return DataRow(
+                    cells: [
+                      DataCell(
+                        Text(
+                          firstName,
+                          style: _getTextStyle(context),
+                        ),
+                      ),
+                      DataCell(
+                        Text(
+                          lastName,
+                          style: _getTextStyle(context),
+                        ),
+                      ),
+                      DataCell(
+                        Text(
+                          email,
+                          style: _getTextStyle(context),
+                        ),
+                      ),
+                      if (deactivateFilter == "Dietitians")
+                        DataCell(
+                          ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: isDeactivated
+                                  ? Colors.green
+                                  : Colors.red,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 8,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                            icon: Icon(
+                              isDeactivated
+                                  ? Icons.check_circle
+                                  : Icons.block,
+                              size: 18,
+                            ),
+                            label: Text(
+                              isDeactivated ? 'Activate' : 'Deactivate',
+                              style: const TextStyle(
+                                fontFamily: _primaryFontFamily,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            onPressed: () => _toggleDeactivation(
+                              doc.id,
+                              isDeactivated,
+                              firstName,
+                              lastName,
+                            ),
+                          ),
+                        ),
+                    ],
+                  );
+                }).toList(),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+// Toggle deactivation status
+  Future<void> _toggleDeactivation(
+      String docId,
+      bool currentStatus,
+      String firstName,
+      String lastName,
+      )
+  async {
+    final newStatus = !currentStatus;
+    final action = newStatus ? "deactivated" : "activated";
+
+    try {
+      await FirebaseFirestore.instance.collection("Users").doc(docId).update({
+        "deactivated": newStatus,
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(
+                  newStatus ? Icons.block : Icons.check_circle,
+                  color: Colors.white,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    "$firstName $lastName has been $action",
+                    style: const TextStyle(fontFamily: _primaryFontFamily),
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: newStatus ? Colors.red : Colors.green,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.error_outline, color: Colors.white),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    "Failed to update status: $e",
+                    style: const TextStyle(fontFamily: _primaryFontFamily),
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+        );
+      }
+    }
+  }
+
+// UPDATE: In your main build method, when crudFilter == "Deactivate", use this:
+// Replace the existing content section with:
+  // ... your existing content
 
   // NEW METHOD: Delete confirmation for user verification
   void _showDeleteUserVerificationConfirmation(String docId, String firstName) {
@@ -6732,7 +7357,8 @@ class _AdminHomeState extends State<AdminHome> {
     String docId,
     String currentRole,
     String firstName,
-  ) async {
+  )
+  async {
     final newRole = currentRole == "dietitian" ? "user" : "dietitian";
     final action = currentRole == "dietitian" ? "downgraded" : "upgraded";
 
@@ -6802,6 +7428,7 @@ class _AdminHomeState extends State<AdminHome> {
       );
     }
   }
+
 
   Widget _buildDietitianPanel() {
     return Container(
