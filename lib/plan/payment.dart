@@ -82,7 +82,6 @@ class PaymentPage extends StatefulWidget {
 }
 
 class _PaymentPageState extends State<PaymentPage> {
-  String? _qrPicUrl;
   bool _isLoading = true;
   bool _isUploading = false; // Separate loading state for submission
   String? _uploadedReceiptUrl;
@@ -100,6 +99,8 @@ class _PaymentPageState extends State<PaymentPage> {
   }
 
   // --- All backend logic functions (untouched, they are correct) ---
+// REPLACE this method
+// REPLACE your old _initializePaymentData with this:
   Future<void> _initializePaymentData() async {
     setState(() => _isLoading = true);
     if (widget.dietitianId != null) {
@@ -110,7 +111,10 @@ class _PaymentPageState extends State<PaymentPage> {
       await _fetchDietitianId();
       _resolvePlanDetails();
     }
-    await _fetchDietitianQrPic();
+    // We no longer fetch the QR pic, so we are done loading
+    if (mounted) {
+      setState(() => _isLoading = false);
+    }
   }
 
   Future<void> _fetchDietitianId() async {
@@ -146,25 +150,6 @@ class _PaymentPageState extends State<PaymentPage> {
     }
   }
 
-  Future<void> _fetchDietitianQrPic() async {
-    try {
-      final query = await _firestore
-          .collection('Users')
-          .where('email', isEqualTo: widget.dietitianEmail)
-          .limit(1)
-          .get();
-
-      if (query.docs.isNotEmpty) {
-        setState(() {
-          _qrPicUrl = query.docs.first.data()['qrpic'];
-        });
-      }
-    } catch (e) {
-      debugPrint("Error fetching QR pic: $e");
-    } finally {
-      setState(() => _isLoading = false);
-    }
-  }
 
   Future<String?> _uploadImageToCloudinary(File imageFile) async {
     const cloudName = 'dbc77ko88';
@@ -556,6 +541,7 @@ class _PaymentPageState extends State<PaymentPage> {
     );
   }
 
+// REPLACE this widget
   Widget _buildPaymentCard(BuildContext context) {
     return Container(
       width: double.infinity,
@@ -575,17 +561,21 @@ class _PaymentPageState extends State<PaymentPage> {
         children: [
           Text(
             "Payment Instructions",
-            style: _getTextStyle(context,
-                fontSize: 18, fontWeight: FontWeight.bold),
+            style: _getTextStyle(
+              context,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
           ),
           const SizedBox(height: 16),
           if (_isLoading)
             const SizedBox(
               height: 200,
-              child:
-              Center(child: CircularProgressIndicator(color: _primaryColor)),
+              child: Center(
+                child: CircularProgressIndicator(color: _primaryColor),
+              ),
             )
-          else if (_qrPicUrl != null)
+          else
             Column(
               children: [
                 Text(
@@ -600,30 +590,54 @@ class _PaymentPageState extends State<PaymentPage> {
                 ClipRRect(
                   borderRadius: BorderRadius.circular(12),
                   child: Image.network(
-                    _qrPicUrl!,
+                    'https://res.cloudinary.com/dbc77ko88/image/upload/v1761671370/qrcode_rzggjb.jpg',
                     height: 250,
                     width: 250,
                     fit: BoxFit.cover,
+                    loadingBuilder: (context, child, loadingProgress) {
+                      if (loadingProgress == null) return child;
+                      return const Center(
+                        child: CircularProgressIndicator(),
+                      );
+                    },
+                    errorBuilder: (context, error, stackTrace) {
+                      return Container(
+                        height: 250,
+                        width: 250,
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade200,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.error_outline,
+                                color: Colors.red, size: 40),
+                            const SizedBox(height: 8),
+                            Text(
+                              "Error loading QR Code.\nCheck network connection.",
+                              textAlign: TextAlign.center,
+                              style: _getTextStyle(
+                                context,
+                                fontSize: 12,
+                                color: Colors.red,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
                   ),
                 ),
               ],
-            )
-          else
-            Container(
-              height: 150,
-              child: Center(
-                child: Text(
-                  "Could not load QR Code.\nPlease contact dietitian.",
-                  textAlign: TextAlign.center,
-                  style: _getTextStyle(context, color: Colors.redAccent),
-                ),
-              ),
             ),
         ],
       ),
     );
   }
 
+
+// REPLACE this widget
   Widget _buildUploadCard(BuildContext context) {
     return Container(
       width: double.infinity,
@@ -681,28 +695,34 @@ class _PaymentPageState extends State<PaymentPage> {
           else
             Column(
               children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: DottedBorder(
-                    color: _primaryColor.withOpacity(0.7),
-                    strokeWidth: 2,
-                    borderType: BorderType.RRect,
-                    radius: const Radius.circular(12),
-                    dashPattern: const [8, 4],
-                    child: Container(
-                      height: 200,
-                      width: double.infinity,
-                      decoration: BoxDecoration(
-                        color: _primaryColor.withOpacity(0.05),
-                      ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(10),
-                        child:
-                        Image.network(_uploadedReceiptUrl!, fit: BoxFit.cover),
-                      ),
+                // --- MODIFIED PART ---
+                // Removed outer ClipRRect, added padding to border
+                // and removed width: double.infinity from inner container.
+                DottedBorder(
+                  color: _primaryColor.withOpacity(0.7),
+                  strokeWidth: 2,
+                  borderType: BorderType.RRect,
+                  radius: const Radius.circular(12),
+                  dashPattern: const [8, 4],
+                  padding: const EdgeInsets.all(
+                      1), // Small padding to avoid child overlap
+                  child: Container(
+                    height: 200,
+                    // width: double.infinity, // Removed this
+                    decoration: BoxDecoration(
+                      color: _primaryColor.withOpacity(0.05),
+                      borderRadius: BorderRadius.circular(
+                          11), // Rounded bg to match border
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(
+                          10), // Inner clip for the image
+                      child:
+                      Image.network(_uploadedReceiptUrl!, fit: BoxFit.cover),
                     ),
                   ),
                 ),
+                // --- END MODIFIED PART ---
                 const SizedBox(height: 12),
                 TextButton.icon(
                   onPressed: _isUploading ? null : _pickAndUploadImage,

@@ -7,8 +7,7 @@ import 'package:shimmer/shimmer.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'dart:collection';
 import 'dart:io';
-import 'package:excel/excel.dart' hide Border; // Hide Border from excel package
-import 'package:flutter/material.dart' show Border;
+import 'package:excel/excel.dart' hide Border, TextSpan; // Hide Border and TextSpan from excelimport 'package:flutter/material.dart' show Border;
 import 'package:flutter_file_dialog/flutter_file_dialog.dart';
 import 'dart:typed_data';
 import 'package:intl/intl.dart';
@@ -2482,50 +2481,146 @@ class _SubscriptionRequestsState extends State<SubscriptionRequests> {
     }
   }
 
+// REPLACE this entire method inside _SubscriptionRequestsState in homePageDietitian.dart
+
+// REPLACE this entire method inside _SubscriptionRequestsState in homePageDietitian.dart
+
   Future<void> _declineSubscription(Map<String, dynamic> receipt) async {
     // Show confirmation dialog
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        title: const Text(
-          'Decline Subscription',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            fontFamily: 'PlusJakartaSans',
+      barrierDismissible: false, // User must make a choice
+      barrierColor: Colors.black.withOpacity(0.6), // Darker overlay
+      builder: (dialogContext) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
           ),
-        ),
-        content: Text(
-          'Are you sure you want to decline the subscription request from ${receipt['firstname']} ${receipt['lastname']}?\n\nThey will be notified via email.',
-          style: const TextStyle(fontFamily: 'PlusJakartaSans'),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text(
-              'Cancel',
-              style: TextStyle(
-                color: Colors.grey,
-                fontFamily: 'PlusJakartaSans',
-              ),
+          backgroundColor: Colors.transparent, // Dialog is transparent
+          child: Container(
+            padding: const EdgeInsets.all(30), // Padding from login.dart
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(24),
+              color: _cardBgColor(dialogContext), // Use theme-aware color
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // 1. Themed Icon (like in login.dart)
+                Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    color: Colors.red.withOpacity(0.1), // Red theme for decline
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.cancel_outlined, // Decline icon
+                    color: Colors.red,
+                    size: 44,
+                  ),
+                ),
+                const SizedBox(height: 24),
+
+                // 2. Title (using _getTextStyle)
+                Text(
+                  'Decline Subscription?',
+                  style: _getTextStyle(
+                    dialogContext,
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: _textColorPrimary(dialogContext),
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                // 3. Description (using RichText to bold the name)
+                RichText(
+                  textAlign: TextAlign.center,
+                  text: TextSpan(
+                    // Default style for the whole text
+                    style: _getTextStyle(
+                      dialogContext,
+                      fontSize: 14,
+                      color: _textColorSecondary(dialogContext),
+                    ),
+                    children: [
+                      const TextSpan(
+                        text:
+                        'Are you sure you want to decline the subscription request from ',
+                      ),
+                      TextSpan(
+                        text: '${receipt['firstname']} ${receipt['lastname']}',
+                        style: _getTextStyle(
+                          dialogContext,
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold, // Make it bold
+                          color: _textColorPrimary(
+                              dialogContext), // Make it stand out
+                        ),
+                      ),
+                      const TextSpan(
+                        text: '?\n\nThey will be notified via email.',
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 32),
+
+                // 4. Buttons (Row with Expanded, like in login.dart)
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.of(dialogContext).pop(false),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          side: BorderSide(color: Colors.grey.shade400),
+                        ),
+                        child: Text(
+                          "Cancel",
+                          style: _getTextStyle(
+                            dialogContext,
+                            fontWeight: FontWeight.bold,
+                            color: _textColorSecondary(dialogContext),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () => Navigator.of(dialogContext).pop(true),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.red, // Red for decline
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          elevation: 4,
+                          shadowColor: Colors.red.withOpacity(0.3),
+                        ),
+                        child: Text(
+                          "Decline",
+                          style: _getTextStyle(
+                            dialogContext,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white, // Use theme-aware color
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
-          ElevatedButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-            child: const Text(
-              'Decline',
-              style: TextStyle(fontFamily: 'PlusJakartaSans'),
-            ),
-          ),
-        ],
-      ),
+        );
+      },
     );
 
     if (confirmed != true) return;
@@ -2533,7 +2628,8 @@ class _SubscriptionRequestsState extends State<SubscriptionRequests> {
     try {
       final currentDietitian = FirebaseAuth.instance.currentUser;
       if (currentDietitian == null) {
-        CustomSnackBar.show(context, 'You must be logged in.', backgroundColor: Colors.redAccent, icon: Icons.lock_outline);
+        CustomSnackBar.show(context, 'You must be logged in.',
+            backgroundColor: Colors.redAccent, icon: Icons.lock_outline);
         return;
       }
 
@@ -2564,13 +2660,16 @@ class _SubscriptionRequestsState extends State<SubscriptionRequests> {
           .get();
 
       final dietitianData = dietitianDoc.data() ?? {};
-      final dietitianName = "${dietitianData['firstname'] ?? ''} ${dietitianData['lastname'] ?? ''}".trim();
+      final dietitianName =
+      "${dietitianData['firstname'] ?? ''} ${dietitianData['lastname'] ?? ''}"
+          .trim();
 
       // Send decline notification email
       await declinedEmail.sendDeclineNotification(
         recipientEmail: receipt['email'],
         clientName: "${receipt['firstName']} ${receipt['lastName']}",
-        dietitianName: dietitianName.isNotEmpty ? dietitianName : 'Your Dietitian',
+        dietitianName:
+        dietitianName.isNotEmpty ? dietitianName : 'Your Dietitian',
         planType: receipt['planType'],
         planPrice: receipt['planPrice'].toString(),
       );
