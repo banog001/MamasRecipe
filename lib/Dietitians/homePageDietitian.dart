@@ -2333,6 +2333,38 @@ class _SubscriptionRequestsState extends State<SubscriptionRequests> {
     }
   }
 
+  // Helper method to send notifications - ADD THIS METHOD
+  Future<void> _sendNotification({
+    required String receiverId,
+    required String receiverName,
+    required String senderId,
+    required String senderName,
+    required String title,
+    required String message,
+    required String type,
+  }) async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('Users')
+          .doc(receiverId)
+          .collection('notifications')
+          .add({
+        'isRead': false,
+        'message': message,
+        'receiverId': receiverId,
+        'receiverName': receiverName,
+        'senderId': senderId,
+        'senderName': senderName,
+        'timestamp': FieldValue.serverTimestamp(),
+        'title': title,
+        'type': type,
+      });
+    } catch (e) {
+      debugPrint('Error sending notification: $e');
+    }
+  }
+
+// REPLACE YOUR _approveSubscription METHOD WITH THIS:
   Future<void> _approveSubscription(Map<String, dynamic> receipt) async {
     try {
       final currentDietitian = FirebaseAuth.instance.currentUser;
@@ -2347,7 +2379,6 @@ class _SubscriptionRequestsState extends State<SubscriptionRequests> {
       final planType = receipt['planType'];
       final planPrice = receipt['planPrice'];
 
-      // Debug: Print what we received
       print('Received planPrice: $planPrice (${planPrice.runtimeType})');
       print('Received planType: $planType');
 
@@ -2355,8 +2386,7 @@ class _SubscriptionRequestsState extends State<SubscriptionRequests> {
       DateTime expirationDate;
 
       if (planType.toString().toLowerCase() == 'weekly') {
-        // For testing only — expires in 1 hour instead of 7 days
-        expirationDate = now.add(const Duration(hours: 1));
+        expirationDate = now.add(const Duration(days: 7));
       } else if (planType.toString().toLowerCase() == 'monthly') {
         expirationDate = DateTime(now.year, now.month + 1, now.day);
       } else if (planType.toString().toLowerCase() == 'yearly') {
@@ -2399,19 +2429,16 @@ class _SubscriptionRequestsState extends State<SubscriptionRequests> {
         final snapshot = await transaction.get(dietitianRef);
         final currentData = snapshot.data() ?? {};
 
-        // Parse planPrice properly
         double planPriceValue = 0.0;
         if (planPrice is num) {
           planPriceValue = planPrice.toDouble();
         } else if (planPrice is String) {
-          // Remove any currency symbols or commas
           String cleanPrice = planPrice.replaceAll(RegExp(r'[^\d.]'), '');
           planPriceValue = double.tryParse(cleanPrice) ?? 0.0;
         }
 
         print('Parsed planPriceValue: $planPriceValue');
 
-        // Get current values
         double totalRevenue = ((currentData['totalRevenue'] ?? 0) as num).toDouble();
         double weeklyCommission = ((currentData['weeklyCommission'] ?? 0) as num).toDouble();
         double monthlyCommission = ((currentData['monthlyCommission'] ?? 0) as num).toDouble();
@@ -2419,7 +2446,6 @@ class _SubscriptionRequestsState extends State<SubscriptionRequests> {
 
         double commission = 0.0;
 
-        // Calculate commission based on plan type
         if (planType.toString().toLowerCase() == 'weekly') {
           commission = planPriceValue * 0.15;
           weeklyCommission += commission;
@@ -2431,15 +2457,11 @@ class _SubscriptionRequestsState extends State<SubscriptionRequests> {
           yearlyCommission += commission;
         }
 
-        // Update totals
         totalRevenue += planPriceValue;
         double totalCommission = weeklyCommission + monthlyCommission + yearlyCommission;
         double totalEarnings = totalRevenue - totalCommission;
 
-        // Get current overallEarnings (never resets to 0)
         double overallEarnings = ((currentData['overallEarnings'] ?? 0) as num).toDouble();
-
-        // Add the current earnings (after commission) to overall earnings
         double currentEarnings = planPriceValue - commission;
         overallEarnings += currentEarnings;
 
@@ -2461,14 +2483,29 @@ class _SubscriptionRequestsState extends State<SubscriptionRequests> {
         });
       });
 
+      // Get dietitian name for notification
+      final dietitianDoc = await dietitianRef.get();
+      final dietitianData = dietitianDoc.data() ?? {};
+      final dietitianName = "${dietitianData['firstName'] ?? ''} ${dietitianData['lastName'] ?? ''}".trim();
+
+      // Send notification to client
+      await _sendNotification(
+        receiverId: clientId,
+        receiverName: "${receipt['firstname']} ${receipt['lastname']}",
+        senderId: dietitianId,
+        senderName: dietitianName.isNotEmpty ? dietitianName : 'Your Dietitian',
+        title: 'Subscription Approved',
+        message: 'Your ${planType.toLowerCase()} subscription has been approved by ${dietitianName.isNotEmpty ? dietitianName : 'your dietitian'}. Your subscription is now active!',
+        type: 'subscription',
+      );
+
       CustomSnackBar.show(
         context,
-        'User subscription approved!',
+        'User subscription approved and notification sent!',
         backgroundColor: const Color(0xFF4CAF50),
         icon: Icons.check_circle_outline,
       );
 
-      // Reload data
       await _loadReceipts();
     } catch (e) {
       print('Error in _approveSubscription: $e');
@@ -2481,50 +2518,49 @@ class _SubscriptionRequestsState extends State<SubscriptionRequests> {
     }
   }
 
-// REPLACE this entire method inside _SubscriptionRequestsState in homePageDietitian.dart
-
-// REPLACE this entire method inside _SubscriptionRequestsState in homePageDietitian.dart
-
+// REPLACE YOUR _declineSubscription METHOD WITH THIS:
   Future<void> _declineSubscription(Map<String, dynamic> receipt) async {
-    // Show confirmation dialog
-    final confirmed = await showDialog<bool>(
+    String? declineReason;
+
+    // Show reason dialog
+    final reasonEntered = await showDialog<bool>(
       context: context,
-      barrierDismissible: false, // User must make a choice
-      barrierColor: Colors.black.withOpacity(0.6), // Darker overlay
+      barrierDismissible: false,
+      barrierColor: Colors.black.withOpacity(0.6),
       builder: (dialogContext) {
+        final TextEditingController reasonController = TextEditingController();
+
         return Dialog(
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(24),
           ),
-          backgroundColor: Colors.transparent, // Dialog is transparent
+          backgroundColor: Colors.transparent,
           child: Container(
-            padding: const EdgeInsets.all(30), // Padding from login.dart
+            padding: const EdgeInsets.all(30),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(24),
-              color: _cardBgColor(dialogContext), // Use theme-aware color
+              color: _cardBgColor(dialogContext),
             ),
+        child: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // 1. Themed Icon (like in login.dart)
                 Container(
                   width: 80,
                   height: 80,
                   decoration: BoxDecoration(
-                    color: Colors.red.withOpacity(0.1), // Red theme for decline
+                    color: Colors.red.withOpacity(0.1),
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(
-                    Icons.cancel_outlined, // Decline icon
+                    Icons.cancel_outlined,
                     color: Colors.red,
                     size: 44,
                   ),
                 ),
                 const SizedBox(height: 24),
-
-                // 2. Title (using _getTextStyle)
                 Text(
-                  'Decline Subscription?',
+                  'Decline Subscription',
                   style: _getTextStyle(
                     dialogContext,
                     fontSize: 22,
@@ -2533,12 +2569,9 @@ class _SubscriptionRequestsState extends State<SubscriptionRequests> {
                   ),
                 ),
                 const SizedBox(height: 12),
-
-                // 3. Description (using RichText to bold the name)
                 RichText(
                   textAlign: TextAlign.center,
                   text: TextSpan(
-                    // Default style for the whole text
                     style: _getTextStyle(
                       dialogContext,
                       fontSize: 14,
@@ -2546,28 +2579,39 @@ class _SubscriptionRequestsState extends State<SubscriptionRequests> {
                     ),
                     children: [
                       const TextSpan(
-                        text:
-                        'Are you sure you want to decline the subscription request from ',
+                        text: 'Please provide a reason for declining ',
                       ),
                       TextSpan(
                         text: '${receipt['firstname']} ${receipt['lastname']}',
                         style: _getTextStyle(
                           dialogContext,
                           fontSize: 14,
-                          fontWeight: FontWeight.bold, // Make it bold
-                          color: _textColorPrimary(
-                              dialogContext), // Make it stand out
+                          fontWeight: FontWeight.bold,
+                          color: _textColorPrimary(dialogContext),
                         ),
                       ),
                       const TextSpan(
-                        text: '?\n\nThey will be notified via email.',
+                        text: '\'s subscription request.',
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(height: 32),
-
-                // 4. Buttons (Row with Expanded, like in login.dart)
+                const SizedBox(height: 24),
+                TextField(
+                  controller: reasonController,
+                  maxLines: 4,
+                  decoration: InputDecoration(
+                    hintText: 'Enter reason for declining...',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: Colors.red, width: 2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
                 Row(
                   children: [
                     Expanded(
@@ -2593,9 +2637,21 @@ class _SubscriptionRequestsState extends State<SubscriptionRequests> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: ElevatedButton(
-                        onPressed: () => Navigator.of(dialogContext).pop(true),
+                        onPressed: () {
+                          if (reasonController.text.trim().isEmpty) {
+                            ScaffoldMessenger.of(dialogContext).showSnackBar(
+                              const SnackBar(
+                                content: Text('Please enter a reason'),
+                                backgroundColor: Colors.orange,
+                              ),
+                            );
+                            return;
+                          }
+                          declineReason = reasonController.text.trim();
+                          Navigator.of(dialogContext).pop(true);
+                        },
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.red, // Red for decline
+                          backgroundColor: Colors.red,
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 14),
                           shape: RoundedRectangleBorder(
@@ -2609,7 +2665,7 @@ class _SubscriptionRequestsState extends State<SubscriptionRequests> {
                           style: _getTextStyle(
                             dialogContext,
                             fontWeight: FontWeight.bold,
-                            color: Colors.white, // Use theme-aware color
+                            color: Colors.white,
                           ),
                         ),
                       ),
@@ -2619,11 +2675,12 @@ class _SubscriptionRequestsState extends State<SubscriptionRequests> {
               ],
             ),
           ),
+          ),
         );
       },
     );
 
-    if (confirmed != true) return;
+    if (reasonEntered != true || declineReason == null) return;
 
     try {
       final currentDietitian = FirebaseAuth.instance.currentUser;
@@ -2633,7 +2690,6 @@ class _SubscriptionRequestsState extends State<SubscriptionRequests> {
         return;
       }
 
-      // Show loading indicator
       showDialog(
         context: context,
         barrierDismissible: false,
@@ -2643,6 +2699,8 @@ class _SubscriptionRequestsState extends State<SubscriptionRequests> {
       );
 
       final receiptId = receipt['docId'];
+      final clientId = receipt['clientID'];
+      final dietitianId = receipt['dietitianID'];
 
       // Update receipt status to declined
       await FirebaseFirestore.instance
@@ -2651,9 +2709,10 @@ class _SubscriptionRequestsState extends State<SubscriptionRequests> {
           .update({
         "status": "declined",
         "declinedAt": FieldValue.serverTimestamp(),
+        "declineReason": declineReason,
       });
 
-      // Get dietitian info for email
+      // Get dietitian info
       final dietitianDoc = await FirebaseFirestore.instance
           .collection('Users')
           .doc(currentDietitian.uid)
@@ -2661,30 +2720,43 @@ class _SubscriptionRequestsState extends State<SubscriptionRequests> {
 
       final dietitianData = dietitianDoc.data() ?? {};
       final dietitianName =
-      "${dietitianData['firstname'] ?? ''} ${dietitianData['lastname'] ?? ''}"
+      "${dietitianData['firstName'] ?? ''} ${dietitianData['lastName'] ?? ''}"
           .trim();
 
-      // Send decline notification email
-      await declinedEmail.sendDeclineNotification(
-        recipientEmail: receipt['email'],
-        clientName: "${receipt['firstName']} ${receipt['lastName']}",
-        dietitianName:
-        dietitianName.isNotEmpty ? dietitianName : 'Your Dietitian',
-        planType: receipt['planType'],
-        planPrice: receipt['planPrice'].toString(),
+      // Send notification to client with the reason
+      await _sendNotification(
+        receiverId: clientId,
+        receiverName: "${receipt['firstname']} ${receipt['lastname']}",
+        senderId: dietitianId,
+        senderName: dietitianName.isNotEmpty ? dietitianName : 'Your Dietitian',
+        title: 'Subscription Declined',
+        message: 'Your ${receipt['planType'].toLowerCase()} subscription has been declined by ${dietitianName.isNotEmpty ? dietitianName : 'your dietitian'}. Reason: $declineReason',
+        type: 'subscription',
       );
 
-      // Close loading dialog
+      // Optional: Send decline notification email
+      try {
+        await declinedEmail.sendDeclineNotification(
+          recipientEmail: receipt['email'],
+          clientName: "${receipt['firstname']} ${receipt['lastname']}",
+          dietitianName: dietitianName.isNotEmpty ? dietitianName : 'Your Dietitian',
+          planType: receipt['planType'],
+          planPrice: receipt['planPrice'].toString(),
+        );
+      } catch (emailError) {
+        debugPrint('Email notification failed: $emailError');
+        // Continue even if email fails
+      }
+
       if (mounted) Navigator.of(context).pop();
 
       CustomSnackBar.show(
         context,
-        'Subscription declined and user notified via email.',
+        'Subscription declined and user notified.',
         backgroundColor: Colors.red,
         icon: Icons.cancel_outlined,
       );
 
-      // Reload data
       await _loadReceipts();
     } catch (e) {
       if (mounted) Navigator.of(context).pop();

@@ -13,9 +13,7 @@ import 'pages/start2.dart';
 import 'pages/start3.dart';
 import 'pages/start4.dart';
 import 'Dietitians/homePageDietitian.dart';
-
 import 'Admin/firebaseOption.dart';
-
 import '../networkCheck/networkAware.dart';
 
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
@@ -37,51 +35,41 @@ Future<void> main() async {
     }
   }
 
-  // Initialize timezone for scheduled notifications
+  // Initialize timezone
   tz.initializeTimeZones();
-  // Set local timezone
-  final String timeZoneName = 'Asia/Manila';
-  tz.setLocalLocation(tz.getLocation(timeZoneName));
-  print("✅ Timezone initialized: $timeZoneName");
+  tz.setLocalLocation(tz.getLocation('Asia/Manila'));
+  print("✅ Timezone initialized: Asia/Manila");
 
-  // Initialize notifications BEFORE runApp
+  // Initialize local notifications
   await _initializeNotifications();
 
-  // Setup persistent listeners
+  // Persistent background listeners
   _setupPersistentListeners();
 
-  runApp(const MyApp()); // REMOVE NetworkAwareWidget wrapper here
+  runApp(const MyApp());
 }
 
 /// Initialize local notifications
 Future<void> _initializeNotifications() async {
-  const AndroidInitializationSettings androidInitSettings =
-  AndroidInitializationSettings('@mipmap/ic_launcher');
-
-  const DarwinInitializationSettings iosInitSettings =
-  DarwinInitializationSettings(
+  const android = AndroidInitializationSettings('@mipmap/ic_launcher');
+  const ios = DarwinInitializationSettings(
     requestAlertPermission: true,
     requestBadgePermission: true,
     requestSoundPermission: true,
   );
-
-  const InitializationSettings initSettings = InitializationSettings(
-    android: androidInitSettings,
-    iOS: iosInitSettings,
-  );
+  const settings = InitializationSettings(android: android, iOS: ios);
 
   await flutterLocalNotificationsPlugin.initialize(
-    initSettings,
-    onDidReceiveNotificationResponse: (NotificationResponse response) {
+    settings,
+    onDidReceiveNotificationResponse: (response) {
       print("📱 Notification tapped: ${response.payload}");
     },
   );
 
-
   print("✅ Notifications initialized successfully");
 }
 
-/// Setup persistent listeners that survive navigation
+/// Persistent Firestore listeners
 void _setupPersistentListeners() {
   FirebaseAuth.instance.authStateChanges().listen((user) {
     if (user != null) {
@@ -94,7 +82,7 @@ void _setupPersistentListeners() {
   });
 }
 
-/// Listen for new messages
+/// Listen for unread messages
 void _setupMessageListener(String userId) {
   FirebaseFirestore.instance
       .collection('messages')
@@ -107,8 +95,6 @@ void _setupMessageListener(String userId) {
         (snapshot) {
       if (snapshot.docs.isNotEmpty) {
         final msg = snapshot.docs.first.data();
-        print("📩 Unread message detected: ${msg['message']}");
-
         flutterLocalNotificationsPlugin.show(
           msg.hashCode,
           "New message from ${msg['senderName']}",
@@ -120,19 +106,16 @@ void _setupMessageListener(String userId) {
               channelDescription: 'Notifications for new messages',
               importance: Importance.max,
               priority: Priority.high,
-              enableVibration: true,
             ),
           ),
         );
       }
     },
-    onError: (error) {
-      print("❌ Error in message listener: $error");
-    },
+    onError: (error) => print("❌ Error in message listener: $error"),
   );
 }
 
-/// Listen for new appointments
+/// Listen for appointment notifications
 void _setupAppointmentListener(String userId) {
   FirebaseFirestore.instance
       .collection('Users')
@@ -146,9 +129,6 @@ void _setupAppointmentListener(String userId) {
         (snapshot) {
       if (snapshot.docs.isNotEmpty) {
         final notif = snapshot.docs.first.data();
-        print(
-            "📅 Unread appointment notification detected: ${notif['message']}");
-
         flutterLocalNotificationsPlugin.show(
           notif.hashCode,
           notif['title'] ?? 'New Notification',
@@ -160,15 +140,12 @@ void _setupAppointmentListener(String userId) {
               channelDescription: 'Notifications for appointments',
               importance: Importance.max,
               priority: Priority.high,
-              enableVibration: true,
             ),
           ),
         );
       }
     },
-    onError: (error) {
-      print("❌ Error in appointment listener: $error");
-    },
+    onError: (error) => print("❌ Error in appointment listener: $error"),
   );
 }
 
@@ -181,70 +158,93 @@ class MyApp extends StatelessWidget {
       title: 'Mama\'s Recipe',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.green),
         useMaterial3: true,
       ),
-      home: NetworkAwareWidget(  // ADD it here instead
-        child: const AuthCheck(),
-      ),
+      home: NetworkAwareWidget(child: const AuthCheck()),
     );
   }
 }
 
-class AuthCheck extends StatefulWidget {
+class AuthCheck extends StatelessWidget {
   const AuthCheck({super.key});
 
   @override
-  State<AuthCheck> createState() => _AuthCheckState();
-}
-
-class _AuthCheckState extends State<AuthCheck> {
-  @override
   Widget build(BuildContext context) {
-    User? user = FirebaseAuth.instance.currentUser;
+    final user = FirebaseAuth.instance.currentUser;
 
-    if (user != null) {
-      return FutureBuilder<DocumentSnapshot>(
-        future: FirebaseFirestore.instance
-            .collection('Users')
-            .doc(user.uid)
-            .get(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Scaffold(
-              body: Center(child: CircularProgressIndicator()),
-            );
-          }
-
-          if (snapshot.hasData && snapshot.data!.exists) {
-            var userData = snapshot.data!.data() as Map<String, dynamic>;
-            String role = userData['role'] ?? 'user';
-            int tutorialStep = userData['tutorialStep'] ?? 0;
-            String userId = user.uid;
-
-            if (role.toLowerCase() == 'dietitian') {
-              return const HomePageDietitian();
-            }
-
-            switch (tutorialStep) {
-              case 0:
-                return MealPlanningScreen(userId: userId);
-              case 1:
-                return MealPlanningScreen2(userId: userId);
-              case 2:
-                return MealPlanningScreen3(userId: userId);
-              case 3:
-                return MealPlanningScreen4(userId: userId);
-              default:
-                return const home();
-            }
-          }
-
-          return const LoginPageMobile();
-        },
-      );
-    } else {
+    if (user == null) {
       return const LoginPageMobile();
     }
+
+    // ✅ Use StreamBuilder instead of FutureBuilder — auto refreshes
+    return StreamBuilder<DocumentSnapshot>(
+      stream:
+      FirebaseFirestore.instance.collection('Users').doc(user.uid).snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+
+        if (!snapshot.hasData || !snapshot.data!.exists) {
+          return const LoginPageMobile();
+        }
+
+        final userData = snapshot.data!.data() as Map<String, dynamic>;
+        final isDeactivated = userData['deactivated'] ?? false;
+        final role = (userData['role'] ?? 'user').toLowerCase();
+        final tutorialStep = userData['tutorialStep'] ?? 0;
+        final userId = user.uid;
+
+        if (isDeactivated) {
+          return _buildDeactivatedDialog(context);
+        }
+
+        if (role == 'dietitian') {
+          return const HomePageDietitian();
+        }
+
+        switch (tutorialStep) {
+          case 0:
+            return MealPlanningScreen(userId: userId);
+          case 1:
+            return MealPlanningScreen2(userId: userId);
+          case 2:
+            return MealPlanningScreen3(userId: userId);
+          case 3:
+            return MealPlanningScreen4(userId: userId);
+          default:
+            return const home();
+        }
+      },
+    );
+  }
+
+  Widget _buildDeactivatedDialog(BuildContext context) {
+    Future.microtask(() {
+      showDialog(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: const Text('Account Deactivated'),
+          content: const Text(
+              'Your account has been deactivated. Please contact support.'),
+          actions: [
+            TextButton(
+              onPressed: () async {
+                await FirebaseAuth.instance.signOut();
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (_) => const LoginPageMobile()),
+                      (route) => false,
+                );
+              },
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+    });
+    return const SizedBox();
   }
 }

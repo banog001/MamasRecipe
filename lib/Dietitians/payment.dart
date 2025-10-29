@@ -372,15 +372,30 @@ class _PaymentPageState extends State<PaymentPage> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
-                onPressed: () => _showPaymentDialog(paymentData['totalCommissionOwed']),
-                icon: const Icon(Icons.payment_rounded, color: _textColorOnPrimary),
-                label: Text('Pay Commission',
-                    style: _getTextStyle(context, fontSize: 16, fontWeight: FontWeight.bold, color: _textColorOnPrimary)),
+                onPressed: _isPaymentPeriod()
+                    ? () => _showPaymentDialog(paymentData['totalCommissionOwed'])
+                    : null,
+                icon: Icon(
+                  Icons.payment_rounded,
+                  color: _isPaymentPeriod() ? _textColorOnPrimary : Colors.grey[400],
+                ),
+                label: Text(
+                  _isPaymentPeriod()
+                      ? 'Pay Commission'
+                      : 'Payment Period: 1st-5th day only of ${DateFormat('MMMM').format(DateTime(DateTime.now().year, DateTime.now().month + 1))}',
+                  style: _getTextStyle(
+                    context,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: _isPaymentPeriod() ? _textColorOnPrimary : Colors.grey[400],
+                  ),
+                ),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: _primaryColor,
+                  backgroundColor: _isPaymentPeriod() ? _primaryColor : Colors.grey[300],
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  elevation: 2,
+                  elevation: _isPaymentPeriod() ? 2 : 0,
+                  disabledBackgroundColor: Colors.grey[300],
                 ),
               ),
             ),
@@ -505,7 +520,7 @@ class _PaymentPageState extends State<PaymentPage> {
     Timestamp? timestamp = data['timeStamp'];
     String formattedDate = 'N/A';
     if (timestamp != null) {
-      formattedDate = DateFormat('MMM dd, yyyy â€¢ hh:mm a').format(timestamp.toDate());
+      formattedDate = DateFormat('MMM dd, yyyy • hh:mm a').format(timestamp.toDate());
     }
 
     return Card(
@@ -715,14 +730,24 @@ class _PaymentPageState extends State<PaymentPage> {
                               borderRadius: BorderRadius.circular(12),
                               color: Colors.white,
                             ),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.qr_code_2, size: 120, color: Colors.grey[800]),
-                                const SizedBox(height: 8),
-                                Text('GCash / PayMaya',
-                                    style: _getTextStyle(context, fontSize: 14, color: Colors.grey[600])),
-                              ],
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(10),
+                              child: Image.network(
+                                'https://res.cloudinary.com/dbc77ko88/image/upload/v1761671370/qrcode_rzggjb.jpg',
+                                fit: BoxFit.cover,
+                                loadingBuilder: (context, child, loadingProgress) {
+                                  if (loadingProgress == null) return child;
+                                  return Center(
+                                    child: CircularProgressIndicator(
+                                      value: loadingProgress.expectedTotalBytes != null
+                                          ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                                          : null,
+                                    ),
+                                  );
+                                },
+                                errorBuilder: (context, error, stackTrace) =>
+                                    Center(child: Icon(Icons.broken_image, size: 48, color: Colors.grey[400])),
+                              ),
                             ),
                           ),
                           const SizedBox(height: 20),
@@ -845,7 +870,12 @@ class _PaymentPageState extends State<PaymentPage> {
         Navigator.pop(context);
 
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Receipt uploaded successfully!'), backgroundColor: Colors.green),
+          const SnackBar(
+            content: Text('Receipt uploaded successfully!'),
+            backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
+            margin: EdgeInsets.only(bottom: 20, left: 20, right: 20),
+          ),
         );
 
         return imageUrl;
@@ -855,13 +885,33 @@ class _PaymentPageState extends State<PaymentPage> {
     } catch (e) {
       Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error uploading receipt: $e'), backgroundColor: Colors.red),
+        SnackBar(
+          content: Text('Error uploading receipt: $e'),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.only(bottom: 20, left: 20, right: 20),
+        ),
       );
       return null;
     }
   }
 
   Future<void> _markAsPaid(double amount, String receiptUrl) async {
+    // Check if amount is 0 or negative
+    if (amount <= 0) {
+      Navigator.pop(context); // Close the payment dialog
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('You don\'t have anything to pay at the moment.'),
+          backgroundColor: Colors.orange,
+          duration: Duration(seconds: 3),
+          behavior: SnackBarBehavior.floating,
+          margin: EdgeInsets.only(bottom: 20, left: 20, right: 20),
+        ),
+      );
+      return;
+    }
+
     try {
       showDialog(
         context: context,
@@ -974,12 +1024,19 @@ class _PaymentPageState extends State<PaymentPage> {
           content: Text('Payment submitted successfully! Commission has been reset.'),
           backgroundColor: Colors.green,
           duration: Duration(seconds: 3),
+          behavior: SnackBarBehavior.floating,
+          margin: EdgeInsets.only(bottom: 20, left: 20, right: 20),
         ),
       );
     } catch (e) {
       Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error submitting payment: $e'), backgroundColor: Colors.red),
+        SnackBar(
+          content: Text('Error submitting payment: $e'),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.only(bottom: 20, left: 20, right: 20),
+        ),
       );
     }
   }

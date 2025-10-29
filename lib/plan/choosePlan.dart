@@ -69,6 +69,7 @@ class _ChoosePlanPageState extends State<ChoosePlanPage> {
   String? _dietitianId;
   bool _isLoading = true;
   bool _hasActiveSubscription = false;
+  bool _hasPendingReceipt = false;
 
   double _weeklyPrice = 99.00;
   double _monthlyPrice = 250.00;
@@ -176,34 +177,53 @@ class _ChoosePlanPageState extends State<ChoosePlanPage> {
         return;
       }
 
-      // Only query the client's own subscribeTo collection
+      // STEP 1: Check subscription
       final subscribeToSnapshot = await FirebaseFirestore.instance
           .collection('Users')
           .doc(currentUser.uid)
           .collection('subscribeTo')
           .where('dietitianId', isEqualTo: _dietitianId)
+          .limit(1)
           .get();
 
-      String? status;
-
+      bool hasActiveSubscription = false;
       if (subscribeToSnapshot.docs.isNotEmpty) {
-        status = subscribeToSnapshot.docs.first.data()['status'];
-        print('📋 Subscription status: $status');
-      } else {
-        print('📋 No subscription found');
+        final data = subscribeToSnapshot.docs.first.data();
+        final status = data['status'] ?? '';
+        print('📋 Found subscription with status: $status');
+        hasActiveSubscription = status == 'approved';
       }
 
-      bool hasActiveSubscription = status == 'approved';
+      // STEP 2: Check receipts
+      final receiptSnapshot = await FirebaseFirestore.instance
+          .collection('receipts')
+          .where('clientID', isEqualTo: currentUser.uid)
+          .where('dietitianID', isEqualTo: _dietitianId)
+          .where('status', isEqualTo: 'pending')
+          .get();
 
+      bool hasPendingReceipt = receiptSnapshot.docs.isNotEmpty;
+      if (hasPendingReceipt) {
+        print('🕓 Found pending receipt(s): ${receiptSnapshot.docs.length}');
+      }
+
+      // STEP 3: Update state
       setState(() {
         _hasActiveSubscription = hasActiveSubscription;
+        _hasPendingReceipt = hasPendingReceipt;
         _isLoading = false;
       });
-    } catch (e) {
-      print('❌ Error checking subscription status: $e');
+
+      print('✅ State updated → Active: $_hasActiveSubscription | Pending: $_hasPendingReceipt');
+    } catch (e, stack) {
+      print('❌ Error checking subscription: $e');
+      print(stack);
       setState(() => _isLoading = false);
     }
   }
+
+
+
 
 
   @override
@@ -504,18 +524,21 @@ class _ChoosePlanPageState extends State<ChoosePlanPage> {
   }
 
   Widget _buildBottomButton(BuildContext context) {
-    // Determine if button should be disabled
-    bool isButtonDisabled = selectedPlanType == null || _hasActiveSubscription;
+    // ✅ Include pending receipt in the disable condition
+    bool isButtonDisabled =
+        selectedPlanType == null || _hasActiveSubscription || _hasPendingReceipt;
+
     String buttonText;
 
-    if (_hasActiveSubscription) {
+    if (_hasPendingReceipt) {
+      buttonText = 'You have a pending approval';
+    } else if (_hasActiveSubscription) {
       buttonText = 'Already Subscribed';
     } else if (selectedPlanType == null) {
       buttonText = 'Select a plan to continue';
     } else {
       buttonText = 'Proceed to Payment';
     }
-
 
     return Container(
       padding: const EdgeInsets.fromLTRB(24, 16, 24, 40),
@@ -556,11 +579,11 @@ class _ChoosePlanPageState extends State<ChoosePlanPage> {
                   : _textColorOnPrimary,
             ),
           ),
-
         ),
       ),
     );
   }
+
 
   void _proceedToPayment() {
     if (selectedPlanType == null || _dietitianId == null) return;

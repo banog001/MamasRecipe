@@ -7,6 +7,14 @@ import 'home.dart';
 import 'start.dart';
 import '../Dietitians/homePageDietitian.dart';
 
+import 'termsAndConditions.dart';
+
+import 'package:flutter/gestures.dart';// Your terms file
+
+
+
+
+
 const String _primaryFontFamily = 'PlusJakartaSans';
 const Color _primaryColor = Color(0xFF4CAF50);
 
@@ -66,6 +74,9 @@ class _LoginPageState extends State<LoginPageMobile> with TickerProviderStateMix
   final passController = TextEditingController();
   bool _obscurePassword = true;
   bool _isLoading = false;
+  bool _agreedToTerms = false;
+
+
 
   late AnimationController _fadeController;
   late AnimationController _slideController;
@@ -138,6 +149,57 @@ class _LoginPageState extends State<LoginPageMobile> with TickerProviderStateMix
     _slideController.dispose();
     _welcomeController.dispose();
     super.dispose();
+  }
+
+  Widget _buildTermsCheckbox() {
+    return Row(
+      children: [
+        SizedBox(
+          width: 24,
+          height: 24,
+          child: Checkbox(
+            value: _agreedToTerms,
+            onChanged: (value) {
+              setState(() {
+                _agreedToTerms = value ?? false;
+              });
+            },
+            activeColor: _primaryColor,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(4),
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: GestureDetector(
+            onTap: _showTermsDialog,
+            child: RichText(
+              text: TextSpan(
+                style: _getTextStyle(
+                  context,
+                  fontSize: 14,
+                  color: _textColorSecondary(context),
+                ),
+                children: [
+                  const TextSpan(text: 'I agree with '),
+                  TextSpan(
+                    text: 'Terms and Conditions',
+                    style: _getTextStyle(
+                      context,
+                      fontSize: 14,
+                      color: _primaryColor,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    recognizer: TapGestureRecognizer()..onTap = _showTermsDialog,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
   }
 
   Widget _buildWelcomeDialog() {
@@ -273,6 +335,59 @@ class _LoginPageState extends State<LoginPageMobile> with TickerProviderStateMix
         );
       },
     );
+  }
+
+  Future<void> _checkTermsAgreementStatus(String email) async {
+    if (email.isEmpty) return;
+
+    try {
+      // Query Users collection
+      final usersQuery = await FirebaseFirestore.instance
+          .collection('Users')
+          .where('email', isEqualTo: email)
+          .limit(1)
+          .get();
+
+      if (usersQuery.docs.isNotEmpty) {
+        final userData = usersQuery.docs.first.data();
+        bool hasAgreed = userData['checkedAgreeConditions'] ?? false;
+
+        if (mounted) {
+          setState(() {
+            _agreedToTerms = hasAgreed;
+          });
+        }
+        return;
+      }
+
+      // Query dietitianApproval collection
+      final dietitianQuery = await FirebaseFirestore.instance
+          .collection('dietitianApproval')
+          .where('email', isEqualTo: email)
+          .limit(1)
+          .get();
+
+      if (dietitianQuery.docs.isNotEmpty) {
+        final dietitianData = dietitianQuery.docs.first.data();
+        bool hasAgreed = dietitianData['checkedAgreeConditions'] ?? false;
+
+        if (mounted) {
+          setState(() {
+            _agreedToTerms = hasAgreed;
+          });
+        }
+        return;
+      }
+
+      // If no user found, keep checkbox unchecked
+      if (mounted) {
+        setState(() {
+          _agreedToTerms = false;
+        });
+      }
+    } catch (e) {
+      print('Error checking terms agreement status: $e');
+    }
   }
 
   Future<String?> _askUserRoleDialog() async {
@@ -765,13 +880,23 @@ class _LoginPageState extends State<LoginPageMobile> with TickerProviderStateMix
         );
         return;
       } else if (role == "dietitian") {
+        // Get Google profile photo if available
+        String profileUrl = '';
+        User? currentUser = FirebaseAuth.instance.currentUser;
+        if (currentUser != null && currentUser.photoURL != null && currentUser.photoURL!.isNotEmpty) {
+          profileUrl = currentUser.photoURL!;
+        }
+
         await dietitianRef.set({
           "email": user.email ?? "",
           "firstName": firstName,
           "lastName": lastName,
+          "profile": profileUrl,  // Add Google profile URL
           "licenseNum": null,
-          "prcImageurl": null,
+          "prcImageUrl": null,
           "status": "pending",
+          "qrstatus": "pending",  // Add QR status
+          "qrapproved": false,    // Add QR approved flag
           "role": "dietitian",
           "hasCompletedTutorial": false,
           "tutorialStep": 0,
@@ -862,6 +987,90 @@ class _LoginPageState extends State<LoginPageMobile> with TickerProviderStateMix
     }
   }
 
+  Future<void> _showTermsDialog() async {
+    await showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Container(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.8,
+            maxWidth: 500,
+          ),
+          child: Column(
+            children: [
+              // Header
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: _primaryColor,
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(20),
+                    topRight: Radius.circular(20),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Terms and Conditions',
+                        style: _getTextStyle(
+                          context,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: _textColorOnPrimary,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close, color: _textColorOnPrimary),
+                      onPressed: () => Navigator.of(context).pop(),
+                    ),
+                  ],
+                ),
+              ),
+              // Terms Content
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(20),
+                  child: TermsAndConditionsScreen(), // Your terms widget
+                ),
+              ),
+              // Close Button
+              Padding(
+                padding: const EdgeInsets.all(20),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _primaryColor,
+                      foregroundColor: _textColorOnPrimary,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: Text(
+                      'Close',
+                      style: _getTextStyle(
+                        context,
+                        fontWeight: FontWeight.bold,
+                        color: _textColorOnPrimary,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Future<void> _handleLogin() async {
     String email = emailController.text.trim();
     String pass = passController.text.trim();
@@ -897,15 +1106,12 @@ class _LoginPageState extends State<LoginPageMobile> with TickerProviderStateMix
           final notVerifiedSnap = await notVerifiedRef.get();
 
           if (notVerifiedSnap.exists) {
-            // User has unverified account - show verification dialog
             if (mounted) {
               setState(() => _isLoading = false);
               await _showUnverifiedAccountDialog(user);
             }
             return;
           } else {
-            // Account exists but no data in notVerifiedUsers
-            // This might be an old account - ask them to verify
             if (mounted) {
               setState(() => _isLoading = false);
               await _showUnverifiedAccountDialog(user);
@@ -917,24 +1123,65 @@ class _LoginPageState extends State<LoginPageMobile> with TickerProviderStateMix
         // Email is verified - check where user data exists
         print('✅ User email verified: ${user.email}');
 
-        final usersRef = FirebaseFirestore.instance.collection("Users").doc(
-            user.uid);
-        final dietitianRef = FirebaseFirestore.instance.collection(
-            "dietitianApproval").doc(user.uid);
-        final verifiedRef = FirebaseFirestore.instance.collection(
-            "verifiedUsers").doc(user.uid);
+        final usersRef = FirebaseFirestore.instance.collection("Users").doc(user.uid);
+        final dietitianRef = FirebaseFirestore.instance.collection("dietitianApproval").doc(user.uid);
+        final verifiedRef = FirebaseFirestore.instance.collection("verifiedUsers").doc(user.uid);
 
         DocumentSnapshot userSnap = await usersRef.get();
         DocumentSnapshot dietitianSnap = await dietitianRef.get();
         DocumentSnapshot verifiedSnap = await verifiedRef.get();
+
+        // ✅ CHECK TERMS AGREEMENT STATUS
+        bool needsToAgree = false;
+        DocumentReference? userDocRef;
+
+        if (userSnap.exists) {
+          userDocRef = usersRef;
+          final userData = userSnap.data() as Map<String, dynamic>?;
+          bool hasAgreed = userData?['checkedAgreeConditions'] ?? false;
+          needsToAgree = !hasAgreed;
+        } else if (dietitianSnap.exists) {
+          userDocRef = dietitianRef;
+          final dietitianData = dietitianSnap.data() as Map<String, dynamic>?;
+          bool hasAgreed = dietitianData?['checkedAgreeConditions'] ?? false;
+          needsToAgree = !hasAgreed;
+        } else if (verifiedSnap.exists) {
+          needsToAgree = true; // New users need to agree
+        }
+
+        // If user needs to agree to terms, check the checkbox
+        if (needsToAgree && !_agreedToTerms) {
+          if (mounted) {
+            setState(() => _isLoading = false);
+            _showErrorSnackBar("Please agree to the Terms and Conditions");
+          }
+          return;
+        }
+
+        // If user just agreed, save it to Firestore
+        if (needsToAgree && _agreedToTerms && userDocRef != null) {
+          await userDocRef.update({
+            'checkedAgreeConditions': true,
+            'agreedToTermsAt': FieldValue.serverTimestamp(),
+          });
+        }
 
         // Case 1: User exists in Users collection (returning regular user)
         if (userSnap.exists) {
           print('✅ Found in Users collection');
           final userData = userSnap.data() as Map<String, dynamic>?;
           String role = userData?['role'] ?? "user";
-          bool hasCompletedTutorial = userData?['hasCompletedTutorial'] ??
-              false;
+          bool hasCompletedTutorial = userData?['hasCompletedTutorial'] ?? false;
+          bool isDeactivated = userData?['deactivated'] ?? false;
+
+          if (isDeactivated) {
+            print('⚠️ Account is deactivated');
+            if (mounted) {
+              setState(() => _isLoading = false);
+              await _showDeactivatedAccountDialog();
+            }
+            return;
+          }
 
           if (role == "user") {
             if (hasCompletedTutorial) {
@@ -958,9 +1205,18 @@ class _LoginPageState extends State<LoginPageMobile> with TickerProviderStateMix
           print('✅ Found in dietitianApproval collection');
           final dietitianData = dietitianSnap.data() as Map<String, dynamic>?;
           String status = dietitianData?['status'] ?? 'pending';
+          bool isDeactivated = dietitianData?['deactivated'] ?? false;
+
+          if (isDeactivated) {
+            print('⚠️ Dietitian account is deactivated');
+            if (mounted) {
+              setState(() => _isLoading = false);
+              await _showDeactivatedAccountDialog();
+            }
+            return;
+          }
 
           if (status == 'pending') {
-            // Dietitian is still pending approval - show waiting dialog
             if (mounted) {
               setState(() => _isLoading = false);
               await showDialog(
@@ -1021,7 +1277,6 @@ class _LoginPageState extends State<LoginPageMobile> with TickerProviderStateMix
             }
             return;
           } else if (status == 'approved') {
-            // Dietitian is approved - allow login
             bool hasCompletedTutorial = dietitianData?['hasCompletedTutorial'] ??
                 false;
 
@@ -1038,7 +1293,6 @@ class _LoginPageState extends State<LoginPageMobile> with TickerProviderStateMix
               );
             }
           } else if (status == 'rejected') {
-            // Dietitian was rejected
             if (mounted) {
               setState(() => _isLoading = false);
               _showErrorSnackBar(
@@ -1058,18 +1312,15 @@ class _LoginPageState extends State<LoginPageMobile> with TickerProviderStateMix
           String firstName = verifiedData?['firstName'] ?? '';
           String lastName = verifiedData?['lastName'] ?? '';
 
-          // Ask user to select their role
           String? selectedRole = await _askUserRoleDialog();
 
           if (selectedRole == null) {
-            // User cancelled the dialog, sign them out
             await FirebaseAuth.instance.signOut();
             setState(() => _isLoading = false);
             return;
           }
 
           if (selectedRole == "user") {
-            // Create document in Users collection
             await usersRef.set({
               "email": user.email,
               "firstName": firstName,
@@ -1082,10 +1333,11 @@ class _LoginPageState extends State<LoginPageMobile> with TickerProviderStateMix
               "tutorialStep": 0,
               "role": "user",
               "qrapproved": false,
+              "checkedAgreeConditions": true,  // ✅ Save terms agreement
+              "agreedToTermsAt": FieldValue.serverTimestamp(),
               "creationDate": FieldValue.serverTimestamp(),
             });
 
-            // Delete from verifiedUsers
             try {
               await verifiedRef.delete();
             } catch (_) {}
@@ -1098,29 +1350,36 @@ class _LoginPageState extends State<LoginPageMobile> with TickerProviderStateMix
                   builder: (_) => MealPlanningScreen(userId: user!.uid)),
             );
           } else if (selectedRole == "dietitian") {
-            // Create document in dietitianApproval collection
+            String profileUrl = '';
+            User? currentUser = FirebaseAuth.instance.currentUser;
+            if (currentUser != null && currentUser.photoURL != null && currentUser.photoURL!.isNotEmpty) {
+              profileUrl = currentUser.photoURL!;
+            }
+
             await dietitianRef.set({
               "email": user.email ?? "",
               "firstName": firstName,
               "lastName": lastName,
+              "profile": profileUrl,
               "licenseNum": null,
-              "prcImageurl": null,
+              "prcImageUrl": null,
               "status": "pending",
+              "qrstatus": "pending",
+              "qrapproved": false,
               "role": "dietitian",
               "hasCompletedTutorial": false,
               "tutorialStep": 0,
+              "checkedAgreeConditions": true,  // ✅ Save terms agreement
+              "agreedToTermsAt": FieldValue.serverTimestamp(),
               "createdAt": FieldValue.serverTimestamp(),
             });
 
-            // Delete from verifiedUsers
             try {
               await verifiedRef.delete();
             } catch (_) {}
 
-            print(
-                '✅ Migrated to dietitianApproval collection with pending status');
+            print('✅ Migrated to dietitianApproval collection with pending status');
 
-            // Show pending approval dialog
             if (mounted) {
               Navigator.pushReplacement(
                 context,
@@ -1134,11 +1393,10 @@ class _LoginPageState extends State<LoginPageMobile> with TickerProviderStateMix
           return;
         }
 
-        // Case 4: No document found anywhere (shouldn't happen with email/password, but handle it)
+        // Case 4: No document found anywhere
         print(
             '⚠️ No user document found - this should not happen for verified email/password users');
 
-        // Sign out and show error
         await FirebaseAuth.instance.signOut();
         if (mounted) {
           setState(() => _isLoading = false);
@@ -1306,12 +1564,157 @@ class _LoginPageState extends State<LoginPageMobile> with TickerProviderStateMix
     await FirebaseAuth.instance.signOut();
   }
 
+  // Add this method after _showUnverifiedAccountDialog
+  Future<bool> _checkIfAccountDeactivated(String uid) async {
+    try {
+      final userDoc = await FirebaseFirestore.instance
+          .collection('Users')
+          .doc(uid)
+          .get();
+
+      if (userDoc.exists) {
+        final userData = userDoc.data() as Map<String, dynamic>?;
+        return userData?['deactivated'] ?? false;
+      }
+      return false;
+    } catch (e) {
+      print('Error checking deactivation status: $e');
+      return false;
+    }
+  }
+
+// Add this method to show deactivated account dialog
+  Future<void> _showDeactivatedAccountDialog() async {
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Container(
+          padding: const EdgeInsets.all(30),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            color: _cardBgColor(context),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 80,
+                height: 80,
+                decoration: BoxDecoration(
+                  color: Colors.red.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.block,
+                  color: Colors.red,
+                  size: 44,
+                ),
+              ),
+              const SizedBox(height: 18),
+              Text(
+                'Account Deactivated',
+                style: _getTextStyle(
+                  context,
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: _textColorPrimary(context),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Your account has been deactivated by the administrator. Please contact support for more information.',
+                textAlign: TextAlign.center,
+                style: _getTextStyle(
+                  context,
+                  fontSize: 14,
+                  color: _textColorSecondary(context),
+                ),
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                height: 45,
+                child: ElevatedButton(
+                  onPressed: () async {
+                    await FirebaseAuth.instance.signOut();
+                    if (mounted) {
+                      Navigator.of(context).pop();
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red,
+                    foregroundColor: _textColorOnPrimary,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: Text(
+                    'OK',
+                    style: _getTextStyle(
+                      context,
+                      fontWeight: FontWeight.bold,
+                      color: _textColorOnPrimary,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    await FirebaseAuth.instance.signOut();
+  }
+
   Future<void> _handleGoogleSignIn() async {
     setState(() => _isLoading = true);
     try {
       bool isLogged = await loginWithGoogle();
       if (isLogged && FirebaseAuth.instance.currentUser != null) {
-        await _handlePostLogin(FirebaseAuth.instance.currentUser!);
+        User? user = FirebaseAuth.instance.currentUser;
+
+        // ✅ CHECK TERMS AGREEMENT
+        final usersRef = FirebaseFirestore.instance.collection("Users").doc(user!.uid);
+        final dietitianRef = FirebaseFirestore.instance.collection("dietitianApproval").doc(user.uid);
+
+        DocumentSnapshot userSnap = await usersRef.get();
+        DocumentSnapshot dietitianSnap = await dietitianRef.get();
+
+        bool needsToAgree = false;
+        DocumentReference? userDocRef;
+
+        if (userSnap.exists) {
+          userDocRef = usersRef;
+          final userData = userSnap.data() as Map<String, dynamic>?;
+          bool hasAgreed = userData?['checkedAgreeConditions'] ?? false;
+          needsToAgree = !hasAgreed;
+        } else if (dietitianSnap.exists) {
+          userDocRef = dietitianRef;
+          final dietitianData = dietitianSnap.data() as Map<String, dynamic>?;
+          bool hasAgreed = dietitianData?['checkedAgreeConditions'] ?? false;
+          needsToAgree = !hasAgreed;
+        }
+
+        if (needsToAgree && !_agreedToTerms) {
+          if (mounted) {
+            setState(() => _isLoading = false);
+            _showErrorSnackBar("Please agree to the Terms and Conditions");
+          }
+          return;
+        }
+
+        // Save agreement if needed
+        if (needsToAgree && _agreedToTerms && userDocRef != null) {
+          await userDocRef.update({
+            'checkedAgreeConditions': true,
+            'agreedToTermsAt': FieldValue.serverTimestamp(),
+          });
+        }
+
+        await _handlePostLogin(user);
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -1346,7 +1749,43 @@ class _LoginPageState extends State<LoginPageMobile> with TickerProviderStateMix
         accessToken: googleAuth.accessToken,
       );
 
-      await FirebaseAuth.instance.signInWithCredential(credential);
+      UserCredential userCredential = await FirebaseAuth.instance.signInWithCredential(credential);
+      User? user = userCredential.user;
+
+      if (user != null) {
+        // ✅ FIRST: Check dietitianApproval collection (existing logic - don't change)
+        final dietitianDoc = await FirebaseFirestore.instance
+            .collection('dietitianApproval')
+            .doc(user.uid)
+            .get();
+
+        // ✅ SECOND: If NOT in dietitianApproval, check Users collection for deactivation
+        if (!dietitianDoc.exists) {
+          final userDoc = await FirebaseFirestore.instance
+              .collection('Users')
+              .doc(user.uid)
+              .get();
+
+          if (userDoc.exists) {
+            final userData = userDoc.data() as Map<String, dynamic>?;
+            bool isDeactivated = userData?['deactivated'] ?? false;
+
+            if (isDeactivated) {
+              print('⚠️ Account is deactivated (Google Sign-In - Users collection)');
+              // Sign out immediately
+              await FirebaseAuth.instance.signOut();
+              await googleSignIn.signOut();
+
+              // Show deactivation dialog
+              if (mounted) {
+                await _showDeactivatedAccountDialog();
+              }
+              return false;
+            }
+          }
+        }
+      }
+
       return FirebaseAuth.instance.currentUser != null;
     } catch (e) {
       print("Google Sign-In error: $e");
@@ -1543,6 +1982,8 @@ class _LoginPageState extends State<LoginPageMobile> with TickerProviderStateMix
                                         _buildLoginButton(),
                                         const SizedBox(height: 16),
                                         _buildGoogleSignInButton(),
+                                        const SizedBox(height: 16),  // ← Add this
+                                        _buildTermsCheckbox(),
                                       ],
                                     ),
                                   ),

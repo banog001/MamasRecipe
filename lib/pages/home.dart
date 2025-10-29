@@ -28,6 +28,9 @@ import 'package:mailer/mailer.dart';
 import 'package:mailer/smtp_server.dart';
 import 'package:timezone/timezone.dart' as tz;
 
+import 'termsAndConditions.dart';
+import 'package:flutter/material.dart';
+
 // Add this class after all your imports and before the home class
 class MealPlanNotificationService {
   static final fln.FlutterLocalNotificationsPlugin _notifications =
@@ -7406,6 +7409,336 @@ class _UsersListPageState extends State<UsersListPage> {
     );
   }
 
+  void _showSubscriptionDialog(BuildContext context, Map<String, dynamic> notificationData) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        final String title = notificationData['title'] ?? 'Subscription Update';
+        final String message = notificationData['message'] ?? 'No details available';
+        final String senderName = notificationData['senderName'] ?? 'Dietitian';
+        final Timestamp? timestamp = notificationData['timestamp'] as Timestamp?;
+
+        // Determine if approved or declined based on title or message
+        final bool isApproved = title.toLowerCase().contains('approved');
+        final bool isDeclined = title.toLowerCase().contains('declined');
+
+        String formattedDate = '';
+        if (timestamp != null) {
+          formattedDate = DateFormat('MMMM dd, yyyy – hh:mm a').format(timestamp.toDate());
+        }
+
+        // Extract plan type from message if available
+        String planType = 'Subscription';
+        final messageLower = message.toLowerCase();
+        if (messageLower.contains('weekly')) {
+          planType = 'Weekly Plan';
+        } else if (messageLower.contains('monthly')) {
+          planType = 'Monthly Plan';
+        } else if (messageLower.contains('yearly')) {
+          planType = 'Yearly Plan';
+        }
+
+        // Determine colors and icon based on status
+        Color statusColor = isApproved ? Colors.green : (isDeclined ? Colors.red : _primaryColor);
+        IconData statusIcon = isApproved
+            ? Icons.check_circle_rounded
+            : (isDeclined ? Icons.cancel_rounded : Icons.info_rounded);
+
+        return Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          elevation: 16,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 400),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Header
+                  Container(
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: statusColor.withOpacity(0.1),
+                      borderRadius: const BorderRadius.only(
+                        topLeft: Radius.circular(20),
+                        topRight: Radius.circular(20),
+                      ),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+                    child: Column(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: statusColor.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(15),
+                          ),
+                          child: Icon(
+                            statusIcon,
+                            color: statusColor,
+                            size: 32,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          title,
+                          style: const TextStyle(
+                            fontFamily: _primaryFontFamily,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 20,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Timestamp
+                        if (formattedDate.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 16.0),
+                            child: Row(
+                              children: [
+                                Icon(Icons.access_time, size: 16, color: Colors.grey.shade600),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    formattedDate,
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      color: Colors.grey.shade600,
+                                      fontFamily: _primaryFontFamily,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+
+                        // Subscription Plan Info
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                statusColor.withOpacity(0.15),
+                                statusColor.withOpacity(0.05),
+                              ],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: statusColor.withOpacity(0.3),
+                              width: 1.5,
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: statusColor.withOpacity(0.2),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Icon(
+                                  Icons.card_membership_rounded,
+                                  color: statusColor,
+                                  size: 20,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Subscription Plan',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: Colors.grey.shade600,
+                                        fontFamily: _primaryFontFamily,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      planType,
+                                      style: TextStyle(
+                                        fontFamily: _primaryFontFamily,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16,
+                                        color: statusColor,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        const SizedBox(height: 16),
+
+                        // Dietitian Info
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade100,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(Icons.person_outline, size: 18, color: statusColor),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  'Dietitian: $senderName',
+                                  style: const TextStyle(
+                                    fontFamily: _primaryFontFamily,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        const SizedBox(height: 16),
+
+                        // Message/Status
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: statusColor.withOpacity(0.08),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: statusColor.withOpacity(0.2)),
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Icon(Icons.info_outline, size: 18, color: statusColor),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  message,
+                                  style: const TextStyle(
+                                    fontFamily: _primaryFontFamily,
+                                    fontSize: 13,
+                                    height: 1.6,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        const SizedBox(height: 16),
+
+                        // Additional Info based on status
+                        if (isApproved)
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.green.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: Colors.green.withOpacity(0.3)),
+                            ),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Icon(Icons.celebration_rounded, size: 18, color: Colors.green.shade700),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(
+                                    'Your subscription is now active! You can now access all features.',
+                                    style: TextStyle(
+                                      fontFamily: _primaryFontFamily,
+                                      fontSize: 12,
+                                      color: Colors.green.shade900,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+
+                        if (isDeclined)
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.orange.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: Colors.orange.withOpacity(0.3)),
+                            ),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Icon(Icons.help_outline_rounded, size: 18, color: Colors.orange.shade700),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(
+                                    'Please contact your dietitian for more information or to resubmit your request.',
+                                    style: TextStyle(
+                                      fontFamily: _primaryFontFamily,
+                                      fontSize: 12,
+                                      color: Colors.orange.shade900,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+
+                  // Close Button
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: () => Navigator.of(context).pop(),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: statusColor,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        icon: const Icon(Icons.check_circle_outline, size: 20),
+                        label: const Text(
+                          'Got it!',
+                          style: TextStyle(
+                            fontFamily: _primaryFontFamily,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   Widget _buildPriceComparison(String label, String oldPrice, String newPrice) {
     final bool priceChanged = oldPrice != newPrice;
 
@@ -7986,6 +8319,8 @@ class _UsersListPageState extends State<UsersListPage> {
 
                                   if (data["type"] == "priceChange") {
                                     _showPriceChangeDialog(context, data);
+                                  }else if (data["type"] == "subscription") {
+                                    _showSubscriptionDialog(context, data);
                                   } else if (data["type"] == "meal_plan_scheduled") {
                                     _showMealPlanScheduledDialog(context, data);
                                   } else if(data["type"] == "meal_plan_declined"){
