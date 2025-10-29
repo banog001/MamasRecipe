@@ -404,6 +404,372 @@ TextStyle _lockedTextStyle(BuildContext context) => TextStyle(
   fontStyle: FontStyle.italic,
 );
 
+class RatingService {
+  static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  static final FirebaseAuth _auth = FirebaseAuth.instance;
+
+  static Future<bool> submitRating({
+    required int rating,
+    required String? description,
+    required String fullName,
+    required String email,
+  }) async {
+    try {
+      final userId = _auth.currentUser?.uid;
+
+      if (userId == null) {
+        throw Exception('User not authenticated');
+      }
+
+      await _firestore.collection('appRatings').add({
+        'userId': userId,
+        'rating': rating,
+        'description': description ?? '',
+        'fullName': fullName,
+        'email': email,
+        'timestamp': FieldValue.serverTimestamp(),
+      });
+
+      return true;
+    } catch (e) {
+      print('Error submitting rating: $e');
+      return false;
+    }
+  }
+}
+
+class _RateUsDialog extends StatefulWidget {
+  final String fullName;
+  final String email;
+  final Function onSuccess;
+
+  const _RateUsDialog({
+    Key? key,
+    required this.fullName,
+    required this.email,
+    required this.onSuccess,
+  }) : super(key: key);
+
+  @override
+  State<_RateUsDialog> createState() => _RateUsDialogState();
+}
+
+class _RateUsDialogState extends State<_RateUsDialog> {
+  int _selectedRating = 0;
+  final TextEditingController _descriptionController = TextEditingController();
+  bool _isSubmitting = false;
+
+  @override
+  void dispose() {
+    _descriptionController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submitRating() async {
+    if (_selectedRating == 0) {
+      CustomSnackBar.show(
+        context,
+        'Please select a rating',
+        backgroundColor: Colors.orange,
+        icon: Icons.star,
+        duration: const Duration(seconds: 2),
+      );
+      return;
+    }
+
+    setState(() => _isSubmitting = true);
+
+    final success = await RatingService.submitRating(
+      rating: _selectedRating,
+      description: _descriptionController.text.trim(),
+      fullName: widget.fullName, // <-- This line is fixed
+      email: widget.email,    // <-- This line is fixed
+    );
+
+    setState(() => _isSubmitting = false);
+
+    if (success && mounted) {
+      Navigator.of(context).pop();
+      widget.onSuccess();
+
+      CustomSnackBar.show(
+        context,
+        'Thank you for your rating! ✨',
+        backgroundColor: Colors.green,
+        icon: Icons.check_circle,
+        duration: const Duration(seconds: 2),
+      );
+    } else if (mounted) {
+      CustomSnackBar.show(
+        context,
+        'Failed to submit rating. Please try again.',
+        backgroundColor: Colors.red,
+        icon: Icons.error,
+        duration: const Duration(seconds: 2),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          backgroundColor: Colors.transparent,
+          child: ScrollConfiguration(
+          behavior: ScrollConfiguration.of(context).copyWith(
+          scrollbars: false,
+          ),
+          child: SingleChildScrollView( // <-- ADD THIS WIDGET
+          child: Container( // <-- Now the Container is inside
+          decoration: BoxDecoration(
+            color: _cardBgColor(context),
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.15),
+                blurRadius: 20,
+                offset: const Offset(0, 10),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Header
+              Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      _primaryColor,
+                      _primaryColor.withOpacity(0.8),
+                    ],
+                  ),
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(24),
+                    topRight: Radius.circular(24),
+                  ),
+                ),
+                padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 20),
+                child: Column(
+                  children: [
+                    const SizedBox(height: 16),
+                    Text(
+                      'Rate Our App',
+                      style: _getTextStyle(
+                        context,
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                        height: 1.5,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Help us improve your experience',
+                      style: _getTextStyle(
+                        context,
+                        fontSize: 14,
+                        color: Colors.white.withOpacity(0.9),
+                        height: 1.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Content
+              Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Star Rating
+                    Center(
+                      child: Column(
+                        children: [
+                          Text(
+                            _selectedRating == 0
+                                ? 'Select a rating'
+                                : 'You rated: $_selectedRating ${_selectedRating == 1 ? 'star' : 'stars'}',
+                            style: _getTextStyle(
+                              context,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: _selectedRating == 0
+                                  ? _textColorSecondary(context)
+                                  : _primaryColor,
+                              height: 1.5,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: List.generate(5, (index) {
+                              final rating = index + 1;
+                              final isSelected = _selectedRating >= rating;
+
+                              return GestureDetector(
+                                  onTap: () {
+                                    setState(() => _selectedRating = rating);
+                                  },
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 3),
+                                    child: AnimatedScale(
+                                      scale: isSelected ? 1.2 : 1.0,
+                                      duration: const Duration(milliseconds: 200),
+                                      child: Icon(
+                                        isSelected
+                                            ? Icons.star_rounded
+                                            : Icons.star_outline_rounded,
+                                        color: isSelected ? Colors.amber : Colors.grey.shade300,
+                                        size: 40,
+                                      ),
+                                    ),
+                                  ),
+                              );
+                            }),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 28),
+
+                    // Description TextField
+                    Text(
+                      'Tell us more (Optional)',
+                      style: _getTextStyle(
+                        context,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        height: 1.5,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: _descriptionController,
+                      maxLines: 4,
+                      maxLength: 300,
+                      enabled: !_isSubmitting,
+                      decoration: InputDecoration(
+                        hintText: 'Share your experience with us...',
+                        hintStyle: TextStyle(
+                          color: Colors.grey.shade400,
+                          fontFamily: _primaryFontFamily,
+                        ),
+                        filled: true,
+                        fillColor: _primaryColor.withOpacity(0.05),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(
+                            color: _primaryColor.withOpacity(0.2),
+                          ),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(
+                            color: _primaryColor,
+                            width: 2,
+                          ),
+                        ),
+                        contentPadding: const EdgeInsets.all(16),
+                        counterStyle: _getTextStyle(
+                          context,
+                          fontSize: 12,
+                          color: _textColorSecondary(context),
+                          height: 1.5,
+                        ),
+                      ),
+                      style: _getTextStyle(
+                        context,
+                        fontSize: 14,
+                        height: 1.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Buttons
+              Padding(
+                padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: _isSubmitting
+                            ? null
+                            : () => Navigator.of(context).pop(),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          side: BorderSide(
+                            color: _primaryColor.withOpacity(0.5),
+                            width: 1.5,
+                          ),
+                        ),
+                        child: Text(
+                          'Cancel',
+                          style: _getTextStyle(
+                            context,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            color: _primaryColor,
+                            height: 1.5,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: _isSubmitting ? null : _submitRating,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: _primaryColor,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          elevation: 4,
+                        ),
+                        child: _isSubmitting
+                            ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            valueColor:
+                            AlwaysStoppedAnimation<Color>(Colors.white),
+                            strokeWidth: 2,
+                          ),
+                        )
+                            : Text(
+                          'Submit Rating',
+                          style: _getTextStyle(
+                            context,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                            height: 1.5,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    ),
+    );
+  }
+}
+
+
 class home extends StatefulWidget {
   final int initialIndex;
   const home({super.key, this.initialIndex = 0});
@@ -3282,6 +3648,49 @@ class _HomeState extends State<home> {
     ),
   ];
 
+  Future<void> _showRateUsPopup() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    try {
+      final userDoc = await FirebaseFirestore.instance
+          .collection('Users')
+          .doc(user.uid)
+          .get();
+
+      if (!userDoc.exists) return;
+
+      final userData = userDoc.data() as Map<String, dynamic>;
+      final firstName = userData['firstName'] as String? ?? '';
+      final lastName = userData['lastName'] as String? ?? '';
+      final fullName = '$firstName $lastName'.trim();
+      final email = user.email ?? '';
+
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (context) => _RateUsDialog(
+            fullName: fullName,
+            email: email,
+            onSuccess: () {
+              print('Rating submitted successfully');
+            },
+          ),
+        );
+      }
+    } catch (e) {
+      print('Error showing rate us dialog: $e');
+      if (mounted) {
+        CustomSnackBar.show(
+          context,
+          'Error loading rating dialog',
+          backgroundColor: Colors.red,
+          icon: Icons.error,
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (firebaseUser == null) {
@@ -3404,18 +3813,18 @@ class _HomeState extends State<home> {
               ),
               buildMenuTile('Subscription', Icons.subscriptions_outlined,
                   Icons.subscriptions),
-                ListTile(
+              buildMenuTile('Rate Us', Icons.star_outline, Icons.star),
+              ListTile(
                 leading: const Icon(Icons.info_outline, color: Colors.black87),
                 title: const Text('About', style: TextStyle(fontFamily: _primaryFontFamily)),
                 onTap: () {
-                  Navigator.pop(context); // Close the drawer first
+                  Navigator.pop(context);
                   Navigator.push(
                     context,
                     MaterialPageRoute(builder: (context) => const AboutPage()),
                   );
                 },
               ),
-
               const Divider(indent: 16, endIndent: 16),
               buildMenuTile('Logout', Icons.logout_outlined, Icons.logout),
             ],
@@ -3597,6 +4006,8 @@ class _HomeState extends State<home> {
                     (Route<dynamic> route) => false,
               );
             }
+          } else if (label == 'Rate Us') {
+            _showRateUsPopup();
           } else if (label == 'Subscription') {
             showSubscriptionOptions(context, firebaseUser!.uid);
           } else {
