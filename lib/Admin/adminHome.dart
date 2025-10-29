@@ -5,6 +5,8 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:async/async.dart';
 import 'package:rxdart/rxdart.dart';
+import 'adminLogin.dart';
+import 'dart:async';
 
 import '../email/rejectPayment.dart';
 
@@ -6762,7 +6764,9 @@ class _AdminHomeState extends State<AdminHome> {
     final firstNameController = TextEditingController();
     final lastNameController = TextEditingController();
     final emailController = TextEditingController();
+    final passwordController = TextEditingController();
     String selectedRole = "user";
+    bool obscurePassword = true;
 
     showDialog(
       context: context,
@@ -6818,12 +6822,38 @@ class _AdminHomeState extends State<AdminHome> {
                   const SizedBox(height: 16),
                   TextField(
                     controller: emailController,
+                    keyboardType: TextInputType.emailAddress,
                     decoration: InputDecoration(
                       labelText: "Email",
                       prefixIcon: const Icon(Icons.email_outlined),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: passwordController,
+                    obscureText: obscurePassword,
+                    decoration: InputDecoration(
+                      labelText: "Password",
+                      prefixIcon: const Icon(Icons.lock_outline),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          obscurePassword
+                              ? Icons.visibility
+                              : Icons.visibility_off,
+                        ),
+                        onPressed: () {
+                          setDialogState(() {
+                            obscurePassword = !obscurePassword;
+                          });
+                        },
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      helperText: "Minimum 6 characters",
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -6849,35 +6879,6 @@ class _AdminHomeState extends State<AdminHome> {
                       });
                     },
                   ),
-                  const SizedBox(height: 16),
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.blue.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.blue.withOpacity(0.3)),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.info_outline,
-                          color: Colors.blue.shade700,
-                          size: 20,
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            "User will need to complete signup with this email",
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.blue.shade700,
-                              fontFamily: _primaryFontFamily,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
                 ],
               ),
             ),
@@ -6899,9 +6900,11 @@ class _AdminHomeState extends State<AdminHome> {
                 ),
               ),
               onPressed: () async {
+                // Validation
                 if (firstNameController.text.isEmpty ||
                     lastNameController.text.isEmpty ||
-                    emailController.text.isEmpty) {
+                    emailController.text.isEmpty ||
+                    passwordController.text.isEmpty) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: const Row(
@@ -6924,121 +6927,317 @@ class _AdminHomeState extends State<AdminHome> {
                   return;
                 }
 
-                showDialog(
-                  context: dialogContext,
-                  barrierDismissible: false,
-                  builder: (loadingContext) => const Center(
-                    child: CircularProgressIndicator(color: _primaryColor),
-                  ),
-                );
+                if (passwordController.text.length < 6) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: const Row(
+                        children: [
+                          Icon(Icons.warning, color: Colors.white),
+                          SizedBox(width: 8),
+                          Text(
+                            "Password must be at least 6 characters",
+                            style: TextStyle(fontFamily: _primaryFontFamily),
+                          ),
+                        ],
+                      ),
+                      backgroundColor: Colors.orange,
+                      behavior: SnackBarBehavior.floating,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                  );
+                  return;
+                }
+
+                // Close dialog first
+                Navigator.of(dialogContext).pop();
 
                 try {
-                  final docRef = FirebaseFirestore.instance
-                      .collection("Users")
-                      .doc();
-                  final userId = docRef
-                      .id; // Changed this to docId, assuming it's passed correctly
+                  // CREATE NEW USER IN FIREBASE AUTHENTICATION
+                  UserCredential userCredential =
+                  await FirebaseAuth.instance
+                      .createUserWithEmailAndPassword(
+                    email: emailController.text.trim(),
+                    password: passwordController.text,
+                  );
 
-                  await docRef.set({
+                  final userId = userCredential.user!.uid;
+
+                  // Update display name
+                  await userCredential.user!.updateDisplayName(
+                    "${firstNameController.text} ${lastNameController.text}",
+                  );
+
+                  // SEND EMAIL VERIFICATION
+                  await userCredential.user!.sendEmailVerification();
+
+                  // ADD USER TO notVerifiedUsers COLLECTION
+                  await FirebaseFirestore.instance
+                      .collection("notVerifiedUsers")
+                      .doc(userId)
+                      .set({
                     "uid": userId,
                     "firstName": firstNameController.text.trim(),
                     "lastName": lastNameController.text.trim(),
                     "email": emailController.text.trim(),
                     "role": selectedRole,
-                    "status": "pending",
-                    "profile": "",
+                    "emailVerified": false,
                     "createdAt": FieldValue.serverTimestamp(),
+                    "verificationEmailSent": true,
+                    if (selectedRole == "dietitian") ...{
+                      "totalRevenue": 0.0,
+                      "totalCommission": 0.0,
+                      "totalEarnings": 0.0,
+                      "overallEarnings": 0.0,
+                      "weeklyCommission": 0.0,
+                      "monthlyCommission": 0.0,
+                      "yearlyCommission": 0.0,
+                      "activeSubscriptions": 0,
+                      "clientCount": 0,
+                      "qrpic": "",
+                    },
                   });
 
-                  Navigator.of(dialogContext).pop();
-                  Navigator.of(dialogContext).pop();
+                  if (!mounted) return;
 
-                  await Future.delayed(const Duration(milliseconds: 100));
-
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Row(
-                          children: [
-                            const Icon(
-                              Icons.check_circle,
-                              color: Colors.white,
-                              size: 24,
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Text(
-                                    "Success!",
-                                    style: TextStyle(
-                                      fontFamily: _primaryFontFamily,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 16,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    "${firstNameController.text} ${lastNameController.text} has been added",
-                                    style: const TextStyle(
-                                      fontFamily: _primaryFontFamily,
-                                      fontSize: 14,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
+                  // ✅ Show success dialog with explanation why logout is needed
+                  showDialog(
+                    context: context,
+                    barrierDismissible: true, // ✅ Allow dismissing by tapping outside
+                    builder: (successContext) => AlertDialog(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      icon: Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.green.withOpacity(0.1),
+                          shape: BoxShape.circle,
                         ),
-                        backgroundColor: Colors.green.shade600,
-                        behavior: SnackBarBehavior.floating,
-                        margin: const EdgeInsets.all(16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        duration: const Duration(seconds: 4),
-                        action: SnackBarAction(
-                          label: "OK",
-                          textColor: Colors.white,
-                          onPressed: () {},
+                        child: const Icon(
+                          Icons.check_circle,
+                          color: Colors.green,
+                          size: 32,
                         ),
                       ),
-                    );
-                  }
-                } catch (e) {
-                  Navigator.of(dialogContext).pop();
-
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Row(
+                      title: const Text(
+                        "User Created Successfully!",
+                        style: TextStyle(
+                          fontFamily: _primaryFontFamily,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      content: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Icon(Icons.error_outline, color: Colors.white),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              "Error: ${e.toString()}",
-                              style: const TextStyle(
-                                fontFamily: _primaryFontFamily,
+                          // User details
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.grey.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  "Name: ${firstNameController.text} ${lastNameController.text}",
+                                  style: const TextStyle(
+                                    fontFamily: _primaryFontFamily,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  "Email: ${emailController.text.trim()}",
+                                  style: const TextStyle(
+                                    fontFamily: _primaryFontFamily,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  "Role: ${selectedRole[0].toUpperCase()}${selectedRole.substring(1)}",
+                                  style: const TextStyle(
+                                    fontFamily: _primaryFontFamily,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+
+                          // Verification email info
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.blue.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: Colors.blue.withOpacity(0.3),
                               ),
+                            ),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Icon(
+                                  Icons.mail_outline,
+                                  color: Colors.blue.shade700,
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    "Verification email sent to ${emailController.text.trim()}",
+                                    style: TextStyle(
+                                      fontFamily: _primaryFontFamily,
+                                      fontSize: 12,
+                                      color: Colors.blue.shade700,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+
+                          // Reason to logout
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.orange.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: Colors.orange.withOpacity(0.3),
+                              ),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Icon(
+                                      Icons.info_outline,
+                                      color: Colors.orange.shade700,
+                                      size: 20,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      "Why logout?",
+                                      style: TextStyle(
+                                        fontFamily: _primaryFontFamily,
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.orange.shade700,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  "You need to logout and login again with your admin account to refresh your session and ensure all changes are properly synced.",
+                                  style: TextStyle(
+                                    fontFamily: _primaryFontFamily,
+                                    fontSize: 12,
+                                    color: Colors.orange.shade700,
+                                    height: 1.5,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ],
                       ),
-                      backgroundColor: Colors.red,
-                      behavior: SnackBarBehavior.floating,
-                      margin: const EdgeInsets.all(16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      duration: const Duration(seconds: 4),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.of(successContext).pop(),
+                          child: const Text(
+                            "Close",
+                            style: TextStyle(fontFamily: _primaryFontFamily),
+                          ),
+                        ),
+                        ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: _primaryColor,
+                            foregroundColor: _textColorOnPrimary,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                          icon: const Icon(Icons.logout),
+                          label: const Text(
+                            "Logout Now",
+                            style: TextStyle(fontFamily: _primaryFontFamily),
+                          ),
+                          onPressed: () async {
+                            // Sign out
+                            await FirebaseAuth.instance.signOut();
+
+                            if (mounted) {
+                              Navigator.of(context, rootNavigator: true)
+                                  .pushAndRemoveUntil(
+                                MaterialPageRoute(
+                                    builder: (_) => const LoginPage()),
+                                    (route) => false,
+                              );
+                            }
+                          },
+                        ),
+                      ],
                     ),
                   );
+                } catch (e) {
+                  if (!mounted) return;
+
+                  String errorMessage = e.toString();
+                  if (errorMessage.contains('email-already-in-use')) {
+                    errorMessage = "This email is already registered";
+                  } else if (errorMessage.contains('invalid-email')) {
+                    errorMessage = "Invalid email address";
+                  } else if (errorMessage.contains('weak-password')) {
+                    errorMessage = "Password is too weak";
+                  }
+
+                  try {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Row(
+                          children: [
+                            const Icon(Icons.error_outline,
+                                color: Colors.white),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                "Error: $errorMessage",
+                                style: const TextStyle(
+                                  fontFamily: _primaryFontFamily,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        backgroundColor: Colors.red,
+                        behavior: SnackBarBehavior.floating,
+                        margin: const EdgeInsets.all(16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        duration: const Duration(seconds: 4),
+                      ),
+                    );
+                  } catch (_) {
+                    debugPrint('Could not show error: $errorMessage');
+                  }
                 }
               },
               child: const Text(
-                "Add",
+                "Add User",
                 style: TextStyle(fontFamily: _primaryFontFamily),
               ),
             ),
