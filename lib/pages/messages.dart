@@ -76,12 +76,28 @@ class _MessagesPageState extends State<MessagesPage> {
   @override
   void initState() {
     super.initState();
+    if (widget.receiverProfile.isEmpty) {
+      _fetchReceiverProfile();
+    }
     fetchCurrentUserName();
     _listenToPendingAppointment();
     _listenToPendingMealPlan(); // ✅ Listen to meal plan requests
     _checkIfReceiverIsAdmin();
   }
 
+  Future<void> _fetchReceiverProfile() async {
+    try {
+      final doc = await _firestore.collection("Users").doc(widget.receiverId).get();
+      if (doc.exists && mounted) {
+        final data = doc.data()!;
+        // Since widget.receiverProfile is final, we need to update the UI
+        // The easiest way is to use a StatefulBuilder or just let the StreamBuilder handle it
+        setState(() {}); // Trigger rebuild
+      }
+    } catch (e) {
+      print("Error fetching receiver profile: $e");
+    }
+  }
   void fetchCurrentUserName() async {
     final doc = await _firestore.collection("Users").doc(widget.currentUserId).get();
     if (doc.exists) {
@@ -279,49 +295,61 @@ class _MessagesPageState extends State<MessagesPage> {
         backgroundColor: isDark ? Colors.grey.shade900 : Colors.white,
         foregroundColor: isDark ? Colors.white : Colors.black,
         titleSpacing: 0,
-        title: Row(
-          children: [
-            CircleAvatar(
-              radius: 18,
-              backgroundImage: widget.receiverProfile.isNotEmpty ? NetworkImage(widget.receiverProfile) : null,
-              child: widget.receiverProfile.isEmpty ? const Icon(Icons.person, size: 20) : null,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      widget.receiverName,
-                      style: const TextStyle(
-                        fontFamily: _primaryFontFamily,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.black87,
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  // Only show info button if receiver is NOT an admin
-                  if (!_isReceiverAdmin)
-                    GestureDetector(
-                      onTap: () {
-                        _showUserProfileDialog(context);
-                      },
-                      child: Padding(
-                        padding: const EdgeInsets.only(right: 8.0),
-                        child: Icon(
-                          Icons.info_outline,
-                          size: 30,
-                          color: isDark ? Colors.white : Colors.black54,
+        title: StreamBuilder<DocumentSnapshot>(
+          stream: _firestore.collection("Users").doc(widget.receiverId).snapshots(),
+          builder: (context, snapshot) {
+            String profileUrl = widget.receiverProfile;
+
+            // ✅ If we have fresh data from Firestore, use it
+            if (snapshot.hasData && snapshot.data!.exists) {
+              final data = snapshot.data!.data() as Map<String, dynamic>;
+              profileUrl = data['profile'] ?? widget.receiverProfile;
+            }
+
+            return Row(
+              children: [
+                CircleAvatar(
+                  radius: 18,
+                  backgroundImage: profileUrl.isNotEmpty ? NetworkImage(profileUrl) : null,
+                  child: profileUrl.isEmpty ? const Icon(Icons.person, size: 20) : null,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          widget.receiverName,
+                          style: const TextStyle(
+                            fontFamily: _primaryFontFamily,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.black87,
+                          ),
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                    ),
-                ],
-              ),
-            ),
-          ],
+                      const SizedBox(width: 4),
+                      if (!_isReceiverAdmin)
+                        GestureDetector(
+                          onTap: () {
+                            _showUserProfileDialog(context);
+                          },
+                          child: Padding(
+                            padding: const EdgeInsets.only(right: 8.0),
+                            child: Icon(
+                              Icons.info_outline,
+                              size: 30,
+                              color: isDark ? Colors.white : Colors.black54,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            );
+          },
         ),
       ),
       body: Stack(

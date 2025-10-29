@@ -123,6 +123,8 @@ class _LoginPageState extends State<LoginPageMobile> with TickerProviderStateMix
       CurvedAnimation(parent: _welcomeController, curve: Curves.easeInOut),
     );
 
+    emailController.addListener(_onEmailChanged);
+
     _showWelcomePopup();
   }
 
@@ -149,6 +151,13 @@ class _LoginPageState extends State<LoginPageMobile> with TickerProviderStateMix
     _slideController.dispose();
     _welcomeController.dispose();
     super.dispose();
+  }
+  void _onEmailChanged() {
+    final email = emailController.text.trim();
+    // Only check if email looks valid (has @)
+    if (email.isNotEmpty && email.contains('@')) {
+      _checkTermsAgreementStatus(email);
+    }
   }
 
   Widget _buildTermsCheckbox() {
@@ -357,6 +366,7 @@ class _LoginPageState extends State<LoginPageMobile> with TickerProviderStateMix
             _agreedToTerms = hasAgreed;
           });
         }
+        print('✅ Loaded terms status from Users: $hasAgreed');
         return;
       }
 
@@ -376,17 +386,25 @@ class _LoginPageState extends State<LoginPageMobile> with TickerProviderStateMix
             _agreedToTerms = hasAgreed;
           });
         }
+        print('✅ Loaded terms status from dietitianApproval: $hasAgreed');
         return;
       }
 
-      // If no user found, keep checkbox unchecked
+      // If no user found, keep checkbox unchecked (new user)
       if (mounted) {
         setState(() {
           _agreedToTerms = false;
         });
       }
+      print('ℹ️ No user found with this email');
     } catch (e) {
-      print('Error checking terms agreement status: $e');
+      print('❌ Error checking terms agreement status: $e');
+      // On error, keep checkbox unchecked for safety
+      if (mounted) {
+        setState(() {
+          _agreedToTerms = false;
+        });
+      }
     }
   }
 

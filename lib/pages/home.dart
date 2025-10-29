@@ -4023,6 +4023,7 @@ class _HomeState extends State<home> {
   }
 }
 
+
 class UserSchedulePage extends StatefulWidget {
   final String currentUserId;
   const UserSchedulePage({super.key, required this.currentUserId});
@@ -4044,8 +4045,7 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
 
   Map<String, Map<String, dynamic>?> _weeklySchedule = {};
   bool _isLoadingSchedule = false;
-
-
+  int _mealPlanTabIndex = 0; // Track which meal plan tab is active
 
   Widget _buildEmptyState(String title, String subtitle, IconData icon) {
     return Center(
@@ -4061,14 +4061,17 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
               style: _getTextStyle(context,
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: _textColorPrimary(context), height: 1.5),
+                  color: _textColorPrimary(context),
+                  height: 1.5),
             ),
             const SizedBox(height: 8),
             Text(
               subtitle,
               textAlign: TextAlign.center,
               style: _getTextStyle(context,
-                  fontSize: 14, color: _textColorSecondary(context), height: 1.5),
+                  fontSize: 14,
+                  color: _textColorSecondary(context),
+                  height: 1.5),
             ),
           ],
         ),
@@ -4155,7 +4158,8 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
         final appointmentDateStr = data['appointmentDate'] as String?;
         if (appointmentDateStr != null) {
           try {
-            final appointmentDateTime = DateFormat('yyyy-MM-dd HH:mm').parse(appointmentDateStr);
+            final appointmentDateTime =
+            DateFormat('yyyy-MM-dd HH:mm').parse(appointmentDateStr);
             final dateOnly = DateTime.utc(
               appointmentDateTime.year,
               appointmentDateTime.month,
@@ -4198,7 +4202,8 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
     }
   }
 
-  Future<void> _updateAppointmentStatus(String appointmentId, String newStatus) async {
+  Future<void> _updateAppointmentStatus(
+      String appointmentId, String newStatus) async {
     try {
       await FirebaseFirestore.instance
           .collection('schedules')
@@ -4244,12 +4249,12 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
 
       if (mounted) {
         CustomSnackBar.show(
-        context,
-        'Appointment confirmed successfully!',
-        backgroundColor: Colors.green,
-        icon: Icons.verified,
-        duration: const Duration(seconds: 2),
-      );
+          context,
+          'Appointment confirmed successfully!',
+          backgroundColor: Colors.green,
+          icon: Icons.verified,
+          duration: const Duration(seconds: 2),
+        );
       }
     } catch (e) {
       print("Error confirming appointment: $e");
@@ -4404,13 +4409,9 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
                       ? () async {
                     final reason = selected;
 
-                    // Close the reason dialog
                     Navigator.of(dialogContext).pop();
-
-                    // Dispose the notifier
                     selectedReason.dispose();
 
-                    // Show progress dialog using root context
                     if (!mounted) return;
 
                     showDialog(
@@ -4438,7 +4439,8 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
                                   ),
                                   child: Column(
                                     mainAxisSize: MainAxisSize.min,
-                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    mainAxisAlignment:
+                                    MainAxisAlignment.center,
                                     children: [
                                       CircularProgressIndicator(
                                           color: Colors.orange),
@@ -4457,12 +4459,11 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
                       ),
                     );
 
-                    // Perform cancellation
                     await _cancelAppointment(
                         appointmentId, reason, appointmentData);
 
-                    // Close progress dialog
-                    if (mounted && Navigator.of(this.context).canPop()) {
+                    if (mounted &&
+                        Navigator.of(this.context).canPop()) {
                       Navigator.of(this.context).pop();
                     }
                   }
@@ -4475,8 +4476,8 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    padding:
-                    const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 20, vertical: 12),
                   ),
                   child: const Text('Submit'),
                 );
@@ -4487,11 +4488,33 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
         );
       },
     ).then((_) {
-      // Clean up if dialog is dismissed
       if (selectedReason.hasListeners) {
         selectedReason.dispose();
       }
     });
+  }
+
+  Future<String?> _checkSubscriptionStatus(String? userId, String? ownerId) async {
+    if (userId == null || ownerId == null || userId == ownerId) {
+      return 'active'; // Treat as active if same user
+    }
+
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('Users')
+          .doc(userId)
+          .collection('subscribeTo')
+          .doc(ownerId)
+          .get();
+
+      if (doc.exists) {
+        return doc.data()?['status'] as String?; // Returns: active, expired, cancelled, approved, etc.
+      }
+      return null; // Not subscribed
+    } catch (e) {
+      debugPrint('Error checking subscription status: $e');
+      return null;
+    }
   }
 
   Future<void> _cancelAppointment(String appointmentId, String reason,
@@ -4558,8 +4581,8 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
     }
   }
 
-
-  Future<List<Map<String, dynamic>>> _fetchLikedMealPlansWithOwners(String? userId) async {
+  Future<List<Map<String, dynamic>>> _fetchLikedMealPlansWithOwners(
+      String? userId) async {
     if (userId == null) return [];
 
     final firestore = FirebaseFirestore.instance;
@@ -4570,7 +4593,8 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
 
     if (likesSnapshot.docs.isEmpty) return [];
 
-    final mealPlanIDs = likesSnapshot.docs.map((doc) => doc['mealPlanID'] as String).toList();
+    final mealPlanIDs =
+    likesSnapshot.docs.map((doc) => doc['mealPlanID'] as String).toList();
     final List<Map<String, dynamic>> mealPlans = [];
 
     for (String id in mealPlanIDs) {
@@ -4586,9 +4610,13 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
           if (userDoc.exists) {
             final userData = userDoc.data()!;
             if (userData['role'] == 'dietitian') {
-              ownerName = "${userData['firstName'] ?? ''} ${userData['lastName'] ?? ''}".trim();
+              ownerName =
+                  "${userData['firstName'] ?? ''} ${userData['lastName'] ?? ''}".trim();
               if (ownerName.isEmpty) {
-                ownerName = userData['name'] ?? userData['fullName'] ?? userData['displayName'] ?? ownerId;
+                ownerName = userData['name'] ??
+                    userData['fullName'] ??
+                    userData['displayName'] ??
+                    ownerId;
               }
             }
           }
@@ -4602,7 +4630,62 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
     return mealPlans;
   }
 
-  // Replace these 3 functions in _UserSchedulePageState class
+  Future<List<Map<String, dynamic>>> _fetchPersonalizedMealPlans(
+      String? userId) async {
+    if (userId == null) return [];
+
+    try {
+      final firestore = FirebaseFirestore.instance;
+
+      final snapshot = await firestore
+          .collection('Users')
+          .doc(userId)
+          .collection('personalizedMealPlans')
+          .get();
+
+      if (snapshot.docs.isEmpty) return [];
+
+      final List<Map<String, dynamic>> mealPlans = [];
+
+      for (var doc in snapshot.docs) {
+        final planData = doc.data();
+        planData['planId'] = doc.id;
+
+        String ownerId = planData['owner'] ?? '';
+        String ownerName = planData['dietitianName'] ?? 'Your Dietitian';
+
+        if (ownerId.isNotEmpty) {
+          try {
+            final userDoc =
+            await firestore.collection('Users').doc(ownerId).get();
+            if (userDoc.exists) {
+              final userData = userDoc.data()!;
+              if (userData['role'] == 'dietitian') {
+                ownerName =
+                    "${userData['firstName'] ?? ''} ${userData['lastName'] ?? ''}".trim();
+                if (ownerName.isEmpty) {
+                  ownerName = userData['name'] ??
+                      userData['fullName'] ??
+                      userData['displayName'] ??
+                      'Your Dietitian';
+                }
+              }
+            }
+          } catch (e) {
+            print('Error fetching dietitian info: $e');
+          }
+        }
+
+        planData['ownerName'] = ownerName;
+        mealPlans.add(planData);
+      }
+
+      return mealPlans;
+    } catch (e) {
+      print('Error loading personalized meal plans: $e');
+      return [];
+    }
+  }
 
   Future<void> _loadScheduledMealPlans() async {
     final user = FirebaseAuth.instance.currentUser;
@@ -4614,29 +4697,36 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
 
     try {
       final now = DateTime.now();
-      final daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+      final daysOfWeek = [
+        'Monday',
+        'Tuesday',
+        'Wednesday',
+        'Thursday',
+        'Friday',
+        'Saturday',
+        'Sunday'
+      ];
 
       Map<String, Map<String, dynamic>?> loadedSchedule = {
         for (var day in daysOfWeek) day: null,
       };
 
-      // Load for the next 7 days
       for (int i = 0; i < 7; i++) {
         final date = now.add(Duration(days: i));
-        final dateStr = DateFormat('yyyy-MM-dd').format(date); // Use date as doc ID
+        final dateStr = DateFormat('yyyy-MM-dd').format(date);
         final dayName = daysOfWeek[date.weekday - 1];
 
         final doc = await FirebaseFirestore.instance
             .collection('Users')
             .doc(user.uid)
             .collection('scheduledMealPlans')
-            .doc(dateStr) // Changed from 'day' to 'dateStr'
+            .doc(dateStr)
             .get();
 
         if (doc.exists) {
           final data = doc.data();
           if (data != null) {
-            data['dateStr'] = dateStr; // Store the date string
+            data['dateStr'] = dateStr;
             loadedSchedule[dayName] = data;
           }
         }
@@ -4659,13 +4749,13 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
     if (user == null) return;
 
     try {
-      final dateStr = DateFormat('yyyy-MM-dd').format(date); // Use date as doc ID
+      final dateStr = DateFormat('yyyy-MM-dd').format(date);
 
       final doc = await FirebaseFirestore.instance
           .collection('Users')
           .doc(user.uid)
           .collection('scheduledMealPlans')
-          .doc(dateStr) // Changed from 'day' to 'dateStr'
+          .doc(dateStr)
           .get();
 
       final notificationId = doc.data()?['notificationId'] as int?;
@@ -4674,7 +4764,7 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
           .collection('Users')
           .doc(user.uid)
           .collection('scheduledMealPlans')
-          .doc(dateStr) // Changed from 'day' to 'dateStr'
+          .doc(dateStr)
           .delete();
 
       if (notificationId != null) {
@@ -4682,7 +4772,7 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
       }
 
       setState(() {
-        _weeklySchedule[day] = null; // Clear from the schedule
+        _weeklySchedule[day] = null;
       });
 
       CustomSnackBar.show(
@@ -4697,7 +4787,8 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
     }
   }
 
-  Future<void> _saveMealPlanToSchedule(String day, DateTime date, Map<String, dynamic> plan) async {
+  Future<void> _saveMealPlanToSchedule(
+      String day, DateTime date, Map<String, dynamic> plan) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
@@ -4705,6 +4796,10 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
       final dateStr = DateFormat('yyyy-MM-dd').format(date);
       final notificationId = date.millisecondsSinceEpoch ~/ 1000;
 
+      // ✅ Track if this is a personalized plan or liked plan
+      final bool isFromPersonalized = _mealPlanTabIndex == 1;
+
+      // ✅ Save to Firestore FIRST (this should always succeed)
       await FirebaseFirestore.instance
           .collection('Users')
           .doc(user.uid)
@@ -4715,6 +4810,7 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
         'date': Timestamp.fromDate(date),
         'dateStr': dateStr,
         'planType': plan['planType'],
+        'description': plan['description'],
         'breakfast': plan['breakfast'],
         'breakfastTime': plan['breakfastTime'],
         'amSnack': plan['amSnack'],
@@ -4730,55 +4826,69 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
         'owner': plan['owner'],
         'ownerName': plan['ownerName'],
         'planId': plan['planId'],
+        'isPersonalized': isFromPersonalized,
         'notificationId': notificationId,
         'scheduledAt': FieldValue.serverTimestamp(),
       });
 
-      // Get user data
-      final userDoc = await FirebaseFirestore.instance
-          .collection('Users')
-          .doc(user.uid)
-          .get();
+      final userDoc =
+      await FirebaseFirestore.instance.collection('Users').doc(user.uid).get();
 
       final userData = userDoc.data();
       final userEmail = userData?['email'] ?? user.email ?? '';
-      final userName = '${userData?['firstName'] ?? ''} ${userData?['lastName'] ?? ''}'.trim();
+      final userName =
+      '${userData?['firstName'] ?? ''} ${userData?['lastName'] ?? ''}'
+          .trim();
 
-      // Schedule push notification (local)
-      await MealPlanNotificationService.scheduleReminderNotification(
-        notificationId: notificationId,
-        mealPlanDate: date,
-        planType: plan['planType'] ?? 'Meal Plan',
-        dayName: day,
-      );
+      // ✅ Try to schedule notifications, but don't fail the whole operation if it fails
+      try {
+        await MealPlanNotificationService.scheduleReminderNotification(
+          notificationId: notificationId,
+          mealPlanDate: date,
+          planType: plan['planType'] ?? 'Meal Plan',
+          dayName: day,
+        );
+      } catch (e) {
+        debugPrint('Warning: Could not schedule reminder notification: $e');
+        // Don't fail here - notification is not critical
+      }
 
-      // Send push notification to Firestore (NEW)
-      await MealPlanNotificationService.sendPushNotification(
-        userId: user.uid,
-        userName: userName.isNotEmpty ? userName : 'User',
-        ownerId: plan['owner'] ?? '',
-        ownerName: plan['ownerName'] ?? 'Dietitian',
-        mealPlanDate: date,
-        dayName: day,
-        planType: plan['planType'] ?? 'Meal Plan',
-      );
-
-      // Send email reminder
-      if (userEmail.isNotEmpty) {
-        await MealPlanNotificationService.sendEmailReminder(
-          userEmail: userEmail,
+      try {
+        await MealPlanNotificationService.sendPushNotification(
+          userId: user.uid,
           userName: userName.isNotEmpty ? userName : 'User',
+          ownerId: plan['owner'] ?? '',
+          ownerName: plan['ownerName'] ?? 'Dietitian',
           mealPlanDate: date,
           dayName: day,
           planType: plan['planType'] ?? 'Meal Plan',
-          mealDetails: plan,
-          userId: user.uid,
-          ownerId: plan['owner'] ?? '',
         );
+      } catch (e) {
+        debugPrint('Warning: Could not send push notification: $e');
+        // Don't fail here
       }
 
-      // Update the local state
+      try {
+        if (userEmail.isNotEmpty) {
+          await MealPlanNotificationService.sendEmailReminder(
+            userEmail: userEmail,
+            userName: userName.isNotEmpty ? userName : 'User',
+            mealPlanDate: date,
+            dayName: day,
+            planType: plan['planType'] ?? 'Meal Plan',
+            mealDetails: plan,
+            userId: user.uid,
+            ownerId: plan['owner'] ?? '',
+          );
+        }
+      } catch (e) {
+        debugPrint('Warning: Could not send email reminder: $e');
+        // Don't fail here
+      }
+
       plan['dateStr'] = dateStr;
+      plan['isPersonalized'] = isFromPersonalized;
+
       setState(() {
         _weeklySchedule[day] = plan;
       });
@@ -4802,14 +4912,27 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
 
   String _formatReminderDate(DateTime date) {
     final reminderDate = date.subtract(const Duration(days: 1));
-    final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    final months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec'
+    ];
     return '${months[reminderDate.month - 1]} ${reminderDate.day}, 8:00 AM';
   }
 
-// Add this method to check subscription status
-  Future<bool> _isUserSubscribedToOwner(String? userId, String? ownerId) async {
+  Future<bool> _isUserSubscribedToOwner(
+      String? userId, String? ownerId) async {
     if (userId == null || ownerId == null || userId == ownerId) {
-      return true; // User is the owner or not logged in
+      return true;
     }
 
     try {
@@ -4846,12 +4969,23 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
               eventLoader: _getEventsForDay,
               calendarStyle: CalendarStyle(
                 outsideDaysVisible: false,
-                selectedDecoration: BoxDecoration(color: _primaryColor, shape: BoxShape.circle),
-                selectedTextStyle: _getTextStyle(context, color: _textColorOnPrimary, fontWeight: FontWeight.bold, height: 1.5),
-                todayDecoration: BoxDecoration(color: _primaryColor.withOpacity(0.5), shape: BoxShape.circle),
-                todayTextStyle: _getTextStyle(context, color: _textColorOnPrimary, fontWeight: FontWeight.bold, height: 1.5),
-                weekendTextStyle: _getTextStyle(context, color: _primaryColor.withOpacity(0.8), height: 1.5),
-                defaultTextStyle: _getTextStyle(context, color: _textColorPrimary(context), height: 1.5),
+                selectedDecoration: BoxDecoration(
+                    color: _primaryColor, shape: BoxShape.circle),
+                selectedTextStyle: _getTextStyle(context,
+                    color: _textColorOnPrimary,
+                    fontWeight: FontWeight.bold,
+                    height: 1.5),
+                todayDecoration: BoxDecoration(
+                    color: _primaryColor.withOpacity(0.5),
+                    shape: BoxShape.circle),
+                todayTextStyle: _getTextStyle(context,
+                    color: _textColorOnPrimary,
+                    fontWeight: FontWeight.bold,
+                    height: 1.5),
+                weekendTextStyle: _getTextStyle(context,
+                    color: _primaryColor.withOpacity(0.8), height: 1.5),
+                defaultTextStyle: _getTextStyle(context,
+                    color: _textColorPrimary(context), height: 1.5),
               ),
               calendarBuilders: CalendarBuilders(
                 markerBuilder: (context, day, events) {
@@ -4861,8 +4995,13 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
                       top: 1,
                       child: Container(
                         padding: const EdgeInsets.all(4.0),
-                        decoration: const BoxDecoration(color: Colors.redAccent, shape: BoxShape.circle),
-                        child: Text('${events.length}', style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                        decoration: const BoxDecoration(
+                            color: Colors.redAccent, shape: BoxShape.circle),
+                        child: Text('${events.length}',
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold)),
                       ),
                     );
                   }
@@ -4872,11 +5011,20 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
               headerStyle: HeaderStyle(
                 formatButtonVisible: true,
                 titleCentered: true,
-                titleTextStyle: _getTextStyle(context, fontSize: 18, fontWeight: FontWeight.bold, color: _textColorPrimary(context), height: 1.5),
-                formatButtonTextStyle: _getTextStyle(context, color: _textColorOnPrimary, height: 1.5),
-                formatButtonDecoration: BoxDecoration(color: _primaryColor, borderRadius: BorderRadius.circular(20.0)),
-                leftChevronIcon: Icon(Icons.chevron_left, color: _textColorPrimary(context)),
-                rightChevronIcon: Icon(Icons.chevron_right, color: _textColorPrimary(context)),
+                titleTextStyle: _getTextStyle(context,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: _textColorPrimary(context),
+                    height: 1.5),
+                formatButtonTextStyle: _getTextStyle(context,
+                    color: _textColorOnPrimary, height: 1.5),
+                formatButtonDecoration: BoxDecoration(
+                    color: _primaryColor,
+                    borderRadius: BorderRadius.circular(20.0)),
+                leftChevronIcon:
+                Icon(Icons.chevron_left, color: _textColorPrimary(context)),
+                rightChevronIcon:
+                Icon(Icons.chevron_right, color: _textColorPrimary(context)),
               ),
               onDaySelected: _onDaySelected,
               onFormatChanged: (format) {
@@ -4897,18 +5045,24 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
         if (_isLoadingEvents)
           const Padding(
             padding: EdgeInsets.all(16.0),
-            child: Center(child: CircularProgressIndicator(color: _primaryColor)),
+            child: Center(
+                child: CircularProgressIndicator(color: _primaryColor)),
           )
         else if (_selectedDay != null)
           Expanded(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+              padding:
+              const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     "My Appointments for ${DateFormat.yMMMMd().format(_selectedDay!)}:",
-                    style: _getTextStyle(context, fontSize: 18, fontWeight: FontWeight.bold, color: _textColorPrimary(context), height: 1.5),
+                    style: _getTextStyle(context,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: _textColorPrimary(context),
+                        height: 1.5),
                   ),
                   const SizedBox(height: 10),
                   _buildScheduledAppointmentsList(_selectedDay!),
@@ -4924,7 +5078,8 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
                   padding: const EdgeInsets.all(16.0),
                   child: Text(
                     "Select a day to see your appointments.",
-                    style: _getTextStyle(context, color: _textColorSecondary(context), height: 1.5),
+                    style: _getTextStyle(context,
+                        color: _textColorSecondary(context), height: 1.5),
                     textAlign: TextAlign.center,
                   ),
                 ),
@@ -4973,13 +5128,15 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
                 context,
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
-                color: _textColorOnPrimary, height: 1.5,
+                color: _textColorOnPrimary,
+                height: 1.5,
               ),
               unselectedLabelStyle: _getTextStyle(
                 context,
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
-                color: _textColorOnPrimary.withOpacity(0.7), height: 1.5,
+                color: _textColorOnPrimary.withOpacity(0.7),
+                height: 1.5,
               ),
               tabs: const [
                 Tab(
@@ -4992,499 +5149,165 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
             ),
           ),
         ),
-        body: TabBarView(
+        body: // Replace the TabBarView section in the build method with this:
+
+        TabBarView(
           children: [
             _buildAppointmentsTab(),
-            // --- START OF REDESIGNED MEAL PLAN TAB ---
-            FutureBuilder<List<Map<String, dynamic>>>(
-              future: _fetchLikedMealPlansWithOwners(user?.uid),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(
-                      child: CircularProgressIndicator(color: _primaryColor));
-                }
-
-                if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                  return _buildEmptyState(
-                    "No Liked Plans",
-                    "Like a meal plan from the Home feed to see it here.",
-                    Icons.favorite_border,
-                  );
-                }
-
-                final mealPlans = snapshot.data!;
-
-                if (_weeklySchedule.isEmpty && !_isLoadingSchedule) {
-                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                    _loadScheduledMealPlans();
-                  });
-                }
-
-                return SingleChildScrollView(
-                  physics: const BouncingScrollPhysics(),
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+            // --- MEAL PLANS TAB WITH MANUAL TABS ---
+            Column(
+              children: [
+                // Manual Tab Bar for Liked vs Personalized
+                Container(
+                  color: _cardBgColor(context),
+                  child: Row(
                     children: [
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
-                              _primaryColor.withOpacity(0.15),
-                              _primaryColor.withOpacity(0.05),
-                            ],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: _primaryColor.withOpacity(0.3),
-                            width: 1,
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: _primaryColor.withOpacity(0.2),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Icon(Icons.touch_app,
-                                  color: _primaryColor, size: 24),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Text(
-                                "Long press and drag meal plans to schedule your week",
-                                style: _getTextStyle(
-                                  context,
-                                  color: _primaryColor,
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 14, height: 1.5,
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              _mealPlanTabIndex = 0;
+                            });
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                vertical: 16, horizontal: 16),
+                            decoration: BoxDecoration(
+                              border: Border(
+                                bottom: BorderSide(
+                                  color: _mealPlanTabIndex == 0
+                                      ? _primaryColor
+                                      : Colors.transparent,
+                                  width: 2,
                                 ),
                               ),
                             ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                      Row(
-                        children: [
-                          Icon(Icons.favorite, color: _primaryColor, size: 22),
-                          const SizedBox(width: 8),
-                          Text(
-                            "Your Meal Plans",
-                            style: _getTextStyle(context,
-                                fontSize: 18, fontWeight: FontWeight.w700, height: 1.5),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      Wrap(
-                        spacing: 12,
-                        runSpacing: 12,
-                        children: mealPlans.map((plan) {
-                          return LongPressDraggable<Map<String, dynamic>>(
-                            data: plan,
-                            feedback: Material(
-                                color: Colors.transparent,
-                                child: _planCard(plan, isDragging: true)),
-                            childWhenDragging:
-                            Opacity(opacity: 0.3, child: _planCard(plan)),
-                            child: _planCard(plan),
-                          );
-                        }).toList(),
-                      ),
-                      const SizedBox(height: 32),
-                      Row(
-                        children: [
-                          Icon(Icons.calendar_month,
-                              color: _primaryColor, size: 22),
-                          const SizedBox(width: 8),
-                          Text(
-                            "Weekly Schedule",
-                            style: _getTextStyle(context,
-                                fontSize: 18, fontWeight: FontWeight.w700, height: 1.5),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      if (_isLoadingSchedule)
-                        const Center(
-                          child: Padding(
-                            padding: EdgeInsets.all(40.0),
-                            child:
-                            CircularProgressIndicator(color: _primaryColor),
-                          ),
-                        )
-                      else
-                        SizedBox(
-                          height: 320,
-                          child: ListView.builder(
-                            scrollDirection: Axis.horizontal,
-                            itemCount: orderedDays.length,
-                            itemBuilder: (context, index) {
-                              final dayInfo = orderedDays[index];
-                              final day = dayInfo['label'] as String;
-                              final date = dayInfo['date'] as DateTime;
-                              final formattedDate =
-                                  "${_monthAbbrev(date.month)} ${date.day}";
-                              final plan = _weeklySchedule[day];
-                              final isToday = date.day == now.day &&
-                                  date.month == now.month &&
-                                  date.year == now.year;
-
-                              return DragTarget<Map<String, dynamic>>(
-                                onAccept: (receivedPlan) {
-                                  _saveMealPlanToSchedule(day, date, receivedPlan);
-                                },
-                                builder: (context, candidateData, rejectedData) {
-                                  final isHovering = candidateData.isNotEmpty;
-                                  return Container(
-                                    width: 270,
-                                    margin: const EdgeInsets.only(right: 12),
-                                    padding: const EdgeInsets.all(14.0),
-                                    decoration: BoxDecoration(
-                                      color: isHovering
-                                          ? _primaryColor.withOpacity(0.1)
-                                          : _cardBgColor(context),
-                                      borderRadius: BorderRadius.circular(16),
-                                      border: Border.all(
-                                        color: isToday
-                                            ? _primaryColor
-                                            : isHovering
-                                            ? _primaryColor.withOpacity(0.5)
-                                            : Colors.transparent,
-                                        width: isToday ? 2 : 1,
-                                      ),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: Colors.black.withOpacity(0.08),
-                                          blurRadius: 12,
-                                          offset: const Offset(0, 4),
-                                        ),
-                                      ],
-                                    ),
-                                    child: Column(
-                                      crossAxisAlignment:
-                                      CrossAxisAlignment.start,
-                                      children: [
-                                        Row(
-                                          mainAxisAlignment:
-                                          MainAxisAlignment.spaceBetween,
-                                          children: [
-                                            Column(
-                                              crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                              children: [
-                                                Row(
-                                                  children: [
-                                                    Text(
-                                                      day,
-                                                      style: _getTextStyle(context,
-                                                          fontWeight:
-                                                          FontWeight.bold,
-                                                          fontSize: 16, height: 1.5),
-                                                    ),
-                                                    if (isToday) ...[
-                                                      const SizedBox(width: 6),
-                                                      Container(
-                                                        padding: const EdgeInsets
-                                                            .symmetric(
-                                                            horizontal: 6,
-                                                            vertical: 2),
-                                                        decoration: BoxDecoration(
-                                                          color: _primaryColor,
-                                                          borderRadius:
-                                                          BorderRadius.circular(
-                                                              4),
-                                                        ),
-                                                        child: Text(
-                                                          'TODAY',
-                                                          style: _getTextStyle(
-                                                            context,
-                                                            fontSize: 10,
-                                                            fontWeight:
-                                                            FontWeight.bold,
-                                                            height: 1.5,
-                                                            color: Colors.white
-                                                          ),
-                                                        ),
-                                                      ),
-                                                    ],
-                                                  ],
-                                                ),
-                                                Text(
-                                                  formattedDate,
-                                                  style: _getTextStyle(context,
-                                                      color: _textColorSecondary(
-                                                          context),
-                                                      fontSize: 12, height: 1.5),
-                                                ),
-                                              ],
-                                            ),
-                                            if (plan != null)
-                                              IconButton(
-                                                padding: EdgeInsets.zero,
-                                                constraints:
-                                                const BoxConstraints(),
-                                                icon: const Icon(Icons.close,
-                                                    color: Colors.redAccent,
-                                                    size: 20),
-                                                onPressed: () {
-                                                  _deleteMealPlanFromSchedule(
-                                                      day, date);
-                                                },
-                                              ),
-                                          ],
-                                        ),
-                                        const SizedBox(height: 12),
-                                        if (plan == null)
-                                          Expanded(
-                                            child: Container(
-                                              decoration: BoxDecoration(
-                                                color: _primaryColor
-                                                    .withOpacity(0.05),
-                                                borderRadius:
-                                                BorderRadius.circular(12),
-                                                border: Border.all(
-                                                  color: _primaryColor
-                                                      .withOpacity(0.2),
-                                                  width: 2,
-                                                  style: BorderStyle.solid,
-                                                ),
-                                              ),
-                                              child: Center(
-                                                child: Column(
-                                                  mainAxisAlignment:
-                                                  MainAxisAlignment.center,
-                                                  children: [
-                                                    Icon(
-                                                      Icons.add_circle_outline,
-                                                      color: _primaryColor
-                                                          .withOpacity(0.4),
-                                                      size: 32,
-                                                    ),
-                                                    const SizedBox(height: 8),
-                                                    Text(
-                                                      "Drop plan here",
-                                                      style: _getTextStyle(context,
-                                                          fontSize: 13,
-                                                          fontWeight:
-                                                          FontWeight.w500,
-                                                          color:
-                                                          _textColorSecondary(
-                                                              context), height: 1.5),
-                                                    ),
-                                                  ],
-                                                ),
-                                              ),
-                                            ),
-                                          )
-                                        else
-                                          Expanded(
-                                            child: Column(
-                                              crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                              children: [
-                                                Container(
-                                                  padding:
-                                                  const EdgeInsets.symmetric(
-                                                      horizontal: 10,
-                                                      vertical: 6),
-                                                  decoration: BoxDecoration(
-                                                    gradient: LinearGradient(
-                                                      colors: [
-                                                        _primaryColor,
-                                                        _primaryColor
-                                                            .withOpacity(0.7),
-                                                      ],
-                                                    ),
-                                                    borderRadius:
-                                                    BorderRadius.circular(8),
-                                                  ),
-                                                  child: Row(
-                                                    mainAxisSize:
-                                                    MainAxisSize.min,
-                                                    children: [
-                                                      const Icon(
-                                                          Icons
-                                                              .restaurant_menu_rounded,
-                                                          color: Colors.white,
-                                                          size: 16),
-                                                      const SizedBox(width: 6),
-                                                      Flexible(
-                                                        child: Text(
-                                                          plan['planType'] ??
-                                                              'Meal Plan',
-                                                          style: _getTextStyle(
-                                                            context,
-                                                            fontWeight:
-                                                            FontWeight.bold,
-                                                            fontSize: 13,
-                                                            color: Colors.white, height: 1.5,
-                                                          ),
-                                                          overflow: TextOverflow
-                                                              .ellipsis,
-                                                        ),
-                                                      ),
-                                                    ],
-                                                  ),
-                                                ),
-                                                const SizedBox(height: 12),
-                                                Expanded(
-                                                  child: FutureBuilder<bool>(
-                                                    future: _isUserSubscribedToOwner(
-                                                        user?.uid,
-                                                        plan['owner']),
-                                                    builder: (context, snapshot) {
-                                                      final isSubscribed =
-                                                          snapshot.data ?? false;
-                                                      return SingleChildScrollView(
-                                                        physics:
-                                                        const BouncingScrollPhysics(),
-                                                        child: Column(
-                                                          crossAxisAlignment:
-                                                          CrossAxisAlignment
-                                                              .start,
-                                                          children: [
-                                                            _mealRowWithTime(
-                                                              "Breakfast",
-                                                              plan['breakfast'],
-                                                              plan[
-                                                              'breakfastTime'],
-                                                              isLocked: false,
-                                                            ),
-                                                            _mealRowWithTime(
-                                                              "AM Snack",
-                                                              plan['amSnack'],
-                                                              plan['amSnackTime'],
-                                                              isLocked:
-                                                              !isSubscribed,
-                                                            ),
-                                                            _mealRowWithTime(
-                                                              "Lunch",
-                                                              plan['lunch'],
-                                                              plan['lunchTime'],
-                                                              isLocked:
-                                                              !isSubscribed,
-                                                            ),
-                                                            _mealRowWithTime(
-                                                              "PM Snack",
-                                                              plan['pmSnack'],
-                                                              plan['pmSnackTime'],
-                                                              isLocked:
-                                                              !isSubscribed,
-                                                            ),
-                                                            _mealRowWithTime(
-                                                              "Dinner",
-                                                              plan['dinner'],
-                                                              plan['dinnerTime'],
-                                                              isLocked:
-                                                              !isSubscribed,
-                                                            ),
-                                                            _mealRowWithTime(
-                                                              "Midnight Snack",
-                                                              plan[
-                                                              'midnightSnack'],
-                                                              plan[
-                                                              'midnightSnackTime'],
-                                                              isLocked:
-                                                              !isSubscribed,
-                                                            ),
-                                                            if (!isSubscribed)
-                                                              Padding(
-                                                                padding:
-                                                                const EdgeInsets
-                                                                    .only(
-                                                                    top: 8.0),
-                                                                child: InkWell(
-                                                                  onTap: () {
-                                                                    _showSubscriptionDialog(
-                                                                        plan[
-                                                                        'ownerName'],
-                                                                        plan[
-                                                                        'owner']);
-                                                                  },
-                                                                  child: Container(
-                                                                    padding:
-                                                                    const EdgeInsets
-                                                                        .all(8),
-                                                                    decoration:
-                                                                    BoxDecoration(
-                                                                      color: Colors
-                                                                          .orange
-                                                                          .withOpacity(
-                                                                          0.1),
-                                                                      borderRadius:
-                                                                      BorderRadius.circular(
-                                                                          8),
-                                                                      border: Border
-                                                                          .all(
-                                                                        color: Colors
-                                                                            .orange
-                                                                            .withOpacity(
-                                                                            0.3),
-                                                                      ),
-                                                                    ),
-                                                                    child: Row(
-                                                                      mainAxisSize:
-                                                                      MainAxisSize
-                                                                          .min,
-                                                                      children: [
-                                                                        const Icon(
-                                                                          Icons
-                                                                              .lock_open,
-                                                                          size: 14,
-                                                                          color: Colors
-                                                                              .orange,
-                                                                        ),
-                                                                        const SizedBox(
-                                                                            width:
-                                                                            6),
-                                                                        Text(
-                                                                          'Subscribe to unlock',
-                                                                          style: _getTextStyle(
-                                                                              context,
-                                                                              fontSize:
-                                                                              11,
-                                                                              fontWeight:
-                                                                              FontWeight.w600,
-                                                                              color: Colors.orange, height: 1.5),
-                                                                        ),
-                                                                      ],
-                                                                    ),
-                                                                  ),
-                                                                ),
-                                                              ),
-                                                          ],
-                                                        ),
-                                                      );
-                                                    },
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                      ],
-                                    ),
-                                  );
-                                },
-                              );
-                            },
+                            child: Center(
+                              child: Text(
+                                'Your Liked Plans',
+                                style: _getTextStyle(
+                                  context,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: _mealPlanTabIndex == 0
+                                      ? _primaryColor
+                                      : _textColorSecondary(context),
+                                  height: 1.5,
+                                ),
+                              ),
+                            ),
                           ),
                         ),
+                      ),
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              _mealPlanTabIndex = 1;
+                            });
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                vertical: 16, horizontal: 16),
+                            decoration: BoxDecoration(
+                              border: Border(
+                                bottom: BorderSide(
+                                  color: _mealPlanTabIndex == 1
+                                      ? _primaryColor
+                                      : Colors.transparent,
+                                  width: 2,
+                                ),
+                              ),
+                            ),
+                            child: Center(
+                              child: Text(
+                                'Your Personalized Plans',
+                                style: _getTextStyle(
+                                  context,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: _mealPlanTabIndex == 1
+                                      ? _primaryColor
+                                      : _textColorSecondary(context),
+                                  height: 1.5,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
                     ],
                   ),
-                );
-              },
+                ),
+                // Tab Content
+                Expanded(
+                  child: IndexedStack(
+                    index: _mealPlanTabIndex,
+                    children: [
+                      // --- LIKED MEAL PLANS TAB ---
+                      FutureBuilder<List<Map<String, dynamic>>>(
+                        future: _fetchLikedMealPlansWithOwners(user?.uid),
+                        builder: (context, snapshot) {
+                          if (snapshot.connectionState == ConnectionState.waiting) {
+                            return const Center(
+                                child: CircularProgressIndicator(color: _primaryColor));
+                          }
+
+                          if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                            return _buildEmptyState(
+                              "No Liked Plans",
+                              "Like a meal plan from the Home feed to see it here.",
+                              Icons.favorite_border,
+                            );
+                          }
+
+                          final mealPlans = snapshot.data!;
+
+                          if (_weeklySchedule.isEmpty && !_isLoadingSchedule) {
+                            WidgetsBinding.instance.addPostFrameCallback((_) {
+                              _loadScheduledMealPlans();
+                            });
+                          }
+
+                          return _buildMealPlansContent(mealPlans, user, orderedDays);
+                        },
+                      ),
+                      // --- PERSONALIZED MEAL PLANS TAB ---
+                      FutureBuilder<List<Map<String, dynamic>>>(
+                        future: _fetchPersonalizedMealPlans(user?.uid),
+                        builder: (context, snapshot) {
+                          if (snapshot.connectionState == ConnectionState.waiting) {
+                            return const Center(
+                                child: CircularProgressIndicator(color: _primaryColor));
+                          }
+
+                          if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                            return _buildEmptyState(
+                              "No Personalized Plans",
+                              "Your dietitian will create personalized meal plans for you here.",
+                              Icons.assignment,
+                            );
+                          }
+
+                          final mealPlans = snapshot.data!;
+
+                          if (_weeklySchedule.isEmpty && !_isLoadingSchedule) {
+                            WidgetsBinding.instance.addPostFrameCallback((_) {
+                              _loadScheduledMealPlans();
+                            });
+                          }
+
+                          return _buildMealPlansContent(mealPlans, user, orderedDays);
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-            // --- END OF REDESIGNED MEAL PLAN TAB ---
           ],
         ),
-      ),
+      )
     );
   }
 
@@ -5599,8 +5422,8 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
                             fontWeight: FontWeight.w600,
                             color: isLocked
                                 ? Colors.grey.shade600
-                                : _primaryColor, height: 1.5
-                        ),
+                                : _primaryColor,
+                            height: 1.5),
                       ),
                     ),
                     if (time != null && time.isNotEmpty && !isLocked)
@@ -5622,7 +5445,8 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
                               style: _getTextStyle(context,
                                   fontSize: 10,
                                   fontWeight: FontWeight.w600,
-                                  color: _primaryColor, height: 1.5),
+                                  color: _primaryColor,
+                                  height: 1.5),
                             ),
                           ],
                         ),
@@ -5639,7 +5463,9 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
                           fontWeight: FontWeight.w500,
                           color: isLocked
                               ? Colors.grey.shade500
-                              : _getTextStyle(context, fontSize: 13, height: 1.5).color, height: 1.5),
+                              : _getTextStyle(context, fontSize: 13, height: 1.5)
+                              .color,
+                          height: 1.5),
                     ),
                   ),
               ],
@@ -5650,9 +5476,6 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
     );
   }
 
-
-
-// Add this method to show subscription dialog
   void _showSubscriptionDialog(String? ownerName, String? ownerId) {
     showDialog(
       context: context,
@@ -5706,8 +5529,6 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
             ElevatedButton(
               onPressed: () {
                 Navigator.of(context).pop();
-                // Navigate to subscription page
-                // You'll need to implement this navigation
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.orange,
@@ -5743,12 +5564,303 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
   }
 
   String _monthAbbrev(int month) {
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec'
+    ];
     return months[month - 1];
   }
 
+  // Add this complete method to your _UserSchedulePageState class
+// Place it before the _buildScheduledAppointmentsList method
+
+  Widget _buildMealPlansContent(List<Map<String, dynamic>> mealPlans, User? user,
+      List<Map<String, dynamic>> orderedDays) {
+    final now = DateTime.now();
+
+    return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  _primaryColor.withOpacity(0.15),
+                  _primaryColor.withOpacity(0.05),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: _primaryColor.withOpacity(0.3),
+                width: 1,
+              ),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: _primaryColor.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(Icons.touch_app, color: _primaryColor, size: 24),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    "Long press and drag meal plans to schedule your week",
+                    style: _getTextStyle(
+                      context,
+                      color: _primaryColor,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                      height: 1.5,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
+          Row(
+            children: [
+              Icon(Icons.favorite, color: _primaryColor, size: 22),
+              const SizedBox(width: 8),
+              Text(
+                "Available Meal Plans",
+                style: _getTextStyle(context,
+                    fontSize: 18, fontWeight: FontWeight.w700, height: 1.5),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: mealPlans.map((plan) {
+              return LongPressDraggable<Map<String, dynamic>>(
+                data: plan,
+                feedback: Material(
+                    color: Colors.transparent,
+                    child: _planCard(plan, isDragging: true)),
+                childWhenDragging: Opacity(
+                    opacity: 0.3, child: _planCard(plan)),
+                child: _planCard(plan),
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 32),
+          Row(
+            children: [
+              Icon(Icons.calendar_month, color: _primaryColor, size: 22),
+              const SizedBox(width: 8),
+              Text(
+                "Weekly Schedule",
+                style: _getTextStyle(context,
+                    fontSize: 18, fontWeight: FontWeight.w700, height: 1.5),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          if (_isLoadingSchedule)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.all(40.0),
+                child: CircularProgressIndicator(color: _primaryColor),
+              ),
+            )
+          else
+            SizedBox(
+              height: 320,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                itemCount: orderedDays.length,
+                itemBuilder: (context, index) {
+                  final dayInfo = orderedDays[index];
+                  final day = dayInfo['label'] as String;
+                  final date = dayInfo['date'] as DateTime;
+                  final formattedDate = "${_monthAbbrev(date.month)} ${date.day}";
+                  final plan = _weeklySchedule[day];
+                  final isToday = date.day == now.day &&
+                      date.month == now.month &&
+                      date.year == now.year;
+
+                  // ✅ Check if this is a personalized plan
+                  final bool isPersonalized = plan?['isPersonalized'] ?? false;
+
+                  return DragTarget<Map<String, dynamic>>(
+                    onAccept: (receivedPlan) {
+                      _saveMealPlanToSchedule(day, date, receivedPlan);
+                    },
+                    builder: (context, candidateData, rejectedData) {
+                      final isHovering = candidateData.isNotEmpty;
+                      return Container(
+                        width: 270,
+                        margin: const EdgeInsets.only(right: 12),
+                        padding: const EdgeInsets.all(14.0),
+                        decoration: BoxDecoration(
+                          color: isHovering
+                              ? _primaryColor.withOpacity(0.1)
+                              : _cardBgColor(context),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: isToday
+                                ? _primaryColor
+                                : isHovering
+                                ? _primaryColor.withOpacity(0.5)
+                                : Colors.transparent,
+                            width: isToday ? 2 : 1,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.08),
+                              blurRadius: 12,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment:
+                              MainAxisAlignment.spaceBetween,
+                              children: [
+                                Column(
+                                  crossAxisAlignment:
+                                  CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Text(
+                                          day,
+                                          style: _getTextStyle(context,
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 16,
+                                              height: 1.5),
+                                        ),
+                                        if (isToday) ...[
+                                          const SizedBox(width: 6),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 6, vertical: 2),
+                                            decoration: BoxDecoration(
+                                              color: _primaryColor,
+                                              borderRadius:
+                                              BorderRadius.circular(4),
+                                            ),
+                                            child: Text(
+                                              'TODAY',
+                                              style: _getTextStyle(
+                                                context,
+                                                fontSize: 10,
+                                                fontWeight: FontWeight.bold,
+                                                height: 1.5,
+                                                color: Colors.white,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ],
+                                    ),
+                                    Text(
+                                      formattedDate,
+                                      style: _getTextStyle(context,
+                                          color:
+                                          _textColorSecondary(context),
+                                          fontSize: 12,
+                                          height: 1.5),
+                                    ),
+                                  ],
+                                ),
+                                if (plan != null)
+                                  IconButton(
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(),
+                                    icon: const Icon(Icons.close,
+                                        color: Colors.redAccent, size: 20),
+                                    onPressed: () {
+                                      _deleteMealPlanFromSchedule(day, date);
+                                    },
+                                  ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            if (plan == null)
+                              Expanded(
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    color: _primaryColor.withOpacity(0.05),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: _primaryColor.withOpacity(0.2),
+                                      width: 2,
+                                      style: BorderStyle.solid,
+                                    ),
+                                  ),
+                                  child: Center(
+                                    child: Column(
+                                      mainAxisAlignment:
+                                      MainAxisAlignment.center,
+                                      children: [
+                                        Icon(
+                                          Icons.add_circle_outline,
+                                          color: _primaryColor
+                                              .withOpacity(0.4),
+                                          size: 32,
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Text(
+                                          "Drop plan here",
+                                          style: _getTextStyle(context,
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w500,
+                                              color: _textColorSecondary(
+                                                  context),
+                                              height: 1.5),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              )
+                            else
+                              _buildScheduledMealPlanContent(
+                              plan,
+                              user,
+                              isPersonalized: isPersonalized,)
+                          ],
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildScheduledAppointmentsList(DateTime selectedDate) {
-    final normalizedSelectedDate = DateTime.utc(selectedDate.year, selectedDate.month, selectedDate.day);
+    final normalizedSelectedDate =
+    DateTime.utc(selectedDate.year, selectedDate.month, selectedDate.day);
     final dayEvents = _events[normalizedSelectedDate] ?? [];
 
     if (dayEvents.isEmpty) {
@@ -5759,10 +5871,13 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
         child: Padding(
           padding: const EdgeInsets.all(16.0),
           child: Center(
-            child: Text("No appointments scheduled for this day yet.", style: _getTextStyle(context, color: _textColorSecondary(context), height: 1.5),
+            child: Text(
+              "No appointments scheduled for this day yet.",
+              style: _getTextStyle(context,
+                  color: _textColorSecondary(context), height: 1.5),
+            ),
           ),
         ),
-      )
       );
     }
 
@@ -5780,7 +5895,8 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
       children: dayEvents.map<Widget>((data) {
         DateTime appointmentDateTime;
         try {
-          appointmentDateTime = DateFormat('yyyy-MM-dd HH:mm').parse(data['appointmentDate']);
+          appointmentDateTime =
+              DateFormat('yyyy-MM-dd HH:mm').parse(data['appointmentDate']);
         } catch (e) {
           print("Error parsing appointment date: $e");
           return const SizedBox.shrink();
@@ -5789,10 +5905,8 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
         final status = data['status'] ?? 'scheduled';
         final appointmentId = data['id'];
 
-        // Use the helpers already in home.dart
         final statusColor = _getStatusColor(status);
 
-        // --- START: NEW LAYOUT (from homePageDietitian.dart) ---
         return Container(
           margin: const EdgeInsets.only(bottom: 12),
           decoration: BoxDecoration(
@@ -5815,7 +5929,6 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Dietitian Name Row
                 Row(
                   children: [
                     Container(
@@ -5826,7 +5939,7 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Icon(
-                        Icons.person_rounded, // Dietitian Icon
+                        Icons.person_rounded,
                         color: _primaryColor,
                         size: 22,
                       ),
@@ -5834,11 +5947,12 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
-                        data['dietitianName'] ?? 'Unknown Dietitian', // Client-side logic
+                        data['dietitianName'] ?? 'Unknown Dietitian',
                         style: _getTextStyle(
                           context,
                           fontSize: 16,
-                          fontWeight: FontWeight.bold, height: 1.5,
+                          fontWeight: FontWeight.bold,
+                          height: 1.5,
                         ),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
@@ -5847,14 +5961,11 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
                   ],
                 ),
                 const SizedBox(height: 12),
-
-                // Time and Status Layout
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Time section
                     Row(
-                      mainAxisSize: MainAxisSize.min, // Takes only needed space
+                      mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(
                           Icons.access_time,
@@ -5868,17 +5979,15 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
                             context,
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
-                            color: _textColorPrimary(context), height: 1.5,
+                            color: _textColorPrimary(context),
+                            height: 1.5,
                           ),
                         ),
                       ],
                     ),
-
-                    const SizedBox(height: 8.0), // Vertical space
-
-                    // Status section
+                    const SizedBox(height: 8.0),
                     Row(
-                      mainAxisSize: MainAxisSize.min, // Takes only needed space
+                      mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(
                           Icons.bookmark_outline_rounded,
@@ -5887,21 +5996,21 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
                         ),
                         const SizedBox(width: 6),
                         Text(
-                          _getStatusDisplayText(status), // Client-side logic
+                          _getStatusDisplayText(status),
                           style: _getTextStyle(
                             context,
                             fontSize: 13,
                             fontWeight: FontWeight.w600,
-                            color: statusColor, height: 1.5,
+                            color: statusColor,
+                            height: 1.5,
                           ),
                         ),
                       ],
                     ),
                   ],
                 ),
-
-                // Notes Row
-                if (data['notes'] != null && data['notes'].toString().isNotEmpty) ...[
+                if (data['notes'] != null &&
+                    data['notes'].toString().isNotEmpty) ...[
                   const SizedBox(height: 12),
                   Divider(
                     color: _textColorSecondary(context).withOpacity(0.2),
@@ -5923,7 +6032,8 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
                           style: _getTextStyle(
                             context,
                             fontSize: 13,
-                            color: _textColorSecondary(context), height: 1.5,
+                            color: _textColorSecondary(context),
+                            height: 1.5,
                           ),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
@@ -5932,8 +6042,6 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
                     ],
                   ),
                 ],
-
-                // --- CLIENT-SPECIFIC ACTIONS (from home.dart) ---
                 if (status == 'Waiting for client response.') ...[
                   const SizedBox(height: 16),
                   Row(
@@ -5947,21 +6055,24 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
                             backgroundColor: Colors.green,
                             foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12)),
                           ),
                         ),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
                         child: ElevatedButton.icon(
-                          onPressed: () => _showCancelConfirmationDialog(appointmentId, data),
+                          onPressed: () =>
+                              _showCancelConfirmationDialog(appointmentId, data),
                           icon: const Icon(Icons.cancel, size: 18),
                           label: const Text('Cancel'),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.red,
                             foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12)),
                           ),
                         ),
                       ),
@@ -5972,37 +6083,260 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
             ),
           ),
         );
-        // --- END: NEW LAYOUT ---
       }).toList(),
     );
   }
 
   String _getStatusDisplayText(String status) {
     switch (status.toLowerCase()) {
-      case 'proposed_by_dietitian': return 'Pending';
-      case 'confirmed': return 'Confirmed';
-      case 'declined': return 'Declined';
-      case 'cancelled': return 'Cancelled';
-      case 'completed': return 'Completed';
-      default: return 'Scheduled';
+      case 'proposed_by_dietitian':
+        return 'Pending';
+      case 'confirmed':
+        return 'Confirmed';
+      case 'declined':
+        return 'Declined';
+      case 'cancelled':
+        return 'Cancelled';
+      case 'completed':
+        return 'Completed';
+      default:
+        return 'Scheduled';
     }
   }
 
   Color _getStatusColor(String status) {
     switch (status.toLowerCase()) {
-      case 'confirmed': return Colors.green;
-      case 'declined': return Colors.red;
-      case 'cancelled': return Colors.orange;
-      case 'proposed_by_dietitian': return Colors.blue;
-      case 'completed': return Colors.grey;
-      default: return _primaryColor;
+      case 'confirmed':
+        return Colors.green;
+      case 'declined':
+        return Colors.red;
+      case 'cancelled':
+        return Colors.orange;
+      case 'proposed_by_dietitian':
+        return Colors.blue;
+      case 'completed':
+        return Colors.grey;
+      default:
+        return _primaryColor;
     }
+  }
+
+  Widget _buildScheduledMealPlanContent(Map<String, dynamic> plan, User? user,
+      {bool isPersonalized = false}) {
+    return Expanded(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  _primaryColor,
+                  _primaryColor.withOpacity(0.7),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(
+                  Icons.restaurant_menu_rounded,
+                  color: Colors.white,
+                  size: 16,
+                ),
+                const SizedBox(width: 6),
+                Flexible(
+                  child: Text(
+                    plan['planType'] ?? 'Meal Plan',
+                    style: _getTextStyle(
+                      context,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                      color: Colors.white,
+                      height: 1.5,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          Expanded(
+            child: FutureBuilder<String?>(
+              future: isPersonalized
+                  ? Future.value('active') // ✅ Always active for personalized plans
+                  : _checkSubscriptionStatus(user?.uid, plan['owner']),
+              builder: (context, snapshot) {
+                // While loading, show loading indicator
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(
+                    child: CircularProgressIndicator(color: _primaryColor),
+                  );
+                }
+
+                final subscriptionStatus = snapshot.data;
+
+                // ✅ Check if subscription is valid
+                final bool isLocked = !isPersonalized &&
+                    (subscriptionStatus == null ||
+                        subscriptionStatus == 'expired' ||
+                        subscriptionStatus == 'cancelled');
+
+                return SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // ✅ Show description if available
+                      if (plan['description'] != null &&
+                          plan['description'].toString().isNotEmpty) ...[
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: _primaryColor.withOpacity(0.08),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: _primaryColor.withOpacity(0.2),
+                            ),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.info_outline,
+                                    size: 16,
+                                    color: _primaryColor,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    "Plan Description",
+                                    style: _getTextStyle(
+                                      context,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: _primaryColor,
+                                      height: 1.5,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                plan['description'],
+                                style: _getTextStyle(
+                                  context,
+                                  fontSize: 12,
+                                  color: _textColorSecondary(context),
+                                  height: 1.4,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+
+                      // ✅ Always show all meals - Breakfast unlocked, rest locked if not subscribed
+                      _mealRowWithTime(
+                        "Breakfast",
+                        plan['breakfast'],
+                        plan['breakfastTime'],
+                        isLocked: false,
+                      ),
+                      _mealRowWithTime(
+                        "AM Snack",
+                        plan['amSnack'],
+                        plan['amSnackTime'],
+                        isLocked: isLocked,
+                      ),
+                      _mealRowWithTime(
+                        "Lunch",
+                        plan['lunch'],
+                        plan['lunchTime'],
+                        isLocked: isLocked,
+                      ),
+                      _mealRowWithTime(
+                        "PM Snack",
+                        plan['pmSnack'],
+                        plan['pmSnackTime'],
+                        isLocked: isLocked,
+                      ),
+                      _mealRowWithTime(
+                        "Dinner",
+                        plan['dinner'],
+                        plan['dinnerTime'],
+                        isLocked: isLocked,
+                      ),
+                      _mealRowWithTime(
+                        "Midnight Snack",
+                        plan['midnightSnack'],
+                        plan['midnightSnackTime'],
+                        isLocked: isLocked,
+                      ),
+
+                      // ✅ Show subscription prompt if locked
+                      if (isLocked)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 12.0),
+                          child: InkWell(
+                            onTap: () {
+                              _showSubscriptionDialog(
+                                  plan['ownerName'], plan['owner']);
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.orange.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: Colors.orange.withOpacity(0.3),
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(
+                                    Icons.lock_open,
+                                    size: 16,
+                                    color: Colors.orange,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      subscriptionStatus == 'expired'
+                                          ? 'Subscription expired. Renew to unlock'
+                                          : subscriptionStatus == 'cancelled'
+                                          ? 'Subscription cancelled. Resubscribe to unlock'
+                                          : 'Subscribe to unlock all meals',
+                                      style: _getTextStyle(context,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600,
+                                          color: Colors.orange,
+                                          height: 1.5),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
-// REPLACE the entire UsersListPage class in your home.dart with this code
 
-// REPLACE the entire UsersListPage class in your home.dart with this code
 
 class UsersListPage extends StatefulWidget {
   final String currentUserId;
