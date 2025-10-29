@@ -11,7 +11,7 @@ import 'termsAndConditions.dart';
 
 import 'package:flutter/gestures.dart';// Your terms file
 
-
+import 'package:mamas_recipe/widget/custom_snackbar.dart';
 
 
 
@@ -160,8 +160,11 @@ class _LoginPageState extends State<LoginPageMobile> with TickerProviderStateMix
     }
   }
 
+// Replace your _buildTermsCheckbox() method in login.dart with this:
+
   Widget _buildTermsCheckbox() {
     return Row(
+      mainAxisAlignment: MainAxisAlignment.center, // <-- ADD this
       children: [
         SizedBox(
           width: 24,
@@ -180,36 +183,42 @@ class _LoginPageState extends State<LoginPageMobile> with TickerProviderStateMix
           ),
         ),
         const SizedBox(width: 8),
-        Expanded(
-          child: GestureDetector(
-            onTap: _showTermsDialog,
-            child: RichText(
-              text: TextSpan(
-                style: _getTextStyle(
-                  context,
-                  fontSize: 14,
-                  color: _textColorSecondary(context),
-                ),
-                children: [
-                  const TextSpan(text: 'I agree with '),
-                  TextSpan(
-                    text: 'Terms and Conditions',
-                    style: _getTextStyle(
-                      context,
-                      fontSize: 14,
-                      color: _primaryColor,
-                      fontWeight: FontWeight.w600,
-                    ),
-                    recognizer: TapGestureRecognizer()..onTap = _showTermsDialog,
-                  ),
-                ],
+        // REMOVED Expanded() widget
+        GestureDetector(
+          onTap: () => showTermsAndConditions(context),
+          child: RichText(
+            // REMOVED textAlign: TextAlign.center
+            text: TextSpan(
+              style: _getTextStyle(
+                context,
+                fontSize: 14,
+                color: _textColorSecondary(context),
               ),
+              children: [
+                const TextSpan(text: 'I agree with '),
+                TextSpan(
+                  text: 'Terms and Conditions',
+                  style: _getTextStyle(
+                    context,
+                    fontSize: 14,
+                    color: _primaryColor,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  recognizer: TapGestureRecognizer()
+                    ..onTap = () => showTermsAndConditions(context),
+                ),
+              ],
             ),
           ),
         ),
       ],
     );
   }
+// Also, update your import at the top of login.dart:
+// Change this line:
+// import 'termsAndConditions.dart';
+// To this:
+// import 'terms_and_conditions.dart';
 
   Widget _buildWelcomeDialog() {
     return AnimatedBuilder(
@@ -1005,89 +1014,6 @@ class _LoginPageState extends State<LoginPageMobile> with TickerProviderStateMix
     }
   }
 
-  Future<void> _showTermsDialog() async {
-    await showDialog(
-      context: context,
-      builder: (context) => Dialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Container(
-          constraints: BoxConstraints(
-            maxHeight: MediaQuery.of(context).size.height * 0.8,
-            maxWidth: 500,
-          ),
-          child: Column(
-            children: [
-              // Header
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: _primaryColor,
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(20),
-                    topRight: Radius.circular(20),
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        'Terms and Conditions',
-                        style: _getTextStyle(
-                          context,
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: _textColorOnPrimary,
-                        ),
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.close, color: _textColorOnPrimary),
-                      onPressed: () => Navigator.of(context).pop(),
-                    ),
-                  ],
-                ),
-              ),
-              // Terms Content
-              Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(20),
-                  child: TermsAndConditionsScreen(), // Your terms widget
-                ),
-              ),
-              // Close Button
-              Padding(
-                padding: const EdgeInsets.all(20),
-                child: SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: _primaryColor,
-                      foregroundColor: _textColorOnPrimary,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    child: Text(
-                      'Close',
-                      style: _getTextStyle(
-                        context,
-                        fontWeight: FontWeight.bold,
-                        color: _textColorOnPrimary,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 
   Future<void> _handleLogin() async {
     String email = emailController.text.trim();
@@ -1752,11 +1678,11 @@ class _LoginPageState extends State<LoginPageMobile> with TickerProviderStateMix
       await FirebaseAuth.instance.fetchSignInMethodsForEmail(googleUser.email);
 
       if (signInMethods.contains('password')) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-                "This email is already registered using Email & Password."),
-          ),
+        CustomSnackBar.show(
+          context,
+          "This email is already registered using Email & Password.",
+          backgroundColor: Colors.redAccent,
+          icon: Icons.info_outline,
         );
         return false;
       }
@@ -1807,8 +1733,11 @@ class _LoginPageState extends State<LoginPageMobile> with TickerProviderStateMix
       return FirebaseAuth.instance.currentUser != null;
     } catch (e) {
       print("Google Sign-In error: $e");
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Failed to sign in with Google.")),
+      CustomSnackBar.show(
+        context,
+        "Failed to sign in with Google.",
+        backgroundColor: Colors.redAccent,
+        icon: Icons.error_outline,
       );
       return false;
     }
@@ -1817,38 +1746,22 @@ class _LoginPageState extends State<LoginPageMobile> with TickerProviderStateMix
   // ==================== SnackBars ====================
 
   void _showErrorSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            Icon(Icons.error_outline, color: _textColorOnPrimary),
-            const SizedBox(width: 12),
-            Expanded(child: Text(message)),
-          ],
-        ),
-        backgroundColor: Colors.redAccent,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        margin: const EdgeInsets.all(16),
-      ),
+    CustomSnackBar.show(
+      context,
+      message,
+      backgroundColor: Colors.redAccent,
+      icon: Icons.error_outline,
+      duration: const Duration(seconds: 4),
     );
   }
 
   void _showSuccessSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            Icon(Icons.check_circle_outline, color: _textColorOnPrimary),
-            const SizedBox(width: 12),
-            Expanded(child: Text(message)),
-          ],
-        ),
-        backgroundColor: _primaryColor,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        margin: const EdgeInsets.all(16),
-      ),
+    CustomSnackBar.show(
+      context,
+      message,
+      backgroundColor: const Color(0xFF4CAF50),
+      icon: Icons.check_circle_outline,
+      duration: const Duration(seconds: 3),
     );
   }
 
@@ -1887,6 +1800,9 @@ class _LoginPageState extends State<LoginPageMobile> with TickerProviderStateMix
       ),
     );
   }
+
+
+
 
   @override
   Widget build(BuildContext context) {

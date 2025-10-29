@@ -139,6 +139,12 @@ class _DietitianPublicProfileState extends State<DietitianPublicProfile> {
     _checkSubscriptionStatus();
     _expandedStates = {};
     _cardKeys = {};
+    _scrollController = ScrollController();
+    _checkIfFollowing();
+    _getFollowerCount();
+    _getUploadCount();
+    _getDietitianBio();
+    _checkSubscriptionStatus();
   }
 
   @override
@@ -508,8 +514,8 @@ class _DietitianPublicProfileState extends State<DietitianPublicProfile> {
   }
 
 
-// REPLACE your _buildMealPlanListItem with THIS StatefulBuilder version
-// REPLACE your _buildMealPlanListItem with THIS map-based version AGAIN
+// REPLACE your _buildMealPlanListItem method with this simplified version
+
   Widget _buildMealPlanListItem(
       BuildContext context,
       DocumentSnapshot doc,
@@ -523,346 +529,229 @@ class _DietitianPublicProfileState extends State<DietitianPublicProfile> {
     final String description = data['description']?.toString() ?? '';
     final timestamp = data["timestamp"] as Timestamp?;
     final int likeCounts = data['likeCounts'] as int? ?? 0;
-
-    // Use doc.id as the unique key for this meal plan's state
-    final String cardKey = doc.id;
-
-    if (!_cardKeys.containsKey(cardKey)) {
-      _cardKeys[cardKey] = GlobalKey();
-    }
-
-    // Initialize the expanded state for this card if it doesn't exist yet
-    // IMPORTANT: DO NOT CALL setState here. We just ensure the key exists.
-    if (!_expandedStates.containsKey(cardKey)) {
-      _expandedStates[cardKey] = false;
-    }
-    // Get the current expanded state for THIS card from the main state map
-    final bool isExpanded = _expandedStates[cardKey]!;
     final bool lockAllMeals = isLocked;
 
     return Card(
-      key: _cardKeys[cardKey],
       elevation: 2,
       margin: const EdgeInsets.symmetric(vertical: 8),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       color: _cardBgColor(context),
-      child: Column( // Main Column for Header + AnimatedCrossFade
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // HEADER SECTION - Always visible, clickable to expand
-          InkWell( // InkWell to handle tap for expansion
-            onTap: () {
-              // Use the main setState ONLY here in onTap
-              setState(() { // <<<--- Calls the main setState
-                _expandedStates[cardKey] = !_expandedStates[cardKey]!; // Toggle state for this specific card
-              });
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                final RenderObject? renderObject = _cardKeys[cardKey]?.currentContext?.findRenderObject();
-                if (renderObject != null) {
-                  _scrollController.position.ensureVisible(
-                    renderObject,
-                    duration: const Duration(milliseconds: 300),
-                    curve: Curves.easeInOut,
-                  );
-                }
-              });
-            },
-            borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(16),
-              topRight: Radius.circular(16),
-            ),
-            child: Padding( // Header Content Padding
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Owner Info Row
-                  Row(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Owner Info Row
+            Row(
+              children: [
+                CircleAvatar(
+                  radius: 20,
+                  backgroundColor: _primaryColor.withOpacity(0.2),
+                  backgroundImage: (widget.dietitianProfile.isNotEmpty)
+                      ? NetworkImage(widget.dietitianProfile)
+                      : null,
+                  child: (widget.dietitianProfile.isEmpty)
+                      ? const Icon(Icons.person, size: 24, color: _primaryColor)
+                      : null,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      CircleAvatar(
-                        radius: 20,
-                        backgroundColor: _primaryColor.withOpacity(0.2),
-                        backgroundImage: (widget.dietitianProfile.isNotEmpty)
-                            ? NetworkImage(widget.dietitianProfile)
-                            : null,
-                        child: (widget.dietitianProfile.isEmpty)
-                            ? const Icon(Icons.person,
-                            size: 24, color: _primaryColor)
-                            : null,
+                      Text(
+                        widget.dietitianName,
+                        style: _getTextStyle(context,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                            color: _primaryColor),
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              widget.dietitianName, // Use widget data
-                              style: _getTextStyle(context,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                  color: _primaryColor)
-                                  .copyWith(fontSize: 16),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            if (timestamp != null)
-                              Text(
-                                DateFormat('MMM dd, yyyy')
-                                    .format(timestamp.toDate()),
-                                style: _getTextStyle(context,
-                                    fontSize: 12,
-                                    color: _textColorSecondary(context))
-                                    .copyWith(fontSize: 12),
-                              ),
-                          ],
+                      if (timestamp != null)
+                        Text(
+                          DateFormat('MMM dd, yyyy')
+                              .format(timestamp.toDate()),
+                          style: _getTextStyle(context,
+                              fontSize: 12,
+                              color: _textColorSecondary(context)),
                         ),
+                    ],
+                  ),
+                ),
+                // Like Count
+                Row(
+                  children: [
+                    const Icon(Icons.favorite, color: Colors.red, size: 16),
+                    const SizedBox(width: 4),
+                    Text(
+                      likeCounts.toString(),
+                      style: _getTextStyle(
+                        context,
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
                       ),
-                      // Like Count (Moved to header)
-                      Row(
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+
+            // Plan Type
+            Text(
+              planType,
+              style: _getTextStyle(context,
+                  fontWeight: FontWeight.bold, fontSize: 17),
+            ),
+            const SizedBox(height: 12),
+
+            // Description
+            if (description.isNotEmpty)
+              Container(
+                padding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(
+                  color: _primaryColor.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: _primaryColor.withOpacity(0.15),
+                    width: 1,
+                  ),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      Icons.description_outlined,
+                      size: 16,
+                      color: _primaryColor,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Icon(Icons.favorite,
-                              color: Colors.red, size: 16),
-                          const SizedBox(width: 4),
                           Text(
-                            likeCounts.toString(),
+                            description,
                             style: _getTextStyle(
                               context,
                               fontSize: 13,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(width: 8), // Spacer
-                      // Animated expand/collapse indicator (uses the state variable)
-                      AnimatedRotation( // Shows expand state visually
-                        turns: isExpanded ? 0.5 : 0, // <<<--- Uses isExpanded from map
-                        duration: const Duration(milliseconds: 300),
-                        child: Icon(
-                          Icons.expand_more,
-                          color: _primaryColor,
-                          size: 28,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Plan Type
-                  Text(
-                    planType,
-                    style: _getTextStyle(context,
-                        fontWeight: FontWeight.bold, fontSize: 17)
-                        .copyWith(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 17,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-
-                  // --- DESCRIPTION (Always Visible) ---
-                  if (description.isNotEmpty)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 10),
-                      decoration: BoxDecoration(
-                        color: _primaryColor.withOpacity(0.08),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                          color: _primaryColor.withOpacity(0.15),
-                          width: 1,
-                        ),
-                      ),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Icon(
-                            Icons.description_outlined,
-                            size: 16,
-                            color: _primaryColor,
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  description,
-                                  style: _getTextStyle(
-                                    context,
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w500,
-                                    color: _textColorPrimary(context),
-                                  ),
-                                  maxLines: isExpanded
-                                      ? 100 // Show full text when expanded
-                                      : 2, // Limit lines when collapsed
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                // Only show "View full" if not expanded OR if text might overflow
-                                if (!isExpanded || description.length > 80) // Adjust length check as needed
-                                  Padding(
-                                    padding: const EdgeInsets.only(top: 6.0),
-                                    child: GestureDetector(
-                                      onTap: () => _showFullDescription( // Calls the dialog
-                                        context,
-                                        description,
-                                        planType,
-                                      ),
-                                      child: Text(
-                                        isExpanded ? "View in dialog" : "View full description",
-                                        style: _getTextStyle(
-                                          context,
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w600,
-                                          color: _primaryColor,
-                                          fontStyle: FontStyle.italic,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                              ],
+                              fontWeight: FontWeight.w500,
+                              color: _textColorPrimary(context),
+                              height: 1.6,
                             ),
                           ),
                         ],
                       ),
                     ),
-                  // --- END DESCRIPTION ---
+                  ],
+                ),
+              ),
 
-                  const SizedBox(height: 12),
+            const SizedBox(height: 12),
+            const Divider(height: 20, thickness: 0.5),
 
-                  // "Tap to view" hint only when collapsed
-                  if (!isExpanded)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 4.0),
-                      child: Text(
-                        "Tap to view full meal plan",
-                        style: _getTextStyle(
-                          context,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                          color: _primaryColor,
-                          fontStyle: FontStyle.italic,
-                        ),
+            // All Meals Always Visible
+            _buildMealItemExpanded(
+              context,
+              "Breakfast",
+              data["breakfast"],
+              data["breakfastTime"],
+              Icons.wb_sunny_outlined,
+              Colors.orange,
+              isLocked: lockAllMeals,
+            ),
+            _buildMealItemExpanded(
+              context,
+              "AM Snack",
+              data["amSnack"],
+              data["amSnackTime"],
+              Icons.coffee_outlined,
+              Colors.brown,
+              isLocked: lockAllMeals,
+            ),
+            _buildMealItemExpanded(
+              context,
+              "Lunch",
+              data["lunch"],
+              data["lunchTime"],
+              Icons.restaurant_outlined,
+              Colors.green,
+              isLocked: lockAllMeals,
+            ),
+            _buildMealItemExpanded(
+              context,
+              "PM Snack",
+              data["pmSnack"],
+              data["pmSnackTime"],
+              Icons.local_cafe_outlined,
+              Colors.purple,
+              isLocked: lockAllMeals,
+            ),
+            _buildMealItemExpanded(
+              context,
+              "Dinner",
+              data["dinner"],
+              data["dinnerTime"],
+              Icons.nightlight_outlined,
+              Colors.indigo,
+              isLocked: lockAllMeals,
+            ),
+            _buildMealItemExpanded(
+              context,
+              "Midnight Snack",
+              data["midnightSnack"],
+              data["midnightSnackTime"],
+              Icons.bedtime_outlined,
+              Colors.blueGrey,
+              isLocked: lockAllMeals,
+            ),
+
+            // Subscription Unlock Prompt
+            if (isLocked)
+              Padding(
+                padding: const EdgeInsets.only(top: 8.0),
+                child: InkWell(
+                  onTap: _navigateToChoosePlan,
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: Colors.orange.withOpacity(0.3),
                       ),
                     ),
-                ],
-              ),
-            ),
-          ),
-
-          // EXPANDED CONTENT - Shows all meals and actions
-          AnimatedCrossFade( // Handles the expand/collapse animation
-            firstChild: const SizedBox.shrink(), // Empty when collapsed
-            secondChild: Padding( // Content shown when expanded
-              padding: const EdgeInsets.fromLTRB(16.0, 0, 16.0, 16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Divider(height: 20, thickness: 0.5),
-
-                  // Pass the isLocked flag to the meal items
-                  _buildMealItemExpanded(
-                    context,
-                    "Breakfast",
-                    data["breakfast"],
-                    data["breakfastTime"],
-                    Icons.wb_sunny_outlined,
-                    Colors.orange,
-                    isLocked: lockAllMeals, // Use the correct lock logic
-                  ),
-                  _buildMealItemExpanded(
-                    context,
-                    "AM Snack",
-                    data["amSnack"],
-                    data["amSnackTime"],
-                    Icons.coffee_outlined,
-                    Colors.brown,
-                    isLocked: lockAllMeals,
-                  ),
-                  _buildMealItemExpanded(
-                    context,
-                    "Lunch",
-                    data["lunch"],
-                    data["lunchTime"],
-                    Icons.restaurant_outlined,
-                    Colors.green,
-                    isLocked: lockAllMeals,
-                  ),
-                  _buildMealItemExpanded(
-                    context,
-                    "PM Snack",
-                    data["pmSnack"],
-                    data["pmSnackTime"],
-                    Icons.local_cafe_outlined,
-                    Colors.purple,
-                    isLocked: lockAllMeals,
-                  ),
-                  _buildMealItemExpanded(
-                    context,
-                    "Dinner",
-                    data["dinner"],
-                    data["dinnerTime"],
-                    Icons.nightlight_outlined,
-                    Colors.indigo,
-                    isLocked: lockAllMeals,
-                  ),
-                  _buildMealItemExpanded(
-                    context,
-                    "Midnight Snack",
-                    data["midnightSnack"],
-                    data["midnightSnackTime"],
-                    Icons.bedtime_outlined,
-                    Colors.blueGrey,
-                    isLocked: lockAllMeals,
-                  ),
-
-                  // Subscription Unlock Prompt (If needed)
-                  if (isLocked) // Use the main isLocked flag
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8.0),
-                      child: InkWell(
-                        onTap: _navigateToChoosePlan, // Use the helper
-                        borderRadius: BorderRadius.circular(8),
-                        child: Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: Colors.orange.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
-                              color: Colors.orange.withOpacity(0.3),
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(Icons.lock_open,
-                                  size: 14, color: Colors.orange),
-                              const SizedBox(width: 6),
-                              Text(
-                                'Subscribe to unlock',
-                                style: _getTextStyle(context,
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.orange),
-                              ),
-                            ],
-                          ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.lock_open,
+                            size: 14, color: Colors.orange),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Subscribe to unlock',
+                          style: _getTextStyle(context,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.orange),
                         ),
-                      ),
+                      ],
                     ),
-                ],
+                  ),
+                ),
               ),
-            ),
-            // Controls which child (collapsed/expanded) is visible based on the map value
-            crossFadeState: isExpanded // <<<--- Uses isExpanded from map
-                ? CrossFadeState.showSecond
-                : CrossFadeState.showFirst,
-            duration: const Duration(milliseconds: 300), // Animation duration
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
+
+// ALSO SIMPLIFY initState - remove the expanded states logic
+
+
+
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(

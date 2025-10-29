@@ -39,6 +39,162 @@ class _DietitianQRCodePageState extends State<DietitianQRCodePage> {
     );
   }
 
+  // REPLACE your _showLoadingDialogBeforeOTP method with this fixed version
+
+  void _showLoadingDialogBeforeOTP(String email) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      barrierColor: Colors.black.withOpacity(0.6),
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(24),
+        ),
+        backgroundColor: Colors.transparent,
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.15),
+                blurRadius: 20,
+                offset: const Offset(0, 10),
+              ),
+            ],
+          ),
+          padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Animated circular loading indicator
+              Container(
+                width: 80,
+                height: 80,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: LinearGradient(
+                    colors: [
+                      _primaryColor,
+                      _primaryColor.withOpacity(0.5),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: _primaryColor.withOpacity(0.3),
+                      blurRadius: 12,
+                      spreadRadius: 2,
+                    ),
+                  ],
+                ),
+                child: const Center(
+                  child: SizedBox(
+                    width: 60,
+                    height: 60,
+                    child: CircularProgressIndicator(
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      strokeWidth: 3,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              // Main loading text
+              Text(
+                'Sending OTP',
+                style: TextStyle(
+                  fontFamily: _primaryFontFamily,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+              ),
+              const SizedBox(height: 8),
+
+              // Subtitle with email
+              Text(
+                'We\'re sending a verification code to',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontFamily: _primaryFontFamily,
+                  fontSize: 13,
+                  color: Colors.grey.shade600,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                email,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontFamily: _primaryFontFamily,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: _primaryColor,
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Animated dots
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(
+                  3,
+                      (index) => Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    child: Container(
+                      width: 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: _primaryColor.withOpacity(
+                          0.3 + (index * 0.2),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    // ✅ SEND OTP INSIDE THE LOADING DIALOG
+    _sendOtpAndProceed(email);
+  }
+
+// ✅ NEW METHOD: Send OTP and handle the dialog flow
+  Future<void> _sendOtpAndProceed(String email) async {
+    try {
+      // This is where the actual email delay happens
+      await _emailOtpService.sendOtpToEmail(email);
+
+      if (!mounted) return;
+
+      // Close the loading dialog after OTP is actually sent
+      Navigator.of(context).pop();
+
+      // Now show the OTP verification dialog
+      await _showOtpVerificationDialog(email);
+    } catch (e) {
+      if (!mounted) return;
+
+      // Close the loading dialog on error
+      Navigator.of(context).pop();
+
+      CustomSnackBar.show(
+        context,
+        'Failed to send OTP. Please try again.',
+        backgroundColor: Colors.red,
+        icon: Icons.error_outline,
+      );
+    }
+  }
+
   Future<void> _pickImage(ImageSource source) async {
     final XFile? pickedFile = await _picker.pickImage(source: source);
     if (pickedFile != null) {
@@ -47,73 +203,346 @@ class _DietitianQRCodePageState extends State<DietitianQRCodePage> {
       });
     }
   }
+// REPLACE your _showOtpVerificationDialog method with this improved version
+
   Future<void> _showOtpVerificationDialog(String email) async {
     final otpController = TextEditingController();
     bool isVerifying = false;
+    bool isSendingOtp = true; // Track OTP sending state
+    String? otpErrorMessage;
 
     // Send OTP via the service
-    await _emailOtpService.sendOtpToEmail(email);
+    try {
+      await _emailOtpService.sendOtpToEmail(email);
+    } catch (e) {
+      debugPrint('Error sending OTP: $e');
+      if (!mounted) return;
+      CustomSnackBar.show(
+        context,
+        'Failed to send OTP. Please try again.',
+        backgroundColor: Colors.red,
+        icon: Icons.error_outline,
+      );
+      return;
+    }
 
     await showDialog(
       context: context,
       barrierDismissible: false,
+      barrierColor: Colors.black.withOpacity(0.6),
       builder: (context) {
         return StatefulBuilder(
-          builder: (context, setState) => AlertDialog(
-            title: const Text(
-              'Email Verification',
-              style: TextStyle(fontWeight: FontWeight.bold),
+          builder: (context, setState) => Dialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(24),
             ),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
+            backgroundColor: Colors.transparent,
+            child: Stack(
               children: [
-                const Text('Enter the 6-digit OTP sent to your email:'),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: otpController,
-                  keyboardType: TextInputType.number,
-                  maxLength: 6,
-                  textAlign: TextAlign.center,
-                  decoration: const InputDecoration(
-                    hintText: 'Enter OTP',
-                    counterText: '',
+                // Main content card
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(24),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.15),
+                        blurRadius: 20,
+                        offset: const Offset(0, 10),
+                      ),
+                    ],
+                  ),
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Header
+                        Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                _primaryColor,
+                                _primaryColor.withOpacity(0.8),
+                              ],
+                            ),
+                            borderRadius: const BorderRadius.only(
+                              topLeft: Radius.circular(24),
+                              topRight: Radius.circular(24),
+                            ),
+                          ),
+                          padding: const EdgeInsets.symmetric(
+                            vertical: 28,
+                            horizontal: 24,
+                          ),
+                          child: Column(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.2),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(
+                                  Icons.verified_user_rounded,
+                                  size: 40,
+                                  color: Colors.white.withOpacity(0.9),
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                'Email Verification',
+                                style: TextStyle(
+                                  fontFamily: _primaryFontFamily,
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Enter the 6-digit OTP sent to $email',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontFamily: _primaryFontFamily,
+                                  fontSize: 13,
+                                  color: Colors.white.withOpacity(0.85),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        // Content
+                        Padding(
+                          padding: const EdgeInsets.all(28.0),
+                          child: Column(
+                            children: [
+                              // OTP Input Field
+                              Container(
+                                decoration: BoxDecoration(
+                                  color: _primaryColor.withOpacity(0.05),
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(
+                                    color: _primaryColor.withOpacity(0.2),
+                                    width: 2,
+                                  ),
+                                ),
+                                padding:
+                                const EdgeInsets.symmetric(horizontal: 16),
+                                child: TextField(
+                                  controller: otpController,
+                                  keyboardType: TextInputType.number,
+                                  maxLength: 6,
+                                  textAlign: TextAlign.center,
+                                  enabled: !isVerifying,
+                                  style: TextStyle(
+                                    fontFamily: _primaryFontFamily,
+                                    fontSize: 28,
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: 12,
+                                    color: _primaryColor,
+                                  ),
+                                  decoration: InputDecoration(
+                                    hintText: '000000',
+                                    hintStyle: TextStyle(
+                                      fontSize: 28,
+                                      letterSpacing: 12,
+                                      color: Colors.grey.shade300,
+                                    ),
+                                    border: InputBorder.none,
+                                    counterText: '',
+                                    contentPadding:
+                                    const EdgeInsets.symmetric(vertical: 16),
+                                  ),
+                                ),
+                              ),
+
+                              const SizedBox(height: 20),
+
+                              // Error Message (if any)
+                              if (otpErrorMessage != null)
+                                Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: Colors.red.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(
+                                      color: Colors.red.withOpacity(0.3),
+                                    ),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        Icons.error_outline,
+                                        size: 20,
+                                        color: Colors.red.shade600,
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Text(
+                                          otpErrorMessage!,
+                                          style: TextStyle(
+                                            fontFamily: _primaryFontFamily,
+                                            fontSize: 13,
+                                            color: Colors.red.shade600,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+
+                              const SizedBox(height: 24),
+
+                              // Verify Button
+                              SizedBox(
+                                width: double.infinity,
+                                child: ElevatedButton.icon(
+                                  onPressed: isVerifying
+                                      ? null
+                                      : () async {
+                                    setState(() {
+                                      isVerifying = true;
+                                      otpErrorMessage = null;
+                                    });
+
+                                    await Future.delayed(
+                                      const Duration(milliseconds: 500),
+                                    );
+
+                                    final enteredOtp =
+                                    otpController.text.trim();
+
+                                    if (enteredOtp.length != 6) {
+                                      setState(() {
+                                        otpErrorMessage =
+                                        'Please enter a valid 6-digit OTP';
+                                        isVerifying = false;
+                                      });
+                                      return;
+                                    }
+
+                                    final isValid =
+                                    _emailOtpService.verifyOtp(
+                                      enteredOtp,
+                                    );
+
+                                    if (isValid) {
+                                      if (!mounted) return;
+                                      Navigator.pop(context);
+                                      _showImageSourceDialog();
+                                    } else {
+                                      setState(() {
+                                        otpErrorMessage =
+                                        'Invalid or expired OTP. Please try again.';
+                                        isVerifying = false;
+                                      });
+                                    }
+                                  },
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: _primaryColor,
+                                    foregroundColor: Colors.white,
+                                    padding:
+                                    const EdgeInsets.symmetric(vertical: 14),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    elevation: 4,
+                                    shadowColor: _primaryColor.withOpacity(0.3),
+                                    disabledBackgroundColor:
+                                    Colors.grey.shade300,
+                                  ),
+                                  icon: isVerifying
+                                      ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      valueColor:
+                                      AlwaysStoppedAnimation<Color>(
+                                        Colors.white,
+                                      ),
+                                      strokeWidth: 2.5,
+                                    ),
+                                  )
+                                      : const Icon(
+                                    Icons.check_circle_outline,
+                                    size: 20,
+                                  ),
+                                  label: Text(
+                                    isVerifying ? 'Verifying...' : 'Verify OTP',
+                                    style: TextStyle(
+                                      fontFamily: _primaryFontFamily,
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ),
+
+                              const SizedBox(height: 12),
+
+                              // Cancel Button
+                              SizedBox(
+                                width: double.infinity,
+                                child: OutlinedButton(
+                                  onPressed: isVerifying
+                                      ? null
+                                      : () => Navigator.pop(context),
+                                  style: OutlinedButton.styleFrom(
+                                    padding:
+                                    const EdgeInsets.symmetric(vertical: 14),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    side: BorderSide(
+                                      color: isVerifying
+                                          ? Colors.grey.shade300
+                                          : _primaryColor,
+                                      width: 1.5,
+                                    ),
+                                    foregroundColor: isVerifying
+                                        ? Colors.grey.shade400
+                                        : _primaryColor,
+                                  ),
+                                  child: Text(
+                                    'Cancel',
+                                    style: TextStyle(
+                                      fontFamily: _primaryFontFamily,
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ),
+
+                              const SizedBox(height: 16),
+
+                              // Info Text
+                              Text(
+                                "Check your email for the 6-digit code",
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontFamily: _primaryFontFamily,
+                                  fontSize: 12,
+                                  color: Colors.grey.shade600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-                if (isVerifying)
-                  const Padding(
-                    padding: EdgeInsets.only(top: 8.0),
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
               ],
             ),
-            actions: [
-              TextButton(
-                onPressed: isVerifying
-                    ? null
-                    : () {
-                  setState(() => isVerifying = true);
-
-                  final enteredOtp = otpController.text.trim();
-
-                  final isValid = _emailOtpService.verifyOtp(enteredOtp);
-
-                  if (isValid) {
-                    Navigator.pop(context);
-                    _showImageSourceDialog(); // ✅ allow QR change
-                  } else {
-                    CustomSnackBar.show(context, 'Invalid or expired OTP.', backgroundColor: Colors.red, icon: Icons.error_outline);
-
-                  }
-
-                  setState(() => isVerifying = false);
-                },
-                child: const Text('Verify'),
-              ),
-            ],
           ),
         );
       },
     );
+
+    otpController.dispose();
   }
 
   Future<void> _downloadFileFromAssets(BuildContext context) async {
@@ -504,7 +933,8 @@ class _DietitianQRCodePageState extends State<DietitianQRCodePage> {
                                 child: ElevatedButton.icon(
                                   onPressed: () async {
                                     final user = FirebaseAuth.instance.currentUser;
-                                    final hasQrPic = userData?['qrpic'] != null && (userData?['qrpic'] as String).isNotEmpty;
+                                    final hasQrPic = userData?['qrpic'] != null &&
+                                        (userData?['qrpic'] as String).isNotEmpty;
                                     final qrApproved = userData?['qrapproved'] ?? false;
                                     if (user == null) return;
 
@@ -516,24 +946,36 @@ class _DietitianQRCodePageState extends State<DietitianQRCodePage> {
                                             .doc(user.uid)
                                             .set({'qrstatus': 'pending'}, SetOptions(merge: true));
 
-                                        CustomSnackBar.show(context, 'Your request has been sent. We\'ll check your QR code soon!', backgroundColor: Colors.green, icon: Icons.check_circle_outline);
-
+                                        CustomSnackBar.show(
+                                          context,
+                                          'Your request has been sent. We\'ll check your QR code soon!',
+                                          backgroundColor: Colors.green,
+                                          icon: Icons.check_circle_outline,
+                                        );
                                       } catch (e) {
-                                        CustomSnackBar.show(context, 'Failed to send request: $e', backgroundColor: Colors.red, icon: Icons.error_outline);
-
+                                        CustomSnackBar.show(
+                                          context,
+                                          'Failed to send request: $e',
+                                          backgroundColor: Colors.red,
+                                          icon: Icons.error_outline,
+                                        );
                                       }
                                       return;
                                     }
 
-// If qrpic exists or is approved, proceed with OTP verification to upload/change QR
+                                    // If qrpic exists or is approved, proceed with OTP verification to upload/change QR
                                     if (user.email != null) {
-                                      await _showOtpVerificationDialog(user.email!);
+                                      // Show loading dialog while sending OTP
+                                      _showLoadingDialogBeforeOTP(user.email!);
                                     } else {
-                                      CustomSnackBar.show(context, 'No email found for your account.', backgroundColor: Colors.orange, icon: Icons.mail_outline);
-
+                                      CustomSnackBar.show(
+                                        context,
+                                        'No email found for your account.',
+                                        backgroundColor: Colors.orange,
+                                        icon: Icons.mail_outline,
+                                      );
                                     }
                                   },
-
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: _primaryColor,
                                     foregroundColor: Colors.white,
@@ -546,15 +988,18 @@ class _DietitianQRCodePageState extends State<DietitianQRCodePage> {
                                   icon: const Icon(Icons.upload_outlined, size: 20),
                                   label: Text(
                                     (() {
-                                      final hasQrPic = userData?['qrpic'] != null && (userData?['qrpic'] as String).isNotEmpty;
+                                      final hasQrPic = userData?['qrpic'] != null &&
+                                          (userData?['qrpic'] as String).isNotEmpty;
                                       final qrApproved = userData?['qrapproved'] ?? false;
                                       final qrStatus = userData?['qrstatus'] ?? '';
 
-                                      if ((userData?['qrpic'] == null || (userData?['qrpic'] as String).isEmpty) &&
+                                      if ((userData?['qrpic'] == null ||
+                                          (userData?['qrpic'] as String).isEmpty) &&
                                           !qrApproved &&
                                           qrStatus == 'pending') {
                                         return "Request to upload QR Code";
-                                      } else if ((userData?['qrpic'] == null || (userData?['qrpic'] as String).isEmpty) &&
+                                      } else if ((userData?['qrpic'] == null ||
+                                          (userData?['qrpic'] as String).isEmpty) &&
                                           qrApproved &&
                                           qrStatus == 'approved') {
                                         return "Upload QR Code";

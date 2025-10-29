@@ -1973,6 +1973,7 @@ class _HomeState extends State<home> {
         mainAxisSize: MainAxisSize.min,
         children: [
           // LIKE BUTTON - Only THIS part uses StreamBuilder
+
           StreamBuilder<DocumentSnapshot>(
             stream: FirebaseFirestore.instance
                 .collection("likes")
@@ -6338,6 +6339,8 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
 
 
 
+// REPLACE the entire UsersListPage class in your home.dart with this improved version
+
 class UsersListPage extends StatefulWidget {
   final String currentUserId;
   const UsersListPage({super.key, required this.currentUserId});
@@ -6347,9 +6350,6 @@ class UsersListPage extends StatefulWidget {
 }
 
 class _UsersListPageState extends State<UsersListPage> {
-  // --- STATE VARIABLES ---
-  List<Map<String, dynamic>> _sortedChats = [];
-  bool _isLoadingChats = true;
   String _selectedNotificationFilter = 'all'; // 'all', 'appointment', 'message', 'pricing'
 
   @override
@@ -6357,6 +6357,233 @@ class _UsersListPageState extends State<UsersListPage> {
     super.initState();
     _loadAndSortChats();
   }
+
+  // --- CHAT MANAGEMENT ---
+
+  String getChatRoomId(String userA, String userB) {
+    if (userA.compareTo(userB) > 0) {
+      return "$userB\_$userA";
+    } else {
+      return "$userA\_$userB";
+    }
+  }
+
+  Future<Map<String, dynamic>> _getChatMetadata(
+      BuildContext context,
+      String chatRoomId,
+      String otherUserName,
+      ) async {
+    // Get the last message
+    final lastMessageQuery = await FirebaseFirestore.instance
+        .collection("messages")
+        .where("chatRoomID", isEqualTo: chatRoomId)
+        .orderBy("timestamp", descending: true)
+        .limit(1)
+        .get();
+
+    // Get unread count FOR THE CURRENT USER
+    final unreadCountQuery = await FirebaseFirestore.instance
+        .collection("messages")
+        .where("chatRoomID", isEqualTo: chatRoomId)
+        .where("receiverID", isEqualTo: widget.currentUserId)
+        .where("read", isEqualTo: "false")
+        .count()
+        .get();
+
+    final int unreadCount = unreadCountQuery.count ?? 0;
+
+    if (lastMessageQuery.docs.isEmpty) {
+      return {
+        "message": "No messages yet",
+        "isMe": false,
+        "time": "",
+        "senderName": "",
+        "timestamp": null,
+        "unreadCount": unreadCount,
+      };
+    }
+
+    final data = lastMessageQuery.docs.first.data();
+    final timestamp = data["timestamp"];
+    String formattedTime = "";
+
+    if (timestamp is Timestamp) {
+      DateTime messageDate = timestamp.toDate();
+      DateTime nowDate = DateTime.now();
+      if (messageDate.year == nowDate.year &&
+          messageDate.month == nowDate.month &&
+          messageDate.day == nowDate.day) {
+        formattedTime = TimeOfDay.fromDateTime(messageDate).format(context);
+      } else {
+        formattedTime = DateFormat('MMM d').format(messageDate);
+      }
+    }
+
+    final String lastMessage = data["message"] ?? "";
+    final bool isMe = data["senderId"] == widget.currentUserId;
+    String subtitleText;
+
+    if (lastMessage.isNotEmpty) {
+      if (isMe) {
+        subtitleText = "You: $lastMessage";
+      } else {
+        subtitleText = "$otherUserName: $lastMessage";
+      }
+    } else {
+      subtitleText = "No messages yet";
+    }
+
+    return {
+      "message": subtitleText,
+      "isMe": isMe,
+      "time": formattedTime,
+      "senderName": data["senderName"] ?? "Unknown",
+      "timestamp": timestamp,
+      "unreadCount": unreadCount,
+    };
+  }
+
+  Future<List<QueryDocumentSnapshot>> _getChatPartners() async {
+    final usersSnapshot = await FirebaseFirestore.instance
+        .collection("Users")
+        .where("role", isEqualTo: "dietitian")
+        .get();
+
+    final currentUser = FirebaseAuth.instance.currentUser;
+    final users = usersSnapshot.docs;
+
+    final filteredUsers = users.where((userDoc) {
+      if (userDoc.id == currentUser?.uid) return false;
+      return true;
+    }).toList();
+
+    return filteredUsers;
+  }
+
+  Future<List<Map<String, dynamic>>> _buildAndSortChatList(
+      List<QueryDocumentSnapshot> filteredUsers,
+      BuildContext context,
+      ) async {
+    List<Future<Map<String, dynamic>>> metadataFutures = [];
+
+    for (final userDoc in filteredUsers) {
+      final data = userDoc.data() as Map<String, dynamic>;
+      final senderName =
+      "${data["firstName"] ?? ""} ${data["lastName"] ?? ""}".trim();
+      final chatRoomId = getChatRoomId(widget.currentUserId, userDoc.id);
+
+      Future<Map<String, dynamic>> getUserWithMetadata() async {
+        final metadata =
+        await _getChatMetadata(context, chatRoomId, senderName);
+        return {
+          'userDoc': userDoc,
+          'metadata': metadata,
+        };
+      }
+
+      metadataFutures.add(getUserWithMetadata());
+    }
+
+    final List<Map<String, dynamic>> chatList =
+    await Future.wait(metadataFutures);
+
+    chatList.sort((a, b) {
+      final Timestamp? timeA = a['metadata']['timestamp'];
+      final Timestamp? timeB = b['metadata']['timestamp'];
+
+      if (timeB == null && timeA == null) {
+        return 0;
+      } else if (timeB == null) {
+        return -1;
+      } else if (timeA == null) {
+        return 1;
+      } else {
+        return timeB.compareTo(timeA);
+      }
+    });
+
+    return chatList;
+  }
+
+  Future<void> _loadAndSortChats() async {
+    // This method triggers a rebuild when needed
+    if (mounted) setState(() {});
+  }
+
+  Future<void> markMessagesAsRead(String chatRoomId) async {
+    try {
+      final unreadMessages = await FirebaseFirestore.instance
+          .collection("messages")
+          .where("chatRoomID", isEqualTo: chatRoomId)
+          .where("receiverID", isEqualTo: widget.currentUserId)
+          .where("read", isEqualTo: "false")
+          .get();
+
+      for (var doc in unreadMessages.docs) {
+        await doc.reference.update({"read": "true"});
+      }
+    } catch (e) {
+      print('Error marking messages as read: $e');
+    }
+  }
+
+  // --- NOTIFICATION HELPERS ---
+
+  String _getNotificationType(Map<String, dynamic> data) {
+    final type = (data["type"] ?? '').toString().toLowerCase();
+    if (type.contains('message')) return 'message';
+    if (type.contains('appointment') ||
+        type.contains('appointment_update')) return 'appointment';
+    if (type.contains('pricing') ||
+        type.contains('subscription')) return 'pricing';
+    return 'other';
+  }
+
+  Color _getFilterChipColor(String filter) {
+    switch (filter) {
+      case 'appointment':
+        return const Color(0xFFFF9800);
+      case 'message':
+        return const Color(0xFF2196F3);
+      case 'pricing':
+        return const Color(0xFF9C27B0);
+      default:
+        return _primaryColor;
+    }
+  }
+
+  IconData _getFilterChipIcon(String filter) {
+    switch (filter) {
+      case 'appointment':
+        return Icons.event_available_outlined;
+      case 'message':
+        return Icons.chat_bubble_outline;
+      case 'pricing':
+        return Icons.card_giftcard_outlined;
+      default:
+        return Icons.notifications_outlined;
+    }
+  }
+
+  String _getFilterChipLabel(String filter) {
+    switch (filter) {
+      case 'appointment':
+        return 'Appointments';
+      case 'message':
+        return 'Messages';
+      case 'pricing':
+        return 'Pricing';
+      default:
+        return 'All';
+    }
+  }
+
+  bool _shouldShowNotification(Map<String, dynamic> data) {
+    if (_selectedNotificationFilter == 'all') return true;
+    final notificationType = _getNotificationType(data);
+    return notificationType == _selectedNotificationFilter;
+  }
+
   Widget _buildCompactFilterChip(String filter) {
     final isSelected = _selectedNotificationFilter == filter;
     final chipColor = _getFilterChipColor(filter);
@@ -6402,9 +6629,42 @@ class _UsersListPageState extends State<UsersListPage> {
       ),
     );
   }
-  // --- HELPER FUNCTIONS (moved to class level) ---
 
-  /// Show confirmation dialog with premium design
+  Future<void> _clearAllNotifications() async {
+    try {
+      final notificationsSnapshot = await FirebaseFirestore.instance
+          .collection("Users")
+          .doc(widget.currentUserId)
+          .collection("notifications")
+          .where('isRead', isEqualTo: false)
+          .get();
+
+      final batch = FirebaseFirestore.instance.batch();
+      for (final doc in notificationsSnapshot.docs) {
+        batch.update(doc.reference, {'isRead': true});
+      }
+      await batch.commit();
+
+      if (mounted) {
+        CustomSnackBar.show(
+          context,
+          'All notifications marked as read.',
+          backgroundColor: _primaryColor,
+          icon: Icons.done_all,
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        CustomSnackBar.show(
+          context,
+          'Error clearing notifications: $e',
+          backgroundColor: Colors.redAccent,
+          icon: Icons.error,
+        );
+      }
+    }
+  }
+
   Future<void> _showClearAllDialog() async {
     final bool? confirmed = await showDialog<bool>(
       context: context,
@@ -6412,9 +6672,7 @@ class _UsersListPageState extends State<UsersListPage> {
       barrierColor: Colors.black.withOpacity(0.6),
       builder: (BuildContext dialogContext) {
         return Dialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(24),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
           backgroundColor: Colors.transparent,
           child: Container(
             padding: const EdgeInsets.all(32),
@@ -6447,22 +6705,22 @@ class _UsersListPageState extends State<UsersListPage> {
                 ),
                 const SizedBox(height: 24),
                 Text(
-                  'Clear Notifications?',
+                  'Read All Notifications?',
                   style: _getTextStyle(
                     dialogContext,
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
-                    color: _textColorPrimary(dialogContext), height: 1.5,
+                    color: _textColorPrimary(dialogContext), height: 1,
                   ),
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  'Are you sure you want to clear all notifications?)',
+                  'Are you sure you want to mark all notifications as read?',
                   textAlign: TextAlign.center,
                   style: _getTextStyle(
                     dialogContext,
                     fontSize: 14,
-                    color: _textColorSecondary(dialogContext), height: 1.5,
+                    color: _textColorSecondary(dialogContext), height: 1,
                   ),
                 ),
                 const SizedBox(height: 32),
@@ -6484,7 +6742,7 @@ class _UsersListPageState extends State<UsersListPage> {
                         dialogContext,
                         fontSize: 15,
                         fontWeight: FontWeight.bold,
-                        color: _primaryColor, height: 1.5,
+                        color: _primaryColor, height: 1,
                       ),
                     ),
                   ),
@@ -6505,12 +6763,12 @@ class _UsersListPageState extends State<UsersListPage> {
                     ),
                     icon: const Icon(Icons.delete_sweep_rounded, size: 20),
                     label: Text(
-                      'Yes, Clear All',
+                      'Yes, Read All',
                       style: _getTextStyle(
                         dialogContext,
                         fontSize: 15,
                         fontWeight: FontWeight.bold,
-                        color: Colors.white, height: 1.5,
+                        color: Colors.white, height: 1,
                       ),
                     ),
                   ),
@@ -6527,2096 +6785,13 @@ class _UsersListPageState extends State<UsersListPage> {
     }
   }
 
-  /// Clear all notifications function
-  Future<void> _clearAllNotifications() async {
-    try {
-      final notificationsSnapshot = await FirebaseFirestore.instance
-          .collection("Users")
-          .doc(widget.currentUserId)
-          .collection("notifications")
-          .where('isRead', isEqualTo: false)
-          .get();
-
-      final batch = FirebaseFirestore.instance.batch();
-      for (final doc in notificationsSnapshot.docs) {
-        batch.update(doc.reference, {'isRead': true});
-      }
-      await batch.commit();
-
-      if (mounted) {
-        CustomSnackBar.show(
-          context,
-          'All notifications cleared from view.',
-          backgroundColor: _primaryColor,
-          icon: Icons.done_all,
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        CustomSnackBar.show(
-          context,
-          'Error clearing notifications: $e',
-          backgroundColor: Colors.redAccent,
-          icon: Icons.error,
-        );
-      }
-    }
-  }
-
-  /// Get notification type for filtering
-  String _getNotificationType(Map<String, dynamic> data) {
-    final type = (data["type"] ?? '').toString().toLowerCase();
-    if (type.contains('message')) return 'message';
-    if (type.contains('appointment') || type.contains('appointment_update')) return 'appointment';
-    if (type.contains('pricing') || type.contains('subscription')) return 'pricing';
-    return 'other';
-  }
-
-  /// Get color for filter chip
-  Color _getFilterChipColor(String filter) {
-    switch (filter) {
-      case 'appointment':
-        return const Color(0xFFFF9800);
-      case 'message':
-        return const Color(0xFF2196F3);
-      case 'pricing':
-        return const Color(0xFF9C27B0);
-      default:
-        return _primaryColor;
-    }
-  }
-
-  /// Get icon for filter chip
-  IconData _getFilterChipIcon(String filter) {
-    switch (filter) {
-      case 'appointment':
-        return Icons.event_available_outlined;
-      case 'message':
-        return Icons.chat_bubble_outline;
-      case 'pricing':
-        return Icons.card_giftcard_outlined;
-      default:
-        return Icons.notifications_outlined;
-    }
-  }
-
-  /// Get label for filter chip
-  String _getFilterChipLabel(String filter) {
-    switch (filter) {
-      case 'appointment':
-        return 'Appointments';
-      case 'message':
-        return 'Messages';
-      case 'pricing':
-        return 'Pricing';
-      default:
-        return 'All';
-    }
-  }
-
-  /// Filter notifications based on selected filter
-  bool _shouldShowNotification(Map<String, dynamic> data) {
-    if (_selectedNotificationFilter == 'all') return true;
-    final notificationType = _getNotificationType(data);
-    return notificationType == _selectedNotificationFilter;
-  }
-
-  /// Build filter chip widget
-  Widget _buildFilterChip(String filter) {
-    final isSelected = _selectedNotificationFilter == filter;
-    final chipColor = _getFilterChipColor(filter);
-    final chipIcon = _getFilterChipIcon(filter);
-    final chipLabel = _getFilterChipLabel(filter);
-
-    return FilterChip(
-      selected: isSelected,
-      onSelected: (selected) {
-        setState(() {
-          _selectedNotificationFilter = filter;
-        });
-      },
-      backgroundColor: Colors.transparent,
-      selectedColor: chipColor.withOpacity(0.2),
-      side: BorderSide(
-        color: isSelected ? chipColor : Colors.grey.shade300,
-        width: isSelected ? 2 : 1,
-      ),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-      ),
-      label: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            chipIcon,
-            size: 16,
-            color: isSelected ? chipColor : Colors.grey.shade600,
-          ),
-          const SizedBox(width: 6),
-          Text(
-            chipLabel,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-              color: isSelected ? chipColor : Colors.grey.shade600,
-              fontFamily: _primaryFontFamily,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  String getChatRoomId(String userA, String userB) {
-    if (userA.compareTo(userB) > 0) {
-      return "$userB\_$userA";
-    } else {
-      return "$userA\_$userB";
-    }
-  }
-
-  Future<List<String>> getFollowedDietitianIds() async {
-    try {
-      final followingSnapshot = await FirebaseFirestore.instance
-          .collection('Users')
-          .doc(widget.currentUserId)
-          .collection('following')
-          .get();
-      return followingSnapshot.docs.map((doc) => doc.id).toList();
-    } catch (e) {
-      print('Error fetching followed dietitians: $e');
-      return [];
-    }
-  }
-
-  Future<Map<String, dynamic>> getLastMessage(
-      BuildContext context,
-      String chatRoomId,
-      ) async {
-    final query = await FirebaseFirestore.instance
-        .collection("messages")
-        .where("chatRoomID", isEqualTo: chatRoomId)
-        .orderBy("timestamp", descending: true)
-        .limit(1)
-        .get();
-
-    if (query.docs.isEmpty) {
-      return {"message": "", "isMe": false, "time": "", "timestampObject": null};
-    }
-
-    final data = query.docs.first.data();
-    String formattedTime = "";
-    final timestamp = data["timestamp"];
-    DateTime? messageDate;
-
-    if (timestamp is Timestamp) {
-      messageDate = timestamp.toDate();
-      DateTime nowDate = DateTime.now();
-      if (messageDate.year == nowDate.year &&
-          messageDate.month == nowDate.month &&
-          messageDate.day == nowDate.day) {
-        formattedTime = TimeOfDay.fromDateTime(messageDate).format(context);
-      } else {
-        formattedTime = DateFormat('MMM d').format(messageDate);
-      }
-    }
-
-    return {
-      "message": data["message"] ?? "",
-      "isMe": data["senderId"] == FirebaseAuth.instance.currentUser!.uid,
-      "time": formattedTime,
-      "senderName": data["senderName"] ?? "Unknown",
-      "timestampObject": messageDate,
-    };
-  }
-
-  Future<void> _loadAndSortChats() async {
-    if (!mounted) return;
-    setState(() => _isLoadingChats = true);
-
-    try {
-      final followedDietitianIds = await getFollowedDietitianIds();
-      final usersSnapshot = await FirebaseFirestore.instance.collection("Users").get();
-      final users = usersSnapshot.docs;
-
-      final filteredUsers = users.where((userDoc) {
-        if (userDoc.id == widget.currentUserId) return false;
-        final data = userDoc.data();
-        final role = data["role"]?.toString().toLowerCase() ?? "";
-        if (role == "admin") return true;
-        if (role == "dietitian" && followedDietitianIds.contains(userDoc.id)) {
-          return true;
-        }
-        return false;
-      }).toList();
-
-      if (filteredUsers.isEmpty) {
-        if (mounted) setState(() => _isLoadingChats = false);
-        return;
-      }
-
-      List<Future<Map<String, dynamic>>> chatFutures = [];
-      for (var userDoc in filteredUsers) {
-        chatFutures.add(_fetchChatDetails(userDoc));
-      }
-
-      final resolvedChats = await Future.wait(chatFutures);
-
-      resolvedChats.sort((a, b) {
-        final timeA = a['lastMessage']['timestampObject'] as DateTime?;
-        final timeB = b['lastMessage']['timestampObject'] as DateTime?;
-
-        if (timeA == null && timeB == null) return 0;
-        if (timeA == null) return 1;
-        if (timeB == null) return -1;
-
-        return timeB.compareTo(timeA);
-      });
-
-      if (mounted) {
-        setState(() {
-          _sortedChats = resolvedChats;
-          _isLoadingChats = false;
-        });
-      }
-    } catch (e) {
-      print("Error loading and sorting chats: $e");
-      if (mounted) setState(() => _isLoadingChats = false);
-    }
-  }
-
-  Future<Map<String, dynamic>> _fetchChatDetails(DocumentSnapshot userDoc) async {
-    final data = userDoc.data() as Map<String, dynamic>;
-    final senderName = "${data["firstName"] ?? ""} ${data["lastName"] ?? ""}".trim();
-    final chatRoomId = getChatRoomId(widget.currentUserId, userDoc.id);
-
-    final lastMessageData = await getLastMessage(context, chatRoomId);
-
-    return {
-      'userDoc': userDoc,
-      'lastMessage': lastMessageData,
-    };
-  }
-
-  void _showPriceChangeDialog(BuildContext context, Map<String, dynamic> notificationData) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        final String title = notificationData['title'] ?? 'Price Change Notification';
-        final String message = notificationData['message'] ?? 'No details available';
-        final String dietitianName = notificationData['dietitianName'] ?? 'Dietitian';
-        final Timestamp? timestamp = notificationData['timestamp'] as Timestamp?;
-
-        final monthlyOld = notificationData['monthlyOldPrice']?.toString() ?? 'N/A';
-        final monthlyNew = notificationData['monthlyNewPrice']?.toString() ?? 'N/A';
-        final weeklyOld = notificationData['weeklyOldPrice']?.toString() ?? 'N/A';
-        final weeklyNew = notificationData['weeklyNewPrice']?.toString() ?? 'N/A';
-        final yearlyOld = notificationData['yearlyOldPrice']?.toString() ?? 'N/A';
-        final yearlyNew = notificationData['yearlyNewPrice']?.toString() ?? 'N/A';
-
-        String formattedDate = '';
-        if (timestamp != null) {
-          formattedDate = DateFormat('MMMM dd, yyyy – hh:mm a').format(timestamp.toDate());
-        }
-
-        return Dialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          elevation: 16,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    color: Colors.orange.withOpacity(0.1),
-                    borderRadius: const BorderRadius.only(
-                      topLeft: Radius.circular(20),
-                      topRight: Radius.circular(20),
-                    ),
-                  ),
-                  padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
-                  child: Column(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.orange.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(15),
-                        ),
-                        child: const Icon(
-                          Icons.price_change_outlined,
-                          color: Colors.orange,
-                          size: 32,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        title,
-                        style: const TextStyle(
-                          fontFamily: _primaryFontFamily,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 20,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      if (formattedDate.isNotEmpty)
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 16.0),
-                          child: Row(
-                            children: [
-                              Icon(Icons.access_time, size: 16, color: Colors.grey.shade600),
-                              const SizedBox(width: 8),
-                              Text(
-                                formattedDate,
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  color: Colors.grey.shade600,
-                                  fontFamily: _primaryFontFamily,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.grey.shade100,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(Icons.person_outline, size: 18, color: _primaryColor),
-                            const SizedBox(width: 10),
-                            Text(
-                              dietitianName,
-                              style: const TextStyle(
-                                fontFamily: _primaryFontFamily,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 15,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.blue.withOpacity(0.08),
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: Colors.blue.withOpacity(0.2)),
-                        ),
-                        child: Text(
-                          message,
-                          style: const TextStyle(
-                            fontFamily: _primaryFontFamily,
-                            fontSize: 14,
-                            height: 1.6,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                      _buildPriceComparison('Monthly', monthlyOld, monthlyNew),
-                      const SizedBox(height: 12),
-                      _buildPriceComparison('Weekly', weeklyOld, weeklyNew),
-                      const SizedBox(height: 12),
-                      _buildPriceComparison('Yearly', yearlyOld, yearlyNew),
-                    ],
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: _primaryColor,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: const Text(
-                        'Got it!',
-                        style: TextStyle(
-                          fontFamily: _primaryFontFamily,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 16,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  void _showMealPlanScheduledDialog(BuildContext context, Map<String, dynamic> notificationData) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        final String title = notificationData['title'] ?? 'Meal Plan Scheduled';
-        final String message = notificationData['message'] ?? 'No details available';
-        final String senderName = notificationData['senderName'] ?? 'Dietitian';
-        final String planType = notificationData['planType'] ?? 'Meal Plan';
-        final String dayName = notificationData['dayName'] ?? '';
-        final Timestamp? timestamp = notificationData['timestamp'] as Timestamp?;
-
-        String mealPlanDate = '';
-        if (notificationData['mealPlanDate'] != null) {
-          try {
-            final date = DateTime.parse(notificationData['mealPlanDate']);
-            mealPlanDate = DateFormat('MMMM dd, yyyy').format(date);
-          } catch (e) {
-            print('Error parsing meal plan date: $e');
-          }
-        }
-
-        String formattedDate = '';
-        if (timestamp != null) {
-          formattedDate = DateFormat('MMMM dd, yyyy – hh:mm a').format(timestamp.toDate());
-        }
-
-        return Dialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          elevation: 16,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 400),
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      color: _primaryColor.withOpacity(0.1),
-                      borderRadius: const BorderRadius.only(
-                        topLeft: Radius.circular(20),
-                        topRight: Radius.circular(20),
-                      ),
-                    ),
-                    padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
-                    child: Column(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: _primaryColor.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(15),
-                          ),
-                          child: const Icon(
-                            Icons.event_available_rounded,
-                            color: _primaryColor,
-                            size: 32,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          title,
-                          style: const TextStyle(
-                            fontFamily: _primaryFontFamily,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 20,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (formattedDate.isNotEmpty)
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 16.0),
-                            child: Row(
-                              children: [
-                                Icon(Icons.access_time, size: 16, color: Colors.grey.shade600),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    'Scheduled on: $formattedDate',
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      color: Colors.grey.shade600,
-                                      fontFamily: _primaryFontFamily,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-
-                        // Meal Plan Type
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(14),
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [
-                                _primaryColor.withOpacity(0.15),
-                                _primaryColor.withOpacity(0.05),
-                              ],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: _primaryColor.withOpacity(0.3),
-                              width: 1.5,
-                            ),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.all(8),
-                                    decoration: BoxDecoration(
-                                      color: _primaryColor.withOpacity(0.2),
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: Icon(
-                                      Icons.restaurant_menu_rounded,
-                                      color: _primaryColor,
-                                      size: 20,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          'Plan Type',
-                                          style: TextStyle(
-                                            fontSize: 11,
-                                            color: Colors.grey.shade600,
-                                            fontFamily: _primaryFontFamily,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          planType,
-                                          style: const TextStyle(
-                                            fontFamily: _primaryFontFamily,
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 16,
-                                            color: _primaryColor,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              if (dayName.isNotEmpty) ...[
-                                const SizedBox(height: 12),
-                                Divider(color: _primaryColor.withOpacity(0.2)),
-                                const SizedBox(height: 12),
-                                Row(
-                                  children: [
-                                    Icon(Icons.calendar_today, size: 16, color: _primaryColor),
-                                    const SizedBox(width: 8),
-                                    Expanded(
-                                      child: Text(
-                                        'Scheduled for: $dayName',
-                                        style: const TextStyle(
-                                          fontFamily: _primaryFontFamily,
-                                          fontWeight: FontWeight.w600,
-                                          fontSize: 14,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                if (mealPlanDate.isNotEmpty) ...[
-                                  const SizedBox(height: 8),
-                                  Row(
-                                    children: [
-                                      Icon(Icons.event, size: 16, color: _primaryColor),
-                                      const SizedBox(width: 8),
-                                      Expanded(
-                                        child: Text(
-                                          mealPlanDate,
-                                          style: TextStyle(
-                                            fontFamily: _primaryFontFamily,
-                                            fontSize: 13,
-                                            color: Colors.grey.shade700,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ],
-                            ],
-                          ),
-                        ),
-
-                        const SizedBox(height: 16),
-
-                        // Dietitian Info
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.grey.shade100,
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(Icons.person_outline, size: 18, color: _primaryColor),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Text(
-                                  'Created by: $senderName',
-                                  style: const TextStyle(
-                                    fontFamily: _primaryFontFamily,
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 14,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        const SizedBox(height: 16),
-
-                        // Message
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(14),
-                          decoration: BoxDecoration(
-                            color: Colors.blue.withOpacity(0.08),
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: Colors.blue.withOpacity(0.2)),
-                          ),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Icon(Icons.info_outline, size: 18, color: Colors.blue),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Text(
-                                  message,
-                                  style: const TextStyle(
-                                    fontFamily: _primaryFontFamily,
-                                    fontSize: 13,
-                                    height: 1.6,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        const SizedBox(height: 16),
-
-                        // Reminder Info
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.amber.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: Colors.amber.withOpacity(0.3)),
-                          ),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Icon(Icons.notifications_active, size: 18, color: Colors.amber.shade700),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Text(
-                                  'You\'ll receive a reminder 1 day before at 8:00 AM',
-                                  style: TextStyle(
-                                    fontFamily: _primaryFontFamily,
-                                    fontSize: 12,
-                                    color: Colors.amber.shade900,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-                    child: SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        onPressed: () => Navigator.of(context).pop(),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: _primaryColor,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        icon: const Icon(Icons.check_circle_outline, size: 20),
-                        label: const Text(
-                          'Got it!',
-                          style: TextStyle(
-                            fontFamily: _primaryFontFamily,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 16,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  void _showMealPlanCreatedDialog(BuildContext context, Map<String, dynamic> notificationData) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        final String title = notificationData['title'] ?? 'Meal Plan Created';
-        final String message = notificationData['message'] ?? 'Your meal plan has been successfully created.';
-        final String senderName = notificationData['senderName'] ?? 'Dietitian';
-        final String planType = notificationData['planType'] ?? 'Meal Plan';
-        final String dayName = notificationData['dayName'] ?? '';
-        final Timestamp? timestamp = notificationData['timestamp'] as Timestamp?;
-
-        String mealPlanDate = '';
-        if (notificationData['mealPlanDate'] != null) {
-          try {
-            final date = DateTime.parse(notificationData['mealPlanDate']);
-            mealPlanDate = DateFormat('MMMM dd, yyyy').format(date);
-          } catch (e) {
-            print('Error parsing meal plan date: $e');
-          }
-        }
-
-        String formattedDate = '';
-        if (timestamp != null) {
-          formattedDate = DateFormat('MMMM dd, yyyy – hh:mm a').format(timestamp.toDate());
-        }
-
-        return Dialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          elevation: 16,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 400),
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      color: _primaryColor.withOpacity(0.1),
-                      borderRadius: const BorderRadius.only(
-                        topLeft: Radius.circular(20),
-                        topRight: Radius.circular(20),
-                      ),
-                    ),
-                    padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
-                    child: Column(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: _primaryColor.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(15),
-                          ),
-                          child: const Icon(
-                            Icons.check_circle_outline,
-                            color: _primaryColor,
-                            size: 32,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          title,
-                          style: const TextStyle(
-                            fontFamily: _primaryFontFamily,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 20,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (formattedDate.isNotEmpty)
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 16.0),
-                            child: Row(
-                              children: [
-                                Icon(Icons.access_time, size: 16, color: Colors.grey.shade600),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    'Created on: $formattedDate',
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      color: Colors.grey.shade600,
-                                      fontFamily: _primaryFontFamily,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-
-                        // Meal Plan Type
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(14),
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [
-                                _primaryColor.withOpacity(0.15),
-                                _primaryColor.withOpacity(0.05),
-                              ],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: _primaryColor.withOpacity(0.3),
-                              width: 1.5,
-                            ),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.all(8),
-                                    decoration: BoxDecoration(
-                                      color: _primaryColor.withOpacity(0.2),
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: Icon(
-                                      Icons.restaurant_menu_rounded,
-                                      color: _primaryColor,
-                                      size: 20,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          'Plan Type',
-                                          style: TextStyle(
-                                            fontSize: 11,
-                                            color: Colors.grey.shade600,
-                                            fontFamily: _primaryFontFamily,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          planType,
-                                          style: const TextStyle(
-                                            fontFamily: _primaryFontFamily,
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 16,
-                                            color: _primaryColor,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              if (dayName.isNotEmpty) ...[
-                                const SizedBox(height: 12),
-                                Divider(color: _primaryColor.withOpacity(0.2)),
-                                const SizedBox(height: 12),
-                                Row(
-                                  children: [
-                                    Icon(Icons.calendar_today, size: 16, color: _primaryColor),
-                                    const SizedBox(width: 8),
-                                    Expanded(
-                                      child: Text(
-                                        'Scheduled for: $dayName',
-                                        style: const TextStyle(
-                                          fontFamily: _primaryFontFamily,
-                                          fontWeight: FontWeight.w600,
-                                          fontSize: 14,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                if (mealPlanDate.isNotEmpty) ...[
-                                  const SizedBox(height: 8),
-                                  Row(
-                                    children: [
-                                      Icon(Icons.event, size: 16, color: _primaryColor),
-                                      const SizedBox(width: 8),
-                                      Expanded(
-                                        child: Text(
-                                          mealPlanDate,
-                                          style: TextStyle(
-                                            fontFamily: _primaryFontFamily,
-                                            fontSize: 13,
-                                            color: Colors.grey.shade700,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ],
-                            ],
-                          ),
-                        ),
-
-                        const SizedBox(height: 16),
-
-                        // Dietitian Info
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.grey.shade100,
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(Icons.person_outline, size: 18, color: _primaryColor),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Text(
-                                  'Created by: $senderName',
-                                  style: const TextStyle(
-                                    fontFamily: _primaryFontFamily,
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 14,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        const SizedBox(height: 16),
-
-                        // Message
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(14),
-                          decoration: BoxDecoration(
-                            color: Colors.blue.withOpacity(0.08),
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: Colors.blue.withOpacity(0.2)),
-                          ),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Icon(Icons.info_outline, size: 18, color: Colors.blue),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Text(
-                                  message,
-                                  style: const TextStyle(
-                                    fontFamily: _primaryFontFamily,
-                                    fontSize: 13,
-                                    height: 1.6,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        const SizedBox(height: 16),
-                      ],
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-                    child: SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        onPressed: () => Navigator.of(context).pop(),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: _primaryColor,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        icon: const Icon(Icons.check_circle_outline, size: 20),
-                        label: const Text(
-                          'Got it!',
-                          style: TextStyle(
-                            fontFamily: _primaryFontFamily,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 16,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  void _showMealPlanDeclinedDialog(BuildContext context, Map<String, dynamic> notificationData) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        final String title = notificationData['title'] ?? 'Meal Plan Declined';
-        final String message = notificationData['message'] ?? 'Your meal plan request has been declined.';
-        final String senderName = notificationData['senderName'] ?? 'Dietitian';
-        final String planType = notificationData['planType'] ?? 'Meal Plan';
-        final String dayName = notificationData['dayName'] ?? '';
-        final Timestamp? timestamp = notificationData['timestamp'] as Timestamp?;
-
-        String mealPlanDate = '';
-        if (notificationData['mealPlanDate'] != null) {
-          try {
-            final date = DateTime.parse(notificationData['mealPlanDate']);
-            mealPlanDate = DateFormat('MMMM dd, yyyy').format(date);
-          } catch (e) {
-            print('Error parsing meal plan date: $e');
-          }
-        }
-
-        String formattedDate = '';
-        if (timestamp != null) {
-          formattedDate = DateFormat('MMMM dd, yyyy – hh:mm a').format(timestamp.toDate());
-        }
-
-        return Dialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          elevation: 16,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 400),
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      color: _primaryColor.withOpacity(0.1),
-                      borderRadius: const BorderRadius.only(
-                        topLeft: Radius.circular(20),
-                        topRight: Radius.circular(20),
-                      ),
-                    ),
-                    padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
-                    child: Column(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: _primaryColor.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(15),
-                          ),
-                          child: const Icon(
-                            Icons.cancel_outlined,
-                            color: _primaryColor,
-                            size: 32,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          title,
-                          style: const TextStyle(
-                            fontFamily: _primaryFontFamily,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 20,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (formattedDate.isNotEmpty)
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 16.0),
-                            child: Row(
-                              children: [
-                                Icon(Icons.access_time, size: 16, color: Colors.grey.shade600),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    'Processed on: $formattedDate',
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      color: Colors.grey.shade600,
-                                      fontFamily: _primaryFontFamily,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-
-                        // Meal Plan Type
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(14),
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [
-                                _primaryColor.withOpacity(0.15),
-                                _primaryColor.withOpacity(0.05),
-                              ],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: _primaryColor.withOpacity(0.3),
-                              width: 1.5,
-                            ),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.all(8),
-                                    decoration: BoxDecoration(
-                                      color: _primaryColor.withOpacity(0.2),
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: Icon(
-                                      Icons.restaurant_menu_rounded,
-                                      color: _primaryColor,
-                                      size: 20,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          'Plan Type',
-                                          style: TextStyle(
-                                            fontSize: 11,
-                                            color: Colors.grey.shade600,
-                                            fontFamily: _primaryFontFamily,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          planType,
-                                          style: const TextStyle(
-                                            fontFamily: _primaryFontFamily,
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 16,
-                                            color: _primaryColor,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              if (dayName.isNotEmpty) ...[
-                                const SizedBox(height: 12),
-                                Divider(color: _primaryColor.withOpacity(0.2)),
-                                const SizedBox(height: 12),
-                                Row(
-                                  children: [
-                                    Icon(Icons.calendar_today, size: 16, color: _primaryColor),
-                                    const SizedBox(width: 8),
-                                    Expanded(
-                                      child: Text(
-                                        'Scheduled for: $dayName',
-                                        style: const TextStyle(
-                                          fontFamily: _primaryFontFamily,
-                                          fontWeight: FontWeight.w600,
-                                          fontSize: 14,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                if (mealPlanDate.isNotEmpty) ...[
-                                  const SizedBox(height: 8),
-                                  Row(
-                                    children: [
-                                      Icon(Icons.event, size: 16, color: _primaryColor),
-                                      const SizedBox(width: 8),
-                                      Expanded(
-                                        child: Text(
-                                          mealPlanDate,
-                                          style: TextStyle(
-                                            fontFamily: _primaryFontFamily,
-                                            fontSize: 13,
-                                            color: Colors.grey.shade700,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ],
-                            ],
-                          ),
-                        ),
-
-                        const SizedBox(height: 16),
-
-                        // Dietitian Info
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.grey.shade100,
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(Icons.person_outline, size: 18, color: _primaryColor),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Text(
-                                  'Processed by: $senderName',
-                                  style: const TextStyle(
-                                    fontFamily: _primaryFontFamily,
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 14,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        const SizedBox(height: 16),
-
-                        // Message
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(14),
-                          decoration: BoxDecoration(
-                            color: Colors.redAccent.withOpacity(0.08),
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: Colors.red.withOpacity(0.2)),
-                          ),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Icon(Icons.info_outline, size: 18, color: Colors.black),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Text(
-                                  message,
-                                  style: const TextStyle(
-                                    fontFamily: _primaryFontFamily,
-                                    fontSize: 13,
-                                    height: 1.6,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        const SizedBox(height: 16),
-                      ],
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-                    child: SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        onPressed: () => Navigator.of(context).pop(),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: _primaryColor,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        icon: const Icon(Icons.cancel_outlined, size: 20),
-                        label: const Text(
-                          'Got it!',
-                          style: TextStyle(
-                            fontFamily: _primaryFontFamily,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 16,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  void _showMealPlanNotif(BuildContext context, Map<String, dynamic> notificationData) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        final String title = notificationData['title'] ?? 'New Meal Plan';
-        final String message = notificationData['message'] ?? 'No details available';
-        final String senderName = notificationData['senderName'] ?? 'Dietitian';
-        final String planType = notificationData['planType'] ?? 'Meal Plan';
-        final Timestamp? timestamp = notificationData['timestamp'] as Timestamp?;
-
-        String formattedDate = '';
-        if (timestamp != null) {
-          formattedDate = DateFormat('MMMM dd, yyyy – hh:mm a').format(timestamp.toDate());
-        }
-
-        return Dialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          elevation: 16,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 400),
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      color: _primaryColor.withOpacity(0.1),
-                      borderRadius: const BorderRadius.only(
-                        topLeft: Radius.circular(20),
-                        topRight: Radius.circular(20),
-                      ),
-                    ),
-                    padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
-                    child: Column(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: _primaryColor.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(15),
-                          ),
-                          child: const Icon(
-                            Icons.restaurant_menu_rounded,
-                            color: _primaryColor,
-                            size: 32,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          title,
-                          style: const TextStyle(
-                            fontFamily: _primaryFontFamily,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 20,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (formattedDate.isNotEmpty)
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 16.0),
-                            child: Row(
-                              children: [
-                                Icon(Icons.access_time, size: 16, color: Colors.grey.shade600),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    'Received: $formattedDate',
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      color: Colors.grey.shade600,
-                                      fontFamily: _primaryFontFamily,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-
-                        // Meal Plan Type
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(14),
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [
-                                _primaryColor.withOpacity(0.15),
-                                _primaryColor.withOpacity(0.05),
-                              ],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: _primaryColor.withOpacity(0.3),
-                              width: 1.5,
-                            ),
-                          ),
-                          child: Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(8),
-                                decoration: BoxDecoration(
-                                  color: _primaryColor.withOpacity(0.2),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Icon(
-                                  Icons.restaurant_menu_rounded,
-                                  color: _primaryColor,
-                                  size: 20,
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Plan Type',
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        color: Colors.grey.shade600,
-                                        fontFamily: _primaryFontFamily,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      planType,
-                                      style: const TextStyle(
-                                        fontFamily: _primaryFontFamily,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 16,
-                                        color: _primaryColor,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        const SizedBox(height: 16),
-
-                        // Dietitian Info
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.grey.shade100,
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(Icons.person_outline, size: 18, color: _primaryColor),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Text(
-                                  'From: $senderName',
-                                  style: const TextStyle(
-                                    fontFamily: _primaryFontFamily,
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 14,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        const SizedBox(height: 16),
-
-                        // Message
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(14),
-                          decoration: BoxDecoration(
-                            color: Colors.blue.withOpacity(0.08),
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: Colors.blue.withOpacity(0.2)),
-                          ),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Icon(Icons.info_outline, size: 18, color: Colors.blue),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Text(
-                                  message,
-                                  style: const TextStyle(
-                                    fontFamily: _primaryFontFamily,
-                                    fontSize: 13,
-                                    height: 1.6,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-                    child: SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        onPressed: () => Navigator.of(context).pop(),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: _primaryColor,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        icon: const Icon(Icons.check_circle_outline, size: 20),
-                        label: const Text(
-                          'Got it!',
-                          style: TextStyle(
-                            fontFamily: _primaryFontFamily,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 16,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  void _showSubscriptionDialog(BuildContext context, Map<String, dynamic> notificationData) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        final String title = notificationData['title'] ?? 'Subscription Update';
-        final String message = notificationData['message'] ?? 'No details available';
-        final String senderName = notificationData['senderName'] ?? 'Dietitian';
-        final Timestamp? timestamp = notificationData['timestamp'] as Timestamp?;
-
-        // Determine if approved or declined based on title or message
-        final bool isApproved = title.toLowerCase().contains('approved');
-        final bool isDeclined = title.toLowerCase().contains('declined');
-
-        String formattedDate = '';
-        if (timestamp != null) {
-          formattedDate = DateFormat('MMMM dd, yyyy – hh:mm a').format(timestamp.toDate());
-        }
-
-        // Extract plan type from message if available
-        String planType = 'Subscription';
-        final messageLower = message.toLowerCase();
-        if (messageLower.contains('weekly')) {
-          planType = 'Weekly Plan';
-        } else if (messageLower.contains('monthly')) {
-          planType = 'Monthly Plan';
-        } else if (messageLower.contains('yearly')) {
-          planType = 'Yearly Plan';
-        }
-
-        // Determine colors and icon based on status
-        Color statusColor = isApproved ? Colors.green : (isDeclined ? Colors.red : _primaryColor);
-        IconData statusIcon = isApproved
-            ? Icons.check_circle_rounded
-            : (isDeclined ? Icons.cancel_rounded : Icons.info_rounded);
-
-        return Dialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          elevation: 16,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 400),
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Header
-                  Container(
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      color: statusColor.withOpacity(0.1),
-                      borderRadius: const BorderRadius.only(
-                        topLeft: Radius.circular(20),
-                        topRight: Radius.circular(20),
-                      ),
-                    ),
-                    padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
-                    child: Column(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: statusColor.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(15),
-                          ),
-                          child: Icon(
-                            statusIcon,
-                            color: statusColor,
-                            size: 32,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          title,
-                          style: const TextStyle(
-                            fontFamily: _primaryFontFamily,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 20,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Timestamp
-                        if (formattedDate.isNotEmpty)
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 16.0),
-                            child: Row(
-                              children: [
-                                Icon(Icons.access_time, size: 16, color: Colors.grey.shade600),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    formattedDate,
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      color: Colors.grey.shade600,
-                                      fontFamily: _primaryFontFamily,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-
-                        // Subscription Plan Info
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(14),
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [
-                                statusColor.withOpacity(0.15),
-                                statusColor.withOpacity(0.05),
-                              ],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: statusColor.withOpacity(0.3),
-                              width: 1.5,
-                            ),
-                          ),
-                          child: Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(8),
-                                decoration: BoxDecoration(
-                                  color: statusColor.withOpacity(0.2),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Icon(
-                                  Icons.card_membership_rounded,
-                                  color: statusColor,
-                                  size: 20,
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Subscription Plan',
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        color: Colors.grey.shade600,
-                                        fontFamily: _primaryFontFamily,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      planType,
-                                      style: TextStyle(
-                                        fontFamily: _primaryFontFamily,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 16,
-                                        color: statusColor,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        const SizedBox(height: 16),
-
-                        // Dietitian Info
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.grey.shade100,
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(Icons.person_outline, size: 18, color: statusColor),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Text(
-                                  'Dietitian: $senderName',
-                                  style: const TextStyle(
-                                    fontFamily: _primaryFontFamily,
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 14,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        const SizedBox(height: 16),
-
-                        // Message/Status
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(14),
-                          decoration: BoxDecoration(
-                            color: statusColor.withOpacity(0.08),
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: statusColor.withOpacity(0.2)),
-                          ),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Icon(Icons.info_outline, size: 18, color: statusColor),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Text(
-                                  message,
-                                  style: const TextStyle(
-                                    fontFamily: _primaryFontFamily,
-                                    fontSize: 13,
-                                    height: 1.6,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        const SizedBox(height: 16),
-
-                        // Additional Info based on status
-                        if (isApproved)
-                          Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: Colors.green.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(color: Colors.green.withOpacity(0.3)),
-                            ),
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Icon(Icons.celebration_rounded, size: 18, color: Colors.green.shade700),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: Text(
-                                    'Your subscription is now active! You can now access all features.',
-                                    style: TextStyle(
-                                      fontFamily: _primaryFontFamily,
-                                      fontSize: 12,
-                                      color: Colors.green.shade900,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-
-                        if (isDeclined)
-                          Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: Colors.orange.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(color: Colors.orange.withOpacity(0.3)),
-                            ),
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Icon(Icons.help_outline_rounded, size: 18, color: Colors.orange.shade700),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: Text(
-                                    'Please contact your dietitian for more information or to resubmit your request.',
-                                    style: TextStyle(
-                                      fontFamily: _primaryFontFamily,
-                                      fontSize: 12,
-                                      color: Colors.orange.shade900,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-
-                  // Close Button
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-                    child: SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        onPressed: () => Navigator.of(context).pop(),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: statusColor,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        icon: const Icon(Icons.check_circle_outline, size: 20),
-                        label: const Text(
-                          'Got it!',
-                          style: TextStyle(
-                            fontFamily: _primaryFontFamily,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 16,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildPriceComparison(String label, String oldPrice, String newPrice) {
-    final bool priceChanged = oldPrice != newPrice;
-
-    return Row(
-      children: [
-        Expanded(
-          child: Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.grey.shade100,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: Colors.grey.shade300),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: Colors.grey.shade600,
-                    fontFamily: _primaryFontFamily,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    Text(
-                      '₱$oldPrice',
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold,
-                        color: priceChanged ? Colors.grey.shade500 : Colors.grey.shade700,
-                        decoration: priceChanged ? TextDecoration.lineThrough : null,
-                        fontFamily: _primaryFontFamily,
-                      ),
-                    ),
-                    if (priceChanged) ...[
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 8),
-                        child: Icon(Icons.arrow_forward, size: 14, color: Colors.grey.shade400),
-                      ),
-                      Text(
-                        '₱$newPrice',
-                        style: const TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.green,
-                          fontFamily: _primaryFontFamily,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Future<void> _navigateToAppointment(BuildContext context, Map<String, dynamic> notificationData) async {
-    print('=== APPOINTMENT NOTIFICATION DATA ===');
-    notificationData.forEach((key, value) {
-      print('$key: $value');
-    });
-    print('======================================');
-
-    final String message = notificationData['message'] ?? '';
-    DateTime? targetDate;
-
-    try {
-      final datePattern = RegExp(r'on\s+([A-Za-z]+\s+\d+,\s+\d{4})\s+at\s+(\d+:\d+\s+[AP]M)');
-      final match = datePattern.firstMatch(message);
-
-      if (match != null) {
-        final dateStr = match.group(1);
-        final timeStr = match.group(2);
-        final fullDateStr = '$dateStr $timeStr';
-
-        print('Extracted date string: $fullDateStr');
-        targetDate = DateFormat('MMMM d, yyyy h:mm a').parse(fullDateStr);
-        print('Parsed date: $targetDate');
-      }
-    } catch (e) {
-      print('Error parsing date from message: $e');
-    }
-
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(
-        builder: (context) => home(initialIndex: 1),
-      ),
-    );
-
-    Future.delayed(const Duration(milliseconds: 500), () {
-      if (targetDate != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Showing appointments for ${DateFormat('MMM dd, yyyy').format(targetDate)}',
-              style: const TextStyle(fontFamily: _primaryFontFamily),
-            ),
-            backgroundColor: _primaryColor,
-            duration: const Duration(seconds: 3),
-            action: SnackBarAction(
-              label: 'OK',
-              textColor: Colors.white,
-              onPressed: () {},
-            ),
-          ),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Navigated to your appointments schedule',
-              style: TextStyle(fontFamily: _primaryFontFamily),
-            ),
-            backgroundColor: _primaryColor,
-            duration: Duration(seconds: 2),
-          ),
-        );
-      }
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
     final bool isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    final Color currentScaffoldBg = isDarkMode ? Colors.grey.shade900 : Colors.grey.shade50;
-    final Color currentAppBarBg = isDarkMode ? Colors.grey.shade800 : Colors.white;
+    final Color currentScaffoldBg =
+    isDarkMode ? Colors.grey.shade900 : Colors.grey.shade50;
+    final Color currentAppBarBg =
+    isDarkMode ? Colors.grey.shade800 : Colors.white;
     final Color currentTabLabel = _textColorPrimary(context);
     final Color currentIndicator = _primaryColor;
 
@@ -8644,13 +6819,13 @@ class _UsersListPageState extends State<UsersListPage> {
               fontSize: 14,
             ),
             tabs: [
-              const Tab(text: "CHATS"),
+              const Tab(text: "Chats"),
               Tab(
                 child: Stack(
                   alignment: Alignment.center,
                   clipBehavior: Clip.none,
                   children: [
-                    const Text("NOTIFICATIONS"),
+                    const Text("Notifications"),
                     Positioned(
                       top: 8,
                       right: -20,
@@ -8696,57 +6871,111 @@ class _UsersListPageState extends State<UsersListPage> {
             ],
           ),
         ),
-        body: TabBarView(
-          children: [
-            // --- CHATS TAB ---
-            _isLoadingChats
-                ? const Center(child: CircularProgressIndicator(color: _primaryColor))
-                : _sortedChats.isEmpty
-                ? Center(
-              child: Text(
-                "Follow dietitians to chat with them.",
-                style: _getTextStyle(
-                  context,
-                  fontSize: 16,
-                  color: _textColorPrimary(context), height: 1.5,
+        body: StreamBuilder<QuerySnapshot>(
+          stream: FirebaseFirestore.instance
+              .collection('Users')
+              .doc(widget.currentUserId)
+              .collection('notifications')
+              .snapshots(),
+          builder: (context, notificationSnapshot) {
+            return TabBarView(
+              children: [
+                _buildChatsTab(),
+                _buildNotificationsTab(),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildChatsTab() {
+    return FutureBuilder<List<QueryDocumentSnapshot>>(
+      future: _getChatPartners(),
+      builder: (context, userListSnapshot) {
+        if (userListSnapshot.connectionState == ConnectionState.waiting) {
+          return const Center(
+            child: CircularProgressIndicator(color: _primaryColor),
+          );
+        }
+
+        if (!userListSnapshot.hasData || userListSnapshot.data!.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.message_outlined,
+                    size: 64, color: _primaryColor.withOpacity(0.3)),
+                const SizedBox(height: 16),
+                Text(
+                  "No dietitians available to chat.",
+                  style: _getTextStyle(context, fontSize: 16, height: 1),
                 ),
-              ),
-            )
-                : ListView.builder(
+              ],
+            ),
+          );
+        }
+
+        final filteredUsers = userListSnapshot.data!;
+
+        return FutureBuilder<List<Map<String, dynamic>>>(
+          future: _buildAndSortChatList(filteredUsers, context),
+          builder: (context, sortedListSnapshot) {
+            if (sortedListSnapshot.connectionState == ConnectionState.waiting) {
+              return const Center(
+                child: CircularProgressIndicator(color: _primaryColor),
+              );
+            }
+
+            if (!sortedListSnapshot.hasData ||
+                sortedListSnapshot.data!.isEmpty) {
+              return Center(
+                child: Text(
+                  "No chat data found.",
+                  style:
+                  _getTextStyle(context, fontSize: 16, height: 1.5),
+                ),
+              );
+            }
+
+            final sortedChatList = sortedListSnapshot.data!;
+
+            return ListView.builder(
               padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 8.0),
-              itemCount: _sortedChats.length,
+              itemCount: sortedChatList.length,
               itemBuilder: (context, index) {
-                final chat = _sortedChats[index];
-                final userDoc = chat['userDoc'] as DocumentSnapshot;
+                final chatItem = sortedChatList[index];
+                final userDoc = chatItem['userDoc'] as DocumentSnapshot;
+                final metadata =
+                chatItem['metadata'] as Map<String, dynamic>;
                 final data = userDoc.data() as Map<String, dynamic>;
-                final lastMsg = chat['lastMessage'] as Map<String, dynamic>;
 
                 final senderName =
                 "${data["firstName"] ?? ""} ${data["lastName"] ?? ""}"
                     .trim();
-
-                String subtitleText = "No messages yet";
-                final lastMessage = lastMsg["message"] ?? "";
-                final lastSenderName = lastMsg["senderName"] ?? "";
-                final timeText = lastMsg["time"] ?? "";
-
-                if (lastMessage.isNotEmpty) {
-                  if (lastMsg["isMe"] ?? false) {
-                    subtitleText = "You: $lastMessage";
-                  } else {
-                    subtitleText = "$lastSenderName: $lastMessage";
-                  }
-                }
+                final String subtitleText = metadata['message'];
+                final String timeText = metadata['time'];
+                final bool isUnread =
+                    (metadata['unreadCount'] as int) > 0;
 
                 return Container(
-                  margin: const EdgeInsets.symmetric(vertical: 6.0, horizontal: 4.0),
+                  margin: const EdgeInsets.symmetric(
+                      vertical: 6.0, horizontal: 4.0),
                   child: Material(
                     color: Colors.transparent,
                     child: InkWell(
                       borderRadius: BorderRadius.circular(12),
-                      onTap: () {
-                        Navigator.push(
-                          context,
+                      onTap: () async {
+                        final navigator = Navigator.of(context);
+                        final chatRoomId =
+                        getChatRoomId(widget.currentUserId, userDoc.id);
+
+                        await markMessagesAsRead(chatRoomId);
+
+                        if (!mounted) return;
+
+                        navigator.push(
                           MaterialPageRoute(
                             builder: (context) => MessagesPage(
                               currentUserId: widget.currentUserId,
@@ -8761,8 +6990,15 @@ class _UsersListPageState extends State<UsersListPage> {
                       },
                       child: Container(
                         decoration: BoxDecoration(
-                          color: _cardBgColor(context),
+                          color: isUnread
+                              ? _primaryColor.withOpacity(0.05)
+                              : _cardBgColor(context),
                           borderRadius: BorderRadius.circular(12),
+                          border: isUnread
+                              ? Border.all(
+                              color: _primaryColor.withOpacity(0.3),
+                              width: 1)
+                              : null,
                           boxShadow: [
                             BoxShadow(
                               color: Colors.black.withOpacity(0.04),
@@ -8771,53 +7007,66 @@ class _UsersListPageState extends State<UsersListPage> {
                             ),
                           ],
                         ),
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
                         child: Row(
                           children: [
                             Stack(
                               children: [
                                 CircleAvatar(
                                   radius: 24,
-                                  backgroundColor: _primaryColor.withOpacity(0.2),
+                                  backgroundColor:
+                                  _primaryColor.withOpacity(0.2),
                                   backgroundImage: (data["profile"] != null &&
-                                      data["profile"].toString().isNotEmpty)
+                                      data["profile"]
+                                          .toString()
+                                          .isNotEmpty)
                                       ? NetworkImage(data["profile"])
                                       : null,
                                   child: (data["profile"] == null ||
-                                      data["profile"].toString().isEmpty)
+                                      data["profile"]
+                                          .toString()
+                                          .isEmpty)
                                       ? Icon(Icons.person_outline,
                                       color: _primaryColor, size: 24)
                                       : null,
                                 ),
-                                if (data['status'] == 'online')
-                                  Positioned(
-                                    bottom: 0,
-                                    right: 0,
-                                    child: Container(
-                                      width: 14,
-                                      height: 14,
-                                      decoration: BoxDecoration(
-                                        color: Colors.green,
-                                        shape: BoxShape.circle,
-                                        border: Border.all(
-                                          color: _cardBgColor(context),
-                                          width: 2,
-                                        ),
+                                Positioned(
+                                  bottom: 0,
+                                  right: 0,
+                                  child: Container(
+                                    width: 14,
+                                    height: 14,
+                                    decoration: BoxDecoration(
+                                      color: Colors.green,
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: _cardBgColor(context),
+                                        width: 2,
                                       ),
                                     ),
                                   ),
+                                ),
                               ],
                             ),
                             const SizedBox(width: 12),
                             Expanded(
                               child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                                crossAxisAlignment:
+                                CrossAxisAlignment.start,
                                 children: [
                                   Text(
                                     senderName,
-                                    style: _getTextStyle(context,
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.w600, height: 1.5),
+                                    style: _getTextStyle(
+                                      context,
+                                      fontSize: 15,
+                                      fontWeight: isUnread
+                                          ? FontWeight.bold
+                                          : FontWeight.w600,
+                                      height: 1.5,
+                                    ),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                   ),
@@ -8826,24 +7075,61 @@ class _UsersListPageState extends State<UsersListPage> {
                                     subtitleText,
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
-                                    style: _getTextStyle(context,
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w400,
-                                        color: _textColorSecondary(context), height: 1.5),
+                                    style: _getTextStyle(
+                                      context,
+                                      fontSize: 13,
+                                      fontWeight: isUnread
+                                          ? FontWeight.bold
+                                          : FontWeight.w400,
+                                      color: isUnread
+                                          ? _textColorPrimary(context)
+                                          : _textColorSecondary(context),
+                                      height: 1.5,
+                                    ),
                                   ),
                                 ],
                               ),
                             ),
-                            if (timeText.isNotEmpty)
-                              Padding(
-                                padding: const EdgeInsets.only(left: 8.0),
-                                child: Text(
-                                  timeText,
-                                  style: _getTextStyle(context,
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                if (timeText.isNotEmpty)
+                                  Text(
+                                    timeText,
+                                    style: _getTextStyle(
+                                      context,
                                       fontSize: 12,
-                                      color: _textColorSecondary(context), height: 1.5),
-                                ),
-                              ),
+                                      color: isUnread
+                                          ? _primaryColor
+                                          : _textColorSecondary(context),
+                                      fontWeight: isUnread
+                                          ? FontWeight.bold
+                                          : FontWeight.normal,
+                                      height: 1.5,
+                                    ),
+                                  ),
+                                if (isUnread) ...[
+                                  const SizedBox(height: 6),
+                                  Container(
+                                    padding: const EdgeInsets.all(6),
+                                    decoration: const BoxDecoration(
+                                      color: _primaryColor,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: Text(
+                                      metadata['unreadCount'].toString(),
+                                      style: _getTextStyle(
+                                        context,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold,
+                                        color: _textColorOnPrimary,
+                                        height: 1.5,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
                           ],
                         ),
                       ),
@@ -8851,377 +7137,343 @@ class _UsersListPageState extends State<UsersListPage> {
                   ),
                 );
               },
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildNotificationsTab() {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection("Users")
+          .doc(widget.currentUserId)
+          .collection("notifications")
+          .orderBy("timestamp", descending: true)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return const Center(
+            child: CircularProgressIndicator(color: _primaryColor),
+          );
+        }
+
+        final docs = snapshot.data!.docs;
+        if (docs.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.notifications_off_outlined,
+                    size: 64, color: _primaryColor.withOpacity(0.3)),
+                const SizedBox(height: 16),
+                Text(
+                  "No notifications yet",
+                  style: _getTextStyle(context, fontSize: 18, height: 1.5),
+                ),
+              ],
             ),
+          );
+        }
 
-            // --- NOTIFICATIONS TAB ---
-            StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection("Users")
-                  .doc(widget.currentUserId)
-                  .collection("notifications")
-                  .orderBy("timestamp", descending: true)
-                  .snapshots(),
-              builder: (context, snapshot) {
-                if (!snapshot.hasData)
-                  return const Center(child: CircularProgressIndicator(color: _primaryColor));
+        final Map<String, DocumentSnapshot> groupedNotifications = {};
+        for (final doc in docs) {
+          final data = doc.data() as Map<String, dynamic>;
+          String groupingKey;
+          if (data['type'] == 'message' && data['senderId'] != null) {
+            groupingKey = data['senderId'];
+          } else {
+            groupingKey = doc.id;
+          }
+          if (!groupedNotifications.containsKey(groupingKey)) {
+            groupedNotifications[groupingKey] = doc;
+          }
+        }
 
-                final docs = snapshot.data!.docs;
-                if (docs.isEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.notifications_off_outlined,
-                            size: 64, color: _primaryColor.withOpacity(0.3)),
-                        const SizedBox(height: 16),
-                        Text("No notifications yet",
-                            style: _getTextStyle(context,
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: _textColorPrimary(context), height: 1.5)),
-                      ],
-                    ),
-                  );
-                }
+        var finalDocsToShow = groupedNotifications.values.toList();
 
-                // Group notifications (latest only per group)
-                final Map<String, DocumentSnapshot> groupedNotifications = {};
-                for (final doc in docs) {
-                  final data = doc.data() as Map<String, dynamic>;
-                  String groupingKey;
+        finalDocsToShow = finalDocsToShow.where((doc) {
+          final data = doc.data() as Map<String, dynamic>;
+          return _shouldShowNotification(data);
+        }).toList();
 
-                  if (data['type'] == 'message' && data['senderId'] != null) {
-                    groupingKey = data['senderId'];
-                  } else {
-                    groupingKey = doc.id;
-                  }
-
-                  if (!groupedNotifications.containsKey(groupingKey)) {
-                    groupedNotifications[groupingKey] = doc;
-                  }
-                }
-
-                final finalDocsToShow = groupedNotifications.values.toList();
-
-                // Filter by selected filter
-                final filteredDocs = finalDocsToShow
-                    .where((doc) {
-                  final data = doc.data() as Map<String, dynamic>;
-                  return _shouldShowNotification(data);
-                })
-                    .toList();
-
-                return Column(
-                  children: [
-                    // --- COMPACT HEADER WITH FILTER CHIPS AND CLEAR BUTTON ---
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        return Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
                       child: Row(
                         children: [
-                          // Filter chips in a horizontal scrollable row
-                          Expanded(
-                            child: SingleChildScrollView(
-                              scrollDirection: Axis.horizontal,
-                              child: Row(
-                                children: [
-                                  _buildCompactFilterChip('all'),
-                                  const SizedBox(width: 6),
-                                  _buildCompactFilterChip('appointment'),
-                                  const SizedBox(width: 6),
-                                  _buildCompactFilterChip('message'),
-                                  const SizedBox(width: 6),
-                                  _buildCompactFilterChip('pricing'),
-                                ],
-                              ),
-                            ),
-                          ),
-                          // Clear All button as icon button
-                          SizedBox(
-                            width: 40,
-                            height: 40,
-                            child: Material(
-                              color: Colors.transparent,
-                              child: InkWell(
-                                onTap: _showClearAllDialog,
-                                borderRadius: BorderRadius.circular(8),
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    color: Colors.redAccent.withOpacity(0.1),
-                                    borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(
-                                      color: Colors.redAccent.withOpacity(0.3),
-                                      width: 1,
-                                    ),
-                                  ),
-                                  child: Icon(
-                                    Icons.delete_sweep_outlined,
-                                    color: Colors.redAccent,
-                                    size: 18,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
+                          _buildCompactFilterChip('all'),
+                          const SizedBox(width: 6),
+                          _buildCompactFilterChip('appointment'),
+                          const SizedBox(width: 6),
+                          _buildCompactFilterChip('message'),
                         ],
                       ),
                     ),
-
-                    // --- NOTIFICATIONS LIST ---
-                    Expanded(
-                      child: filteredDocs.isEmpty
-                          ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.inbox_outlined,
-                              size: 64,
-                              color: _primaryColor.withOpacity(0.3),
+                  ),
+                  SizedBox(
+                    width: 40,
+                    height: 40,
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: _showClearAllDialog,
+                        borderRadius: BorderRadius.circular(8),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.redAccent.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: Colors.redAccent.withOpacity(0.3),
+                              width: 1,
                             ),
-                            const SizedBox(height: 16),
-                            Text(
-                              "No notifications",
-                              style: _getTextStyle(
-                                context,
-                                fontSize: 16,
-                                color: _textColorSecondary(context), height: 1.5,
-                              ),
-                            ),
-                          ],
+                          ),
+                          child: Icon(
+                            Icons.delete_sweep_outlined,
+                            color: Colors.redAccent,
+                            size: 18,
+                          ),
                         ),
-                      )
-                          : ListView.builder(
-                        itemCount: filteredDocs.length,
-                        padding: const EdgeInsets.symmetric(
-                            vertical: 4.0, horizontal: 12.0),
-                        itemBuilder: (context, index) {
-                          final doc = filteredDocs[index];
-                          final data = doc.data() as Map<String, dynamic>;
-                          final Timestamp? timestamp =
-                          data["timestamp"] as Timestamp?;
-                          String formattedTime = "";
-
-                          if (timestamp != null) {
-                            final date = timestamp.toDate();
-                            final now = DateTime.now();
-                            if (date.year == now.year &&
-                                date.month == now.month &&
-                                date.day == now.day) {
-                              formattedTime = DateFormat.jm().format(date);
-                            } else if (date.year == now.year &&
-                                date.month == now.month &&
-                                date.day == now.day - 1) {
-                              formattedTime = "Yesterday";
-                            } else {
-                              formattedTime = DateFormat('MMM d').format(date);
-                            }
-                          }
-
-                          bool isRead = data["isRead"] == true;
-                          final notificationType = _getNotificationType(data);
-                          final iconBgColor = _getFilterChipColor(notificationType);
-                          final notificationIcon = _getFilterChipIcon(notificationType);
-
-                          return Container(
-                            margin: const EdgeInsets.only(bottom: 10.0),
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(14),
-                              gradient: isRead
-                                  ? null
-                                  : LinearGradient(
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                                colors: [
-                                  iconBgColor.withOpacity(0.08),
-                                  iconBgColor.withOpacity(0.03),
-                                ],
-                              ),
-                            ),
-                            child: Card(
-                              margin: EdgeInsets.zero,
-                              elevation: isRead ? 0.5 : 2,
-                              color: _cardBgColor(context),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(14),
-                                side: isRead
-                                    ? BorderSide(color: Colors.grey.shade300, width: 0.5)
-                                    : BorderSide(
-                                  color: iconBgColor.withOpacity(0.4),
-                                  width: 1.5,
-                                ),
-                              ),
-                              child: InkWell(
-                                borderRadius: BorderRadius.circular(14),
-                                onTap: () async {
-                                  if (!isRead) {
-                                    await FirebaseFirestore.instance
-                                        .collection("Users")
-                                        .doc(widget.currentUserId)
-                                        .collection("notifications")
-                                        .doc(doc.id)
-                                        .update({"isRead": true});
-                                  }
-
-                                  if (data["type"] == "priceChange") {
-                                    _showPriceChangeDialog(context, data);
-                                  }else if (data["type"] == "subscription") {
-                                    _showSubscriptionDialog(context, data);
-                                  } else if (data["type"] == "meal_plan_scheduled") {
-                                    _showMealPlanScheduledDialog(context, data);
-                                  } else if(data["type"] == "meal_plan_declined"){
-                                    _showMealPlanDeclinedDialog(context, data);
-                                  } else if (data["type"] == "meal_plan_created"){
-                                    _showMealPlanCreatedDialog(context, data);
-                                  } else if (data["type"] == "meal_plan"){
-                                    _showMealPlanNotif(context, data);
-                                  } else if (data["type"] == "message" &&
-                                      data["senderId"] != null &&
-                                      data["senderName"] != null) {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (_) => MessagesPage(
-                                          receiverId: data["senderId"],
-                                          receiverName: data["senderName"],
-                                          currentUserId: widget.currentUserId,
-                                          receiverProfile:
-                                          data["receiverProfile"] ?? "",
-                                        ),
-                                      ),
-                                    ).then((_) {
-                                      _loadAndSortChats();
-                                    });
-                                  } else if (data["type"] == "appointment" ||
-                                      data["type"] == "appointment_update") {
-                                    await _navigateToAppointment(context, data);
-                                  }
-                                },
-                                child: Padding(
-                                  padding: const EdgeInsets.all(14.0),
-                                  child: Row(
-                                    crossAxisAlignment:
-                                    CrossAxisAlignment.center,
-                                    children: [
-                                      Container(
-                                        width: 48,
-                                        height: 48,
-                                        decoration: BoxDecoration(
-                                          color:
-                                          iconBgColor.withOpacity(0.15),
-                                          borderRadius:
-                                          BorderRadius.circular(12),
-                                          border: Border.all(
-                                            color: iconBgColor
-                                                .withOpacity(0.2),
-                                            width: 1.5,
-                                          ),
-                                        ),
-                                        child: Icon(
-                                          notificationIcon,
-                                          color: iconBgColor,
-                                          size: 24,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 12),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                          children: [
-                                            Row(
-                                              mainAxisAlignment:
-                                              MainAxisAlignment
-                                                  .spaceBetween,
-                                              children: [
-                                                Expanded(
-                                                  child: Text(
-                                                    data["title"] ??
-                                                        "Notification",
-                                                    style: _getTextStyle(
-                                                      context,
-                                                      fontSize: 15,
-                                                      fontWeight: isRead
-                                                          ? FontWeight.w600
-                                                          : FontWeight.bold,
-                                                      color:
-                                                      _textColorPrimary(
-                                                          context), height: 1.5,
-                                                    ),
-                                                    maxLines: 1,
-                                                    overflow: TextOverflow
-                                                        .ellipsis,
-                                                  ),
-                                                ),
-                                                if (!isRead)
-                                                  Container(
-                                                    width: 8,
-                                                    height: 8,
-                                                    margin:
-                                                    const EdgeInsets.only(
-                                                        left: 8.0),
-                                                    decoration: BoxDecoration(
-                                                      color: iconBgColor,
-                                                      shape: BoxShape.circle,
-                                                    ),
-                                                  ),
-                                              ],
-                                            ),
-                                            const SizedBox(height: 6),
-                                            Text(
-                                              data["message"] ?? "",
-                                              style: _getTextStyle(
-                                                context,
-                                                fontSize: 13,
-                                                fontWeight: FontWeight.w400,
-                                                color:
-                                                _textColorSecondary(context), height: 1.5,
-                                              ),
-                                              maxLines: 2,
-                                              overflow: TextOverflow.ellipsis,
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                      if (formattedTime.isNotEmpty)
-                                        Padding(
-                                          padding: const EdgeInsets.only(
-                                              left: 12.0),
-                                          child: Column(
-                                            crossAxisAlignment:
-                                            CrossAxisAlignment.end,
-                                            children: [
-                                              Text(
-                                                formattedTime,
-                                                style: _getTextStyle(
-                                                  context,
-                                                  fontSize: 12,
-                                                  fontWeight: FontWeight.w500,
-                                                  color: isRead
-                                                      ? _textColorSecondary(
-                                                      context)
-                                                      : iconBgColor, height: 1.5,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-                          );
-                        },
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: finalDocsToShow.isEmpty
+                  ? Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.inbox_outlined,
+                        size: 64,
+                        color: _primaryColor.withOpacity(0.3)),
+                    const SizedBox(height: 16),
+                    Text(
+                      "No notifications",
+                      style: _getTextStyle(
+                        context,
+                        fontSize: 16,
+                        color: _textColorSecondary(context),
+                        height: 1.5,
                       ),
                     ),
                   ],
-                );
-              },
-            ),
+                ),
+              )
+                  : ListView.builder(
+                itemCount: finalDocsToShow.length,
+                padding: const EdgeInsets.symmetric(
+                    vertical: 4.0, horizontal: 12.0),
+                itemBuilder: (context, index) {
+                  final doc = finalDocsToShow[index];
+                  final data = doc.data() as Map<String, dynamic>;
+                  final Timestamp? timestamp =
+                  data["timestamp"] as Timestamp?;
+                  String formattedTime = "";
 
+                  if (timestamp != null) {
+                    final date = timestamp.toDate();
+                    final now = DateTime.now();
+                    if (date.year == now.year &&
+                        date.month == now.month &&
+                        date.day == now.day) {
+                      formattedTime = DateFormat.jm().format(date);
+                    } else if (date.year == now.year &&
+                        date.month == now.month &&
+                        date.day == now.day - 1) {
+                      formattedTime = "Yesterday";
+                    } else {
+                      formattedTime = DateFormat('MMM d').format(date);
+                    }
+                  }
+
+                  bool isRead = data["isRead"] == true;
+                  final notificationType =
+                  _getNotificationType(data);
+                  final iconBgColor =
+                  _getFilterChipColor(notificationType);
+                  final notificationIcon =
+                  _getFilterChipIcon(notificationType);
+
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 10.0),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(14),
+                      gradient: isRead
+                          ? null
+                          : LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          iconBgColor.withOpacity(0.08),
+                          iconBgColor.withOpacity(0.03),
+                        ],
+                      ),
+                    ),
+                    child: Card(
+                      margin: EdgeInsets.zero,
+                      elevation: isRead ? 0.5 : 2,
+                      color: _cardBgColor(context),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        side: isRead
+                            ? BorderSide(
+                            color: Colors.grey.shade300,
+                            width: 0.5)
+                            : BorderSide(
+                          color:
+                          iconBgColor.withOpacity(0.4),
+                          width: 1.5,
+                        ),
+                      ),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(14),
+                        onTap: () async {
+                          if (!isRead) {
+                            await FirebaseFirestore.instance
+                                .collection("Users")
+                                .doc(widget.currentUserId)
+                                .collection("notifications")
+                                .doc(doc.id)
+                                .update({"isRead": true});
+                          }
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.all(14.0),
+                          child: Row(
+                            crossAxisAlignment:
+                            CrossAxisAlignment.center,
+                            children: [
+                              Container(
+                                width: 48,
+                                height: 48,
+                                decoration: BoxDecoration(
+                                  color: iconBgColor
+                                      .withOpacity(0.15),
+                                  borderRadius:
+                                  BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: iconBgColor
+                                        .withOpacity(0.2),
+                                    width: 1.5,
+                                  ),
+                                ),
+                                child: Icon(
+                                  notificationIcon,
+                                  color: iconBgColor,
+                                  size: 24,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment:
+                                  CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      mainAxisAlignment:
+                                      MainAxisAlignment
+                                          .spaceBetween,
+                                      children: [
+                                        Expanded(
+                                          child: Text(
+                                            data["title"] ??
+                                                "Notification",
+                                            style: _getTextStyle(
+                                              context,
+                                              fontSize: 15,
+                                              fontWeight:
+                                              FontWeight.bold,
+                                              color:
+                                              _textColorPrimary(
+                                                  context),
+                                              height: 1.5,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow
+                                                .ellipsis,
+                                          ),
+                                        ),
+                                        if (!isRead)
+                                          Container(
+                                            width: 8,
+                                            height: 8,
+                                            margin: const EdgeInsets
+                                                .only(left: 8.0),
+                                            decoration: BoxDecoration(
+                                              color: iconBgColor,
+                                              shape:
+                                              BoxShape.circle,
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Text(
+                                      data["message"] ?? "",
+                                      style: _getTextStyle(
+                                        context,
+                                        fontSize: 13,
+                                        fontWeight:
+                                        FontWeight.w400,
+                                        color:
+                                        _textColorSecondary(
+                                            context),
+                                        height: 1.5,
+                                      ),
+                                      maxLines: 2,
+                                      overflow:
+                                      TextOverflow.ellipsis,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              if (formattedTime.isNotEmpty)
+                                Padding(
+                                  padding:
+                                  const EdgeInsets.only(left: 12.0),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                    CrossAxisAlignment.end,
+                                    children: [
+                                      Text(
+                                        formattedTime,
+                                        style: _getTextStyle(
+                                          context,
+                                          fontSize: 12,
+                                          fontWeight:
+                                          FontWeight.w500,
+                                          color: isRead
+                                              ? _textColorSecondary(
+                                              context)
+                                              : iconBgColor,
+                                          height: 1.5,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
           ],
-        ),
-      ),
+        );
+      },
     );
   }
 }

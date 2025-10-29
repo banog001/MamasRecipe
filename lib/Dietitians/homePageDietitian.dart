@@ -3799,7 +3799,7 @@ class _UsersListPageState extends State<UsersListPage> {
 
                 // --- Title ---
                 Text(
-                  'Real All Notifications?',
+                  'Read All Notifications?',
                   style: _getTextStyle(
                     dialogContext,
                     fontSize: 22,
@@ -3811,7 +3811,7 @@ class _UsersListPageState extends State<UsersListPage> {
 
                 // --- Description ---
                 Text(
-                  'Are you sure you want to read all ?)',
+                  'Are you sure you want to read all ?',
                   textAlign: TextAlign.center,
                   style: _getTextStyle(
                     dialogContext,

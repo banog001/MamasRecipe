@@ -89,14 +89,14 @@ class AboutPage extends StatelessWidget {
                     context,
                     title: "Our Mission",
                     description:
-                    "Mama's Recipe is dedicated to connecting you with professional dietitians and nutritionists. We believe in personalized, accessible, and expert-driven nutritional guidance to help you achieve your health and wellness goals.",
+                    "Mama's Recipe is dedicated to connecting you with professional dietitians. We believe in personalized, accessible, and expert-driven nutritional guidance to help you achieve your health and wellness goals.",
                   ),
                   const SizedBox(height: 16),
                   _buildInfoCard(
                     context,
                     title: "What We Do",
                     description:
-                    "Our app provides a seamless platform for you to find certified dietitians, book consultations, receive personalized meal plans, and track your progress. Whether you're managing a health condition or aiming for a healthier lifestyle, we're here to support you.",
+                    "Our app provides a seamless platform for you to find certified dietitians, book consultations and receive personalized meal plans. Whether you're managing a health condition or aiming for a healthier lifestyle, we're here to support you.",
                   ),
                   const SizedBox(height: 16),
                   _buildInfoCard(
