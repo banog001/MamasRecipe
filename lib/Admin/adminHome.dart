@@ -7,7 +7,7 @@ import 'package:async/async.dart';
 import 'package:rxdart/rxdart.dart';
 import 'adminLogin.dart';
 import 'dart:async';
-
+import 'feedback_page.dart';
 import '../email/rejectPayment.dart';
 
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
@@ -295,6 +295,12 @@ class _AdminHomeState extends State<AdminHome> {
                     "Messages",
                     isTablet,
                   ),
+                  _buildSidebarItem(
+                    Icons.feedback_outlined,
+                    Icons.feedback,
+                    "Feedback",
+                    isTablet,
+                  ),
                   const Spacer(),
                   const Divider(indent: 16, endIndent: 16),
                   Material(
@@ -520,6 +526,12 @@ class _AdminHomeState extends State<AdminHome> {
             "Messages",
             false,
           ),
+          _buildSidebarItem(
+            Icons.message_outlined,
+            Icons.message,
+            "Feedback",
+            false,
+          ),
           const Spacer(),
           const Divider(indent: 16, endIndent: 16),
           Padding(
@@ -698,7 +710,10 @@ class _AdminHomeState extends State<AdminHome> {
       return _buildDietitianPaymentPage();
     } else if (selectedPage == "Messages") {
       return _buildMessagesPage();
+    } else if (selectedPage == "Feedback") {
+      return FeedbackPage();
     }
+
     return Container();
   }
 
@@ -3740,7 +3755,7 @@ class _AdminHomeState extends State<AdminHome> {
     }
   }
 
-  // Replace your _buildCrudTable() method with this updated version that includes Verification tabs
+// REPLACE your _buildCrudTable() method with this updated version:
 
   Widget _buildCrudTable() {
     final isMobile = MediaQuery.of(context).size.width < 768;
@@ -3750,113 +3765,39 @@ class _AdminHomeState extends State<AdminHome> {
       padding: EdgeInsets.all(isMobile ? 16 : 24),
       child: Column(
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: [
-                      _buildFilterButton("All"),
-                      const SizedBox(width: 8),
-                      _buildFilterButton("Users"),
-                      const SizedBox(width: 8),
-                      _buildFilterButton("Dietitians"),
-                      const SizedBox(width: 8),
-                      _buildFilterButton("Meal Plans"),
-                      const SizedBox(width: 8),
-                      _buildFilterButton("Deactivate"),
-                      // Removed "User Verification" and "Dietitian Verification" from here
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(width: 16),
-              Row(
+          // Filter Buttons Row
+          Padding(
+            padding: const EdgeInsets.only(bottom: 20),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
                 children: [
-                  // Button to navigate to User Verification page
-                  ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue,
-                      foregroundColor: _textColorOnPrimary,
-                      elevation: 2,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      padding: EdgeInsets.symmetric(
-                        horizontal: isMobile ? 12 : 16,
-                        vertical: 14,
-                      ),
-                    ),
-                    onPressed: () =>
-                        setState(() => selectedPage = "User Verification"),
-                    icon: const Icon(Icons.verified_user, size: 18),
-                    label: Text(
-                      isMobile ? "User Ver." : "User Verification",
-                      style: const TextStyle(
-                        fontFamily: _primaryFontFamily,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 13,
-                      ),
-                    ),
-                  ),
+                  _buildFilterButton("All"),
                   const SizedBox(width: 8),
-                  // Button to navigate to Dietitian Verification page
-                  ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.orange,
-                      foregroundColor: _textColorOnPrimary,
-                      elevation: 2,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      padding: EdgeInsets.symmetric(
-                        horizontal: isMobile ? 12 : 16,
-                        vertical: 14,
-                      ),
-                    ),
-                    onPressed: () =>
-                        setState(() => selectedPage = "Dietitian Verification"),
-                    icon: const Icon(Icons.health_and_safety, size: 18),
-                    label: Text(
-                      isMobile ? "Diet. Ver." : "Dietitian Verification",
-                      style: const TextStyle(
-                        fontFamily: _primaryFontFamily,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 13,
-                      ),
-                    ),
-                  ),
-                  if (isMultiSelectMode && selectedUserIds.isNotEmpty) ...[
-                    const SizedBox(width: 8),
-                    ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red,
-                        foregroundColor: _textColorOnPrimary,
-                        elevation: 2,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        padding: EdgeInsets.symmetric(
-                          horizontal: isMobile ? 12 : 20,
-                          vertical: 14,
-                        ),
-                      ),
-                      onPressed: () => _showMultiDeleteConfirmation(),
-                      icon: const Icon(Icons.delete_sweep, size: 20),
-                      label: Text(
-                        "Delete (${selectedUserIds.length})",
-                        style: const TextStyle(
-                          fontFamily: _primaryFontFamily,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 15,
-                        ),
-                      ),
-                    ),
-                  ],
-                  if (isMultiSelectMode && selectedUserIds.isNotEmpty)
-                    const SizedBox(width: 8),
+                  _buildFilterButton("Users"),
+                  const SizedBox(width: 8),
+                  _buildFilterButton("Dietitians"),
+                  const SizedBox(width: 8),
+                  _buildFilterButton("User Verification"),
+                  const SizedBox(width: 8),
+                  _buildFilterButton("Dietitian Verification"),
+                  const SizedBox(width: 8),
+                  _buildFilterButton("Meal Plans"),
+                  const SizedBox(width: 8),
+                  _buildFilterButton("Deactivate"),
+                ],
+              ),
+            ),
+          ),
+
+          // Action Buttons Row
+          Padding(
+            padding: const EdgeInsets.only(bottom: 16),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                // Multi-select toggle button
+                if (!isMobile)
                   IconButton(
                     icon: Icon(
                       isMultiSelectMode ? Icons.close : Icons.checklist,
@@ -3870,80 +3811,731 @@ class _AdminHomeState extends State<AdminHome> {
                         }
                       });
                     },
-                    tooltip: isMultiSelectMode ? "Cancel" : "Multi-select",
+                    tooltip: isMultiSelectMode ? "Cancel Multi-Select" : "Enable Multi-Select",
                   ),
-                  const SizedBox(width: 8),
+
+                // Delete Selected Users Button
+                if (isMultiSelectMode && selectedUserIds.isNotEmpty) ...[
                   ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: _primaryColor,
+                      backgroundColor: Colors.red,
                       foregroundColor: _textColorOnPrimary,
                       elevation: 2,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
                       padding: EdgeInsets.symmetric(
-                        horizontal: isMobile ? 12 : 20,
-                        vertical: 14,
+                        horizontal: isMobile ? 12 : 16,
+                        vertical: 12,
                       ),
                     ),
-                    onPressed: () => _showAddUserDialog(),
-                    icon: const Icon(Icons.person_add, size: 20),
+                    onPressed: () => _showMultiDeleteConfirmation(),
+                    icon: const Icon(Icons.delete_sweep, size: 18),
                     label: Text(
-                      isMobile ? "Add" : "Add User",
+                      "Delete (${selectedUserIds.length})",
                       style: const TextStyle(
                         fontFamily: _primaryFontFamily,
                         fontWeight: FontWeight.w600,
-                        fontSize: 15,
+                        fontSize: 13,
                       ),
                     ),
                   ),
+                  const SizedBox(width: 12),
                 ],
+
+                // Add User Button
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _primaryColor,
+                    foregroundColor: _textColorOnPrimary,
+                    elevation: 2,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    padding: EdgeInsets.symmetric(
+                      horizontal: isMobile ? 12 : 16,
+                      vertical: 12,
+                    ),
+                  ),
+                  onPressed: () => _showAddUserDialog(),
+                  icon: const Icon(Icons.person_add, size: 18),
+                  label: Text(
+                    isMobile ? "Add" : "Add User",
+                    style: const TextStyle(
+                      fontFamily: _primaryFontFamily,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Main Content Container
+          Expanded(
+            child: Card(
+              elevation: 4,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              color: _cardBgColor(context),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: _buildCrudContent(),
               ),
-            ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+// NEW METHOD: Build CRUD content based on selected filter
+  Widget _buildCrudContent() {
+    return Column(
+      children: [
+        // Show filter buttons only for Deactivate section
+        if (crudFilter == "Deactivate")
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _buildDeactivateFilterButton("Users"),
+                const SizedBox(width: 16),
+                _buildDeactivateFilterButton("Dietitians"),
+              ],
+            ),
+          ),
+        // Main content
+        Expanded(
+          child: _buildCrudContentBody(),
+        ),
+      ],
+    );
+  }
+
+// NEW METHOD: Build actual content body
+  Widget _buildCrudContentBody() {
+    switch (crudFilter) {
+      case "All":
+        return _buildAllUsersContent();
+      case "Users":
+        return _buildUsersContent();
+      case "Dietitians":
+        return _buildDietitiansContent();
+      case "User Verification":
+        return _buildUserVerificationContent();
+      case "Dietitian Verification":
+        return _buildDietitianVerificationContent();
+      case "Meal Plans":
+        return _buildMealPlansContent();
+      case "Deactivate":
+        return _buildDeactivateTableContent();
+      default:
+        return _buildAllUsersContent();
+    }
+  }
+
+// NEW METHOD: All Users Content
+  Widget _buildAllUsersContent() {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('Users')
+          .where('role', isNotEqualTo: 'admin')
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(
+            child: CircularProgressIndicator(color: _primaryColor),
+          );
+        }
+
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          return _buildEmptyState("No users found", Icons.people_outline);
+        }
+
+        return _buildUsersTable(snapshot.data!.docs);
+      },
+    );
+  }
+
+// NEW METHOD: Users Content (role = user)
+  Widget _buildUsersContent() {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('Users')
+          .where('role', isEqualTo: 'user')
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(
+            child: CircularProgressIndicator(color: _primaryColor),
+          );
+        }
+
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          return _buildEmptyState("No users found", Icons.person_outline);
+        }
+
+        return _buildUsersTable(snapshot.data!.docs);
+      },
+    );
+  }
+
+// NEW METHOD: Dietitians Content (role = dietitian)
+  Widget _buildDietitiansContent() {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('Users')
+          .where('role', isEqualTo: 'dietitian')
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(
+            child: CircularProgressIndicator(color: _primaryColor),
+          );
+        }
+
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          return _buildEmptyState("No dietitians found", Icons.health_and_safety);
+        }
+
+        return _buildUsersTable(snapshot.data!.docs);
+      },
+    );
+  }
+
+// NEW METHOD: User Verification Content - SAME TABLE LAYOUT
+  Widget _buildUserVerificationContent() {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('notVerifiedUsers')
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(
+            child: CircularProgressIndicator(color: _primaryColor),
+          );
+        }
+
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          return _buildEmptyState(
+            "No unverified users pending",
+            Icons.verified_outlined,
+          );
+        }
+
+        return _buildUserVerificationTable(snapshot.data!.docs);
+      },
+    );
+  }
+
+// NEW METHOD: Dietitian Verification Content - SAME TABLE LAYOUT
+  Widget _buildDietitianVerificationContent() {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('dietitianApproval')
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(
+            child: CircularProgressIndicator(color: Colors.orange),
+          );
+        }
+
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          return _buildEmptyState(
+            "No unverified dietitians pending",
+            Icons.verified_outlined,
+          );
+        }
+
+        return _buildDietitianVerificationTable(snapshot.data!.docs);
+      },
+    );
+  }
+
+// NEW METHOD: Meal Plans Content - SAME TABLE LAYOUT
+  Widget _buildMealPlansContent() {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('mealPlans')
+          .orderBy('timestamp', descending: true)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(
+            child: CircularProgressIndicator(color: _primaryColor),
+          );
+        }
+
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          return _buildEmptyState("No meal plans found", Icons.restaurant_menu_outlined);
+        }
+
+        return _buildMealPlansTable(snapshot.data!.docs);
+      },
+    );
+  }
+
+// NEW TABLE: User Verification Table with consistent layout
+  Widget _buildUserVerificationTable(List<QueryDocumentSnapshot> users) {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: SingleChildScrollView(
+        child: DataTable(
+          headingRowColor: MaterialStateProperty.all(
+            _primaryColor.withOpacity(0.1),
+          ),
+          headingRowHeight: 56,
+          dataRowHeight: 72,
+          columnSpacing: 24,
+          horizontalMargin: 16,
+          columns: [
+            DataColumn(
+              label: Text(
+                'First Name',
+                style: _getTextStyle(
+                  context,
+                  fontWeight: FontWeight.bold,
+                  color: _primaryColor,
+                  fontSize: 14,
+                ),
+              ),
+            ),
+            DataColumn(
+              label: Text(
+                'Last Name',
+                style: _getTextStyle(
+                  context,
+                  fontWeight: FontWeight.bold,
+                  color: _primaryColor,
+                  fontSize: 14,
+                ),
+              ),
+            ),
+            DataColumn(
+              label: Text(
+                'Email',
+                style: _getTextStyle(
+                  context,
+                  fontWeight: FontWeight.bold,
+                  color: _primaryColor,
+                  fontSize: 14,
+                ),
+              ),
+            ),
+            DataColumn(
+              label: Text(
+                'Actions',
+                style: _getTextStyle(
+                  context,
+                  fontWeight: FontWeight.bold,
+                  color: _primaryColor,
+                  fontSize: 14,
+                ),
+              ),
+            ),
+          ],
+          rows: users.map((doc) {
+            final user = doc.data() as Map<String, dynamic>;
+            final docId = doc.id;
+            final firstName = user['firstName'] ?? '';
+            final lastName = user['lastName'] ?? '';
+            final email = user['email'] ?? '';
+
+            return DataRow(
+              cells: [
+                DataCell(
+                  Text(
+                    firstName,
+                    style: _getTextStyle(context, fontSize: 14),
+                  ),
+                ),
+                DataCell(
+                  Text(
+                    lastName,
+                    style: _getTextStyle(context, fontSize: 14),
+                  ),
+                ),
+                DataCell(
+                  Text(
+                    email,
+                    style: _getTextStyle(context, fontSize: 14),
+                  ),
+                ),
+                DataCell(
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green,
+                          foregroundColor: _textColorOnPrimary,
+                          elevation: 2,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
+                        ),
+                        onPressed: () async {
+                          final confirm = await showDialog<bool>(
+                            context: context,
+                            builder: (context) => AlertDialog(
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              title: const Text(
+                                "Verify User",
+                                style: TextStyle(fontFamily: _primaryFontFamily),
+                              ),
+                              content: Text(
+                                "Verify $firstName $lastName as a user?",
+                                style: const TextStyle(fontFamily: _primaryFontFamily),
+                              ),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.pop(context, false),
+                                  child: const Text("Cancel"),
+                                ),
+                                ElevatedButton(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.green,
+                                  ),
+                                  onPressed: () => Navigator.pop(context, true),
+                                  child: const Text("Verify"),
+                                ),
+                              ],
+                            ),
+                          );
+
+                          if (confirm == true) {
+                            try {
+                              final newUserData = {
+                                ...user,
+                                'uid': docId,
+                                'role': 'user',
+                                'status': 'offline',
+                                'createdAt': FieldValue.serverTimestamp(),
+                              };
+
+                              await FirebaseFirestore.instance
+                                  .collection('Users')
+                                  .doc(docId)
+                                  .set(newUserData);
+
+                              await FirebaseFirestore.instance
+                                  .collection('notVerifiedUsers')
+                                  .doc(docId)
+                                  .delete();
+
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      "$firstName $lastName verified!",
+                                      style: const TextStyle(fontFamily: _primaryFontFamily),
+                                    ),
+                                    backgroundColor: Colors.green,
+                                    behavior: SnackBarBehavior.floating,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                  ),
+                                );
+                              }
+                            } catch (e) {
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text("Error: $e"),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                              }
+                            }
+                          }
+                        },
+                        icon: const Icon(Icons.check, size: 16),
+                        label: const Text(
+                          "Accept",
+                          style: TextStyle(
+                            fontFamily: _primaryFontFamily,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      IconButton(
+                        icon: const Icon(Icons.delete_outline, color: Colors.red),
+                        onPressed: () =>
+                            _showDeleteUserVerificationConfirmation(docId, firstName),
+                        tooltip: "Delete",
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            );
+          }).toList(),
+        ),
+      ),
+    );
+  }
+
+// NEW TABLE: Dietitian Verification Table with consistent layout
+  Widget _buildDietitianVerificationTable(List<QueryDocumentSnapshot> dietitians) {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: SingleChildScrollView(
+        child: DataTable(
+          headingRowColor: MaterialStateProperty.all(
+            Colors.orange.withOpacity(0.1),
+          ),
+          headingRowHeight: 56,
+          dataRowHeight: 72,
+          columnSpacing: 24,
+          horizontalMargin: 16,
+          columns: [
+            DataColumn(
+              label: Text(
+                'First Name',
+                style: _getTextStyle(
+                  context,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.orange,
+                  fontSize: 14,
+                ),
+              ),
+            ),
+            DataColumn(
+              label: Text(
+                'Last Name',
+                style: _getTextStyle(
+                  context,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.orange,
+                  fontSize: 14,
+                ),
+              ),
+            ),
+            DataColumn(
+              label: Text(
+                'Email',
+                style: _getTextStyle(
+                  context,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.orange,
+                  fontSize: 14,
+                ),
+              ),
+            ),
+            DataColumn(
+              label: Text(
+                'License',
+                style: _getTextStyle(
+                  context,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.orange,
+                  fontSize: 14,
+                ),
+              ),
+            ),
+            DataColumn(
+              label: Text(
+                'Actions',
+                style: _getTextStyle(
+                  context,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.orange,
+                  fontSize: 14,
+                ),
+              ),
+            ),
+          ],
+          rows: dietitians.map((doc) {
+            final data = doc.data() as Map<String, dynamic>;
+            final docId = doc.id;
+            final firstName = data['firstName'] ?? '';
+            final lastName = data['lastName'] ?? '';
+            final email = data['email'] ?? '';
+            final licenseNum = (data['licenseNum'] ?? 'N/A').toString();
+
+            return DataRow(
+              cells: [
+                DataCell(
+                  Text(
+                    firstName,
+                    style: _getTextStyle(context, fontSize: 14),
+                  ),
+                ),
+                DataCell(
+                  Text(
+                    lastName,
+                    style: _getTextStyle(context, fontSize: 14),
+                  ),
+                ),
+                DataCell(
+                  Text(
+                    email,
+                    style: _getTextStyle(context, fontSize: 14),
+                  ),
+                ),
+                DataCell(
+                  Text(
+                    licenseNum,
+                    style: _getTextStyle(context, fontSize: 14),
+                  ),
+                ),
+                DataCell(
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green,
+                          foregroundColor: _textColorOnPrimary,
+                          elevation: 2,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
+                        ),
+                        onPressed: () async {
+                          final confirm = await showDialog<bool>(
+                            context: context,
+                            builder: (context) => AlertDialog(
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              title: const Text(
+                                "Verify Dietitian",
+                                style: TextStyle(fontFamily: _primaryFontFamily),
+                              ),
+                              content: Text(
+                                "Verify $firstName $lastName as a dietitian?",
+                                style: const TextStyle(fontFamily: _primaryFontFamily),
+                              ),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.pop(context, false),
+                                  child: const Text("Cancel"),
+                                ),
+                                ElevatedButton(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.green,
+                                  ),
+                                  onPressed: () => Navigator.pop(context, true),
+                                  child: const Text("Verify"),
+                                ),
+                              ],
+                            ),
+                          );
+
+                          if (confirm == true) {
+                            try {
+                              final newDietitianData = {
+                                'uid': docId,
+                                'firstName': firstName,
+                                'lastName': lastName,
+                                'email': email,
+                                'role': 'dietitian',
+                                'status': 'offline',
+                                'profile': data['profile'] ?? '',
+                                'licenseNum': licenseNum,
+                                'createdAt': FieldValue.serverTimestamp(),
+                              };
+
+                              await FirebaseFirestore.instance
+                                  .collection('Users')
+                                  .doc(docId)
+                                  .set(newDietitianData);
+
+                              await FirebaseFirestore.instance
+                                  .collection('dietitianApproval')
+                                  .doc(docId)
+                                  .delete();
+
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      "$firstName $lastName verified as dietitian!",
+                                      style: const TextStyle(fontFamily: _primaryFontFamily),
+                                    ),
+                                    backgroundColor: Colors.green,
+                                    behavior: SnackBarBehavior.floating,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                  ),
+                                );
+                              }
+                            } catch (e) {
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text("Error: $e"),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                              }
+                            }
+                          }
+                        },
+                        icon: const Icon(Icons.check, size: 16),
+                        label: const Text(
+                          "Accept",
+                          style: TextStyle(
+                            fontFamily: _primaryFontFamily,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      IconButton(
+                        icon: const Icon(Icons.delete_outline, color: Colors.red),
+                        onPressed: () =>
+                            _showDeleteDietitianVerificationConfirmation(
+                              docId,
+                              firstName,
+                            ),
+                        tooltip: "Delete",
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            );
+          }).toList(),
+        ),
+      ),
+    );
+  }
+
+// NEW METHOD: Empty State Builder
+  Widget _buildEmptyState(String message, IconData icon) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            icon,
+            size: 80,
+            color: _primaryColor.withOpacity(0.3),
           ),
           const SizedBox(height: 16),
-          Expanded(
-            child: crudFilter == "Deactivate"
-                ? _buildDeactivateSection()  // ← Show deactivate screen
-                : StreamBuilder<QuerySnapshot>(  // ← Show normal table
-              stream: _getFilteredStream(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(
-                    child: CircularProgressIndicator(color: _primaryColor),
-                  );
-                }
-                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          _getEmptyIcon(),
-                          size: 80,
-                          color: _primaryColor.withOpacity(0.3),
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          "No ${crudFilter.toLowerCase()} found",
-                          style: _getTextStyle(context, fontSize: 18),
-                        ),
-                      ],
-                    ),
-                  );
-                }
-
-                final items = snapshot.data!.docs;
-
-                if (crudFilter == "Meal Plans") {
-                  return _buildMealPlansTable(items);
-                } else if (crudFilter == "Verifications") {
-                  return _buildVerificationsTable(items);
-                } else {
-                  return _buildUsersTable(items);
-                }
-              },
-            ),
+          Text(
+            message,
+            style: _getTextStyle(context, fontSize: 18),
           ),
         ],
       ),
@@ -3989,45 +4581,51 @@ class _AdminHomeState extends State<AdminHome> {
           Align(
             alignment: Alignment.centerLeft,
             child: Text(
-              "Review and verify pending user accounts from notVerifiedUsers",
+              "Review and verify pending user accounts",
               style: _cardSubtitleStyle(context),
             ),
           ),
           const SizedBox(height: 24),
+          // <CHANGE> Wrapped in Card with consistent styling
           Expanded(
-            child: StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection('notVerifiedUsers')
-                  .snapshots(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(
-                    child: CircularProgressIndicator(color: _primaryColor),
-                  );
-                }
+            child: Card(
+              elevation: 4,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              color: _cardBgColor(context),
+              child: StreamBuilder<QuerySnapshot>(
+                stream: FirebaseFirestore.instance
+                    .collection('notVerifiedUsers')
+                    .snapshots(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(
+                      child: CircularProgressIndicator(color: _primaryColor),
+                    );
+                  }
 
-                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.verified_outlined,
-                          size: 80,
-                          color: _primaryColor.withOpacity(0.3),
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          "No unverified users pending",
-                          style: _getTextStyle(context, fontSize: 18),
-                        ),
-                      ],
-                    ),
-                  );
-                }
+                  if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.verified_outlined,
+                            size: 80,
+                            color: _primaryColor.withOpacity(0.3),
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            "No unverified users pending",
+                            style: _getTextStyle(context, fontSize: 18),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
 
-                return _buildUserVerificationsTable(snapshot.data!.docs);
-              },
+                  return _buildUserVerificationsTable(snapshot.data!.docs);
+                },
+              ),
             ),
           ),
         ],
@@ -4058,7 +4656,7 @@ class _AdminHomeState extends State<AdminHome> {
               ),
               ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: _primaryColor,
+                  backgroundColor: Colors.orange,
                   foregroundColor: _textColorOnPrimary,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -4079,40 +4677,46 @@ class _AdminHomeState extends State<AdminHome> {
             ),
           ),
           const SizedBox(height: 24),
+          // <CHANGE> Wrapped in Card with consistent styling
           Expanded(
-            child: StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection('dietitianApproval')
-                  .snapshots(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(
-                    child: CircularProgressIndicator(color: _primaryColor),
-                  );
-                }
+            child: Card(
+              elevation: 4,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              color: _cardBgColor(context),
+              child: StreamBuilder<QuerySnapshot>(
+                stream: FirebaseFirestore.instance
+                    .collection('dietitianApproval')
+                    .snapshots(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(
+                      child: CircularProgressIndicator(color: Colors.orange),
+                    );
+                  }
 
-                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.verified_outlined,
-                          size: 80,
-                          color: Colors.orange.withOpacity(0.3),
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          "No unverified dietitians pending",
-                          style: _getTextStyle(context, fontSize: 18),
-                        ),
-                      ],
-                    ),
-                  );
-                }
+                  if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.verified_outlined,
+                            size: 80,
+                            color: Colors.orange.withOpacity(0.3),
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            "No unverified dietitians pending",
+                            style: _getTextStyle(context, fontSize: 18),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
 
-                return _buildDietitianVerificationsTable(snapshot.data!.docs);
-              },
+                  return _buildDietitianVerificationsTable(snapshot.data!.docs);
+                },
+              ),
             ),
           ),
         ],
@@ -5056,19 +5660,19 @@ class _AdminHomeState extends State<AdminHome> {
               ),
               headingRowHeight: 56,
               dataRowHeight: 64,
+              columnSpacing: 24,
+              horizontalMargin: 16,
               columns: [
                 if (isMultiSelectMode)
                   DataColumn(
                     label: Checkbox(
-                      value:
-                          selectedUserIds.length == users.length &&
-                          users.isNotEmpty,
+                      value: selectedUserIds.isNotEmpty &&
+                          selectedUserIds.length == users.length,
+                      tristate: true,
                       onChanged: (value) {
                         setState(() {
                           if (value == true) {
-                            selectedUserIds = users
-                                .map((doc) => doc.id)
-                                .toSet();
+                            selectedUserIds = users.map((doc) => doc.id).toSet();
                           } else {
                             selectedUserIds.clear();
                           }
@@ -5127,26 +5731,17 @@ class _AdminHomeState extends State<AdminHome> {
                     ),
                   ),
                 ),
-                DataColumn(
-                  label: Text(
-                    "Actions",
-                    style: _getTextStyle(
-                      context,
-                      fontWeight: FontWeight.bold,
-                      color: _primaryColor,
+                if (!isMultiSelectMode)
+                  DataColumn(
+                    label: Text(
+                      "Actions",
+                      style: _getTextStyle(
+                        context,
+                        fontWeight: FontWeight.bold,
+                        color: _primaryColor,
+                      ),
                     ),
                   ),
-                ),
-                DataColumn(
-                  label: Text(
-                    "Role Change",
-                    style: _getTextStyle(
-                      context,
-                      fontWeight: FontWeight.bold,
-                      color: _primaryColor,
-                    ),
-                  ),
-                ),
               ],
               rows: users.map((doc) {
                 final user = doc.data() as Map<String, dynamic>;
@@ -5155,25 +5750,16 @@ class _AdminHomeState extends State<AdminHome> {
                 final email = user['email'] ?? "No email";
                 final status = user['status'] ?? "No status";
                 final role = user['role'] ?? "user";
+                final isSelected = selectedUserIds.contains(doc.id);
 
                 return DataRow(
-                  selected: selectedUserIds.contains(doc.id),
-                  onSelectChanged: isMultiSelectMode
-                      ? (selected) {
-                          setState(() {
-                            if (selected == true) {
-                              selectedUserIds.add(doc.id);
-                            } else {
-                              selectedUserIds.remove(doc.id);
-                            }
-                          });
-                        }
-                      : null,
+                  selected: isMultiSelectMode && isSelected,
+                  // ✅ NO onSelectChanged here - this was causing duplicate checkboxes
                   cells: [
                     if (isMultiSelectMode)
                       DataCell(
                         Checkbox(
-                          value: selectedUserIds.contains(doc.id),
+                          value: isSelected,
                           onChanged: (value) {
                             setState(() {
                               if (value == true) {
@@ -5217,87 +5803,33 @@ class _AdminHomeState extends State<AdminHome> {
                       ),
                     ),
                     DataCell(
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: role == "dietitian"
-                              ? _primaryColor.withOpacity(0.1)
-                              : Colors.blue.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          role,
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: role == "dietitian"
-                                ? _primaryColor
-                                : Colors.blue[700],
-                            fontFamily: _primaryFontFamily,
-                          ),
-                        ),
-                      ),
+                      Text(role, style: _getTextStyle(context)),
                     ),
-                    DataCell(
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            icon: const Icon(
-                              Icons.edit_outlined,
-                              color: Colors.blue,
+                    if (!isMultiSelectMode)
+                      DataCell(
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: const Icon(
+                                Icons.edit_outlined,
+                                color: Colors.blue,
+                              ),
+                              onPressed: () => _showEditUserDialog(doc.id, user),
+                              tooltip: "Edit user",
                             ),
-                            onPressed: () => _showEditUserDialog(doc.id, user),
-                            tooltip: "Edit user",
-                          ),
-                          IconButton(
-                            icon: const Icon(
-                              Icons.delete_outline,
-                              color: Colors.red,
+                            IconButton(
+                              icon: const Icon(
+                                Icons.delete_outline,
+                                color: Colors.red,
+                              ),
+                              onPressed: () =>
+                                  _showDeleteConfirmation(doc.id, firstName),
+                              tooltip: "Delete user",
                             ),
-                            onPressed: () =>
-                                _showDeleteConfirmation(doc.id, firstName),
-                            tooltip: "Delete user",
-                          ),
-                        ],
-                      ),
-                    ),
-                    DataCell(
-                      ElevatedButton.icon(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: role == "dietitian"
-                              ? Colors.orange
-                              : _primaryColor,
-                          foregroundColor: _textColorOnPrimary,
-                          elevation: 2,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 10,
-                          ),
-                        ),
-                        onPressed: () =>
-                            _toggleUserRole(doc.id, role, firstName),
-                        icon: Icon(
-                          role == "dietitian"
-                              ? Icons.arrow_downward
-                              : Icons.arrow_upward,
-                          size: 18,
-                        ),
-                        label: Text(
-                          role == "dietitian" ? "Downgrade" : "Upgrade",
-                          style: const TextStyle(
-                            fontFamily: _primaryFontFamily,
-                            fontWeight: FontWeight.w600,
-                          ),
+                          ],
                         ),
                       ),
-                    ),
                   ],
                 );
               }).toList(),
@@ -6178,11 +6710,10 @@ class _AdminHomeState extends State<AdminHome> {
   }
   // Add this state variable at the top of your class with other state variables
   String deactivateFilter = "Users"; // Default filter for deactivate section
-
-// Add this method to build the deactivate section
+  // Add this method to build the deactivate section
   Widget _buildDeactivateSection() {
     return Container(
-      margin: const EdgeInsets.all(16),
+      margin: const EdgeInsets.all(5),
       decoration: BoxDecoration(
         color: _cardBgColor(context),
         borderRadius: BorderRadius.circular(16),
@@ -6195,68 +6726,33 @@ class _AdminHomeState extends State<AdminHome> {
         ],
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Header
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.orange.withOpacity(0.1),
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(16),
-                topRight: Radius.circular(16),
-              ),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.orange,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Icon(
-                    Icons.remove_circle_outline,
-                    color: Colors.white,
-                    size: 24,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  "Account Management",
-                  style: _getTextStyle(
-                    context,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 18,
-                    color: Colors.orange,
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // Filter Buttons
+          // <CHANGE> Improved padding and spacing for filter buttons
           Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 10),
             child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 _buildDeactivateFilterButton("Users"),
-                const SizedBox(width: 12),
+
                 _buildDeactivateFilterButton("Dietitians"),
               ],
             ),
           ),
-
-          // Content
+          // <CHANGE> Better table container with proper sizing
           Expanded(
-            child: _buildDeactivateContent(),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+              child: _buildDeactivateContent(),
+            ),
           ),
         ],
       ),
     );
   }
 
-// Build filter buttons for deactivate section
+// <CHANGE> Improved filter button sizing and styling
   Widget _buildDeactivateFilterButton(String filter) {
     final isSelected = deactivateFilter == filter;
 
@@ -6270,13 +6766,13 @@ class _AdminHomeState extends State<AdminHome> {
         },
         borderRadius: BorderRadius.circular(12),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 17, vertical: 8),
           decoration: BoxDecoration(
-            color: isSelected ? Colors.orange : _cardBgColor(context),
+            color: isSelected ? Colors.orange : Colors.transparent,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: isSelected ? Colors.orange : Colors.orange.withOpacity(0.3),
-              width: 2,
+              color: Colors.orange,
+              width: 1,
             ),
             boxShadow: isSelected
                 ? [
@@ -6296,7 +6792,7 @@ class _AdminHomeState extends State<AdminHome> {
                 color: isSelected ? Colors.white : Colors.orange,
                 size: 20,
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 25),
               Text(
                 filter,
                 style: TextStyle(
@@ -6313,8 +6809,38 @@ class _AdminHomeState extends State<AdminHome> {
     );
   }
 
-// Build content based on selected filter
+
+
+
   Widget _buildDeactivateContent() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // Filter buttons for Users/Dietitians
+        Padding(
+          padding: const EdgeInsets.only(bottom: 25),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const SizedBox(width: 100),
+              _buildDeactivateFilterButton("Users"),
+              _buildDeactivateFilterButton("Dietitians"),
+
+            ],
+
+          ),
+        ),
+        // Content
+        Expanded(
+
+          child: _buildDeactivateTableContent(),
+        ),
+      ],
+    );
+  }
+
+// NEW METHOD: Build deactivate table content with consistent layout
+  Widget _buildDeactivateTableContent() {
     final role = deactivateFilter == "Users" ? "user" : "dietitian";
 
     return StreamBuilder<QuerySnapshot>(
@@ -6330,22 +6856,9 @@ class _AdminHomeState extends State<AdminHome> {
         }
 
         if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.people_outline,
-                  size: 64,
-                  color: Colors.grey.withOpacity(0.5),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  "No ${deactivateFilter.toLowerCase()} found",
-                  style: _cardSubtitleStyle(context),
-                ),
-              ],
-            ),
+          return _buildEmptyState(
+            "No ${deactivateFilter.toLowerCase()} found",
+            Icons.people_outline,
           );
         }
 
@@ -6354,88 +6867,128 @@ class _AdminHomeState extends State<AdminHome> {
         return SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: SingleChildScrollView(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: DataTable(
-                headingRowColor: MaterialStateProperty.all(
-                  Colors.orange.withOpacity(0.1),
+            child: DataTable(
+              headingRowColor: MaterialStateProperty.all(
+                _scaffoldBgColor(context),
+              ),
+              headingRowHeight: 56,
+              dataRowHeight: 72,
+              columnSpacing: 24,
+              horizontalMargin: 16,
+              dividerThickness: 0,
+              columns: [
+                DataColumn(
+                  label: Text(
+                    'First Name',
+                    style: _getTextStyle(
+                      context,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.orange,
+                      fontSize: 14,
+                    ),
+                  ),
                 ),
-                border: TableBorder.all(
-                  color: Colors.orange.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(8),
+                DataColumn(
+                  label: Text(
+                    'Last Name',
+                    style: _getTextStyle(
+                      context,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.orange,
+                      fontSize: 14,
+                    ),
+                  ),
                 ),
-                columns: [
-                  DataColumn(
-                    label: Text(
-                      'First Name',
-                      style: _getTextStyle(
-                        context,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.orange,
-                      ),
+                DataColumn(
+                  label: Text(
+                    'Email',
+                    style: _getTextStyle(
+                      context,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.orange,
+                      fontSize: 14,
                     ),
                   ),
-                  DataColumn(
-                    label: Text(
-                      'Last Name',
-                      style: _getTextStyle(
-                        context,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.orange,
-                      ),
+                ),
+                DataColumn(
+                  label: Text(
+                    'Status',
+                    style: _getTextStyle(
+                      context,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.orange,
+                      fontSize: 14,
                     ),
                   ),
-                  DataColumn(
-                    label: Text(
-                      'Email',
-                      style: _getTextStyle(
-                        context,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.orange,
-                      ),
+                ),
+                DataColumn(
+                  label: Text(
+                    'Actions',
+                    style: _getTextStyle(
+                      context,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.orange,
+                      fontSize: 14,
                     ),
                   ),
-                  if (deactivateFilter == "Dietitians")
-                    DataColumn(
-                      label: Text(
-                        'Action',
-                        style: _getTextStyle(
-                          context,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.orange,
-                        ),
-                      ),
-                    ),
-                ],
-                rows: users.map((doc) {
-                  final user = doc.data() as Map<String, dynamic>;
-                  final firstName = user['firstName'] ?? '';
-                  final lastName = user['lastName'] ?? '';
-                  final email = user['email'] ?? '';
-                  final isDeactivated = user['deactivated'] ?? false;
+                ),
+              ],
+              rows: users.map((doc) {
+                final user = doc.data() as Map<String, dynamic>;
+                final firstName = user['firstName'] ?? '';
+                final lastName = user['lastName'] ?? '';
+                final email = user['email'] ?? '';
+                final isDeactivated = user['deactivated'] ?? false;
 
-                  return DataRow(
-                    cells: [
-                      DataCell(
-                        Text(
-                          firstName,
-                          style: _getTextStyle(context),
+                return DataRow(
+                  cells: [
+                    DataCell(
+                      Text(
+                        firstName,
+                        style: _getTextStyle(context, fontSize: 14),
+                      ),
+                    ),
+                    DataCell(
+                      Text(
+                        lastName,
+                        style: _getTextStyle(context, fontSize: 14),
+                      ),
+                    ),
+                    DataCell(
+                      Text(
+                        email,
+                        style: _getTextStyle(context, fontSize: 14),
+                      ),
+                    ),
+                    DataCell(
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: isDeactivated
+                              ? Colors.red.withOpacity(0.15)
+                              : Colors.green.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          isDeactivated ? 'Deactivated' : 'Active',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: isDeactivated
+                                ? Colors.red[400]
+                                : Colors.green[400],
+                            fontFamily: _primaryFontFamily,
+                          ),
                         ),
                       ),
-                      DataCell(
-                        Text(
-                          lastName,
-                          style: _getTextStyle(context),
-                        ),
-                      ),
-                      DataCell(
-                        Text(
-                          email,
-                          style: _getTextStyle(context),
-                        ),
-                      ),
-                      if (deactivateFilter == "Dietitians")
-                        DataCell(
+                    ),
+                    DataCell(
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
                           ElevatedButton.icon(
                             style: ElevatedButton.styleFrom(
                               backgroundColor: isDeactivated
@@ -6443,7 +6996,7 @@ class _AdminHomeState extends State<AdminHome> {
                                   : Colors.red,
                               foregroundColor: Colors.white,
                               padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
+                                horizontal: 12,
                                 vertical: 8,
                               ),
                               shape: RoundedRectangleBorder(
@@ -6454,13 +7007,14 @@ class _AdminHomeState extends State<AdminHome> {
                               isDeactivated
                                   ? Icons.check_circle
                                   : Icons.block,
-                              size: 18,
+                              size: 16,
                             ),
                             label: Text(
                               isDeactivated ? 'Activate' : 'Deactivate',
                               style: const TextStyle(
                                 fontFamily: _primaryFontFamily,
                                 fontWeight: FontWeight.w600,
+                                fontSize: 12,
                               ),
                             ),
                             onPressed: () => _toggleDeactivation(
@@ -6470,11 +7024,25 @@ class _AdminHomeState extends State<AdminHome> {
                               lastName,
                             ),
                           ),
-                        ),
-                    ],
-                  );
-                }).toList(),
-              ),
+                          const SizedBox(width: 8),
+                          IconButton(
+                            icon: const Icon(Icons.edit_outlined, color: Colors.blue),
+                            onPressed: () =>
+                                _showEditUserDialog(doc.id, user),
+                            tooltip: "Edit",
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.delete_outline, color: Colors.red),
+                            onPressed: () =>
+                                _showDeleteConfirmation(doc.id, firstName),
+                            tooltip: "Delete",
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                );
+              }).toList(),
             ),
           ),
         );
@@ -7550,82 +8118,6 @@ class _AdminHomeState extends State<AdminHome> {
         ],
       ),
     );
-  }
-
-  Future<void> _toggleUserRole(
-    String docId,
-    String currentRole,
-    String firstName,
-  )
-  async {
-    final newRole = currentRole == "dietitian" ? "user" : "dietitian";
-    final action = currentRole == "dietitian" ? "downgraded" : "upgraded";
-
-    try {
-      await FirebaseFirestore.instance.collection("Users").doc(docId).update({
-        "role": newRole,
-      });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              const Icon(Icons.check_circle, color: Colors.white),
-              const SizedBox(width: 8),
-              Text(
-                "$firstName $action to ${newRole == 'dietitian' ? 'Dietitian' : 'User'}",
-                style: const TextStyle(fontFamily: _primaryFontFamily),
-              ),
-            ],
-          ),
-          backgroundColor: newRole == "dietitian"
-              ? _primaryColor
-              : Colors.orange,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
-        ),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Row(
-                children: [
-                  Icon(Icons.error_outline, color: Colors.white),
-                  SizedBox(width: 8),
-                  Text(
-                    "Failed to change role",
-                    style: TextStyle(
-                      fontFamily: _primaryFontFamily,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 4),
-              Text(
-                "Error: $e",
-                style: const TextStyle(
-                  fontFamily: _primaryFontFamily,
-                  fontSize: 12,
-                ),
-              ),
-            ],
-          ),
-          backgroundColor: Colors.red,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
-          duration: const Duration(seconds: 5),
-        ),
-      );
-    }
   }
 
 
@@ -9216,9 +9708,9 @@ class _AdminHomeState extends State<AdminHome> {
 
   Widget _buildDietitianRevenueTable(List<QueryDocumentSnapshot> dietitians) {
     return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      color: _scaffoldBgColor(context),
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      color: _cardBgColor(context),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: SingleChildScrollView(
