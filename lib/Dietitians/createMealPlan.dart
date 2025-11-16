@@ -342,7 +342,7 @@ class _CreateMealPlanPageState extends State<CreateMealPlanPage> {
                       value: "Maintain Weight",
                       child: Text("Maintain Weight Program")),
                   DropdownMenuItem(
-                      value: "Work Out",
+                      value: "Workout",
                       child: Text("Fitness & Workout Plan")),
                 ],
                 onChanged: (value) {

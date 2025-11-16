@@ -1,66 +1,20 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:google_sign_in/google_sign_in.dart';
+
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'signup.dart';
 import 'home.dart';
 import 'start.dart';
 import '../Dietitians/homePageDietitian.dart';
-
 import 'termsAndConditions.dart';
-
-import 'package:flutter/gestures.dart';// Your terms file
-
+import 'package:flutter/gestures.dart';
 import 'package:mamas_recipe/widget/custom_snackbar.dart';
 
-
-
-const String _primaryFontFamily = 'PlusJakartaSans';
-const Color _primaryColor = Color(0xFF4CAF50);
-
-Color _scaffoldBgColor(BuildContext context) =>
-    Theme.of(context).brightness == Brightness.dark
-        ? Colors.grey.shade900
-        : Colors.grey.shade100;
-
-Color _cardBgColor(BuildContext context) =>
-    Theme.of(context).brightness == Brightness.dark
-        ? Colors.grey.shade800
-        : Colors.white;
-
-Color _textColorPrimary(BuildContext context) =>
-    Theme.of(context).brightness == Brightness.dark
-        ? Colors.white70
-        : Colors.black87;
-
-Color _textColorSecondary(BuildContext context) =>
-    Theme.of(context).brightness == Brightness.dark
-        ? Colors.white54
-        : Colors.black54;
-
-const Color _textColorOnPrimary = Colors.white;
-
-TextStyle _getTextStyle(
-    BuildContext context, {
-      double fontSize = 16,
-      FontWeight fontWeight = FontWeight.normal,
-      Color? color,
-      String fontFamily = _primaryFontFamily,
-      double? letterSpacing,
-      FontStyle? fontStyle,
-    }) {
-  final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-  final defaultTextColor =
-      color ?? (isDarkMode ? Colors.white70 : Colors.black87);
-  return TextStyle(
-    fontFamily: fontFamily,
-    fontSize: fontSize,
-    fontWeight: fontWeight,
-    color: defaultTextColor,
-    letterSpacing: letterSpacing,
-    fontStyle: fontStyle,
-  );
-}
+// Import your new modules
+import '../theme/loginTheme.dart';
+import '../functions/loginFunctions.dart';
+import '../widget/loginWidgets.dart';
+import '../UIWidgets/loginUIWidgets.dart';
 
 class LoginPageMobile extends StatefulWidget {
   const LoginPageMobile({super.key});
@@ -68,15 +22,14 @@ class LoginPageMobile extends StatefulWidget {
   State<LoginPageMobile> createState() => _LoginPageState();
 }
 
-class _LoginPageState extends State<LoginPageMobile> with TickerProviderStateMixin {
+class _LoginPageState extends State<LoginPageMobile>
+    with TickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   final emailController = TextEditingController();
   final passController = TextEditingController();
   bool _obscurePassword = true;
   bool _isLoading = false;
   bool _agreedToTerms = false;
-
-
 
   late AnimationController _fadeController;
   late AnimationController _slideController;
@@ -85,6 +38,10 @@ class _LoginPageState extends State<LoginPageMobile> with TickerProviderStateMix
   late Animation<Offset> _slideAnimation;
   late Animation<double> _welcomeScaleAnimation;
   late Animation<double> _welcomeOpacityAnimation;
+
+  // Initialize Firebase service
+  final _authService = FirebaseAuthService();
+
 
   @override
   void initState() {
@@ -109,11 +66,10 @@ class _LoginPageState extends State<LoginPageMobile> with TickerProviderStateMix
       CurvedAnimation(parent: _fadeController, curve: Curves.easeInOut),
     );
 
-    _slideAnimation = Tween<Offset>(
-      begin: const Offset(0, 0.3),
-      end: Offset.zero,
-    ).animate(
-        CurvedAnimation(parent: _slideController, curve: Curves.easeOutCubic));
+    _slideAnimation =
+        Tween<Offset>(begin: const Offset(0, 0.3), end: Offset.zero).animate(
+          CurvedAnimation(parent: _slideController, curve: Curves.easeOutCubic),
+        );
 
     _welcomeScaleAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _welcomeController, curve: Curves.elasticOut),
@@ -124,10 +80,10 @@ class _LoginPageState extends State<LoginPageMobile> with TickerProviderStateMix
     );
 
     emailController.addListener(_onEmailChanged);
-
     _showWelcomePopup();
   }
 
+  // Show welcome popup on page load
   void _showWelcomePopup() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _welcomeController.forward();
@@ -135,7 +91,12 @@ class _LoginPageState extends State<LoginPageMobile> with TickerProviderStateMix
         context: context,
         barrierDismissible: false,
         barrierColor: Colors.black.withOpacity(0.7),
-        builder: (context) => _buildWelcomeDialog(),
+        builder: (context) => AuthDialogs.buildWelcomeDialog(
+          context,
+          _welcomeController,
+          _welcomeScaleAnimation,
+          _welcomeOpacityAnimation,
+        ),
       ).then((_) {
         _fadeController.forward();
         _slideController.forward();
@@ -152,869 +113,41 @@ class _LoginPageState extends State<LoginPageMobile> with TickerProviderStateMix
     _welcomeController.dispose();
     super.dispose();
   }
+
+  // ==================== ASK USER ROLE ====================
+  Future<String?> _askUserRoleDialog() async {
+    return AuthDialogs.showUserRoleDialog(context);
+  }
+
+  // Check terms agreement when email changes
   void _onEmailChanged() {
     final email = emailController.text.trim();
-    // Only check if email looks valid (has @)
     if (email.isNotEmpty && email.contains('@')) {
       _checkTermsAgreementStatus(email);
     }
   }
 
-// Replace your _buildTermsCheckbox() method in login.dart with this:
-
-  Widget _buildTermsCheckbox() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center, // <-- ADD this
-      children: [
-        SizedBox(
-          width: 24,
-          height: 24,
-          child: Checkbox(
-            value: _agreedToTerms,
-            onChanged: (value) {
-              setState(() {
-                _agreedToTerms = value ?? false;
-              });
-            },
-            activeColor: _primaryColor,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(4),
-            ),
-          ),
-        ),
-        const SizedBox(width: 8),
-        // REMOVED Expanded() widget
-        GestureDetector(
-          onTap: () => showTermsAndConditions(context),
-          child: RichText(
-            // REMOVED textAlign: TextAlign.center
-            text: TextSpan(
-              style: _getTextStyle(
-                context,
-                fontSize: 14,
-                color: _textColorSecondary(context),
-              ),
-              children: [
-                const TextSpan(text: 'I agree with '),
-                TextSpan(
-                  text: 'Terms and Conditions',
-                  style: _getTextStyle(
-                    context,
-                    fontSize: 14,
-                    color: _primaryColor,
-                    fontWeight: FontWeight.w600,
-                  ),
-                  recognizer: TapGestureRecognizer()
-                    ..onTap = () => showTermsAndConditions(context),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-// Also, update your import at the top of login.dart:
-// Change this line:
-// import 'termsAndConditions.dart';
-// To this:
-// import 'terms_and_conditions.dart';
-
-  Widget _buildWelcomeDialog() {
-    return AnimatedBuilder(
-      animation: _welcomeController,
-      builder: (context, child) {
-        return Transform.scale(
-          scale: _welcomeScaleAnimation.value,
-          child: Opacity(
-            opacity: _welcomeOpacityAnimation.value,
-            child: Dialog(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(24),
-              ),
-              backgroundColor: Colors.transparent,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(24),
-                child: Stack(
-                  children: [
-                    Positioned.fill(
-                      child: Container(
-                        color: _cardBgColor(context),
-                        child: Stack(
-                          children: [
-                            Positioned(
-                              top: -50,
-                              left: -80,
-                              child: Container(
-                                width: 200,
-                                height: 200,
-                                decoration: BoxDecoration(
-                                  color: _primaryColor.withOpacity(0.06),
-                                  shape: BoxShape.circle,
-                                ),
-                              ),
-                            ),
-                            Positioned(
-                              bottom: -60,
-                              right: -90,
-                              child: Container(
-                                width: 250,
-                                height: 250,
-                                decoration: BoxDecoration(
-                                  color: _primaryColor.withOpacity(0.06),
-                                  shape: BoxShape.circle,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-
-                    Padding(
-                      padding: const EdgeInsets.all(32),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            width: 100,
-                            height: 100,
-                            decoration: BoxDecoration(
-                              color: _primaryColor,
-                              shape: BoxShape.circle,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: _primaryColor.withOpacity(0.4),
-                                  blurRadius: 20,
-                                  offset: const Offset(0, 8),
-                                ),
-                              ],
-                            ),
-                            child: const Icon(
-                              Icons.health_and_safety_outlined,
-                              color: _textColorOnPrimary,
-                              size: 50,
-                            ),
-                          ),
-                          const SizedBox(height: 24),
-                          Text(
-                            'Welcome!',
-                            style: _getTextStyle(
-                              context,
-                              fontSize: 28,
-                              fontWeight: FontWeight.bold,
-                              color: _textColorPrimary(context),
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          Text(
-                            'Sign in to continue your health journey',
-                            textAlign: TextAlign.center,
-                            style: _getTextStyle(
-                              context,
-                              fontSize: 16,
-                              color: _textColorSecondary(context),
-                            ),
-                          ),
-                          const SizedBox(height: 32),
-                          SizedBox(
-                            width: double.infinity,
-                            child: ElevatedButton(
-                              onPressed: () => Navigator.of(context).pop(),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: _primaryColor,
-                                foregroundColor: _textColorOnPrimary,
-                                padding: const EdgeInsets.symmetric(
-                                    vertical: 16),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(16),
-                                ),
-                                elevation: 4,
-                              ),
-                              child: Text(
-                                'Get Started',
-                                style: _getTextStyle(
-                                  context,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: _textColorOnPrimary,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
+  // Check if user already agreed to terms
   Future<void> _checkTermsAgreementStatus(String email) async {
-    if (email.isEmpty) return;
-
-    try {
-      // Query Users collection
-      final usersQuery = await FirebaseFirestore.instance
-          .collection('Users')
-          .where('email', isEqualTo: email)
-          .limit(1)
-          .get();
-
-      if (usersQuery.docs.isNotEmpty) {
-        final userData = usersQuery.docs.first.data();
-        bool hasAgreed = userData['checkedAgreeConditions'] ?? false;
-
-        if (mounted) {
-          setState(() {
-            _agreedToTerms = hasAgreed;
-          });
-        }
-        print('✅ Loaded terms status from Users: $hasAgreed');
-        return;
-      }
-
-      // Query dietitianApproval collection
-      final dietitianQuery = await FirebaseFirestore.instance
-          .collection('dietitianApproval')
-          .where('email', isEqualTo: email)
-          .limit(1)
-          .get();
-
-      if (dietitianQuery.docs.isNotEmpty) {
-        final dietitianData = dietitianQuery.docs.first.data();
-        bool hasAgreed = dietitianData['checkedAgreeConditions'] ?? false;
-
-        if (mounted) {
-          setState(() {
-            _agreedToTerms = hasAgreed;
-          });
-        }
-        print('✅ Loaded terms status from dietitianApproval: $hasAgreed');
-        return;
-      }
-
-      // If no user found, keep checkbox unchecked (new user)
-      if (mounted) {
-        setState(() {
-          _agreedToTerms = false;
-        });
-      }
-      print('ℹ️ No user found with this email');
-    } catch (e) {
-      print('❌ Error checking terms agreement status: $e');
-      // On error, keep checkbox unchecked for safety
-      if (mounted) {
-        setState(() {
-          _agreedToTerms = false;
-        });
-      }
-    }
-  }
-
-  Future<String?> _askUserRoleDialog() async {
-    return showDialog<String>(
-      context: context,
-      barrierDismissible: false,
-      barrierColor: Colors.black.withOpacity(0.6),
-      builder: (dialogContext) {
-        return Dialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(24),
-          ),
-          backgroundColor: Colors.transparent,
-          child: Container(
-            padding: const EdgeInsets.all(32),
-            decoration: BoxDecoration(
-              color: _cardBgColor(dialogContext),
-              borderRadius: BorderRadius.circular(24),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  blurRadius: 20,
-                  offset: const Offset(0, 10),
-                ),
-              ],
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 80,
-                  height: 80,
-                  decoration: BoxDecoration(
-                    color: _primaryColor.withOpacity(0.1),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.person_search_outlined,
-                    color: _primaryColor,
-                    size: 40,
-                  ),
-                ),
-                const SizedBox(height: 24),
-
-                Text(
-                  'Select Account Type',
-                  style: _getTextStyle(
-                    dialogContext,
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                    color: _textColorPrimary(dialogContext),
-                  ),
-                ),
-                const SizedBox(height: 12),
-
-                Text(
-                  'Please choose your role to continue.',
-                  textAlign: TextAlign.center,
-                  style: _getTextStyle(
-                    dialogContext,
-                    fontSize: 16,
-                    color: _textColorSecondary(dialogContext),
-                  ),
-                ),
-                const SizedBox(height: 32),
-
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: () => Navigator.pop(dialogContext, "user"),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      side: BorderSide(color: _primaryColor, width: 1.5),
-                      foregroundColor: _primaryColor,
-                    ),
-                    icon: const Icon(Icons.person_outline, size: 20),
-                    label: Text(
-                      'I am a User',
-                      style: _getTextStyle(
-                        dialogContext,
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: _primaryColor,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: () => Navigator.pop(dialogContext, "dietitian"),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: _primaryColor,
-                      foregroundColor: _textColorOnPrimary,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      elevation: 4,
-                    ),
-                    icon: const Icon(
-                        Icons.health_and_safety_outlined, size: 20),
-                    label: Text(
-                      'I am a Dietitian',
-                      style: _getTextStyle(
-                        dialogContext,
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: _textColorOnPrimary,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  // ==================== FORGOT PASSWORD DIALOG ====================
-  Future<void> _showForgotPasswordDialog() async {
-    TextEditingController resetEmailController = TextEditingController();
-    await showDialog(
-      context: context,
-      builder: (_) =>
-          Dialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(
-                20)),
-            child: Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(20),
-                color: _cardBgColor(context),
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 60,
-                    height: 60,
-                    decoration: BoxDecoration(
-                      color: _primaryColor.withOpacity(0.1),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      Icons.lock_reset_outlined,
-                      color: _primaryColor,
-                      size: 30,
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  Text(
-                    "Reset Password",
-                    style: _getTextStyle(
-                      context,
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: _textColorPrimary(context),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    "Enter your registered email to reset your password.",
-                    textAlign: TextAlign.center,
-                    style: _getTextStyle(
-                      context,
-                      fontSize: 14,
-                      color: _textColorSecondary(context),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  TextField(
-                    controller: resetEmailController,
-                    keyboardType: TextInputType.emailAddress,
-                    style: _getTextStyle(context),
-                    decoration: InputDecoration(
-                      labelText: "Email Address",
-                      labelStyle: _getTextStyle(
-                        context,
-                        color: _textColorSecondary(context),
-                      ),
-                      prefixIcon: Icon(
-                          Icons.email_outlined, color: _primaryColor),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: _primaryColor, width: 2),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextButton(
-                          onPressed: () => Navigator.pop(context),
-                          child: Text(
-                            "Cancel",
-                            style: _getTextStyle(
-                              context,
-                              color: _textColorSecondary(context),
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: () async {
-                            String resetEmail = resetEmailController.text
-                                .trim();
-                            if (resetEmail.isEmpty) {
-                              _showErrorSnackBar("Please enter an email");
-                              return;
-                            }
-                            try {
-                              await FirebaseAuth.instance
-                                  .sendPasswordResetEmail(email: resetEmail);
-                              Navigator.pop(context);
-                              _showSuccessSnackBar(
-                                  "Password reset email has been sent");
-                            } on FirebaseAuthException catch (e) {
-                              _showErrorSnackBar("Error: ${e.message}");
-                            }
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: _primaryColor,
-                            foregroundColor: _textColorOnPrimary,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          child: Text(
-                            "Send",
-                            style: _getTextStyle(
-                              context,
-                              fontWeight: FontWeight.bold,
-                              color: _textColorOnPrimary,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-    );
-  }
-
-  // ==================== UI Widgets (TextFields, Buttons, etc) ====================
-
-  Widget _buildTextField({
-    required TextEditingController controller,
-    required String label,
-    required IconData icon,
-    bool obscureText = false,
-    Widget? suffixIcon,
-    TextInputType? keyboardType,
-  }) {
-    return TextFormField(
-      controller: controller,
-      obscureText: obscureText,
-      keyboardType: keyboardType,
-      style: _getTextStyle(context, fontSize: 16),
-      decoration: InputDecoration(
-        labelText: label,
-        labelStyle: _getTextStyle(
-          context,
-          color: _textColorSecondary(context),
-          fontSize: 14,
-        ),
-        prefixIcon: Icon(icon, color: _primaryColor, size: 20),
-        suffixIcon: suffixIcon,
-        filled: true,
-        fillColor: _scaffoldBgColor(context),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.grey.shade300),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.grey.shade300),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: _primaryColor, width: 2),
-        ),
-        errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Colors.redAccent),
-        ),
-        focusedErrorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Colors.redAccent, width: 2),
-        ),
-        contentPadding: const EdgeInsets.symmetric(
-            horizontal: 16, vertical: 14),
-        isDense: true,
-      ),
-    );
-  }
-
-  Widget _buildLoginButton() {
-    return SizedBox(
-      width: double.infinity,
-      height: 46,
-      child: ElevatedButton(
-        onPressed: _isLoading ? null : _handleLogin,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: _primaryColor,
-          foregroundColor: _textColorOnPrimary,
-          elevation: 4,
-          shadowColor: _primaryColor.withOpacity(0.4),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-        ),
-        child: _isLoading
-            ? SizedBox(
-          width: 20,
-          height: 20,
-          child: CircularProgressIndicator(
-            color: _textColorOnPrimary,
-            strokeWidth: 2,
-          ),
-        )
-            : Text(
-          'Sign In',
-          style: _getTextStyle(
-            context,
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: _textColorOnPrimary,
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildGoogleSignInButton() {
-    return SizedBox(
-      width: double.infinity,
-      height: 46,
-      child: OutlinedButton.icon(
-        onPressed: _isLoading ? null : _handleGoogleSignIn,
-        style: OutlinedButton.styleFrom(
-          side: BorderSide(color: Colors.grey.shade300),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-        ),
-        icon: Image.asset(
-          'assets/google_logo.png',
-          width: 18,
-          height: 18,
-          errorBuilder: (context, error, stackTrace) =>
-              Icon(Icons.g_mobiledata, color: Colors.red, size: 20),
-        ),
-        label: Text(
-          'Continue with Google',
-          style: _getTextStyle(
-            context,
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: _textColorPrimary(context),
-          ),
-        ),
-      ),
-    );
-  }
-
-  // ==================== Firebase Methods ====================
-
-  Future<void> _saveUserToFirestore(User user) async {
-    String displayName = user.displayName ?? "";
-    List<String> nameParts = displayName.split(" ");
-    String firstName = nameParts.isNotEmpty ? nameParts.first : "";
-    String lastName = nameParts.length > 1
-        ? nameParts.sublist(1).join(" ")
-        : "";
-    final docRef = FirebaseFirestore.instance.collection("Users").doc(user.uid);
-    final docSnap = await docRef.get();
-
-    Map<String, dynamic> dataToUpdate = {
-      "email": user.email,
-      "firstName": firstName,
-      "lastName": lastName,
-      "status": "online",
-      "lastSeen": FieldValue.serverTimestamp(),
-    };
-
-    if (!docSnap.exists) {
-      dataToUpdate.addAll({
-        "age": null,
-        "goals": null,
-        "hasCompletedTutorial": false,
-        "tutorialStep": 0,
-        "role": "user",
-        "qrapproved": false,
-        "creationDate": FieldValue.serverTimestamp(),
+    bool hasAgreed = await _authService.checkTermsAgreementStatus(email);
+    if (mounted) {
+      setState(() {
+        _agreedToTerms = hasAgreed;
       });
-    } else {
-      dataToUpdate["qrapproved"] = docSnap.data()?["qrapproved"] ?? false;
-      dataToUpdate["role"] = docSnap.data()?["role"] ?? "user";
-    }
-
-    await docRef.set(dataToUpdate, SetOptions(merge: true));
-  }
-
-  Future<void> _handlePostLogin(User user) async {
-    await user.reload();
-    user = FirebaseAuth.instance.currentUser!;
-
-    final usersRef = FirebaseFirestore.instance.collection("Users").doc(
-        user.uid);
-    final dietitianRef = FirebaseFirestore.instance.collection(
-        "dietitianApproval").doc(user.uid);
-
-    DocumentSnapshot userSnap = await usersRef.get();
-    DocumentSnapshot dietitianSnap = await dietitianRef.get();
-
-    String role = "user";
-    bool hasCompletedTutorial = false;
-
-    if (userSnap.exists) {
-      final userData = userSnap.data() as Map<String, dynamic>?;
-
-      role = userData?['role'] ?? "user";
-      hasCompletedTutorial = userData?['hasCompletedTutorial'] ?? false;
-
-      if (role == "user") {
-        if (hasCompletedTutorial) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (_) => const home()),
-          );
-        }
-      } else if (role == "dietitian") {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const HomePageDietitian()),
-        );
-      }
-      return;
-    }
-
-    if (!userSnap.exists && !dietitianSnap.exists) {
-      String? selectedRole = await _askUserRoleDialog();
-      if (selectedRole == null) return;
-      role = selectedRole;
-
-      String displayName = user.displayName ?? "";
-      List<String> nameParts = displayName.split(" ");
-      String firstName = nameParts.isNotEmpty ? nameParts.first : "";
-      String lastName = nameParts.length > 1
-          ? nameParts.sublist(1).join(" ")
-          : "";
-
-      if (role == "user") {
-        await usersRef.set({
-          "email": user.email,
-          "firstName": firstName,
-          "lastName": lastName,
-          "status": "online",
-          "lastSeen": FieldValue.serverTimestamp(),
-          "age": null,
-          "goals": null,
-          "hasCompletedTutorial": false,
-          "tutorialStep": 0,
-          "role": "user",
-          "qrapproved": false,
-          "creationDate": FieldValue.serverTimestamp(),
-        });
-
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-              builder: (_) => MealPlanningScreen(userId: user.uid)),
-        );
-        return;
-      } else if (role == "dietitian") {
-        // Get Google profile photo if available
-        String profileUrl = '';
-        User? currentUser = FirebaseAuth.instance.currentUser;
-        if (currentUser != null && currentUser.photoURL != null && currentUser.photoURL!.isNotEmpty) {
-          profileUrl = currentUser.photoURL!;
-        }
-
-        await dietitianRef.set({
-          "email": user.email ?? "",
-          "firstName": firstName,
-          "lastName": lastName,
-          "profile": profileUrl,  // Add Google profile URL
-          "licenseNum": null,
-          "prcImageUrl": null,
-          "status": "pending",
-          "qrstatus": "pending",  // Add QR status
-          "qrapproved": false,    // Add QR approved flag
-          "role": "dietitian",
-          "hasCompletedTutorial": false,
-          "tutorialStep": 0,
-          "createdAt": FieldValue.serverTimestamp(),
-        });
-
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-              builder: (_) => MealPlanningScreen(userId: user.uid)),
-        );
-        return;
-      }
-    }
-
-    if (!userSnap.exists && dietitianSnap.exists) {
-      final dietitianData = dietitianSnap.data() as Map<String, dynamic>?;
-
-      role = "dietitian";
-
-      if (dietitianData != null && dietitianData['status'] == 'pending') {
-        await showDialog(
-          context: context,
-          barrierDismissible: false,
-          builder: (dialogContext) =>
-              AlertDialog(
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16)),
-                content: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(
-                        Icons.info_outline, size: 64, color: Colors.orange),
-                    const SizedBox(height: 16),
-                    const Text(
-                      'Account Review',
-                      style: TextStyle(fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.orange),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 12),
-                    const Text(
-                      'Your account will be reviewed by the admins. '
-                          'Please go back to login and wait for approval. Thank you!',
-                      style: TextStyle(
-                          fontSize: 14, color: Colors.black87, height: 1.4),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 24),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.orange,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        onPressed: () {
-                          Navigator.of(dialogContext).pop();
-                          Navigator.pushReplacement(
-                            context,
-                            MaterialPageRoute(builder: (
-                                _) => const LoginPageMobile()),
-                          );
-                        },
-                        child: const Text(
-                          'OK',
-                          style: TextStyle(color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-        );
-        return;
-      } else {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const HomePageDietitian()),
-        );
-        return;
-      }
     }
   }
 
+  // Show forgot password dialog
+  void _showForgotPasswordDialog() async {
+    await AuthDialogs.showForgotPasswordDialog(
+      context,
+      onSend: _authService.sendPasswordResetEmail,
+      onError: _showErrorSnackBar,
+      onSuccess: _showSuccessSnackBar,
+    );
+  }
 
+  // Handle email/password login
   Future<void> _handleLogin() async {
     String email = emailController.text.trim();
     String pass = passController.text.trim();
@@ -1024,328 +157,37 @@ class _LoginPageState extends State<LoginPageMobile> with TickerProviderStateMix
       return;
     }
 
+    if (!_agreedToTerms) {
+      _showErrorSnackBar("Please agree to the Terms and Conditions");
+      return;
+    }
+
     setState(() => _isLoading = true);
 
     try {
-      UserCredential userCredential = await FirebaseAuth.instance
-          .signInWithEmailAndPassword(email: email, password: pass);
+      UserCredential? userCredential = await _authService.signInWithEmailPassword(email, pass);
 
-      User? user = userCredential.user;
-
-      if (user != null) {
+      if (userCredential?.user != null) {
+        User user = userCredential!.user!;
         print('🔵 User logged in: ${user.uid}');
 
-        // Reload user to get the latest email verification status
-        await user.reload();
-        user = FirebaseAuth.instance.currentUser;
-
         // Check if email is verified
-        if (!user!.emailVerified) {
+        await user.reload();
+        user = FirebaseAuth.instance.currentUser!;
+
+        if (!user.emailVerified) {
           print('⚠️ User email not verified: ${user.email}');
-
-          // Check if user data exists in notVerifiedUsers
-          final notVerifiedRef = FirebaseFirestore.instance
-              .collection('notVerifiedUsers')
-              .doc(user.uid);
-          final notVerifiedSnap = await notVerifiedRef.get();
-
-          if (notVerifiedSnap.exists) {
-            if (mounted) {
-              setState(() => _isLoading = false);
-              await _showUnverifiedAccountDialog(user);
-            }
-            return;
-          } else {
-            if (mounted) {
-              setState(() => _isLoading = false);
-              await _showUnverifiedAccountDialog(user);
-            }
-            return;
-          }
-        }
-
-        // Email is verified - check where user data exists
-        print('✅ User email verified: ${user.email}');
-
-        final usersRef = FirebaseFirestore.instance.collection("Users").doc(user.uid);
-        final dietitianRef = FirebaseFirestore.instance.collection("dietitianApproval").doc(user.uid);
-        final verifiedRef = FirebaseFirestore.instance.collection("verifiedUsers").doc(user.uid);
-
-        DocumentSnapshot userSnap = await usersRef.get();
-        DocumentSnapshot dietitianSnap = await dietitianRef.get();
-        DocumentSnapshot verifiedSnap = await verifiedRef.get();
-
-        // ✅ CHECK TERMS AGREEMENT STATUS
-        bool needsToAgree = false;
-        DocumentReference? userDocRef;
-
-        if (userSnap.exists) {
-          userDocRef = usersRef;
-          final userData = userSnap.data() as Map<String, dynamic>?;
-          bool hasAgreed = userData?['checkedAgreeConditions'] ?? false;
-          needsToAgree = !hasAgreed;
-        } else if (dietitianSnap.exists) {
-          userDocRef = dietitianRef;
-          final dietitianData = dietitianSnap.data() as Map<String, dynamic>?;
-          bool hasAgreed = dietitianData?['checkedAgreeConditions'] ?? false;
-          needsToAgree = !hasAgreed;
-        } else if (verifiedSnap.exists) {
-          needsToAgree = true; // New users need to agree
-        }
-
-        // If user needs to agree to terms, check the checkbox
-        if (needsToAgree && !_agreedToTerms) {
           if (mounted) {
             setState(() => _isLoading = false);
-            _showErrorSnackBar("Please agree to the Terms and Conditions");
+            await _showUnverifiedAccountDialog(user);
           }
           return;
         }
 
-        // If user just agreed, save it to Firestore
-        if (needsToAgree && _agreedToTerms && userDocRef != null) {
-          await userDocRef.update({
-            'checkedAgreeConditions': true,
-            'agreedToTermsAt': FieldValue.serverTimestamp(),
-          });
-        }
+        print('✅ User email verified: ${user.email}');
 
-        // Case 1: User exists in Users collection (returning regular user)
-        if (userSnap.exists) {
-          print('✅ Found in Users collection');
-          final userData = userSnap.data() as Map<String, dynamic>?;
-          String role = userData?['role'] ?? "user";
-          bool hasCompletedTutorial = userData?['hasCompletedTutorial'] ?? false;
-          bool isDeactivated = userData?['deactivated'] ?? false;
-
-          if (isDeactivated) {
-            print('⚠️ Account is deactivated');
-            if (mounted) {
-              setState(() => _isLoading = false);
-              await _showDeactivatedAccountDialog();
-            }
-            return;
-          }
-
-          if (role == "user") {
-            if (hasCompletedTutorial) {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (_) => const home()),
-              );
-            } else {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                    builder: (_) => MealPlanningScreen(userId: user!.uid)),
-              );
-            }
-          }
-          return;
-        }
-
-        // Case 2: User exists in dietitianApproval collection (returning dietitian)
-        if (dietitianSnap.exists) {
-          print('✅ Found in dietitianApproval collection');
-          final dietitianData = dietitianSnap.data() as Map<String, dynamic>?;
-          String status = dietitianData?['status'] ?? 'pending';
-          bool isDeactivated = dietitianData?['deactivated'] ?? false;
-
-          if (isDeactivated) {
-            print('⚠️ Dietitian account is deactivated');
-            if (mounted) {
-              setState(() => _isLoading = false);
-              await _showDeactivatedAccountDialog();
-            }
-            return;
-          }
-
-          if (status == 'pending') {
-            if (mounted) {
-              setState(() => _isLoading = false);
-              await showDialog(
-                context: context,
-                barrierDismissible: false,
-                builder: (dialogContext) =>
-                    AlertDialog(
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16)),
-                      content: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.info_outline, size: 64,
-                              color: Colors.orange),
-                          const SizedBox(height: 16),
-                          const Text(
-                            'Account Review',
-                            style: TextStyle(fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.orange),
-                            textAlign: TextAlign.center,
-                          ),
-                          const SizedBox(height: 12),
-                          const Text(
-                            'Your account is being reviewed by the admins. '
-                                'Please wait for approval. Thank you!',
-                            style: TextStyle(fontSize: 14,
-                                color: Colors.black87,
-                                height: 1.4),
-                            textAlign: TextAlign.center,
-                          ),
-                          const SizedBox(height: 24),
-                          SizedBox(
-                            width: double.infinity,
-                            child: ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.orange,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
-                              onPressed: () {
-                                Navigator.of(dialogContext).pop();
-                                FirebaseAuth.instance.signOut();
-                              },
-                              child: const Text(
-                                'OK',
-                                style: TextStyle(color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-              );
-            }
-            return;
-          } else if (status == 'approved') {
-            bool hasCompletedTutorial = dietitianData?['hasCompletedTutorial'] ??
-                false;
-
-            if (hasCompletedTutorial) {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (_) => const HomePageDietitian()),
-              );
-            } else {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                    builder: (_) => MealPlanningScreen(userId: user!.uid)),
-              );
-            }
-          } else if (status == 'rejected') {
-            if (mounted) {
-              setState(() => _isLoading = false);
-              _showErrorSnackBar(
-                  "Your dietitian application was not approved. Please contact support.");
-              await FirebaseAuth.instance.signOut();
-            }
-          }
-          return;
-        }
-
-        // Case 3: User exists in verifiedUsers collection (first login after verification)
-        if (verifiedSnap.exists) {
-          print(
-              '✅ Found in verifiedUsers collection - first login, asking for role');
-
-          final verifiedData = verifiedSnap.data() as Map<String, dynamic>?;
-          String firstName = verifiedData?['firstName'] ?? '';
-          String lastName = verifiedData?['lastName'] ?? '';
-
-          String? selectedRole = await _askUserRoleDialog();
-
-          if (selectedRole == null) {
-            await FirebaseAuth.instance.signOut();
-            setState(() => _isLoading = false);
-            return;
-          }
-
-          if (selectedRole == "user") {
-            await usersRef.set({
-              "email": user.email,
-              "firstName": firstName,
-              "lastName": lastName,
-              "status": "online",
-              "lastSeen": FieldValue.serverTimestamp(),
-              "age": null,
-              "goals": null,
-              "hasCompletedTutorial": false,
-              "tutorialStep": 0,
-              "role": "user",
-              "qrapproved": false,
-              "checkedAgreeConditions": true,  // ✅ Save terms agreement
-              "agreedToTermsAt": FieldValue.serverTimestamp(),
-              "creationDate": FieldValue.serverTimestamp(),
-            });
-
-            try {
-              await verifiedRef.delete();
-            } catch (_) {}
-
-            print('✅ Migrated to Users collection');
-
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                  builder: (_) => MealPlanningScreen(userId: user!.uid)),
-            );
-          } else if (selectedRole == "dietitian") {
-            String profileUrl = '';
-            User? currentUser = FirebaseAuth.instance.currentUser;
-            if (currentUser != null && currentUser.photoURL != null && currentUser.photoURL!.isNotEmpty) {
-              profileUrl = currentUser.photoURL!;
-            }
-
-            await dietitianRef.set({
-              "email": user.email ?? "",
-              "firstName": firstName,
-              "lastName": lastName,
-              "profile": profileUrl,
-              "licenseNum": null,
-              "prcImageUrl": null,
-              "status": "pending",
-              "qrstatus": "pending",
-              "qrapproved": false,
-              "role": "dietitian",
-              "hasCompletedTutorial": false,
-              "tutorialStep": 0,
-              "checkedAgreeConditions": true,  // ✅ Save terms agreement
-              "agreedToTermsAt": FieldValue.serverTimestamp(),
-              "createdAt": FieldValue.serverTimestamp(),
-            });
-
-            try {
-              await verifiedRef.delete();
-            } catch (_) {}
-
-            print('✅ Migrated to dietitianApproval collection with pending status');
-
-            if (mounted) {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => MealPlanningScreen(userId: user!.uid),
-                ),
-              );
-            }
-          }
-
-          return;
-        }
-
-        // Case 4: No document found anywhere
-        print(
-            '⚠️ No user document found - this should not happen for verified email/password users');
-
-        await FirebaseAuth.instance.signOut();
-        if (mounted) {
-          setState(() => _isLoading = false);
-          _showErrorSnackBar("Account data not found. Please sign up again.");
-        }
+        // Email verified - proceed with post-login logic
+        await _handlePostLogin(user);
       }
     } on FirebaseAuthException catch (e) {
       String errorMessage = "Login failed";
@@ -1377,272 +219,188 @@ class _LoginPageState extends State<LoginPageMobile> with TickerProviderStateMix
     }
   }
 
-  // Add this method to show unverified account dialog
-  Future<void> _showUnverifiedAccountDialog(User user) async {
-    await showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) =>
-          Dialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(
-                20)),
-            child: Container(
-              padding: const EdgeInsets.all(30),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(20),
-                color: _cardBgColor(context),
-              ),
-              child: Column(
+  // Handle postLogin
+  Future<void> _handlePostLogin(User user) async {
+    await user.reload();
+    user = FirebaseAuth.instance.currentUser!;
+
+    final usersRef = FirebaseFirestore.instance.collection("Users").doc(user.uid);
+    final dietitianRef = FirebaseFirestore.instance.collection("dietitianApproval").doc(user.uid);
+
+    DocumentSnapshot userSnap = await usersRef.get();
+    DocumentSnapshot dietitianSnap = await dietitianRef.get();
+
+    String role = "user";
+    bool hasCompletedTutorial = false;
+
+    // Case 1: User exists in Users collection
+    if (userSnap.exists) {
+      final userData = userSnap.data() as Map<String, dynamic>?;
+      role = userData?['role'] ?? "user";
+      hasCompletedTutorial = userData?['hasCompletedTutorial'] ?? false;
+      bool isDeactivated = userData?['deactivated'] ?? false;
+
+      if (isDeactivated) {
+        if (mounted) {
+          setState(() => _isLoading = false);
+          await AuthDialogs.showDeactivatedAccountDialog(context);
+        }
+        return;
+      }
+
+      if (role == "user") {
+        if (hasCompletedTutorial) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const home()),
+          );
+        }
+      } else if (role == "dietitian") {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const HomePageDietitian()),
+        );
+      }
+      return;
+    }
+
+    // Case 2: User exists in dietitianApproval collection
+    if (dietitianSnap.exists) {
+      final dietitianData = dietitianSnap.data() as Map<String, dynamic>?;
+      String status = dietitianData?['status'] ?? 'pending';
+      bool isDeactivated = dietitianData?['deactivated'] ?? false;
+
+      if (isDeactivated) {
+        if (mounted) {
+          setState(() => _isLoading = false);
+          await AuthDialogs.showDeactivatedAccountDialog(context);
+        }
+        return;
+      }
+
+      if (status == 'pending') {
+        if (mounted) {
+          setState(() => _isLoading = false);
+          await showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (dialogContext) => AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              content: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Container(
-                    width: 80,
-                    height: 80,
-                    decoration: BoxDecoration(
-                      color: Colors.orange.withOpacity(0.1),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.warning_amber_rounded,
-                      color: Colors.orange,
-                      size: 44,
-                    ),
-                  ),
-                  const SizedBox(height: 18),
-                  Text(
-                    'Email Not Verified',
-                    style: _getTextStyle(
-                      context,
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                      color: _textColorPrimary(context),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Please verify your email address (${user
-                        .email}) before logging in. Check your inbox for the verification link.',
+                  const Icon(Icons.info_outline, size: 64, color: Colors.orange),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Account Review',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.orange),
                     textAlign: TextAlign.center,
-                    style: _getTextStyle(
-                      context,
-                      fontSize: 14,
-                      color: _textColorSecondary(context),
-                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Your account is being reviewed by the admins. Please wait for approval. Thank you!',
+                    style: TextStyle(fontSize: 14, color: Colors.black87, height: 1.4),
+                    textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 24),
                   SizedBox(
                     width: double.infinity,
-                    height: 45,
                     child: ElevatedButton(
-                      onPressed: () async {
-                        try {
-                          await user.sendEmailVerification();
-                          if (mounted) {
-                            _showSuccessSnackBar(
-                                "Verification email sent! Check your inbox.");
-                          }
-                        } catch (e) {
-                          if (mounted) {
-                            if (e.toString().contains('too-many-requests')) {
-                              _showErrorSnackBar(
-                                  "Too many requests. Please wait before trying again.");
-                            } else {
-                              _showErrorSnackBar(
-                                  "Failed to send email. Please try again later.");
-                            }
-                          }
-                        }
-                      },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: _primaryColor,
-                        foregroundColor: _textColorOnPrimary,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
+                        backgroundColor: Colors.orange,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       ),
-                      child: Text(
-                        'Resend Verification Email',
-                        style: _getTextStyle(
-                          context,
-                          fontWeight: FontWeight.bold,
-                          color: _textColorOnPrimary,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 45,
-                    child: OutlinedButton(
-                      onPressed: () async {
-                        // Sign out the user
-                        await FirebaseAuth.instance.signOut();
-                        if (mounted) {
-                          Navigator.of(context).pop();
-                        }
+                      onPressed: () {
+                        Navigator.of(dialogContext).pop();
+                        FirebaseAuth.instance.signOut();
                       },
-                      style: OutlinedButton.styleFrom(
-                        side: BorderSide(color: Colors.grey.shade400),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: Text(
-                        'Back to Login',
-                        style: _getTextStyle(
-                          context,
-                          color: _textColorSecondary(context),
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                      child: const Text('OK', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
                     ),
                   ),
                 ],
               ),
             ),
-          ),
-    );
-
-    // Sign out user after dialog closes
-    await FirebaseAuth.instance.signOut();
-  }
-
-  // Add this method after _showUnverifiedAccountDialog
-  Future<bool> _checkIfAccountDeactivated(String uid) async {
-    try {
-      final userDoc = await FirebaseFirestore.instance
-          .collection('Users')
-          .doc(uid)
-          .get();
-
-      if (userDoc.exists) {
-        final userData = userDoc.data() as Map<String, dynamic>?;
-        return userData?['deactivated'] ?? false;
+          );
+        }
+        return;
+      } else if (status == 'approved') {
+        bool hasCompletedTutorial = dietitianData?['hasCompletedTutorial'] ?? false;
+        if (hasCompletedTutorial) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const HomePageDietitian()),
+          );
+        } else {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => MealPlanningScreen(userId: user.uid)),
+          );
+        }
+      } else if (status == 'rejected') {
+        if (mounted) {
+          setState(() => _isLoading = false);
+          _showErrorSnackBar("Your dietitian application was not approved. Please contact support.");
+          await FirebaseAuth.instance.signOut();
+        }
       }
-      return false;
-    } catch (e) {
-      print('Error checking deactivation status: $e');
-      return false;
+      return;
+    }
+
+    // Case 3: New user - ask for role
+    String? selectedRole = await _askUserRoleDialog();
+    if (selectedRole == null) {
+      await FirebaseAuth.instance.signOut();
+      setState(() => _isLoading = false);
+      return;
+    }
+
+    String displayName = user.displayName ?? "";
+    List<String> nameParts = displayName.split(" ");
+    String firstName = nameParts.isNotEmpty ? nameParts.first : "";
+    String lastName = nameParts.length > 1 ? nameParts.sublist(1).join(" ") : "";
+
+    if (selectedRole == "user") {
+      await _authService.createRegularUserDocument(user, firstName, lastName);
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => MealPlanningScreen(userId: user.uid)),
+      );
+    } else if (selectedRole == "dietitian") {
+      await _authService.createDietitianDocument(user, firstName, lastName);
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => MealPlanningScreen(userId: user.uid)),
+      );
     }
   }
 
-// Add this method to show deactivated account dialog
-  Future<void> _showDeactivatedAccountDialog() async {
-    await showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        child: Container(
-          padding: const EdgeInsets.all(30),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(20),
-            color: _cardBgColor(context),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 80,
-                height: 80,
-                decoration: BoxDecoration(
-                  color: Colors.red.withOpacity(0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.block,
-                  color: Colors.red,
-                  size: 44,
-                ),
-              ),
-              const SizedBox(height: 18),
-              Text(
-                'Account Deactivated',
-                style: _getTextStyle(
-                  context,
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: _textColorPrimary(context),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Your account has been deactivated by the administrator. Please contact support for more information.',
-                textAlign: TextAlign.center,
-                style: _getTextStyle(
-                  context,
-                  fontSize: 14,
-                  color: _textColorSecondary(context),
-                ),
-              ),
-              const SizedBox(height: 24),
-              SizedBox(
-                width: double.infinity,
-                height: 45,
-                child: ElevatedButton(
-                  onPressed: () async {
-                    await FirebaseAuth.instance.signOut();
-                    if (mounted) {
-                      Navigator.of(context).pop();
-                    }
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.red,
-                    foregroundColor: _textColorOnPrimary,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: Text(
-                    'OK',
-                    style: _getTextStyle(
-                      context,
-                      fontWeight: FontWeight.bold,
-                      color: _textColorOnPrimary,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+  // Show unverified account dialog
+  Future<void> _showUnverifiedAccountDialog(User user) async {
+    await AuthDialogs.showUnverifiedAccountDialog(
+      context,
+      user,
+      onError: _showErrorSnackBar,
+      onSuccess: _showSuccessSnackBar,
     );
-
     await FirebaseAuth.instance.signOut();
   }
 
+  // Show deactivated account dialog
+  Future<void> _showDeactivatedAccountDialog() async {
+    await AuthDialogs.showDeactivatedAccountDialog(context);
+    await FirebaseAuth.instance.signOut();
+  }
+
+  // Handle Google sign in
   Future<void> _handleGoogleSignIn() async {
     setState(() => _isLoading = true);
     try {
-      bool isLogged = await loginWithGoogle();
-      if (isLogged && FirebaseAuth.instance.currentUser != null) {
-        User? user = FirebaseAuth.instance.currentUser;
+      bool isLogged = await _authService.loginWithGoogle();
+      if (isLogged && _authService.currentUser != null) {
+        User? user = _authService.currentUser;
+        print('✅ Google Sign-In successful');
 
-        // ✅ CHECK TERMS AGREEMENT
-        final usersRef = FirebaseFirestore.instance.collection("Users").doc(user!.uid);
-        final dietitianRef = FirebaseFirestore.instance.collection("dietitianApproval").doc(user.uid);
-
-        DocumentSnapshot userSnap = await usersRef.get();
-        DocumentSnapshot dietitianSnap = await dietitianRef.get();
-
-        bool needsToAgree = false;
-        DocumentReference? userDocRef;
-
-        if (userSnap.exists) {
-          userDocRef = usersRef;
-          final userData = userSnap.data() as Map<String, dynamic>?;
-          bool hasAgreed = userData?['checkedAgreeConditions'] ?? false;
-          needsToAgree = !hasAgreed;
-        } else if (dietitianSnap.exists) {
-          userDocRef = dietitianRef;
-          final dietitianData = dietitianSnap.data() as Map<String, dynamic>?;
-          bool hasAgreed = dietitianData?['checkedAgreeConditions'] ?? false;
-          needsToAgree = !hasAgreed;
-        }
-
-        if (needsToAgree && !_agreedToTerms) {
+        if (!_agreedToTerms) {
           if (mounted) {
             setState(() => _isLoading = false);
             _showErrorSnackBar("Please agree to the Terms and Conditions");
@@ -1650,101 +408,14 @@ class _LoginPageState extends State<LoginPageMobile> with TickerProviderStateMix
           return;
         }
 
-        // Save agreement if needed
-        if (needsToAgree && _agreedToTerms && userDocRef != null) {
-          await userDocRef.update({
-            'checkedAgreeConditions': true,
-            'agreedToTermsAt': FieldValue.serverTimestamp(),
-          });
-        }
-
-        await _handlePostLogin(user);
+        await _handlePostLogin(user!);
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  Future<bool> loginWithGoogle() async {
-    try {
-      final googleSignIn = GoogleSignIn();
-
-      await googleSignIn.signOut();
-
-      final googleUser = await googleSignIn.signIn();
-      if (googleUser == null) return false;
-
-      List<String> signInMethods =
-      await FirebaseAuth.instance.fetchSignInMethodsForEmail(googleUser.email);
-
-      if (signInMethods.contains('password')) {
-        CustomSnackBar.show(
-          context,
-          "This email is already registered using Email & Password.",
-          backgroundColor: Colors.redAccent,
-          icon: Icons.info_outline,
-        );
-        return false;
-      }
-
-      final googleAuth = await googleUser.authentication;
-      final credential = GoogleAuthProvider.credential(
-        idToken: googleAuth.idToken,
-        accessToken: googleAuth.accessToken,
-      );
-
-      UserCredential userCredential = await FirebaseAuth.instance.signInWithCredential(credential);
-      User? user = userCredential.user;
-
-      if (user != null) {
-        // ✅ FIRST: Check dietitianApproval collection (existing logic - don't change)
-        final dietitianDoc = await FirebaseFirestore.instance
-            .collection('dietitianApproval')
-            .doc(user.uid)
-            .get();
-
-        // ✅ SECOND: If NOT in dietitianApproval, check Users collection for deactivation
-        if (!dietitianDoc.exists) {
-          final userDoc = await FirebaseFirestore.instance
-              .collection('Users')
-              .doc(user.uid)
-              .get();
-
-          if (userDoc.exists) {
-            final userData = userDoc.data() as Map<String, dynamic>?;
-            bool isDeactivated = userData?['deactivated'] ?? false;
-
-            if (isDeactivated) {
-              print('⚠️ Account is deactivated (Google Sign-In - Users collection)');
-              // Sign out immediately
-              await FirebaseAuth.instance.signOut();
-              await googleSignIn.signOut();
-
-              // Show deactivation dialog
-              if (mounted) {
-                await _showDeactivatedAccountDialog();
-              }
-              return false;
-            }
-          }
-        }
-      }
-
-      return FirebaseAuth.instance.currentUser != null;
-    } catch (e) {
-      print("Google Sign-In error: $e");
-      CustomSnackBar.show(
-        context,
-        "Failed to sign in with Google.",
-        backgroundColor: Colors.redAccent,
-        icon: Icons.error_outline,
-      );
-      return false;
-    }
-  }
-
-  // ==================== SnackBars ====================
-
+  // Show error snackbar
   void _showErrorSnackBar(String message) {
     CustomSnackBar.show(
       context,
@@ -1755,6 +426,7 @@ class _LoginPageState extends State<LoginPageMobile> with TickerProviderStateMix
     );
   }
 
+  // Show success snackbar
   void _showSuccessSnackBar(String message) {
     CustomSnackBar.show(
       context,
@@ -1765,63 +437,19 @@ class _LoginPageState extends State<LoginPageMobile> with TickerProviderStateMix
     );
   }
 
-  Widget _buildBackgroundShapes(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      height: double.infinity,
-      color: _scaffoldBgColor(context),
-      child: Stack(
-        children: [
-          Positioned(
-            top: -100,
-            left: -150,
-            child: Container(
-              width: 300,
-              height: 300,
-              decoration: BoxDecoration(
-                color: _primaryColor.withOpacity(0.08),
-                shape: BoxShape.circle,
-              ),
-            ),
-          ),
-          Positioned(
-            bottom: -120,
-            right: -180,
-            child: Container(
-              width: 400,
-              height: 400,
-              decoration: BoxDecoration(
-                color: _primaryColor.withOpacity(0.08),
-                shape: BoxShape.circle,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
 
 
 
   @override
   Widget build(BuildContext context) {
-    final screenHeight = MediaQuery
-        .of(context)
-        .size
-        .height;
-    final keyboardHeight = MediaQuery
-        .of(context)
-        .viewInsets
-        .bottom;
-
     return Scaffold(
-      backgroundColor: _scaffoldBgColor(context),
+      backgroundColor: scaffoldBgColor(context),
       resizeToAvoidBottomInset: true,
       body: Stack(
         fit: StackFit.expand,
         children: [
-          _buildBackgroundShapes(context),
+          // Background decorative shapes
+          AuthUIWidgets.buildBackgroundShapes(context),
 
           SafeArea(
             child: FadeTransition(
@@ -1840,44 +468,51 @@ class _LoginPageState extends State<LoginPageMobile> with TickerProviderStateMix
                           ),
                           child: IntrinsicHeight(
                             child: Padding(
-                              padding: EdgeInsets.symmetric(
+                              padding: const EdgeInsets.symmetric(
                                 horizontal: 24,
                                 vertical: 24,
                               ),
                               child: Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
+                                  // Title
                                   Text(
                                     'Welcome!',
-                                    style: _getTextStyle(
+                                    style: getTextStyle(
                                       context,
                                       fontSize: 28,
                                       fontWeight: FontWeight.bold,
                                     ),
                                   ),
                                   const SizedBox(height: 8),
+                                  // Subtitle
                                   Text(
                                     'Sign in to continue',
-                                    style: _getTextStyle(
+                                    style: getTextStyle(
                                       context,
                                       fontSize: 16,
-                                      color: _textColorSecondary(context),
+                                      color: textColorSecondary(context),
                                     ),
                                   ),
                                   const SizedBox(height: 32),
+                                  // Form with email and password fields
                                   Form(
                                     key: _formKey,
                                     child: Column(
                                       children: [
-                                        _buildTextField(
+                                        // Email field
+                                        AuthUIWidgets.buildTextField(
+                                          context,
                                           controller: emailController,
                                           label: 'Email',
                                           icon: Icons.email_outlined,
                                           keyboardType:
-                                          TextInputType.emailAddress,
+                                              TextInputType.emailAddress,
                                         ),
                                         const SizedBox(height: 16),
-                                        _buildTextField(
+                                        // Password field
+                                        AuthUIWidgets.buildTextField(
+                                          context,
                                           controller: passController,
                                           label: 'Password',
                                           icon: Icons.lock_outline,
@@ -1889,47 +524,69 @@ class _LoginPageState extends State<LoginPageMobile> with TickerProviderStateMix
                                                   : Icons.visibility,
                                               color: Colors.grey,
                                             ),
-                                            onPressed: () =>
-                                                setState(() {
-                                                  _obscurePassword =
+                                            onPressed: () => setState(() {
+                                              _obscurePassword =
                                                   !_obscurePassword;
-                                                }),
+                                            }),
                                           ),
                                         ),
                                         const SizedBox(height: 12),
+                                        // Forgot password link
                                         Align(
                                           alignment: Alignment.centerRight,
                                           child: GestureDetector(
                                             onTap: _showForgotPasswordDialog,
                                             child: Text(
                                               "Forgot Password?",
-                                              style: _getTextStyle(
+                                              style: getTextStyle(
                                                 context,
                                                 fontSize: 14,
-                                                color: _primaryColor,
+                                                color: primaryColor,
                                                 fontWeight: FontWeight.w600,
                                               ),
                                             ),
                                           ),
                                         ),
                                         const SizedBox(height: 24),
-                                        _buildLoginButton(),
+                                        // Login button
+                                        AuthUIWidgets.buildLoginButton(
+                                          context,
+                                          isLoading: _isLoading,
+                                          onPressed: _handleLogin,
+                                        ),
                                         const SizedBox(height: 16),
-                                        _buildGoogleSignInButton(),
-                                        const SizedBox(height: 16),  // ← Add this
-                                        _buildTermsCheckbox(),
+                                        // Google sign in button
+                                        AuthUIWidgets.buildGoogleSignInButton(
+                                          context,
+                                          isLoading: _isLoading,
+                                          onPressed: _handleGoogleSignIn,
+                                        ),
+                                        const SizedBox(height: 16),
+                                        // Terms checkbox
+                                        AuthUIWidgets.buildTermsCheckbox(
+                                          context,
+                                          agreedToTerms: _agreedToTerms,
+                                          onChanged: (value) {
+                                            setState(() {
+                                              _agreedToTerms = value;
+                                            });
+                                          },
+                                          onTapTerms: () =>
+                                              showTermsAndConditions(context),
+                                        ),
                                       ],
                                     ),
                                   ),
                                   const SizedBox(height: 24),
+                                  // Sign up link
                                   Row(
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
                                       Text(
                                         "Don't have an account? ",
-                                        style: _getTextStyle(
+                                        style: getTextStyle(
                                           context,
-                                          color: _textColorSecondary(context),
+                                          color: textColorSecondary(context),
                                           fontSize: 14,
                                         ),
                                       ),
@@ -1938,17 +595,18 @@ class _LoginPageState extends State<LoginPageMobile> with TickerProviderStateMix
                                           Navigator.push(
                                             context,
                                             MaterialPageRoute(
-                                                builder: (_) =>
-                                                const signUpPage()),
+                                              builder: (_) =>
+                                                  const signUpPage(),
+                                            ),
                                           );
                                         },
                                         child: Text(
                                           "Sign Up",
-                                          style: _getTextStyle(
+                                          style: getTextStyle(
                                             context,
                                             fontWeight: FontWeight.bold,
                                             fontSize: 14,
-                                            color: _primaryColor,
+                                            color: primaryColor,
                                           ),
                                         ),
                                       ),
@@ -1972,3 +630,4 @@ class _LoginPageState extends State<LoginPageMobile> with TickerProviderStateMix
     );
   }
 }
+

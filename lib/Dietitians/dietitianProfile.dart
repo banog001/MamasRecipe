@@ -11,8 +11,8 @@ import 'app_theme.dart';
 import 'package:intl/intl.dart';
 
 const Color primaryColor = Color(0xFF4CAF50);
+const Color textColorOnPrimary = Colors.white;
 
-// 👇 PASTE THIS NEW FUNCTION HERE
 Color inputFillColor(BuildContext context) =>
     Theme.of(context).brightness == Brightness.dark
         ? Colors.grey.shade800
@@ -36,22 +36,18 @@ class _DietitianProfileState extends State<DietitianProfile> {
     final Color textPrimary = textColorPrimary(context);
     final Color textSecondary = textColorSecondary(context);
 
-    // --- NEW: BACKGROUND SHAPES WIDGET ---
     Widget _buildProfileBackground(BuildContext context) {
       final isDark = Theme.of(context).brightness == Brightness.dark;
-      // Use a subtle shade of the primary color
       final shapeColor =
       isDark ? primaryColor.withOpacity(0.08) : primaryColor.withOpacity(0.05);
 
       return Positioned.fill(
         child: Container(
-          // The base color is already set by scaffold.
-          // This container just holds the shapes.
           child: Stack(
-            clipBehavior: Clip.none, // Allow shapes to go off-screen
+            clipBehavior: Clip.none,
             children: [
               Positioned(
-                top: 80, // Will be partially under the green header
+                top: 80,
                 right: -150,
                 child: Container(
                   width: 300,
@@ -80,14 +76,12 @@ class _DietitianProfileState extends State<DietitianProfile> {
       );
     }
 
-    // --- (Your other helper methods like _getUserData, _getSubscriberCount, etc. go here) ---
-
     return FutureBuilder<Map<String, dynamic>?>(
       future: _getUserData(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return Scaffold(
-            backgroundColor: bgColor, // Use bgColor here
+            backgroundColor: bgColor,
             body: const Center(
               child: CircularProgressIndicator(color: primaryColor),
             ),
@@ -119,18 +113,13 @@ class _DietitianProfileState extends State<DietitianProfile> {
             elevation: 1,
             iconTheme: const IconThemeData(color: textColorOnPrimary),
           ),
-          // --- BODY IS NOW A STACK ---
           body: Stack(
             children: [
-              // 1. NEW: THE BACKGROUND SHAPES
               _buildProfileBackground(context),
-
-              // 2. YOUR ORIGINAL SCROLLABLE CONTENT
               SingleChildScrollView(
                 physics: const ClampingScrollPhysics(),
                 child: Column(
                   children: [
-                    // --- HEADER ---
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
@@ -237,9 +226,6 @@ class _DietitianProfileState extends State<DietitianProfile> {
                         ],
                       ),
                     ),
-
-// --- REPLACE THE PROFESSIONAL SUMMARY SECTION IN dietitianProfile.dart WITH THIS CODE ---
-
                     Padding(
                       padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
                       child: Column(
@@ -255,7 +241,6 @@ class _DietitianProfileState extends State<DietitianProfile> {
                             ),
                           ),
                           const SizedBox(height: 12),
-                          // --- BIO CARD ---
                           Container(
                             margin: const EdgeInsets.only(bottom: 12.0),
                             padding: const EdgeInsets.all(16.0),
@@ -273,13 +258,16 @@ class _DietitianProfileState extends State<DietitianProfile> {
                             child: FutureBuilder<Map<String, dynamic>?>(
                               future: _getUserData(),
                               builder: (context, snapshot) {
-                                if (snapshot.connectionState == ConnectionState.waiting) {
+                                if (snapshot.connectionState ==
+                                    ConnectionState.waiting) {
                                   return const Center(
-                                    child: CircularProgressIndicator(color: primaryColor),
+                                    child: CircularProgressIndicator(
+                                        color: primaryColor),
                                   );
                                 }
 
-                                final bio = snapshot.data?['bio'] as String? ?? 'No bio added yet';
+                                final bio = snapshot.data?['bio'] as String? ??
+                                    'No bio added yet';
 
                                 return Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -290,7 +278,8 @@ class _DietitianProfileState extends State<DietitianProfile> {
                                           padding: const EdgeInsets.all(8),
                                           decoration: BoxDecoration(
                                             color: primaryColor.withOpacity(0.1),
-                                            borderRadius: BorderRadius.circular(8),
+                                            borderRadius:
+                                            BorderRadius.circular(8),
                                           ),
                                           child: const Icon(
                                             Icons.info_outlined,
@@ -330,8 +319,6 @@ class _DietitianProfileState extends State<DietitianProfile> {
                         ],
                       ),
                     ),
-
-// --- PROFESSIONAL SUMMARY ---
                     Padding(
                       padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
                       child: Column(
@@ -347,7 +334,6 @@ class _DietitianProfileState extends State<DietitianProfile> {
                             ),
                           ),
                           const SizedBox(height: 12),
-                          // --- NEW: Redesigned Professional Summary Card ---
                           Container(
                             margin: const EdgeInsets.only(bottom: 12.0),
                             padding: const EdgeInsets.all(20.0),
@@ -365,7 +351,6 @@ class _DietitianProfileState extends State<DietitianProfile> {
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceAround,
                               children: [
-                                // --- SUBSCRIBERS STAT ---
                                 FutureBuilder<int>(
                                   future: _getSubscriberCount(),
                                   builder: (context, snapshot) {
@@ -407,13 +392,11 @@ class _DietitianProfileState extends State<DietitianProfile> {
                                     );
                                   },
                                 ),
-                                // --- DIVIDER ---
                                 Container(
                                   width: 1,
                                   height: 80,
                                   color: textSecondary.withOpacity(0.1),
                                 ),
-                                // --- PLANS CREATED STAT ---
                                 FutureBuilder<int>(
                                   future: _getPlansCreatedCount(),
                                   builder: (context, snapshot) {
@@ -455,13 +438,11 @@ class _DietitianProfileState extends State<DietitianProfile> {
                                     );
                                   },
                                 ),
-                                // --- DIVIDER ---
                                 Container(
                                   width: 1,
                                   height: 80,
                                   color: textSecondary.withOpacity(0.1),
                                 ),
-                                // --- FOLLOWERS STAT ---
                                 FutureBuilder<int>(
                                   future: _getFollowersCount(),
                                   builder: (context, snapshot) {
@@ -509,10 +490,6 @@ class _DietitianProfileState extends State<DietitianProfile> {
                         ],
                       ),
                     ),
-
-// --- REPLACE BOTH SERVICE PRICING AND DIETITIAN TOOLS SECTIONS WITH THIS ---
-
-// --- SERVICE PRICING ---
                     Padding(
                       padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
                       child: Column(
@@ -528,7 +505,6 @@ class _DietitianProfileState extends State<DietitianProfile> {
                             ),
                           ),
                           const SizedBox(height: 12),
-                          // --- PRICING CARD ---
                           Container(
                             margin: const EdgeInsets.only(bottom: 12.0),
                             padding: const EdgeInsets.all(16.0),
@@ -569,7 +545,8 @@ class _DietitianProfileState extends State<DietitianProfile> {
                                   const SizedBox(width: 16),
                                   Expanded(
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                      CrossAxisAlignment.start,
                                       children: [
                                         Text(
                                           "Set Your Pricing",
@@ -604,8 +581,6 @@ class _DietitianProfileState extends State<DietitianProfile> {
                         ],
                       ),
                     ),
-
-// --- DIETITIAN TOOLS ---
                     Padding(
                       padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
                       child: Column(
@@ -621,8 +596,6 @@ class _DietitianProfileState extends State<DietitianProfile> {
                             ),
                           ),
                           const SizedBox(height: 12),
-
-                          // --- MY QR CODE CARD ---
                           Container(
                             margin: const EdgeInsets.only(bottom: 12.0),
                             padding: const EdgeInsets.all(16.0),
@@ -642,7 +615,8 @@ class _DietitianProfileState extends State<DietitianProfile> {
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                    builder: (context) => const DietitianQRCodePage(),
+                                    builder: (context) =>
+                                    const DietitianQRCodePage(),
                                   ),
                                 );
                               },
@@ -664,7 +638,8 @@ class _DietitianProfileState extends State<DietitianProfile> {
                                   const SizedBox(width: 16),
                                   Expanded(
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                      CrossAxisAlignment.start,
                                       children: [
                                         Text(
                                           "My QR Code",
@@ -696,8 +671,6 @@ class _DietitianProfileState extends State<DietitianProfile> {
                               ),
                             ),
                           ),
-
-                          // --- CREATE & MANAGE PLANS CARD ---
                           Container(
                             margin: const EdgeInsets.only(bottom: 12.0),
                             padding: const EdgeInsets.all(16.0),
@@ -717,7 +690,8 @@ class _DietitianProfileState extends State<DietitianProfile> {
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                    builder: (context) => const CreateMealPlanPage(),
+                                    builder: (context) =>
+                                    const CreateMealPlanPage(),
                                   ),
                                 );
                               },
@@ -739,7 +713,8 @@ class _DietitianProfileState extends State<DietitianProfile> {
                                   const SizedBox(width: 16),
                                   Expanded(
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                      CrossAxisAlignment.start,
                                       children: [
                                         Text(
                                           "Create & Manage Plans",
@@ -774,13 +749,12 @@ class _DietitianProfileState extends State<DietitianProfile> {
                         ],
                       ),
                     ),
-                    const SizedBox(height: 16), // Extra padding at the bottom
+                    const SizedBox(height: 16),
                   ],
                 ),
               ),
             ],
           ),
-          // --- BOTTOM NAV BAR (Unchanged) ---
           bottomNavigationBar: Container(
             decoration: BoxDecoration(
               color: primaryColor,
@@ -840,8 +814,6 @@ class _DietitianProfileState extends State<DietitianProfile> {
       },
     );
   }
-
-  // --- HELPER FUNCTIONS (Unchanged) ---
 
   Future<Map<String, dynamic>?> _getUserData() async {
     if (user == null) return null;
@@ -934,14 +906,7 @@ class _DietitianProfileState extends State<DietitianProfile> {
   }
 }
 
-// --- All other classes like PriceHelper and PricingDialog remain unchanged ---
-// (Your file already has these, so they are not repeated here)
-
-// ============================================
-// PRICE HELPER CLASS - (This was in your file)
-// ============================================
 class PriceHelper {
-  /// Check and apply pending prices if effective date has passed
   static Future<void> checkAndApplyPendingPrices(String userId) async {
     try {
       final userDoc = await FirebaseFirestore.instance
@@ -989,9 +954,6 @@ class PriceHelper {
   }
 }
 
-// ============================================
-// PRICING DIALOG WIDGET - (This was in your file)
-// ============================================
 class PricingDialog extends StatefulWidget {
   final Map<String, dynamic>? currentPricing;
 
@@ -1078,7 +1040,7 @@ class _PricingDialogState extends State<PricingDialog> {
     if (!_formKey.currentState!.validate()) return;
 
     if (_hasExistingPricing) {
-      final confirmed = await _showConfirmationDialog(); // --- MODIFIED ---
+      final confirmed = await _showConfirmationDialog();
       if (confirmed != true) return;
     }
 
@@ -1090,9 +1052,10 @@ class _PricingDialogState extends State<PricingDialog> {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) throw Exception("User not authenticated");
 
-      final weeklyPrice = double.tryParse(_weeklyController.text) ?? 0.0;
-      final monthlyPrice = double.tryParse(_monthlyController.text) ?? 0.0;
-      final yearlyPrice = double.tryParse(_yearlyController.text) ?? 0.0;
+      // Remove commas before parsing
+      final weeklyPrice = double.tryParse(_weeklyController.text.replaceAll(',', '')) ?? 0.0;
+      final monthlyPrice = double.tryParse(_monthlyController.text.replaceAll(',', '')) ?? 0.0;
+      final yearlyPrice = double.tryParse(_yearlyController.text.replaceAll(',', '')) ?? 0.0;
 
       final effectiveDate = _calculateBusinessDays(DateTime.now(), 7);
 
@@ -1152,7 +1115,6 @@ class _PricingDialogState extends State<PricingDialog> {
     }
   }
 
-  // --- NEW: Helper to build the dialog background shapes ---
   Widget _buildDialogBackground(BuildContext context) {
     return Positioned.fill(
       child: Container(
@@ -1190,14 +1152,12 @@ class _PricingDialogState extends State<PricingDialog> {
     );
   }
 
-  // --- NEW: Redesigned Confirmation Dialog ---
   Future<bool?> _showConfirmationDialog() async {
     return showDialog<bool>(
       context: context,
       barrierDismissible: false,
-      // Use Dialog for custom shape
       builder: (context) => Dialog(
-        backgroundColor: Colors.transparent, // Make dialog transparent
+        backgroundColor: Colors.transparent,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
         ),
@@ -1205,10 +1165,7 @@ class _PricingDialogState extends State<PricingDialog> {
           borderRadius: BorderRadius.circular(16),
           child: Stack(
             children: [
-              // 1. Background shapes (from your chat dialog)
               _buildDialogBackground(context),
-
-              // 2. Content
               Padding(
                 padding:
                 const EdgeInsets.symmetric(horizontal: 24.0, vertical: 32.0),
@@ -1247,7 +1204,6 @@ class _PricingDialogState extends State<PricingDialog> {
                           fontSize: 14, color: textColorSecondary(context)),
                     ),
                     const SizedBox(height: 16),
-                    // The blue info box
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
@@ -1281,12 +1237,11 @@ class _PricingDialogState extends State<PricingDialog> {
                           fontSize: 13, color: textColorSecondary(context)),
                     ),
                     const SizedBox(height: 24),
-                    // Buttons (styled like your profile buttons)
                     Row(
                       children: [
                         Expanded(
                           child: SizedBox(
-                            height: 48, // Match profile button height
+                            height: 48,
                             child: OutlinedButton(
                               onPressed: () => Navigator.of(context).pop(false),
                               style: OutlinedButton.styleFrom(
@@ -1308,7 +1263,7 @@ class _PricingDialogState extends State<PricingDialog> {
                         const SizedBox(width: 12),
                         Expanded(
                           child: SizedBox(
-                            height: 48, // Match profile button height
+                            height: 48,
                             child: ElevatedButton(
                               onPressed: () => Navigator.of(context).pop(true),
                               style: ElevatedButton.styleFrom(
@@ -1342,7 +1297,6 @@ class _PricingDialogState extends State<PricingDialog> {
 
   Future<void> _notifySubscribers(
       String dietitianId, DateTime effectiveDate) async {
-    // ... (This logic remains unchanged)
     try {
       final dietitianDoc = await FirebaseFirestore.instance
           .collection('Users')
@@ -1403,7 +1357,6 @@ class _PricingDialogState extends State<PricingDialog> {
   }
 
   DateTime _calculateBusinessDays(DateTime startDate, int businessDays) {
-    // ... (This logic remains unchanged)
     DateTime currentDate = startDate;
     int daysAdded = 0;
     while (daysAdded < businessDays) {
@@ -1417,8 +1370,204 @@ class _PricingDialogState extends State<PricingDialog> {
   }
 
   String _formatDate(DateTime date) {
-    // ... (This logic remains unchanged)
     return DateFormat('MMMM d, yyyy').format(date);
+  }
+
+  void _showPricingInfo(BuildContext context, String title, List<String> features) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return Dialog(
+            backgroundColor: cardBgColor(context),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: primaryColor.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(
+                          Icons.info_outline,
+                          color: primaryColor,
+                          size: 24,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          title,
+                          style: getTextStyle(context,
+                              fontSize: 18, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  Text(
+                    "What's included:",
+                    style: getTextStyle(context,
+                        fontSize: 14, fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 12),
+                  ListView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: features.length,
+                    itemBuilder: (context, index) {
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              margin: const EdgeInsets.only(top: 4),
+                              width: 6,
+                              height: 6,
+                              decoration: BoxDecoration(
+                                color: primaryColor,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                features[index],
+                                style: getTextStyle(context,
+                                    fontSize: 13,
+                                    color: textColorSecondary(context)),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 24),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 44,
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: primaryColor,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: Text(
+                        "Got it",
+                        style: getTextStyle(context,
+                            fontSize: 16,
+                            color: textColorOnPrimary,
+                            fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            )
+        );
+      },
+    );
+  }
+
+  Widget _buildPriceField({
+    required BuildContext context,
+    required TextEditingController controller,
+    required String label,
+    required String hint,
+    required IconData icon,
+    List<String>? helpFeatures,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text(
+              label,
+              style: getTextStyle(context,
+                  fontSize: 14, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(width: 8),
+            if (helpFeatures != null)
+              GestureDetector(
+                onTap: () => _showPricingInfo(context, label, helpFeatures),
+                child: Container(
+                  width: 24,
+                  height: 24,
+                  decoration: BoxDecoration(
+                    border: Border.all(
+                      color: primaryColor,
+                      width: 1.5,
+                    ),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.question_mark,
+                    color: primaryColor,
+                    size: 14,
+                  ),
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        TextFormField(
+          controller: controller,
+          style: getTextStyle(context),
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          inputFormatters: [
+            FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
+          ],
+          decoration: InputDecoration(
+            hintText: hint,
+            hintStyle:
+            getTextStyle(context, color: textColorSecondary(context)),
+            prefixIcon: Icon(icon, color: primaryColor),
+            prefixText: "₱ ",
+            prefixStyle:
+            getTextStyle(context, fontWeight: FontWeight.w500),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.grey.shade300),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: primaryColor, width: 2),
+            ),
+            filled: true,
+            fillColor: inputFillColor(context),
+            contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          ),
+          validator: (value) {
+            if (value == null || value.isEmpty) {
+              return "Please enter a price";
+            }
+            final price = double.tryParse(value);
+            if (price == null || price < 0) {
+              return "Please enter a valid price";
+            }
+            return null;
+          },
+        ),
+      ],
+    );
   }
 
   @override
@@ -1427,7 +1576,7 @@ class _PricingDialogState extends State<PricingDialog> {
       return Dialog(
         backgroundColor: cardBgColor(context),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16), // --- MODIFIED ---
+          borderRadius: BorderRadius.circular(16),
         ),
         child: Padding(
           padding: const EdgeInsets.all(40.0),
@@ -1446,11 +1595,10 @@ class _PricingDialogState extends State<PricingDialog> {
       );
     }
 
-    // --- Main Dialog Build Method ---
     return Dialog(
       backgroundColor: cardBgColor(context),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16), // --- MODIFIED ---
+        borderRadius: BorderRadius.circular(16),
       ),
       child: SingleChildScrollView(
         child: Padding(
@@ -1506,6 +1654,14 @@ class _PricingDialogState extends State<PricingDialog> {
                   label: "Weekly Price",
                   hint: "Enter weekly rate",
                   icon: Icons.calendar_view_week_outlined,
+                  helpFeatures: [
+                    'Receive one (1) 7-day meal plan, personalized by your dietitian.',
+                    'Specialized messaging support: Ask specific questions about your personalized meal plan.',
+                    'Get tailored answers based on your personal preferences and health goals.',
+                    'View and download all previous meal plans posted by this dietitian.',
+                    'Full access to view and schedule your personalized meal plan in the calendar section.',
+                    'Download your meal plan as a PDF for offline viewing.',
+                  ],
                 ),
                 const SizedBox(height: 16),
                 _buildPriceField(
@@ -1514,6 +1670,15 @@ class _PricingDialogState extends State<PricingDialog> {
                   label: "Monthly Price",
                   hint: "Enter monthly rate",
                   icon: Icons.calendar_month_outlined,
+                  helpFeatures: [
+                    'Receive four (4) customized meal plans throughout the month.',
+                    'Priority messaging support for your dietary questions and concerns.',
+                    'Personalized nutrition guidance based on your specific health goals.',
+                    'Unlimited access to the complete plan library.',
+                    'Advanced calendar scheduling with meal plan tracking.',
+                    'Download all your meal plans as PDFs anytime.',
+                    'Better value compared to weekly pricing.',
+                  ],
                 ),
                 const SizedBox(height: 16),
                 _buildPriceField(
@@ -1522,14 +1687,23 @@ class _PricingDialogState extends State<PricingDialog> {
                   label: "Yearly Price",
                   hint: "Enter yearly rate",
                   icon: Icons.calendar_today_outlined,
+                  helpFeatures: [
+                    'Receive fifty-two (52) personalized meal plans throughout the year.',
+                    'Premium messaging support with priority response times.',
+                    'Comprehensive nutrition coaching and lifestyle guidance.',
+                    'Full unlimited access to the dietitian\'s plan library.',
+                    'Complete calendar management and meal plan organization.',
+                    'Batch download all yearly plans as PDFs.',
+                    'Best value offering - save more with annual commitment.',
+                    'Consistent relationship with your dedicated dietitian.',
+                  ],
                 ),
                 const SizedBox(height: 24),
-                // --- MODIFIED: Button Row ---
                 Row(
                   children: [
                     Expanded(
                       child: SizedBox(
-                        height: 48, // Match profile button height
+                        height: 48,
                         child: OutlinedButton(
                           onPressed: _isSaving
                               ? null
@@ -1554,7 +1728,7 @@ class _PricingDialogState extends State<PricingDialog> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: SizedBox(
-                        height: 48, // Match profile button height
+                        height: 48,
                         child: ElevatedButton(
                           onPressed: _isSaving ? null : _savePricing,
                           style: ElevatedButton.styleFrom(
@@ -1594,73 +1768,8 @@ class _PricingDialogState extends State<PricingDialog> {
       ),
     );
   }
-
-  // --- Price field widget (unchanged from last time) ---
-  Widget _buildPriceField({
-    required BuildContext context,
-    required TextEditingController controller,
-    required String label,
-    required String hint,
-    required IconData icon,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: getTextStyle(context,
-              fontSize: 14, fontWeight: FontWeight.w600),
-        ),
-        const SizedBox(height: 8),
-        TextFormField(
-          controller: controller,
-          style: getTextStyle(context),
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          inputFormatters: [
-            FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
-          ],
-          decoration: InputDecoration(
-            hintText: hint,
-            hintStyle:
-            getTextStyle(context, color: textColorSecondary(context)),
-            prefixIcon: Icon(icon, color: primaryColor),
-            prefixText: "₱ ",
-            prefixStyle:
-            getTextStyle(context, fontWeight: FontWeight.w500),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: Colors.grey.shade300),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide.none,
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: primaryColor, width: 2),
-            ),
-            filled: true,
-            fillColor: inputFillColor(context),
-            contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          ),
-          validator: (value) {
-            if (value == null || value.isEmpty) {
-              return "Please enter a price";
-            }
-            final price = double.tryParse(value);
-            if (price == null || price < 0) {
-              return "Please enter a valid price";
-            }
-            return null;
-          },
-        ),
-      ],
-    );
-  }
 }
 
-// --- Function to show the pricing dialog (unchanged) ---
 Future<void> showPricingDialog(
     BuildContext context, Map<String, dynamic>? currentPricing) async {
   await showDialog(

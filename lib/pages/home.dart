@@ -514,101 +514,101 @@ class _RateUsDialogState extends State<_RateUsDialog> {
   Widget build(BuildContext context) {
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-          backgroundColor: Colors.transparent,
-          child: ScrollConfiguration(
-          behavior: ScrollConfiguration.of(context).copyWith(
+      backgroundColor: Colors.transparent,
+      child: ScrollConfiguration(
+        behavior: ScrollConfiguration.of(context).copyWith(
           scrollbars: false,
-          ),
-          child: SingleChildScrollView( // <-- ADD THIS WIDGET
+        ),
+        child: SingleChildScrollView( // <-- ADD THIS WIDGET
           child: Container( // <-- Now the Container is inside
-          decoration: BoxDecoration(
-            color: _cardBgColor(context),
-            borderRadius: BorderRadius.circular(24),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.15),
-                blurRadius: 20,
-                offset: const Offset(0, 10),
-              ),
-            ],
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Header
-              Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      _primaryColor,
-                      _primaryColor.withOpacity(0.8),
+            decoration: BoxDecoration(
+              color: _cardBgColor(context),
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.15),
+                  blurRadius: 20,
+                  offset: const Offset(0, 10),
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Header
+                Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        _primaryColor,
+                        _primaryColor.withOpacity(0.8),
+                      ],
+                    ),
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(24),
+                      topRight: Radius.circular(24),
+                    ),
+                  ),
+                  padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 20),
+                  child: Column(
+                    children: [
+                      const SizedBox(height: 16),
+                      Text(
+                        'Rate Our App',
+                        style: _getTextStyle(
+                          context,
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                          height: 1.5,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Help us improve your experience',
+                        style: _getTextStyle(
+                          context,
+                          fontSize: 14,
+                          color: Colors.white.withOpacity(0.9),
+                          height: 1.5,
+                        ),
+                      ),
                     ],
                   ),
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(24),
-                    topRight: Radius.circular(24),
-                  ),
                 ),
-                padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 20),
-                child: Column(
-                  children: [
-                    const SizedBox(height: 16),
-                    Text(
-                      'Rate Our App',
-                      style: _getTextStyle(
-                        context,
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                        height: 1.5,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Help us improve your experience',
-                      style: _getTextStyle(
-                        context,
-                        fontSize: 14,
-                        color: Colors.white.withOpacity(0.9),
-                        height: 1.5,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
 
-              // Content
-              Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Star Rating
-                    Center(
-                      child: Column(
-                        children: [
-                          Text(
-                            _selectedRating == 0
-                                ? 'Select a rating'
-                                : 'You rated: $_selectedRating ${_selectedRating == 1 ? 'star' : 'stars'}',
-                            style: _getTextStyle(
-                              context,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: _selectedRating == 0
-                                  ? _textColorSecondary(context)
-                                  : _primaryColor,
-                              height: 1.5,
+                // Content
+                Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Star Rating
+                      Center(
+                        child: Column(
+                          children: [
+                            Text(
+                              _selectedRating == 0
+                                  ? 'Select a rating'
+                                  : 'You rated: $_selectedRating ${_selectedRating == 1 ? 'star' : 'stars'}',
+                              style: _getTextStyle(
+                                context,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: _selectedRating == 0
+                                    ? _textColorSecondary(context)
+                                    : _primaryColor,
+                                height: 1.5,
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 16),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: List.generate(5, (index) {
-                              final rating = index + 1;
-                              final isSelected = _selectedRating >= rating;
+                            const SizedBox(height: 16),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: List.generate(5, (index) {
+                                final rating = index + 1;
+                                final isSelected = _selectedRating >= rating;
 
-                              return GestureDetector(
+                                return GestureDetector(
                                   onTap: () {
                                     setState(() => _selectedRating = rating);
                                   },
@@ -626,145 +626,145 @@ class _RateUsDialogState extends State<_RateUsDialog> {
                                       ),
                                     ),
                                   ),
-                              );
-                            }),
-                          ),
-                        ],
+                                );
+                              }),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
 
-                    const SizedBox(height: 28),
+                      const SizedBox(height: 28),
 
-                    // Description TextField
-                    Text(
-                      'Tell us more (Optional)',
-                      style: _getTextStyle(
-                        context,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        height: 1.5,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    TextField(
-                      controller: _descriptionController,
-                      maxLines: 4,
-                      maxLength: 300,
-                      enabled: !_isSubmitting,
-                      decoration: InputDecoration(
-                        hintText: 'Share your experience with us...',
-                        hintStyle: TextStyle(
-                          color: Colors.grey.shade400,
-                          fontFamily: _primaryFontFamily,
-                        ),
-                        filled: true,
-                        fillColor: _primaryColor.withOpacity(0.05),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(
-                            color: _primaryColor.withOpacity(0.2),
-                          ),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(
-                            color: _primaryColor,
-                            width: 2,
-                          ),
-                        ),
-                        contentPadding: const EdgeInsets.all(16),
-                        counterStyle: _getTextStyle(
+                      // Description TextField
+                      Text(
+                        'Tell us more (Optional)',
+                        style: _getTextStyle(
                           context,
-                          fontSize: 12,
-                          color: _textColorSecondary(context),
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
                           height: 1.5,
                         ),
                       ),
-                      style: _getTextStyle(
-                        context,
-                        fontSize: 14,
-                        height: 1.5,
+                      const SizedBox(height: 10),
+                      TextField(
+                        controller: _descriptionController,
+                        maxLines: 4,
+                        maxLength: 300,
+                        enabled: !_isSubmitting,
+                        decoration: InputDecoration(
+                          hintText: 'Share your experience with us...',
+                          hintStyle: TextStyle(
+                            color: Colors.grey.shade400,
+                            fontFamily: _primaryFontFamily,
+                          ),
+                          filled: true,
+                          fillColor: _primaryColor.withOpacity(0.05),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(
+                              color: _primaryColor.withOpacity(0.2),
+                            ),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(
+                              color: _primaryColor,
+                              width: 2,
+                            ),
+                          ),
+                          contentPadding: const EdgeInsets.all(16),
+                          counterStyle: _getTextStyle(
+                            context,
+                            fontSize: 12,
+                            color: _textColorSecondary(context),
+                            height: 1.5,
+                          ),
+                        ),
+                        style: _getTextStyle(
+                          context,
+                          fontSize: 14,
+                          height: 1.5,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
 
-              // Buttons
-              Padding(
-                padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: _isSubmitting
-                            ? null
-                            : () => Navigator.of(context).pop(),
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
+                // Buttons
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: _isSubmitting
+                              ? null
+                              : () => Navigator.of(context).pop(),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            side: BorderSide(
+                              color: _primaryColor.withOpacity(0.5),
+                              width: 1.5,
+                            ),
                           ),
-                          side: BorderSide(
-                            color: _primaryColor.withOpacity(0.5),
-                            width: 1.5,
-                          ),
-                        ),
-                        child: Text(
-                          'Cancel',
-                          style: _getTextStyle(
-                            context,
-                            fontSize: 15,
-                            fontWeight: FontWeight.w600,
-                            color: _primaryColor,
-                            height: 1.5,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: _isSubmitting ? null : _submitRating,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: _primaryColor,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          elevation: 4,
-                        ),
-                        child: _isSubmitting
-                            ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
-                            valueColor:
-                            AlwaysStoppedAnimation<Color>(Colors.white),
-                            strokeWidth: 2,
-                          ),
-                        )
-                            : Text(
-                          'Submit Rating',
-                          style: _getTextStyle(
-                            context,
-                            fontSize: 15,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.white,
-                            height: 1.5,
+                          child: Text(
+                            'Cancel',
+                            style: _getTextStyle(
+                              context,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                              color: _primaryColor,
+                              height: 1.5,
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                  ],
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: _isSubmitting ? null : _submitRating,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: _primaryColor,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            elevation: 4,
+                          ),
+                          child: _isSubmitting
+                              ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              valueColor:
+                              AlwaysStoppedAnimation<Color>(Colors.white),
+                              strokeWidth: 2,
+                            ),
+                          )
+                              : Text(
+                            'Submit Rating',
+                            style: _getTextStyle(
+                              context,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
+                              height: 1.5,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
-    ),
     );
   }
 }
@@ -5111,204 +5111,204 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
     });
 
     return DefaultTabController(
-      length: 2,
-      child: Scaffold(
-        backgroundColor: _scaffoldBgColor(context),
-        appBar: PreferredSize(
-          preferredSize: const Size.fromHeight(80),
-          child: AppBar(
-            backgroundColor: _primaryColor,
-            foregroundColor: _textColorOnPrimary,
-            elevation: 0,
-            automaticallyImplyLeading: false,
-            bottom: TabBar(
-              indicatorColor: Colors.white,
-              labelColor: Colors.white,
-              unselectedLabelColor: Colors.white70,
-              labelStyle: _getTextStyle(
-                context,
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: _textColorOnPrimary,
-                height: 1.5,
+        length: 2,
+        child: Scaffold(
+          backgroundColor: _scaffoldBgColor(context),
+          appBar: PreferredSize(
+            preferredSize: const Size.fromHeight(80),
+            child: AppBar(
+              backgroundColor: _primaryColor,
+              foregroundColor: _textColorOnPrimary,
+              elevation: 0,
+              automaticallyImplyLeading: false,
+              bottom: TabBar(
+                indicatorColor: Colors.white,
+                labelColor: Colors.white,
+                unselectedLabelColor: Colors.white70,
+                labelStyle: _getTextStyle(
+                  context,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: _textColorOnPrimary,
+                  height: 1.5,
+                ),
+                unselectedLabelStyle: _getTextStyle(
+                  context,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: _textColorOnPrimary.withOpacity(0.7),
+                  height: 1.5,
+                ),
+                tabs: const [
+                  Tab(
+                      icon: Icon(Icons.calendar_today, size: 20),
+                      text: 'Appointments'),
+                  Tab(
+                      icon: Icon(Icons.restaurant_menu, size: 20),
+                      text: 'Meal Plans'),
+                ],
               ),
-              unselectedLabelStyle: _getTextStyle(
-                context,
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: _textColorOnPrimary.withOpacity(0.7),
-                height: 1.5,
-              ),
-              tabs: const [
-                Tab(
-                    icon: Icon(Icons.calendar_today, size: 20),
-                    text: 'Appointments'),
-                Tab(
-                    icon: Icon(Icons.restaurant_menu, size: 20),
-                    text: 'Meal Plans'),
-              ],
             ),
           ),
-        ),
-        body: // Replace the TabBarView section in the build method with this:
+          body: // Replace the TabBarView section in the build method with this:
 
-        TabBarView(
-          children: [
-            _buildAppointmentsTab(),
-            // --- MEAL PLANS TAB WITH MANUAL TABS ---
-            Column(
-              children: [
-                // Manual Tab Bar for Liked vs Personalized
-                Container(
-                  color: _cardBgColor(context),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: GestureDetector(
-                          onTap: () {
-                            setState(() {
-                              _mealPlanTabIndex = 0;
-                            });
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                                vertical: 16, horizontal: 16),
-                            decoration: BoxDecoration(
-                              border: Border(
-                                bottom: BorderSide(
-                                  color: _mealPlanTabIndex == 0
-                                      ? _primaryColor
-                                      : Colors.transparent,
-                                  width: 2,
+          TabBarView(
+            children: [
+              _buildAppointmentsTab(),
+              // --- MEAL PLANS TAB WITH MANUAL TABS ---
+              Column(
+                children: [
+                  // Manual Tab Bar for Liked vs Personalized
+                  Container(
+                    color: _cardBgColor(context),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                _mealPlanTabIndex = 0;
+                              });
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  vertical: 16, horizontal: 16),
+                              decoration: BoxDecoration(
+                                border: Border(
+                                  bottom: BorderSide(
+                                    color: _mealPlanTabIndex == 0
+                                        ? _primaryColor
+                                        : Colors.transparent,
+                                    width: 2,
+                                  ),
                                 ),
                               ),
-                            ),
-                            child: Center(
-                              child: Text(
-                                'Your Liked Plans',
-                                style: _getTextStyle(
-                                  context,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                  color: _mealPlanTabIndex == 0
-                                      ? _primaryColor
-                                      : _textColorSecondary(context),
-                                  height: 1.5,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                      Expanded(
-                        child: GestureDetector(
-                          onTap: () {
-                            setState(() {
-                              _mealPlanTabIndex = 1;
-                            });
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                                vertical: 16, horizontal: 16),
-                            decoration: BoxDecoration(
-                              border: Border(
-                                bottom: BorderSide(
-                                  color: _mealPlanTabIndex == 1
-                                      ? _primaryColor
-                                      : Colors.transparent,
-                                  width: 2,
-                                ),
-                              ),
-                            ),
-                            child: Center(
-                              child: Text(
-                                'Your Personalized Plans',
-                                style: _getTextStyle(
-                                  context,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                  color: _mealPlanTabIndex == 1
-                                      ? _primaryColor
-                                      : _textColorSecondary(context),
-                                  height: 1.5,
+                              child: Center(
+                                child: Text(
+                                  'Your Liked Plans',
+                                  style: _getTextStyle(
+                                    context,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: _mealPlanTabIndex == 0
+                                        ? _primaryColor
+                                        : _textColorSecondary(context),
+                                    height: 1.5,
+                                  ),
                                 ),
                               ),
                             ),
                           ),
                         ),
-                      ),
-                    ],
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                _mealPlanTabIndex = 1;
+                              });
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  vertical: 16, horizontal: 16),
+                              decoration: BoxDecoration(
+                                border: Border(
+                                  bottom: BorderSide(
+                                    color: _mealPlanTabIndex == 1
+                                        ? _primaryColor
+                                        : Colors.transparent,
+                                    width: 2,
+                                  ),
+                                ),
+                              ),
+                              child: Center(
+                                child: Text(
+                                  'Your Personalized Plans',
+                                  style: _getTextStyle(
+                                    context,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: _mealPlanTabIndex == 1
+                                        ? _primaryColor
+                                        : _textColorSecondary(context),
+                                    height: 1.5,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                // Tab Content
-                Expanded(
-                  child: IndexedStack(
-                    index: _mealPlanTabIndex,
-                    children: [
-                      // --- LIKED MEAL PLANS TAB ---
-                      FutureBuilder<List<Map<String, dynamic>>>(
-                        future: _fetchLikedMealPlansWithOwners(user?.uid),
-                        builder: (context, snapshot) {
-                          if (snapshot.connectionState == ConnectionState.waiting) {
-                            return const Center(
-                                child: CircularProgressIndicator(color: _primaryColor));
-                          }
+                  // Tab Content
+                  Expanded(
+                    child: IndexedStack(
+                      index: _mealPlanTabIndex,
+                      children: [
+                        // --- LIKED MEAL PLANS TAB ---
+                        FutureBuilder<List<Map<String, dynamic>>>(
+                          future: _fetchLikedMealPlansWithOwners(user?.uid),
+                          builder: (context, snapshot) {
+                            if (snapshot.connectionState == ConnectionState.waiting) {
+                              return const Center(
+                                  child: CircularProgressIndicator(color: _primaryColor));
+                            }
 
-                          if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                            return _buildEmptyState(
-                              "No Liked Plans",
-                              "Like a meal plan from the Home feed to see it here.",
-                              Icons.favorite_border,
-                            );
-                          }
+                            if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                              return _buildEmptyState(
+                                "No Liked Plans",
+                                "Like a meal plan from the Home feed to see it here.",
+                                Icons.favorite_border,
+                              );
+                            }
 
-                          final mealPlans = snapshot.data!;
+                            final mealPlans = snapshot.data!;
 
-                          if (_weeklySchedule.isEmpty && !_isLoadingSchedule) {
-                            WidgetsBinding.instance.addPostFrameCallback((_) {
-                              _loadScheduledMealPlans();
-                            });
-                          }
+                            if (_weeklySchedule.isEmpty && !_isLoadingSchedule) {
+                              WidgetsBinding.instance.addPostFrameCallback((_) {
+                                _loadScheduledMealPlans();
+                              });
+                            }
 
-                          return _buildMealPlansContent(mealPlans, user, orderedDays);
-                        },
-                      ),
-                      // --- PERSONALIZED MEAL PLANS TAB ---
-                      FutureBuilder<List<Map<String, dynamic>>>(
-                        future: _fetchPersonalizedMealPlans(user?.uid),
-                        builder: (context, snapshot) {
-                          if (snapshot.connectionState == ConnectionState.waiting) {
-                            return const Center(
-                                child: CircularProgressIndicator(color: _primaryColor));
-                          }
+                            return _buildMealPlansContent(mealPlans, user, orderedDays);
+                          },
+                        ),
+                        // --- PERSONALIZED MEAL PLANS TAB ---
+                        FutureBuilder<List<Map<String, dynamic>>>(
+                          future: _fetchPersonalizedMealPlans(user?.uid),
+                          builder: (context, snapshot) {
+                            if (snapshot.connectionState == ConnectionState.waiting) {
+                              return const Center(
+                                  child: CircularProgressIndicator(color: _primaryColor));
+                            }
 
-                          if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                            return _buildEmptyState(
-                              "No Personalized Plans",
-                              "Your dietitian will create personalized meal plans for you here.",
-                              Icons.assignment,
-                            );
-                          }
+                            if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                              return _buildEmptyState(
+                                "No Personalized Plans",
+                                "Your dietitian will create personalized meal plans for you here.",
+                                Icons.assignment,
+                              );
+                            }
 
-                          final mealPlans = snapshot.data!;
+                            final mealPlans = snapshot.data!;
 
-                          if (_weeklySchedule.isEmpty && !_isLoadingSchedule) {
-                            WidgetsBinding.instance.addPostFrameCallback((_) {
-                              _loadScheduledMealPlans();
-                            });
-                          }
+                            if (_weeklySchedule.isEmpty && !_isLoadingSchedule) {
+                              WidgetsBinding.instance.addPostFrameCallback((_) {
+                                _loadScheduledMealPlans();
+                              });
+                            }
 
-                          return _buildMealPlansContent(mealPlans, user, orderedDays);
-                        },
-                      ),
-                    ],
+                            return _buildMealPlansContent(mealPlans, user, orderedDays);
+                          },
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      )
+                ],
+              ),
+            ],
+          ),
+        )
     );
   }
 
@@ -5843,9 +5843,9 @@ class _UserSchedulePageState extends State<UserSchedulePage> {
                               )
                             else
                               _buildScheduledMealPlanContent(
-                              plan,
-                              user,
-                              isPersonalized: isPersonalized,)
+                                plan,
+                                user,
+                                isPersonalized: isPersonalized,)
                           ],
                         ),
                       );
@@ -6446,7 +6446,7 @@ class _UsersListPageState extends State<UsersListPage> {
   Future<List<QueryDocumentSnapshot>> _getChatPartners() async {
     final usersSnapshot = await FirebaseFirestore.instance
         .collection("Users")
-        .where("role", isEqualTo: "dietitian")
+        .where("role", whereIn: ["dietitian", "admin"])
         .get();
 
     final currentUser = FirebaseAuth.instance.currentUser;
@@ -7477,4 +7477,3 @@ class _UsersListPageState extends State<UsersListPage> {
     );
   }
 }
-

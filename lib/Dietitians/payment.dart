@@ -262,21 +262,27 @@ class _PaymentPageState extends State<PaymentPage> {
     );
   }
 
+  String formatCurrencyDisplay(double amount) {
+    final formatter = NumberFormat('#,##0', 'en_US');
+    return '₱${formatter.format(amount.toInt())}';
+  }
+
   Widget _buildPaymentMetricsGrid(BuildContext context, Map<String, dynamic> paymentData) {
     final metrics = [
       {
-        'value': '₱${(paymentData['totalRevenue'] as double).toStringAsFixed(0)}',        'label': 'Total Revenue',
+        'value': formatCurrencyDisplay(paymentData['totalRevenue'] as double),
+        'label': 'Total Revenue',
         'icon': Icons.trending_up_rounded,
         'color': const Color(0xFF2196F3),
       },
       {
-        'value': '₱${(paymentData['dietitianEarnings'] as double).toStringAsFixed(0)}',
+        'value': formatCurrencyDisplay(paymentData['dietitianEarnings'] as double),
         'label': 'Your Earnings',
         'icon': Icons.account_balance_wallet_rounded,
         'color': const Color(0xFF4CAF50),
       },
       {
-        'value': '₱${(paymentData['totalCommissionOwed'] as double).toStringAsFixed(0)}',
+        'value': formatCurrencyDisplay(paymentData['totalCommissionOwed'] as double),
         'label': 'Amount Due',
         'icon': FontAwesomeIcons.pesoSign,
         'color': Colors.red.shade600,
@@ -443,9 +449,9 @@ class _PaymentPageState extends State<PaymentPage> {
           const SizedBox(height: 10),
           _buildDetailRow(context, 'Rate', '${rate.toStringAsFixed(0)}%', Colors.grey),
           const SizedBox(height: 8),
-          _buildDetailRow(context, 'Revenue', '₱${rev.toStringAsFixed(2)}', Colors.blue),
+          _buildDetailRow(context, 'Revenue', formatCurrencyDisplay(rev), Colors.blue),
           const SizedBox(height: 8),
-          _buildDetailRow(context, 'Commission', '₱${comm.toStringAsFixed(2)}', Colors.red.shade600),
+          _buildDetailRow(context, 'Commission', formatCurrencyDisplay(comm), Colors.red.shade600),
         ],
       ),
     );
@@ -560,8 +566,9 @@ class _PaymentPageState extends State<PaymentPage> {
             const SizedBox(height: 12),
             _buildDetailRow(context, 'Price', priceString, _textColorPrimary(context)),
             const SizedBox(height: 8),
-            _buildDetailRow(context, 'Earnings', '₱${earnings.toStringAsFixed(2)}', Colors.green),            const SizedBox(height: 8),
-            _buildDetailRow(context, 'Commission (${(commissionRate * 100).toStringAsFixed(0)}%)', '₱${commission.toStringAsFixed(2)}',                Colors.red.shade600),
+            _buildDetailRow(context, 'Earnings', formatCurrencyDisplay(earnings), Colors.green),
+            const SizedBox(height: 8),
+            _buildDetailRow(context, 'Commission (${(commissionRate * 100).toStringAsFixed(0)}%)', formatCurrencyDisplay(commission), Colors.red.shade600),
           ],
         ),
       ),

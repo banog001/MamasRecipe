@@ -743,8 +743,23 @@ class _MealPlanningScreen3State extends State<MealPlanningScreen3> {
     final weight = double.tryParse(weightText);
     final height = double.tryParse(heightText);
 
+    // Add this validation in _saveUserData() after birthday check
+
     if (selectedBirthday == null) {
       _showErrorSnackBar("Please select your birthday");
+      _scrollToKey(_personalInfoKey);
+      return;
+    }
+
+    final int age = _calculateAge(selectedBirthday!);
+    if (age < 18) {
+      _showErrorSnackBar("You must be at least 18 years old to continue");
+      _scrollToKey(_personalInfoKey);
+      return;
+    }
+
+    if (selectedGender == null) {
+      _showErrorSnackBar("Please select your gender");
       _scrollToKey(_personalInfoKey);
       return;
     }
@@ -806,7 +821,6 @@ class _MealPlanningScreen3State extends State<MealPlanningScreen3> {
       return;
     }
 
-    final int age = _calculateAge(selectedBirthday!);
     final String healthGoal = healthGoals[selectedHealthGoalIndex!]["text"];
     final String activityLevel = activityLevels[selectedActivityLevelIndex!]["text"];
     final double bmi = _calculateBMI(weight, height);

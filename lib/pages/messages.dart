@@ -565,12 +565,25 @@ class _MessagesPageState extends State<MessagesPage> {
                   child: StreamBuilder<DocumentSnapshot>(
                     stream: _firestore
                         .collection('Users')
-                        .doc(widget.receiverId)
-                        .collection('subscriber')
                         .doc(widget.currentUserId)
+                        .collection('subscribeTo')
+                        .doc(widget.receiverId)
                         .snapshots(),
                     builder: (context, snapshot) {
-                      final isSubscribed = snapshot.hasData && snapshot.data!.exists;
+                      bool isSubscribed = false;
+                      bool isActive = false;
+
+                      if (snapshot.hasData && snapshot.data!.exists) {
+                        final data = snapshot.data!.data() as Map<String, dynamic>;
+                        final status = (data['status'] ?? '').toString().toLowerCase();
+
+                        // Check if subscription exists and is active
+                        isSubscribed = true;
+                        isActive = status == 'approved';
+                      }
+
+                      // User can request meal plan only if subscribed AND active
+                      final canRequestMealPlan = isSubscribed && isActive;
 
                       return Column(
                         mainAxisSize: MainAxisSize.min,
@@ -671,26 +684,27 @@ class _MessagesPageState extends State<MessagesPage> {
                             ),
                           ),
                           const SizedBox(height: 16),
-                          // ✅ Updated meal plan button with pending check
                           SizedBox(
                             width: double.infinity,
                             height: 52,
                             child: ElevatedButton.icon(
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: (!isSubscribed || _hasPendingMealPlan)
+                                backgroundColor: (!canRequestMealPlan || _hasPendingMealPlan)
                                     ? Colors.grey.shade400
                                     : _primaryColor,
                                 foregroundColor: _textColorOnPrimary,
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                                elevation: (isSubscribed && !_hasPendingMealPlan) ? 4 : 0,
+                                elevation: (canRequestMealPlan && !_hasPendingMealPlan) ? 4 : 0,
                               ),
-                              onPressed: (isSubscribed && !_hasPendingMealPlan) ? () {
+                              onPressed: (canRequestMealPlan && !_hasPendingMealPlan) ? () {
                                 Navigator.pop(dialogContext);
                                 _requestPersonalizedMealPlan();
                               } : null,
                               icon: Icon(
                                 !isSubscribed
                                     ? Icons.lock_outline
+                                    : !isActive
+                                    ? Icons.error_outline
                                     : _hasPendingMealPlan
                                     ? Icons.hourglass_top_rounded
                                     : Icons.restaurant_menu_outlined,
@@ -699,6 +713,8 @@ class _MessagesPageState extends State<MessagesPage> {
                               label: Text(
                                 !isSubscribed
                                     ? "Subscribe to Request Meal Plan"
+                                    : !isActive
+                                    ? "Subscription Expired/Cancelled"
                                     : _hasPendingMealPlan
                                     ? "Meal Plan Request Pending"
                                     : "Request Personalized Meal Plan",

@@ -849,6 +849,11 @@ class _AnalyticsDashboardState extends State<AnalyticsDashboard> {
     );
   }
 
+  String formatCurrencyDisplay(double amount) {
+    final formatter = NumberFormat('#,##0', 'en_US');
+    return '₱${formatter.format(amount.toInt())}';
+  }
+
   Widget _buildMetricsGrid(BuildContext context, Map<String, dynamic> subData) {
     final metrics = [
       {
@@ -859,14 +864,14 @@ class _AnalyticsDashboardState extends State<AnalyticsDashboard> {
       },
       {
         // FIX: Removed typo '\₱' and formatted to 2 decimal places
-        'value': '₱${(subData['totalRevenue'] ?? 0.0).toStringAsFixed(2)}',
+        'value': formatCurrencyDisplay(subData['totalRevenue'] ?? 0.0),
         'label': 'Total Revenue',
         'icon': Icons.monetization_on_rounded,
         'color': const Color(0xFF2196F3),
       },
       {
         // FIX: Formatted to 2 decimal places
-        'value': '₱${(subData['overallEarnings'] ?? 0.0).toStringAsFixed(2)}',
+        'value': formatCurrencyDisplay(subData['overallEarnings'] ?? 0.0),
         'label': 'Overall Earnings',
         'icon': FontAwesomeIcons.pesoSign,
         'color': const Color(0xFFFF9800),
